@@ -14,6 +14,10 @@ All notable project changes are recorded here.
 - Readwise auth validation using the documented `GET /api/v2/auth/` contract.
 - HTTP error classification for auth, offline/network, timeout, TLS, rate limit, client and server failures.
 - Unit tests for configuration, auth request construction, token/log redaction behavior and HTTP error classification.
+- SQLite schema v1 for documents, annotation links, durable queue and sync metadata.
+- Transactional schema migration foundation with rollback and future migration backup support.
+- Storage repositories keyed by stable Reader/local IDs, with queue idempotency and stale in-flight recovery.
+- Real-SQLite CI coverage for schema constraints, rollback and storage repository invariants.
 
 ## [0.0.2] - 2026-09-22
 

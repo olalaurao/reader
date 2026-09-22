@@ -6,17 +6,19 @@
 
 ## Current milestone
 
-**Phase B — COMPLETE; Gate 1 PASSED on target PW3**
+**Phase C — storage foundation COMPLETE off-device; ready to integrate before Phase D**
 
-Gate 1 passed on the target PW3 on 2026-09-22. Phase B config/auth is implemented, CI-validated and physically validated. The validated Phase B branch is ready to merge into `main`; Phase C may begin after that integration.
+Gate 1 remains passed on the target PW3. Phase B was merged to `main` through PR #2 as `0538b00c8ac4237afd42db9ed6c8dcc0737dffdd`. Phase C C1/C2 is implemented and CI-validated. There is no physical gate between Phase C and Phase D, so Reader metadata work may begin after Phase C is integrated.
 
 ## Current branch / commit
 
-- Branch: `phase-b/config-auth-gate1`
-- Phase B base `main`: `e050f21246706ee25c79f011ba1cfdc389c827bd`
-- B1 code commit: `2b9d5ebb1ab72ad6729f474a20f7b869fc964130`
-- B2 validated code commit: `6e776d8c903b846ff5f89b0aa06a4bf88394d7f9`
-- This documentation/status update follows the validated code commit; inspect the branch tip when resuming.
+- Branch: `phase-c/storage-foundation`
+- Phase C base `main`: `0538b00c8ac4237afd42db9ed6c8dcc0737dffdd`
+- C1 schema commit: `1ad0c060a0403a17ddaa5d7f72dbb4539c4ae4e6`
+- CI dependency fix: `77ee86aa99c730d6bb8f41f9b539aada9890eafe`
+- SQLite test compatibility fix / validated C1 tip: `803e9ea1a20fdaba8b0649253ff015278a44bc3d`
+- C2 repositories commit: `123d1bb9c0e227f56c0acd7a63bca86883af8912`
+- This documentation/status update follows the validated C2 code; inspect the branch tip when resuming.
 
 ## Target environment
 
@@ -55,6 +57,59 @@ Added/updated on `phase-b/config-auth-gate1`:
 - `readwisereader.koplugin/tests/test_http.lua`
 - `readwisereader.koplugin/tests/test_reader.lua`
 - `scripts/package.sh`
+
+
+## Phase C result
+
+### C1 — SQLite/schema/migrations
+
+- Added database path `<DataStorage:getSettingsDir()>/readwisereader.sqlite3`.
+- Uses KOReader's `lua-ljsqlite3/init` in production.
+- Uses WAL when `Device:canUseWAL()` is true and TRUNCATE otherwise.
+- Enables foreign keys and a 5-second busy timeout.
+- Added schema version 1 with `PRAGMA user_version`.
+- Added transactional forward migration with rollback on failure.
+- Future nonzero schema migrations require a `.bak` copy before changing the database.
+- Added `documents`, `annotation_links`, `queue` and `sync_meta` tables plus indexes defined by the spec.
+
+### C2 — storage repositories
+
+- Added a documents repository keyed strictly by Reader document ID.
+- Remote metadata upserts preserve local path/content state.
+- Title/location changes update the same row rather than creating duplicates.
+- Temporary `raw_source_url` is intentionally not represented in the durable document repository.
+- Added annotation-link storage keeping Reader child IDs and Readwise v2 IDs separate.
+- Added durable queue insertion by unique idempotency key.
+- Duplicate enqueue returns the existing operation without replacing its payload.
+- Added startup-style recovery of stale `in_flight` queue rows back to `pending`.
+- Added `sync_meta` get/set/delete storage for future watermarks and scan markers.
+- No remote write behavior was added.
+
+### Phase C tests
+
+GitHub Actions run #17 on `803e9ea1a20fdaba8b0649253ff015278a44bc3d`: **SUCCESS**
+
+Validated C1 against real SQLite in CI:
+- fresh schema and schema version;
+- foreign keys;
+- queue uniqueness;
+- annotation foreign key;
+- transaction rollback;
+- migration rollback path;
+- package/syntax checks.
+
+GitHub Actions run #18 on `123d1bb9c0e227f56c0acd7a63bca86883af8912`: **SUCCESS**
+
+Validated C2:
+- document upsert and stable Reader identity across rename/location change;
+- preservation of local document state;
+- no persistence of temporary raw-source URL input;
+- annotation remote-link preservation across later local scans;
+- separate Reader v3 child and Readwise v2 ID fields;
+- queue idempotency;
+- stale in-flight recovery;
+- sync_meta lifecycle;
+- package/syntax checks.
 
 ## What was implemented
 
@@ -181,6 +236,9 @@ Next physical gate: **Gate 2**, after Phase C storage and Phase D Reader metadat
 
 ## Bugs / failures found
 
+- Phase C run #15 failed before tests because the workflow accidentally contained a literal `\\n` inside the apt command; the workflow was corrected.
+- Phase C run #16 reached the storage tests and exposed a test-only `lsqlite3` compatibility bug: `get_values()` already returns an array. The shim was corrected; production schema code did not require a change.
+- C1 then passed in run #17 and C2 passed in run #18.
 - No B1/B2 implementation failure remains in CI.
 - A single oversized Git-data connector request for the B2 commit was blocked by the connector before execution. Repository state was verified unchanged, and the exact work was safely retried as smaller Git object operations.
 - Direct container Git/network access remains unavailable; repository operations use the GitHub connector. This is a tooling limitation, not a repository blocker.
@@ -204,11 +262,11 @@ Next physical gate: **Gate 2**, after Phase C storage and Phase D Reader metadat
 
 None.
 
-No evidence found during Phase B requires changing `IMPLEMENTATION_SPEC.md`.
+No Phase C evidence required changing `IMPLEMENTATION_SPEC.md`. The implementation follows its SQLite schema/storage boundaries and does not persist temporary raw-source URLs.
 
 ## Blockers
 
-No Phase B blocker remains. Gate 1 passed; Phase C is authorized after the validated Phase B branch is merged into `main`.
+No Phase C blocker remains. The next hard stop is **Gate 2**, after Phase D implements a metadata-only full-library scan on the real account/PW3.
 
 Later hard gates remain:
 - Reader v3 ↔ Readwise v2 highlight ID mapping;
@@ -220,14 +278,13 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Merge the validated Phase B branch into `main` without rewriting history.
-2. Create the Phase C storage branch from updated `main`.
-3. Implement C1 SQLite/schema/migrations/unit tests.
-4. Implement C2 documents, queue, annotation-links and sync_meta repositories only after C1 is sound.
-5. Run CI and record storage results.
-6. If Phase C is sound, proceed to Phase D Reader metadata.
-7. Stop at Gate 2 for the metadata-only full-library scan on the real PW3.
-8. Do not make remote content writes in Phase C or D.
+1. Integrate the validated Phase C branch into `main` without rewriting history.
+2. Create a Phase D Reader-metadata branch from updated `main`.
+3. Implement D1: Reader v3 LIST one page and required-field parsing.
+4. Implement D2: cursor pagination, repeated-cursor guard, deduplication and rate-limit handling.
+5. Add a metadata-only device action that reports total/pages plus location/category counts and performs no downloads or remote writes.
+6. Run CI and package the Gate 2 build.
+7. Stop at **Gate 2** for the full-library metadata scan on the target PW3 before Phase E.
 
 ## Existing architectural decisions still in force
 
