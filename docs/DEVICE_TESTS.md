@@ -11,7 +11,7 @@ Do not mark a device gate complete until its result is recorded here and in `STA
 
 ## Gate 0 — plugin bootstrap
 
-Status: **pending physical test**
+Status: **PASSED — 2026-09-22**
 
 ### Before installing
 
@@ -47,4 +47,16 @@ No token is needed for this test.
 
 ### Run history
 
-No physical Gate 0 run recorded yet.
+#### 2026-09-22 — PASS
+
+Validated on the target PW3 / KOReader 2025.04 using the Gate 0 bootstrap package.
+
+User-reported results:
+- menu item **Readwise Reader** appeared: **yes**;
+- bootstrap popup opened successfully: **yes**;
+- after removing `readwisereader.koplugin/` and restarting, KOReader returned to normal baseline behavior: **yes**.
+
+Conclusion:
+- Gate 0 passed.
+- The plugin load/menu registration path and uninstall rollback are validated on the target device.
+- Phase B config/auth work may begin.
