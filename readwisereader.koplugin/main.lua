@@ -1,8 +1,17 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
+local ArticleUI = require("ui/article")
 local Config = require("config")
 local Constants = require("constants")
+local DB = require("storage/db")
+local DocumentsRepository = require("storage/documents")
+local Filenames = require("content/filenames")
+local FirstArticle = require("sync/first_article")
+local Hash = require("content/hash")
+local Html = require("content/html")
 local Http = require("api/http")
+local Installer = require("content/installer")
+local KOReaderDocuments = require("koreader/documents")
 local Reader = require("api/reader")
 local Metadata = require("sync/metadata")
 local LibraryUI = require("ui/library")
@@ -23,6 +32,26 @@ function ReadwiseReader:init()
         http = self.http,
         config = self.config,
     }
+    self.db = DB:new()
+    self.documents_repository = DocumentsRepository:new{
+        db = self.db,
+    }
+    self.koreader_documents = KOReaderDocuments:new()
+    self.first_article = FirstArticle:new{
+        reader = self.reader_api,
+        repository = self.documents_repository,
+        html = Html,
+        filenames = Filenames,
+        installer = Installer:new(),
+        hasher = Hash,
+        koreader_documents = self.koreader_documents,
+        download_root = self.config:getDownloadDirectory(),
+    }
+    self.article_ui = ArticleUI:new{
+        config = self.config,
+        coordinator = self.first_article,
+        koreader_documents = self.koreader_documents,
+    }
     self.metadata_scanner = Metadata:new{
         reader = self.reader_api,
     }
@@ -42,6 +71,7 @@ function ReadwiseReader:addToMainMenu(menu_items)
         text = _("Readwise Reader"),
         sorting_hint = "more_tools",
         sub_item_table = {
+            self.article_ui:getMenuItem(),
             self.library_ui:getScanMenuItem(),
             self.settings_ui:getSettingsMenu(),
         },
@@ -49,6 +79,9 @@ function ReadwiseReader:addToMainMenu(menu_items)
 end
 
 function ReadwiseReader:onCloseWidget()
+    if self.db then
+        self.db:close()
+    end
     if self.config then
         self.config:close()
     end
