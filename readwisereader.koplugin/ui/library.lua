@@ -121,6 +121,16 @@ function LibraryUI:scanMetadata()
         return
     end
 
+    -- KOReader 2025.04 only makes dismissableRunInSubprocess interactive
+    -- when it runs from a Trapper coroutine. Without this wrapper, Trapper
+    -- deliberately falls back to a blocking in-process call.
+    -- Keep this as the final action in the menu callback, per Trapper:wrap().
+    Trapper:wrap(function()
+        self:_scanMetadataWrapped()
+    end)
+end
+
+function LibraryUI:_scanMetadataWrapped()
     local completed, report, err = Trapper:dismissableRunInSubprocess(function()
         return self.scanner:scan()
     end, _([[Scanning Reader library metadata…
