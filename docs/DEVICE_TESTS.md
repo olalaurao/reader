@@ -293,10 +293,10 @@ Gate 2 is closed: **PASSED on 2026-09-22**.
 
 ## Gate 3 — first readable article
 
-Status: **PENDING physical test**
+Status: **RETEST REQUIRED — attempt 1 failed before selector**
 
 Build under test:
-- plugin version: `0.1.0`;
+- plugin version: `0.1.1` (retest build);
 - branch: `phase-e/first-article-gate3`;
 - E1 primitives: `655e70e76f87343bd2580d563ef6d90d75294b40`;
 - E1/E2 integrated code: `26610d04e4c3e8b0414ff40a39d244763c7328ca`;
@@ -308,6 +308,21 @@ Purpose:
 - atomically install a normal local HTML document;
 - write KOReader metadata;
 - open/read/annotate/reopen it like an ordinary KOReader document.
+
+### Gate 3 run history
+
+#### 2026-09-22 — attempt 1: FAIL before selector
+
+Build: `0.1.0`.
+
+Observed:
+- **Loading Reader articles…** appeared with the cancellation text;
+- the loading surface disappeared;
+- no article selection menu appeared afterward;
+- KOReader stayed usable;
+- no article was selected or downloaded.
+
+The 0.1.1 retest changes the UI transition so the originating TouchMenu closes first and the selector is shown on the next UI tick using KOReader's `Menu` + `CenterContainer` pattern.
 
 ### Safety / install
 
@@ -322,10 +337,11 @@ Purpose:
 
 1. Open **Tools → More tools → Readwise Reader → Download one article (Gate 3)**.
 2. A cancellable metadata-loading message should appear.
-3. An on-device list of up to 100 top-level Reader article candidates should appear.
-4. Select one ordinary article you recognize. Prefer a text article with enough content to test search/reflow and, if convenient, accents or curly punctuation.
-5. A cancellable processed-article download message should appear.
-6. After successful local installation, KOReader should open the article automatically.
+3. When it disappears, a separate on-device article selector should appear. **This is the specific 0.1.1 retest point.**
+4. The selector should contain up to 100 top-level Reader article candidates.
+5. Select one ordinary article you recognize. Prefer a text article with enough content to test search/reflow and, if convenient, accents or curly punctuation.
+6. A cancellable processed-article download message should appear.
+7. After successful local installation, KOReader should open the article automatically.
 
 Expected:
 - no crash;

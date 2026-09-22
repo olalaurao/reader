@@ -32,6 +32,8 @@ All notable project changes are recorded here.
 - Phase D merged to `main` through PR #4.
 - Experimental `0.1.0` Gate 3 flow: on-device article selection, Reader LIST-by-ID processed HTML fetch, safe stable filenames, minimal UTF-8 HTML materialization, atomic temp/fsync/rename install, SQLite local-document state, KOReader custom metadata and safe ReaderUI opening.
 - Unit coverage for Portuguese/emoji filenames, traversal/separator sanitization, UTF-8 byte truncation, body extraction, atomic no-overwrite installation, managed-file reuse and KOReader metadata/open wiring.
+- Gate 3 attempt 1 on the PW3 exposed a silent selector UI transition failure after metadata loading.
+- Experimental `0.1.1` fixes the selector transition by closing the originating TouchMenu, scheduling the selector after Trapper completion, and using KOReader's Menu + CenterContainer pattern; adds a dedicated UI flow unit test and user-visible fallbacks for selector/install/open failures.
 
 ## [0.0.2] - 2026-09-22
 

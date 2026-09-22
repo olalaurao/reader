@@ -6,9 +6,9 @@
 
 ## Current milestone
 
-**Phase E — first readable article implemented and CI-validated; Gate 3 READY for physical PW3 validation**
+**Phase E — Gate 3 attempt 1 exposed selector UI transition bug; 0.1.1 fix ready for physical retest**
 
-Gate 2 passed and Phase D was merged normally through PR #4 as `489c0eaf45359fc3025072a9ba4c52297ca134d8`. Phase E E1/E2 is now implemented off-device on `phase-e/first-article-gate3` and the integrated code passed CI. **Do not begin Phase F until Gate 3 passes on the target PW3.**
+Gate 2 passed and Phase D was merged normally through PR #4 as `489c0eaf45359fc3025072a9ba4c52297ca134d8`. Phase E E1/E2 is implemented on `phase-e/first-article-gate3`. Gate 3 attempt 1 on the target PW3 reached the cancellable article-metadata loading surface, but after it disappeared no candidate list was shown. The 0.1.1 UI transition fix is implemented and CI-validated off-device. **Do not begin Phase F until Gate 3 passes on the target PW3.**
 
 ## Current branch / commit
 
@@ -18,7 +18,10 @@ Gate 2 passed and Phase D was merged normally through PR #4 as `489c0eaf45359fc3
 - E1/E2 integrated first-article flow: `26610d04e4c3e8b0414ff40a39d244763c7328ca`
 - Run #44 on `655e70e76f87343bd2580d563ef6d90d75294b40`: **SUCCESS**
 - Run #45 on `26610d04e4c3e8b0414ff40a39d244763c7328ca`: **SUCCESS**
-- This status update follows the validated code tip; inspect the final branch tip/CI when resuming.
+- Gate 3 attempt 1 package/docs tip: `c6484ceb3dd0ca1427623921cc718e3588852e94`
+- Gate 3 selector UI fix / 0.1.1: `bd77a0024f80570af3f4031e0f159449ef62836a`
+- Run #47 on `bd77a0024f80570af3f4031e0f159449ef62836a`: **SUCCESS** (all steps completed successfully).
+- This status update follows the validated 0.1.1 code; inspect the final branch tip/CI when resuming.
 
 ## Target environment
 
@@ -199,6 +202,35 @@ Conclusion:
 - **Gate 2 PASSED.**
 - Phase D was subsequently merged to `main` through PR #4 as `489c0eaf45359fc3025072a9ba4c52297ca134d8`.
 - Phase E was unblocked.
+
+## Physical Gate 3 result — attempt 1 / FAIL before article selection
+
+Date: 2026-09-22  
+Build: `0.1.0` / package based on `c6484ceb3dd0ca1427623921cc718e3588852e94`  
+Result: **FAIL — selector UI did not appear after metadata load**
+
+Observed on the target PW3 / KOReader 2025.04:
+- **Download one article (Gate 3)** opened the visible cancellable **Loading Reader articles…** surface;
+- the loading surface disappeared normally;
+- no article selector appeared afterward;
+- KOReader returned to the existing menu and remained usable;
+- no article was selected/downloaded, so later Gate 3 rendering/annotation checks were not reached.
+
+Diagnosis:
+- the 0.1.0 Gate 3 action kept the originating TouchMenu open with `keep_menu_open=true`;
+- after the Trapper subprocess completed, it constructed and showed the candidate `Menu` directly inside the resumed Trapper coroutine;
+- KOReader's own menu flow is safer when transitioning to a separate menu after the originating TouchMenu is closed and on a later UI tick;
+- errors inside `Trapper:wrap()` are caught/logged, which matches the observed silent-return symptom.
+
+0.1.1 fix:
+- allow the originating TouchMenu to close when the Trapper job first yields;
+- after the subprocess completes, schedule candidate-selector creation with `UIManager:nextTick()`;
+- use KOReader's proven `Menu` + `CenterContainer` pattern;
+- close the selector before scheduling the chosen article download;
+- wrap selector creation, local installation and automatic opening with user-visible safe fallback messages;
+- added `test_article_ui.lua` covering the complete selector transition sequence.
+
+Gate 3 remains **OPEN** pending 0.1.1 physical retest.
 
 ## Phase E result
 
@@ -498,7 +530,7 @@ Current Reader documentation still matches the Phase D contracts already written
 
 ## Blockers
 
-**Gate 3 physical validation on the target PW3 is the only blocker to Phase F.** The first-article flow is implemented and CI-validated off-device, but rendering, KOReader controls, local annotation/sidecar behavior and reopen/progress must be proven on the real device.
+**Gate 3 physical retest with 0.1.1 on the target PW3 is the only blocker to Phase F.** Attempt 1 failed before article selection; the selector transition has been fixed and CI-validated, but the full render/KOReader-controls/annotation/reopen sequence still requires device evidence.
 
 Later hard gates remain:
 - Reader v3 ↔ Readwise v2 highlight ID mapping;
@@ -510,23 +542,25 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Package the final Phase E `0.1.0` branch tip after this ledger update and require final CI success.
-2. Install the Gate 3 package on the target PW3 while preserving `koreader/settings/readwisereader.lua`.
-3. With Wi-Fi enabled by the user outside the plugin, use **Readwise Reader → Download one article (Gate 3)**.
-4. Choose one ordinary known Reader article from the on-device selector; do not send its private title/content in chat.
-5. Verify Gate 3 on the actual article:
-   - it downloads once and opens automatically;
-   - text renders normally;
-   - Unicode/Portuguese accents/curly punctuation render;
-   - font size and margin controls reflow the article;
-   - search works;
-   - dictionary lookup UI works if a dictionary is configured;
-   - create a local highlight and local note;
-   - move reading position, close, and reopen the same local file;
-   - progress, highlight and note persist;
-   - optional but useful: disable Wi-Fi after download and confirm the local article remains readable.
-6. If Gate 3 fails, fix **Phase E only**, repackage and retest.
-7. If Gate 3 passes, record evidence in `docs/DEVICE_TESTS.md` and `STATUS.md`, merge Phase E into `main`, then create Phase F from updated `main`.
+1. Package the final Phase E `0.1.1` branch tip after this ledger update and require final CI success.
+2. Install the 0.1.1 Gate 3 retest package on the target PW3, replacing only `koreader/plugins/readwisereader.koplugin/` and preserving the token/settings.
+3. Enable Wi-Fi outside the plugin and run **Readwise Reader → Download one article (Gate 3)**.
+4. First retest only the failed transition:
+   - **Loading Reader articles…** appears;
+   - it disappears;
+   - a separate article selector appears.
+5. If the selector appears, choose one ordinary article and continue the existing Gate 3 checks:
+   - download/open;
+   - normal rendering/Unicode;
+   - font/margin reflow;
+   - search;
+   - dictionary UI if configured;
+   - local highlight + note;
+   - close/reopen;
+   - position/highlight/note persistence;
+   - no Wi-Fi control.
+6. If the selector still does not appear, collect the relevant sanitized `koreader/crash.log` tail before making another speculative UI change.
+7. If Gate 3 passes, record evidence, merge Phase E to `main`, then create Phase F from updated `main`.
 8. **Do not implement Phase F before Gate 3 passes.**
 
 ## Existing architectural decisions still in force
