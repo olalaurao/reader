@@ -3,7 +3,7 @@
 local DocumentsSync = {}
 DocumentsSync.__index = DocumentsSync
 
-local DEFAULT_OVERLAP_SECONDS = 5
+local DEFAULT_OVERLAP_SECONDS = 300
 local HTML_PAGE_LIMIT = 25
 local SUPPORTED_CATEGORIES = { article = true }
 
@@ -225,8 +225,9 @@ function DocumentsSync:sync(options)
     local started_epoch = self.now()
     local started_at = self.format_time(started_epoch)
     local previous_watermark = self.sync_meta:get("document_watermark")
+    local previous_query_after = self.sync_meta:get("document_query_after")
     local full_scan = options.full_rescan == true or previous_watermark == nil
-    local query_watermark = full_scan and nil or previous_watermark
+    local query_watermark = full_scan and nil or (previous_query_after or previous_watermark)
     local filters = self:_filters()
 
     local report = {
@@ -280,13 +281,21 @@ function DocumentsSync:sync(options)
     self.sync_meta:set("document_scan_completed_at", completed_at)
 
     if report.errors == 0 then
-        local candidate = self.format_time(math.max(0, started_epoch - self.overlap_seconds))
-        local watermark = candidate
-        if previous_watermark and previous_watermark > candidate then watermark = previous_watermark end
+        -- Canonical watermark is the scan start. Keep the precomputed
+        -- overlap lower bound separately so we do not need timezone-sensitive
+        -- ISO parsing on the Kindle.
+        local watermark = started_at
+        local query_after = self.format_time(math.max(0, started_epoch - self.overlap_seconds))
+        if previous_watermark and previous_watermark > watermark then
+            watermark = previous_watermark
+            query_after = previous_query_after or previous_watermark
+        end
         self.sync_meta:set("document_watermark", watermark)
+        self.sync_meta:set("document_query_after", query_after)
         self.sync_meta:set("last_successful_sync_at", completed_at)
         if full_scan then self.sync_meta:set("last_full_scan_at", completed_at) end
         report.watermark = watermark
+        report.query_after = query_after
         report.watermark_advanced = previous_watermark ~= watermark
     end
 
