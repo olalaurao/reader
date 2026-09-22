@@ -44,6 +44,8 @@ local function summaryText(report)
         string.format(_("Reader location changes: %d"), report.location_moved or 0),
         string.format(_("Content refresh deferred safely: %d"), report.content_refresh_deferred or 0),
         string.format(_("Filtered out: %d"), report.filtered_out or 0),
+        string.format(_("Metadata documents seen: %d"), report.metadata_seen or 0),
+        string.format(_("Active filters: %s"), report.filter_scope or _("unknown")),
         string.format(_("Errors: %d"), report.errors or 0),
         "",
         string.format(_("Metadata pages: %d"), report.metadata_pages or 0),
