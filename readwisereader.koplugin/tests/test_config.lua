@@ -59,21 +59,22 @@ return function()
     assert(config:isSyncLocationEnabled("archive") == true)
     assert(config:isSyncLocationEnabled("new") == false)
 
+    local flush_before_token = settings.flush_count
     local ok, err = config:setAccessToken("   ")
     assert(ok == false)
     assert(err == "empty")
-    assert(settings.flush_count == 0)
+    assert(settings.flush_count == flush_before_token)
 
     ok = config:setAccessToken("  abc123  ")
     assert(ok == true)
     assert(config:getAccessToken() == "abc123")
     assert(config:hasAccessToken() == true)
-    assert(settings.flush_count == 1)
+    assert(settings.flush_count == flush_before_token + 1)
 
     config:clearAccessToken()
     assert(config:getAccessToken() == nil)
     assert(config:hasAccessToken() == false)
-    assert(settings.flush_count == 2)
+    assert(settings.flush_count == flush_before_token + 2)
 
     config:close()
     assert(settings.close_count == 1)
