@@ -4,7 +4,7 @@ A KOReader plugin project for using a Kindle as an offline reading client for Re
 
 ## Current status
 
-**Phase A / Gate 0 and Phase B / Gate 1 are complete; Phase C storage is integrated; Phase D Reader metadata is implemented and CI-validated.** The current experimental build is `0.0.4` and is waiting on a **Gate 2 responsiveness/cancellation retest** on the target Kindle Paperwhite 3 / KOReader 2025.04. The first full metadata traversal already completed successfully on-device (25 API pages / 1329 top-level documents), but the 0.0.3 UI blocked because its Trapper subprocess call was not wrapped in a Trapper coroutine.
+**Phase A / Gate 0 and Phase B / Gate 1 are complete; Phase C storage is integrated; Phase D Reader metadata is implemented and CI-validated.** Gate 2 has **passed** on the target Kindle Paperwhite 3 / KOReader 2025.04. The real Reader library traversal completed (25 API pages / 1329 top-level documents), and the corrected 0.0.4 scan is visibly rendered, cancellable and responsive without changing Wi-Fi state or downloading/modifying documents. Phase E (first readable article) is next.
 
 The Gate 2 action performs a metadata-only full Reader-library scan with cursor guards, ID deduplication, request pacing, bounded `Retry-After` recovery and cancellable KOReader UI. It reports counts by location/category. **It does not download or change Reader documents and does not perform remote writes.**
 

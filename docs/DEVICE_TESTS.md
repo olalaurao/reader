@@ -81,6 +81,25 @@ Diagnosis from KOReader 2025.04 source: the plugin called `Trapper:dismissableRu
 
 Gate remains open pending the fixed-build retest.
 
+#### 2026-09-22 — attempt 2: PASS
+
+Build: `0.0.4`.
+
+User-reported / visually confirmed results on target PW3 / KOReader 2025.04:
+- visible scan/cancel status surface rendered: **yes**;
+- placement was lower/left rather than centered: **yes; cosmetic only**;
+- cancellation worked: **yes**;
+- KOReader remained responsive / did not stay stuck: **yes**;
+- subsequent full scan completed and showed the full summary: **yes**;
+- plugin did not change Wi-Fi state: **yes**;
+- no document was downloaded or altered: **yes**.
+
+Combined with attempt 1's successful full traversal (25 pages / 1329 top-level documents), all Gate 2 criteria are satisfied.
+
+Conclusion:
+- **Gate 2 PASSED.**
+- Phase E may begin after Phase D is merged to `main`.
+
 ### Safety before testing
 
 1. Back up `koreader/settings/` and `koreader/plugins/`.
@@ -188,7 +207,7 @@ Gate 1 is closed; the target-device results are recorded above.
 
 ## Gate 2 — full Reader metadata scan
 
-Status: **PARTIAL PASS — 0.0.4 RETEST REQUIRED**
+Status: **PASSED — 2026-09-22**
 
 Build under retest:
 - plugin version: `0.0.4`;
@@ -285,4 +304,4 @@ For the 0.0.4 retest, return only:
 
 The detailed counts from attempt 1 are already recorded; resend them only if the new full scan differs materially or errors.
 
-Gate 2 remains open until the 0.0.4 real-device retest is recorded.
+Gate 2 is closed: **PASSED on 2026-09-22**.

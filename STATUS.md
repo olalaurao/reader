@@ -6,9 +6,9 @@
 
 ## Current milestone
 
-**Phase D — Reader metadata traversal passed physically, but Gate 2 remains OPEN pending the 0.0.4 responsiveness/cancellation retest**
+**Phase D — Reader metadata complete; Gate 2 PASSED on target PW3**
 
-Gate 1 remains passed. Phase C was merged into `main` through PR #3 as `6db5a6802c3acd7378989e3776829ec3a4c0bf65`. The first Gate 2 full-library traversal on the target PW3 completed successfully, but the 0.0.3 scan UI was blocking and showed no progress/cancel surface. The Phase D UI wiring has been fixed in 0.0.4 and CI-validated. **Do not begin Phase E until the fixed build passes the physical Gate 2 retest.**
+Gate 1 remains passed. Phase C was merged into `main` through PR #3 as `6db5a6802c3acd7378989e3776829ec3a4c0bf65`. Gate 2 now passes on the target PW3 / KOReader 2025.04: the full Reader library scan completed, the corrected 0.0.4 scan/cancel surface was visibly rendered and cancellable, the UI stayed responsive, Wi-Fi state was not changed, and no documents were downloaded or modified. Phase D is ready to merge; after merge, Phase E may begin.
 
 ## Current branch / commit
 
@@ -180,6 +180,34 @@ Fix:
 - run #35 passed.
 
 Gate 2 remains **OPEN** until the 0.0.4 device retest confirms visible progress/cancellation and a successful full scan without the blocking behavior.
+
+## Physical Gate 2 result — attempt 2 / PASS
+
+Date: 2026-09-22  
+Build: `0.0.4` / branch `phase-d/reader-metadata-gate2`  
+Result: **PASS** on the target PW3 / KOReader 2025.04.
+
+Observed:
+- the scan status/cancel surface was visibly rendered on-device; its placement was lower/left rather than centered, which is cosmetic and does not affect Gate 2 criteria;
+- tapping the visible scan surface cancelled the scan successfully;
+- KOReader remained responsive after cancellation;
+- a subsequent full metadata scan completed successfully and displayed the complete summary;
+- the scan did not leave KOReader stuck/unresponsive;
+- the plugin did not alter Wi-Fi state;
+- no Reader document was downloaded, created or changed.
+
+Combined with attempt 1, Gate 2 evidence now covers:
+- complete real-account traversal: **25 API pages / 1329 top-level documents**;
+- no cursor loop;
+- no duplicate API records emitted twice;
+- no final rate-limit failure;
+- responsive/cancellable device behavior;
+- metadata-only/read-only behavior.
+
+Conclusion:
+- **Gate 2 PASSED.**
+- Phase D can be merged to `main`.
+- Phase E is unblocked.
 
 ## Phase C result
 
@@ -394,7 +422,7 @@ Current Reader documentation still matches the Phase D contracts already written
 
 ## Blockers
 
-**Gate 2 0.0.4 physical retest on the target PW3 is the only blocker to Phase E.** The full real-account traversal is already proven on-device; the remaining device evidence is that the corrected Trapper wiring shows a responsive/cancellable scan surface and still completes the full scan normally.
+Gate 2 is passed. There is no remaining Phase D blocker to Phase E.
 
 Later hard gates remain:
 - Reader v3 ↔ Readwise v2 highlight ID mapping;
@@ -406,14 +434,20 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Install the Gate 2 retest build `0.0.4` on the target PW3, replacing only the plugin folder and preserving the existing settings/token file.
-2. Start the metadata scan and confirm the visible message **Scanning Reader library metadata… / Tap to cancel** appears instead of the UI looking frozen.
-3. First do a cancellation smoke test: tap the visible scan surface, confirm cancellation returns control to KOReader, and confirm no document is downloaded/changed.
-4. Start a second scan and let it complete; confirm it reaches the same style of full summary without UI lockup, cursor error or final rate-limit error.
-5. Explicitly confirm the plugin did not alter Wi-Fi state.
-6. If this retest passes, record Gate 2 **PASSED**, merge the validated Phase D branch into `main`, then create Phase E from updated `main`.
-7. If it fails, fix **Phase D only** and retest.
-8. Do **not** implement Phase E before Gate 2 passes.
+1. Run CI on this final Phase D tip.
+2. Merge Phase D into `main` through a normal pull request/merge, with no history rewrite.
+3. Create Phase E from updated `main`.
+4. Implement Phase E E1/E2 only until the Gate 3 package is ready:
+   - select one known article without exposing private content in logs/tests;
+   - fetch processed `html_content`;
+   - safe filename;
+   - minimal readable HTML;
+   - atomic local install;
+   - local metadata/state;
+   - open the file through KOReader's validated 2025.04 document-open path.
+5. Add automated tests for safe filename/HTML/install/API wiring where feasible.
+6. Update `STATUS.md` before stopping.
+7. Stop at Gate 3 physical validation; do not begin Phase F before Gate 3 passes.
 
 ## Existing architectural decisions still in force
 

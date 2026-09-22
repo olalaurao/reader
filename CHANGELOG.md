@@ -28,6 +28,7 @@ All notable project changes are recorded here.
 - Gate 2 device attempt 1 proved a 25-page / 1329-document real-library metadata traversal, but exposed blocking UI in the 0.0.3 build.
 - Fixed KOReader 2025.04 cancellation/progress wiring by entering `Trapper:wrap()` before `dismissableRunInSubprocess()`; experimental test build advanced to `0.0.4`.
 - Added UI wiring coverage ensuring online scans enter the Trapper coroutine and offline scans never start the subprocess.
+- Gate 2 passed on the target PW3 / KOReader 2025.04: real full-library metadata traversal, cancellation/responsiveness, no Wi-Fi control and no document mutation were all validated.
 
 ## [0.0.2] - 2026-09-22
 
