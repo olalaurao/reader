@@ -15,9 +15,9 @@ All notable project changes are recorded here.
 - HTTP error classification for auth, offline/network, timeout, TLS, rate limit, client and server failures.
 - Unit tests for configuration, auth request construction, token/log redaction behavior and HTTP error classification.
 
-## [0.0.2] - pending Gate 1 device validation
+## [0.0.2] - 2026-09-22
 
-Experimental config/auth build. It does not sync Reader library content or annotations yet.
+Config/auth build validated on the target PW3. Gate 1 passed for masked credential handling, valid and invalid authentication, offline detection without Wi-Fi control, and credential clearing. It does not sync Reader library content or annotations yet.
 
 ## [0.0.1] - 2026-09-22
 

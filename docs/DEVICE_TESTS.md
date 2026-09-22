@@ -30,12 +30,34 @@ Conclusion:
 
 ## Gate 1 — local token + authentication
 
-Status: **PENDING physical test**
+Status: **PASSED — 2026-09-22**
 
 Build under test:
 - plugin version: `0.0.2`;
 - implementation commit: `6e776d8c903b846ff5f89b0aa06a4bf88394d7f9`;
 - branch: `phase-b/config-auth-gate1`.
+
+### Run history
+
+#### 2026-09-22 — PASS
+
+Validated on the target PW3 / KOReader 2025.04 using the Gate 1 `0.0.2` package.
+
+User-reported results:
+- access-token field was password-masked: **yes**;
+- valid real token connected successfully: **yes**;
+- an invalid/incorrect token was rejected cleanly by Readwise: **yes**;
+- Wi-Fi-off path was detected as offline: **yes**;
+- the plugin did not turn Wi-Fi on: **yes**;
+- **Access token → Clear** changed the account state to not configured: **yes**;
+- no credential was shared in chat or committed to the repository.
+
+The real token was ultimately entered locally on the Kindle by editing `koreader/settings/readwisereader.lua` over USB because manual entry on the e-ink keyboard was impractical. This does not change the storage model: the token remains local plaintext in KOReader LuaSettings.
+
+Conclusion:
+- Gate 1 passed.
+- HTTPS/authentication, invalid-token handling, offline detection, no-Wi-Fi-control behavior and credential clearing are validated on the target device.
+- Phase C may begin.
 
 ### Safety before testing
 
@@ -139,4 +161,4 @@ Do not send the token. Return only:
 - any exact visible error that differed from the expected behavior;
 - if there was a crash/failure, a relevant **sanitized** `koreader/crash.log` tail with credentials removed.
 
-Gate 1 remains open until the target-device results are recorded.
+Gate 1 is closed; the target-device results are recorded above.

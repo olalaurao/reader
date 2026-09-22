@@ -6,9 +6,9 @@
 
 ## Current milestone
 
-**Phase B — config/auth implemented off-device; Gate 1 ready for physical PW3 validation**
+**Phase B — COMPLETE; Gate 1 PASSED on target PW3**
 
-Gate 0 passed on the target PW3 on 2026-09-22. Phase A was merged into `main`. Phase B B1/B2 is now implemented and CI-validated. **Do not begin Phase C until Gate 1 passes on the target PW3.**
+Gate 1 passed on the target PW3 on 2026-09-22. Phase B config/auth is implemented, CI-validated and physically validated. The validated Phase B branch is ready to merge into `main`; Phase C may begin after that integration.
 
 ## Current branch / commit
 
@@ -160,23 +160,24 @@ Against KOReader v2025.04 source:
 - Gate 0: **PASSED**.
 - B1 off-device implementation: complete.
 - B2 off-device implementation: complete.
-- **Gate 1: OPEN — physical PW3 test required next.**
+- **Gate 1: PASSED — 2026-09-22 on target PW3 / KOReader 2025.04.**
 
-## Physical tests pending
+## Physical Gate 1 result
 
-### Gate 1 — required next
+Date: 2026-09-22  
+Result: **PASS** on the target PW3 / KOReader 2025.04.
 
-Use the exact matrix in `docs/DEVICE_TESTS.md`.
+Validated:
+- token field masked;
+- valid token authenticated successfully;
+- incorrect/invalid token rejected cleanly;
+- offline state detected with Wi-Fi off;
+- plugin did not enable Wi-Fi;
+- token clear path worked without exposing the credential.
 
-Minimum required real-device evidence:
-- token field is masked;
-- saved token persists without being displayed;
-- valid token succeeds;
-- deliberately fake token is rejected cleanly;
-- Wi-Fi-off path reports offline and does not turn Wi-Fi on;
-- token can be cleared without exposure.
+The real token was entered locally through `koreader/settings/readwisereader.lua` over USB after manual Kindle entry proved impractical. No token value was shared or committed.
 
-Do not send the real token in chat or Git.
+Next physical gate: **Gate 2**, after Phase C storage and Phase D Reader metadata implementation.
 
 ## Bugs / failures found
 
@@ -207,7 +208,7 @@ No evidence found during Phase B requires changing `IMPLEMENTATION_SPEC.md`.
 
 ## Blockers
 
-The only blocker to Phase C is **Gate 1 physical validation on the target PW3**.
+No Phase B blocker remains. Gate 1 passed; Phase C is authorized after the validated Phase B branch is merged into `main`.
 
 Later hard gates remain:
 - Reader v3 ↔ Readwise v2 highlight ID mapping;
@@ -219,15 +220,14 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Install the Gate 1 `0.0.2` package on the target PW3.
-2. Run G1.1–G1.5 from `docs/DEVICE_TESTS.md`; never share the real token.
-3. Record the physical results in `docs/DEVICE_TESTS.md` and `STATUS.md`.
-4. If Gate 1 fails, fix **Phase B only**, repackage and retest.
-5. If Gate 1 passes, merge the validated Phase B branch into `main`.
-6. Create the Phase C storage branch from updated `main`.
-7. Implement C1 SQLite/schema/migrations/unit tests.
-8. Implement C2 repositories/sync_meta only after C1 is sound.
-9. Do not make remote content writes in Phase C.
+1. Merge the validated Phase B branch into `main` without rewriting history.
+2. Create the Phase C storage branch from updated `main`.
+3. Implement C1 SQLite/schema/migrations/unit tests.
+4. Implement C2 documents, queue, annotation-links and sync_meta repositories only after C1 is sound.
+5. Run CI and record storage results.
+6. If Phase C is sound, proceed to Phase D Reader metadata.
+7. Stop at Gate 2 for the metadata-only full-library scan on the real PW3.
+8. Do not make remote content writes in Phase C or D.
 
 ## Existing architectural decisions still in force
 
