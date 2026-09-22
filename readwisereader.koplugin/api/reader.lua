@@ -238,6 +238,130 @@ function Reader:listDocuments(options)
     }
 end
 
+local function copyOptions(options)
+    local copy = {}
+    for key, value in pairs(options or {}) do
+        copy[key] = value
+    end
+    return copy
+end
+
+function Reader:iterateDocuments(options, callback)
+    options = options or {}
+    callback = callback or function() end
+
+    local cursor = options.page_cursor
+    local seen_cursors = {}
+    local seen_document_ids = {}
+    local report = {
+        pages = 0,
+        received = 0,
+        unique = 0,
+        duplicates = 0,
+    }
+
+    while true do
+        if options.is_cancelled and options.is_cancelled() then
+            return nil, {
+                kind = "cancelled",
+                retryable = false,
+                message = "Reader metadata scan was cancelled.",
+                report = report,
+            }
+        end
+
+        if cursor ~= nil then
+            if seen_cursors[cursor] then
+                return nil, {
+                    kind = "pagination",
+                    retryable = false,
+                    message = "Reader returned a repeated page cursor.",
+                    cursor = cursor,
+                    report = report,
+                }
+            end
+            seen_cursors[cursor] = true
+        end
+
+        local page_options = copyOptions(options)
+        page_options.page_cursor = cursor
+        page_options.is_cancelled = nil
+
+        local page, err = self:listDocuments(page_options)
+        if not page then
+            if err then
+                err.page = report.pages + 1
+                err.report = report
+            end
+            return nil, err
+        end
+
+        report.pages = report.pages + 1
+        if #page.results == 0 and page.next_page_cursor ~= nil then
+            return nil, {
+                kind = "pagination",
+                retryable = false,
+                message = "Reader returned an empty page with another cursor.",
+                cursor = page.next_page_cursor,
+                report = report,
+            }
+        end
+
+        for _, document in ipairs(page.results) do
+            if options.is_cancelled and options.is_cancelled() then
+                return nil, {
+                    kind = "cancelled",
+                    retryable = false,
+                    message = "Reader metadata scan was cancelled.",
+                    report = report,
+                }
+            end
+
+            report.received = report.received + 1
+            if seen_document_ids[document.id] then
+                report.duplicates = report.duplicates + 1
+            else
+                seen_document_ids[document.id] = true
+                report.unique = report.unique + 1
+                local ok, callback_result = pcall(callback, document, report)
+                if not ok then
+                    return nil, {
+                        kind = "callback",
+                        retryable = false,
+                        message = "Reader document callback failed.",
+                        report = report,
+                    }
+                end
+                if callback_result == false then
+                    return nil, {
+                        kind = "cancelled",
+                        retryable = false,
+                        message = "Reader metadata scan was cancelled.",
+                        report = report,
+                    }
+                end
+            end
+        end
+
+        local next_cursor = page.next_page_cursor
+        if next_cursor == nil then
+            break
+        end
+        if seen_cursors[next_cursor] then
+            return nil, {
+                kind = "pagination",
+                retryable = false,
+                message = "Reader returned a repeated page cursor.",
+                cursor = next_cursor,
+                report = report,
+            }
+        end
+        cursor = next_cursor
+    end
+
+    return report
+end
+
 Reader._percentEncode = percentEncode
 Reader._buildListUrl = buildListUrl
 Reader._normalizeDocument = normalizeDocument
