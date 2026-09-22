@@ -25,6 +25,9 @@ All notable project changes are recorded here.
 - Bounded 429 retry handling that honors `Retry-After` and never advances a failed page cursor.
 - Cancellable Gate 2 scanning via KOReader's subprocess trap pattern so long metadata/rate-limit waits remain dismissable.
 - Unit coverage for 21-page pacing, cancellation, cursor loops, deduplication and rate-limit recovery.
+- Gate 2 device attempt 1 proved a 25-page / 1329-document real-library metadata traversal, but exposed blocking UI in the 0.0.3 build.
+- Fixed KOReader 2025.04 cancellation/progress wiring by entering `Trapper:wrap()` before `dismissableRunInSubprocess()`; experimental test build advanced to `0.0.4`.
+- Added UI wiring coverage ensuring online scans enter the Trapper coroutine and offline scans never start the subprocess.
 
 ## [0.0.2] - 2026-09-22
 
