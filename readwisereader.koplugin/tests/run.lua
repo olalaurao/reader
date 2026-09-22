@@ -8,6 +8,7 @@ local tests = {
     "tests.test_config",
     "tests.test_http",
     "tests.test_reader",
+    "tests.test_storage_db",
 }
 
 local passed = 0
