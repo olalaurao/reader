@@ -4,11 +4,9 @@ A KOReader plugin project for using a Kindle as an offline reading client for Re
 
 ## Current status
 
-**Phase A / Gate 0 and Phase B / Gate 1 are complete.** Plugin load/rollback and the config/auth flow both passed on the target Kindle Paperwhite 3 with KOReader 2025.04.
+**Phase A / Gate 0 and Phase B / Gate 1 are complete, and Phase C storage is CI-validated.** Plugin load/auth passed on the target Kindle Paperwhite 3 with KOReader 2025.04; the SQLite state foundation now covers documents, annotation links, the durable queue and sync metadata.
 
-Version `0.0.2` validated local access-token configuration, authentication, invalid-token handling, offline detection without Wi-Fi control, and token clearing. Development is moving into Phase C storage and then Phase D Reader metadata.
-
-The validated Gate 1 build still does not list, download, upload, archive or delete Reader content.
+Development is moving into **Phase D — Reader metadata**, whose next physical checkpoint is Gate 2: a metadata-only full-library scan. No document download or remote content write is enabled yet.
 
 ## Primary target
 
