@@ -41,13 +41,13 @@ end
 
 local function candidateItems(candidates, on_select)
     local items = {}
-    for _, candidate in ipairs(candidates or {}) do
+    for index, candidate in ipairs(candidates or {}) do
         local title = candidate.title
         if type(title) ~= "string" or title == "" then
             title = _("Untitled")
         end
         local reader_id = candidate.id
-        items[#items + 1] = {
+        items[index] = {
             text = title,
             mandatory = type(candidate.author) == "string" and candidate.author or nil,
             reader_id = reader_id,

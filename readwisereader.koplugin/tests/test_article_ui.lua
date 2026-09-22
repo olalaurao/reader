@@ -122,6 +122,7 @@ return function()
                     return {
                         { id = "doc-1", title = "Article one", author = "Author A" },
                         { id = "doc-2", title = "Article two" },
+                        { id = "doc-3" },
                     }
                 end,
                 getExistingPath = function() return nil end,
@@ -149,7 +150,8 @@ return function()
         show_selector()
         assert(state.menu_options ~= nil)
         assert(state.menu_options.title:find("Choose a Reader article", 1, true))
-        assert(#state.menu_options.item_table == 2)
+        assert(#state.menu_options.item_table == 3)
+        assert(state.menu_options.item_table[3].text == "Untitled", "untitled fallback must use gettext, not loop index")
         assert(state.container ~= nil)
         assert(state.shown[#state.shown] == state.container)
         assert(ui.candidate_menu == state.container)
