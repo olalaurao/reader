@@ -4,6 +4,8 @@ local Config = require("config")
 local Constants = require("constants")
 local Http = require("api/http")
 local Reader = require("api/reader")
+local Metadata = require("sync/metadata")
+local LibraryUI = require("ui/library")
 local SettingsUI = require("ui/settings")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
@@ -21,6 +23,13 @@ function ReadwiseReader:init()
         http = self.http,
         config = self.config,
     }
+    self.metadata_scanner = Metadata:new{
+        reader = self.reader_api,
+    }
+    self.library_ui = LibraryUI:new{
+        config = self.config,
+        scanner = self.metadata_scanner,
+    }
     self.settings_ui = SettingsUI:new{
         config = self.config,
         reader = self.reader_api,
@@ -33,6 +42,7 @@ function ReadwiseReader:addToMainMenu(menu_items)
         text = _("Readwise Reader"),
         sorting_hint = "more_tools",
         sub_item_table = {
+            self.library_ui:getScanMenuItem(),
             self.settings_ui:getSettingsMenu(),
         },
     }

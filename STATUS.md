@@ -6,19 +6,28 @@
 
 ## Current milestone
 
-**Phase C — storage foundation COMPLETE off-device; ready to integrate before Phase D**
+**Phase D — Reader metadata complete; Gate 2 PASSED on target PW3**
 
-Gate 1 remains passed on the target PW3. Phase B was merged to `main` through PR #2 as `0538b00c8ac4237afd42db9ed6c8dcc0737dffdd`. Phase C C1/C2 is implemented and CI-validated. There is no physical gate between Phase C and Phase D, so Reader metadata work may begin after Phase C is integrated.
+Gate 1 remains passed. Phase C was merged into `main` through PR #3 as `6db5a6802c3acd7378989e3776829ec3a4c0bf65`. Gate 2 now passes on the target PW3 / KOReader 2025.04: the full Reader library scan completed, the corrected 0.0.4 scan/cancel surface was visibly rendered and cancellable, the UI stayed responsive, Wi-Fi state was not changed, and no documents were downloaded or modified. Phase D is ready to merge; after merge, Phase E may begin.
 
 ## Current branch / commit
 
-- Branch: `phase-c/storage-foundation`
-- Phase C base `main`: `0538b00c8ac4237afd42db9ed6c8dcc0737dffdd`
-- C1 schema commit: `1ad0c060a0403a17ddaa5d7f72dbb4539c4ae4e6`
-- CI dependency fix: `77ee86aa99c730d6bb8f41f9b539aada9890eafe`
-- SQLite test compatibility fix / validated C1 tip: `803e9ea1a20fdaba8b0649253ff015278a44bc3d`
-- C2 repositories commit: `123d1bb9c0e227f56c0acd7a63bca86883af8912`
-- This documentation/status update follows the validated C2 code; inspect the branch tip when resuming.
+- Branch: `phase-d/reader-metadata-gate2`
+- Phase D base `main`: `6db5a6802c3acd7378989e3776829ec3a4c0bf65`
+- D1 LIST client: `02b749ebe0539b74cbf4cf604b7e9f006ad89c78`
+- D1 JSON-test fix / validated D1: `5b560b24b6fc908a70a5a587a6a73c7f1d5fec90`
+- D2 pagination/dedupe/cursor guards: `23456463d6de8f9e98d50275e584f7cac2762216`
+- D3 metadata-only Gate 2 UI: `d77cda0244fbda8c1d97eb4b8842d90b86d6d5be`
+- LIST pacing: `4d8f6dc7405154a599817086ddfb39dda5db325a`
+- Cancellation propagation: `859f724e2ae659ff45debef6b579dec84c1e8675`
+- Fast deterministic pacing fixtures: `5da20ae06472f02fdaae5b1bf730b2a9dd54db60`
+- Retry-After handling: `ea5ac3ff52497e83b3596461d8ec7c5bdac93dd2`
+- Final pacing-loop fix / first device-build code tip: `50fe2ad9bbb362b94eebc7d73bc30816e557965d`
+- First Gate 2 docs/package tip: `813dcbe901e54920389d9a4e7cf9c03fc8fb30cd`
+- Gate 2 UI coroutine fix / 0.0.4: `c4074d4746f77ebf28bfcee29046d97a900ff9ec`
+- UI test-fixture fixes: `b474e9622d724ff934dc13d3c65499d0e7ed57da`, `7001fd0a16959dc85ee9c64d0764ca1e7cc7312f`
+- Run #35 on `7001fd0a16959dc85ee9c64d0764ca1e7cc7312f`: **SUCCESS**.
+- This documentation/status update follows the validated 0.0.4 code; inspect the branch tip when resuming.
 
 ## Target environment
 
@@ -58,6 +67,147 @@ Added/updated on `phase-b/config-auth-gate1`:
 - `readwisereader.koplugin/tests/test_reader.lua`
 - `scripts/package.sh`
 
+
+## Phase D result
+
+### D1 — Reader v3 LIST one page
+
+- Added Reader v3 `GET /api/v3/list/` support with `Authorization: Token <TOKEN>`.
+- Added deterministic percent-encoded query construction for:
+  - `id`;
+  - `updatedAfter`;
+  - `location`;
+  - `category`;
+  - repeated `tag`;
+  - `limit` (validated 1..100);
+  - `pageCursor`;
+  - `withHtmlContent`;
+  - `withRawSourceUrl`.
+- Metadata scans explicitly request neither HTML bodies nor raw-source URLs.
+- Added JSON decoding and response-shape validation.
+- Documents without a valid Reader ID are rejected as malformed rather than silently accepted.
+- The normalized document shape includes the documented metadata needed by later phases.
+- No remote-write endpoint was added.
+
+### D2 — complete pagination / safety
+
+- Added sequential cursor pagination with `limit=100`.
+- Added repeated-cursor detection.
+- Added guard against an empty page that still advertises another cursor.
+- Deduplicates records by Reader document ID across pages while recording duplicate count.
+- Keeps only IDs in the dedupe set; it does not retain all document bodies/pages in memory.
+- Propagates partial scan metrics with failures.
+- Added cooperative cancellation checks.
+- Added proactive LIST pacing at 3.1 seconds between request starts, slightly below the documented 20 requests/minute ceiling.
+- Added bounded 429 recovery:
+  - honors numeric `Retry-After` when supplied;
+  - otherwise uses bounded 5s/15s fallback delays;
+  - retries the same page at most twice;
+  - never advances the cursor or dispatches page data before a successful response.
+- Sleep/pacing is cancellation-aware.
+
+### D3 — Gate 2 metadata-only UI
+
+- Plugin version advanced to experimental `0.0.4` after the first device scan exposed a UI/cancellation wiring bug.
+- Added **Readwise Reader → Scan Reader metadata (Gate 2)**.
+- Requires an already-configured token and checks current connectivity only; it does not enable Wi-Fi.
+- Runs the scan through `Trapper:wrap()` and then KOReader's `Trapper:dismissableRunInSubprocess`, which is the required KOReader 2025.04 pattern for a visible/dismissable subprocess operation.
+- The first 0.0.3 build omitted the outer `Trapper:wrap()`; KOReader therefore fell back to a blocking in-process execution. This is fixed in 0.0.4 and covered by a UI wiring unit test.
+- Full-library result reports:
+  - top-level Reader documents;
+  - API pages;
+  - duplicate records ignored;
+  - child records ignored;
+  - counts by Reader location;
+  - counts by category.
+- Child records with `parent_id` are counted diagnostically but never treated as top-level reading documents.
+- Gate 2 scan does **not**:
+  - download or materialize any document;
+  - request `html_content`;
+  - request `raw_source_url`;
+  - write Reader/Readwise state;
+  - enqueue annotation/archive operations;
+  - toggle Wi-Fi.
+
+### Phase D automated validation
+
+- Run #24 on `5b560b24b6fc908a70a5a587a6a73c7f1d5fec90`: **SUCCESS** — D1 request/query/parser tests.
+- Run #25 on `23456463d6de8f9e98d50275e584f7cac2762216`: **SUCCESS** — multi-page pagination, dedupe, repeated cursor, malformed empty-loop, cancellation, 429 propagation.
+- Run #26 on `d77cda0244fbda8c1d97eb4b8842d90b86d6d5be`: **SUCCESS** — metadata scanner/UI wiring and package.
+- Run #31 on `50fe2ad9bbb362b94eebc7d73bc30816e557965d`: **SUCCESS** — final Phase D code including 21-page pacing simulation, cancellation during pacing, bounded Retry-After recovery, syntax, all unit tests, package and ZIP layout.
+
+## Physical Gate 2 result — attempt 1
+
+Date: 2026-09-22  
+Build: `0.0.3` / package based on `813dcbe901e54920389d9a4e7cf9c03fc8fb30cd`  
+Result: **PARTIAL PASS — full traversal succeeded; responsiveness/cancellation failed**
+
+Observed on the target PW3 / KOReader 2025.04:
+- full metadata scan completed and reached the final report;
+- top-level documents: **1329**;
+- API pages: **25**;
+- duplicate records ignored: **0**;
+- child records ignored: **1122**;
+- locations:
+  - archive: **176**;
+  - feed: **40**;
+  - later: **51**;
+  - new: **1062**;
+- categories:
+  - article: **843**;
+  - epub: **88**;
+  - pdf: **31**;
+  - podcast: **14**;
+  - rss: **40**;
+  - video: **313**;
+- the final UI explicitly reported: **No documents were downloaded or changed.**
+- no cursor-loop, pagination error or final rate-limit failure was observed.
+
+Failure:
+- while the scan was running, no progress/cancel widget was visible;
+- the KOReader UI appeared blocked/frozen until the scan completed;
+- cancellation could therefore not be exercised.
+
+Root cause verified against the pinned KOReader 2025.04 `frontend/ui/trapper.lua`:
+- `dismissableRunInSubprocess()` is interactive only when called from a Trapper coroutine;
+- when called unwrapped, it deliberately logs a warning and falls back to a blocking in-process run;
+- the 0.0.3 Gate 2 menu path was missing the outer `Trapper:wrap()`.
+
+Fix:
+- `0.0.4` wraps the online scan as the final menu callback action with `Trapper:wrap()`;
+- the subprocess call remains inside that wrapped function;
+- added a unit test proving the online path enters `wrap()` before `dismissableRunInSubprocess()` and that the offline path starts no scan;
+- run #35 passed.
+
+Gate 2 remains **OPEN** until the 0.0.4 device retest confirms visible progress/cancellation and a successful full scan without the blocking behavior.
+
+## Physical Gate 2 result — attempt 2 / PASS
+
+Date: 2026-09-22  
+Build: `0.0.4` / branch `phase-d/reader-metadata-gate2`  
+Result: **PASS** on the target PW3 / KOReader 2025.04.
+
+Observed:
+- the scan status/cancel surface was visibly rendered on-device; its placement was lower/left rather than centered, which is cosmetic and does not affect Gate 2 criteria;
+- tapping the visible scan surface cancelled the scan successfully;
+- KOReader remained responsive after cancellation;
+- a subsequent full metadata scan completed successfully and displayed the complete summary;
+- the scan did not leave KOReader stuck/unresponsive;
+- the plugin did not alter Wi-Fi state;
+- no Reader document was downloaded, created or changed.
+
+Combined with attempt 1, Gate 2 evidence now covers:
+- complete real-account traversal: **25 API pages / 1329 top-level documents**;
+- no cursor loop;
+- no duplicate API records emitted twice;
+- no final rate-limit failure;
+- responsive/cancellable device behavior;
+- metadata-only/read-only behavior.
+
+Conclusion:
+- **Gate 2 PASSED.**
+- Phase D can be merged to `main`.
+- Phase E is unblocked.
 
 ## Phase C result
 
@@ -236,6 +386,12 @@ Next physical gate: **Gate 2**, after Phase C storage and Phase D Reader metadat
 
 ## Bugs / failures found
 
+- Gate 2 device attempt 1 proved the API traversal itself works on the real account (25 pages / 1329 top-level docs) but exposed a real PW3 UI bug: `dismissableRunInSubprocess()` was invoked without `Trapper:wrap()`, so KOReader 2025.04 fell back to blocking in-process execution. Fixed in 0.0.4.
+- Runs #33/#34 failed only in the newly-added UI test fixture while its module-cache reset was being corrected; the production fix already passed syntax. Run #35 passed the corrected fixture and full suite.
+- Phase D run #23 exposed a test-injection bug: the injected JSON decoder was shaped like KOReader's JSON module but the test supplied a function. Production parsing design was unchanged; decoder injection was simplified and run #24 passed.
+- After D3, review against the current Reader contract found that merely handling 429 was insufficient for a full library: unrestricted pagination could itself exceed the documented 20 LIST requests/minute ceiling. Proactive 3.1s request pacing was added before Gate 2.
+- Cancellation was initially not forwarded into the per-page pacing call because the copied option was cleared; this was corrected before device testing.
+- A synthetic 21-page pacing test then exposed a sub-millisecond floating-point residue loop in the simulated clock. The pacing guard now ignores <1ms residue; final run #31 passed.
 - Phase C run #15 failed before tests because the workflow accidentally contained a literal `\\n` inside the apt command; the workflow was corrected.
 - Phase C run #16 reached the storage tests and exposed a test-only `lsqlite3` compatibility bug: `get_values()` already returns an array. The shim was corrected; production schema code did not require a change.
 - C1 then passed in run #17 and C2 passed in run #18.
@@ -262,11 +418,11 @@ Next physical gate: **Gate 2**, after Phase C storage and Phase D Reader metadat
 
 None.
 
-No Phase C evidence required changing `IMPLEMENTATION_SPEC.md`. The implementation follows its SQLite schema/storage boundaries and does not persist temporary raw-source URLs.
+Current Reader documentation still matches the Phase D contracts already written in `IMPLEMENTATION_SPEC.md`: cursor pagination, `limit <= 100`, metadata toggles, 20 LIST requests/minute and `Retry-After` behavior. No spec or PLAN change was required.
 
 ## Blockers
 
-No Phase C blocker remains. The next hard stop is **Gate 2**, after Phase D implements a metadata-only full-library scan on the real account/PW3.
+Gate 2 is passed. There is no remaining Phase D blocker to Phase E.
 
 Later hard gates remain:
 - Reader v3 ↔ Readwise v2 highlight ID mapping;
@@ -278,13 +434,20 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Integrate the validated Phase C branch into `main` without rewriting history.
-2. Create a Phase D Reader-metadata branch from updated `main`.
-3. Implement D1: Reader v3 LIST one page and required-field parsing.
-4. Implement D2: cursor pagination, repeated-cursor guard, deduplication and rate-limit handling.
-5. Add a metadata-only device action that reports total/pages plus location/category counts and performs no downloads or remote writes.
-6. Run CI and package the Gate 2 build.
-7. Stop at **Gate 2** for the full-library metadata scan on the target PW3 before Phase E.
+1. Run CI on this final Phase D tip.
+2. Merge Phase D into `main` through a normal pull request/merge, with no history rewrite.
+3. Create Phase E from updated `main`.
+4. Implement Phase E E1/E2 only until the Gate 3 package is ready:
+   - select one known article without exposing private content in logs/tests;
+   - fetch processed `html_content`;
+   - safe filename;
+   - minimal readable HTML;
+   - atomic local install;
+   - local metadata/state;
+   - open the file through KOReader's validated 2025.04 document-open path.
+5. Add automated tests for safe filename/HTML/install/API wiring where feasible.
+6. Update `STATUS.md` before stopping.
+7. Stop at Gate 3 physical validation; do not begin Phase F before Gate 3 passes.
 
 ## Existing architectural decisions still in force
 

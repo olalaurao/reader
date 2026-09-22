@@ -4,9 +4,9 @@ A KOReader plugin project for using a Kindle as an offline reading client for Re
 
 ## Current status
 
-**Phase A / Gate 0 and Phase B / Gate 1 are complete, and Phase C storage is CI-validated.** Plugin load/auth passed on the target Kindle Paperwhite 3 with KOReader 2025.04; the SQLite state foundation now covers documents, annotation links, the durable queue and sync metadata.
+**Phase A / Gate 0 and Phase B / Gate 1 are complete; Phase C storage is integrated; Phase D Reader metadata is implemented and CI-validated.** Gate 2 has **passed** on the target Kindle Paperwhite 3 / KOReader 2025.04. The real Reader library traversal completed (25 API pages / 1329 top-level documents), and the corrected 0.0.4 scan is visibly rendered, cancellable and responsive without changing Wi-Fi state or downloading/modifying documents. Phase E (first readable article) is next.
 
-Development is moving into **Phase D — Reader metadata**, whose next physical checkpoint is Gate 2: a metadata-only full-library scan. No document download or remote content write is enabled yet.
+The Gate 2 action performs a metadata-only full Reader-library scan with cursor guards, ID deduplication, request pacing, bounded `Retry-After` recovery and cancellable KOReader UI. It reports counts by location/category. **It does not download or change Reader documents and does not perform remote writes.**
 
 ## Primary target
 
@@ -84,3 +84,12 @@ The ZIP root expands to `readwisereader.koplugin/`. Development tests are exclud
 This repository is licensed under AGPL-3.0. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md).
 
 The community Readwise Reader plugin is used as an architectural/reference source and is also AGPL-3.0. The current implementation follows KOReader v2025.04 patterns while replacing the legacy monolithic architecture incrementally behind physical gates.
+
+
+## Gate 2 metadata scan — pending device validation
+
+After installing the `0.0.4` Gate 2 retest build, enable Wi-Fi outside the plugin and use:
+
+**Tools → More tools → Readwise Reader → Scan Reader metadata (Gate 2)**
+
+The scan is deliberately read-only and paced for the Reader LIST limit. Follow the exact pass/fail procedure in `docs/DEVICE_TESTS.md`. Phase E document download work is blocked until this gate passes on the real PW3.
