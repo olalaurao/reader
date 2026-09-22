@@ -321,6 +321,38 @@ function Reader:listDocuments(options)
     }
 end
 
+function Reader:getDocument(reader_id, with_html_content, with_raw_source_url)
+    if type(reader_id) ~= "string" or reader_id == "" then
+        return nil, {
+            kind = "client",
+            retryable = false,
+            message = "Reader document id is required.",
+        }
+    end
+
+    local page, err = self:listDocuments{
+        id = reader_id,
+        limit = 1,
+        with_html_content = with_html_content == true,
+        with_raw_source_url = with_raw_source_url == true,
+    }
+    if not page then
+        return nil, err
+    end
+
+    for _, document in ipairs(page.results) do
+        if document.id == reader_id then
+            return document
+        end
+    end
+
+    return nil, {
+        kind = "not_found",
+        retryable = false,
+        message = "Reader document was not found.",
+    }
+end
+
 local function copyOptions(options)
     local copy = {}
     for key, value in pairs(options or {}) do

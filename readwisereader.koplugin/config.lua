@@ -40,6 +40,14 @@ function Config:hasAccessToken()
     return self:getAccessToken() ~= nil
 end
 
+function Config:getDownloadDirectory()
+    local path = self.settings:readSetting("download_directory")
+    if type(path) ~= "string" or trim(path) == "" then
+        return Constants.DEFAULT_DOWNLOAD_ROOT
+    end
+    return trim(path):gsub("/+$", "")
+end
+
 function Config:setAccessToken(value)
     local token = trim(value)
     if token == "" then

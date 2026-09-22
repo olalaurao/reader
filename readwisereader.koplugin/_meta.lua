@@ -5,5 +5,5 @@ local _ = require("gettext")
 return {
     name = "readwisereader",
     fullname = _("Readwise Reader"),
-    description = _([[Synchronize Readwise Reader content with KOReader. This experimental build fixes visible/cancellable Gate 2 metadata scanning on KOReader 2025.04.]]),
+    description = _([[Synchronize Readwise Reader content with KOReader. This experimental 0.1.2 build adds the Gate 3 first-readable-article flow.]]),
 }

@@ -1,0 +1,155 @@
+-- SPDX-License-Identifier: AGPL-3.0-only
+
+local FirstArticle = require("sync/first_article")
+
+local function newCoordinator(options)
+    options = options or {}
+    local rows = {}
+    local local_states = {}
+    local installs = {}
+    local metadata = {}
+
+    local coordinator = FirstArticle:new{
+        reader = options.reader or {
+            listDocuments = function(_, request)
+                return {
+                    results = {
+                        { id = "a", title = "A", author = "Author", category = "article" },
+                        { id = "child", title = "Child", category = "article", parent_id = "a" },
+                        { id = "pdf", title = "PDF", category = "pdf" },
+                    },
+                }
+            end,
+            getDocument = function(_, id)
+                return {
+                    id = id,
+                    title = "Olá / mundo",
+                    author = "Autora",
+                    category = "article",
+                    location = "later",
+                    updated_at = "2026-09-22T20:00:00Z",
+                    html_content = "<p>Conteúdo 🧠</p>",
+                }
+            end,
+        },
+        repository = {
+            getById = function(_, id)
+                return rows[id]
+            end,
+            upsertRemote = function(_, document)
+                rows[document.id] = rows[document.id] or { reader_id = document.id }
+                return rows[document.id]
+            end,
+            setLocalState = function(_, id, state)
+                local_states[id] = state
+                rows[id] = rows[id] or { reader_id = id }
+                for key, value in pairs(state) do
+                    rows[id][key] = value
+                end
+            end,
+        },
+        html = {
+            build = function(document)
+                return "<html>" .. document.html_content .. "</html>"
+            end,
+        },
+        filenames = {
+            build = function(_, id)
+                return "article--rw-" .. id .. ".html"
+            end,
+            joinUnderRoot = function(root, subdir, filename)
+                return root .. "/" .. subdir .. "/" .. filename
+            end,
+        },
+        installer = {
+            install = function(_, content, path)
+                installs[#installs + 1] = { content = content, path = path }
+                return { path = path }
+            end,
+        },
+        hasher = {
+            digest = function(value)
+                return "hash-" .. tostring(#value)
+            end,
+        },
+        koreader_documents = {
+            writeMetadata = function(_, path, document)
+                metadata[#metadata + 1] = { path = path, id = document.id }
+                return true
+            end,
+        },
+        download_root = "/root/Readwise",
+        now = function() return 123 end,
+        file_exists = options.file_exists or function() return false end,
+    }
+
+    return coordinator, rows, local_states, installs, metadata
+end
+
+return function()
+    do
+        local captured
+        local coordinator = newCoordinator{
+            reader = {
+                listDocuments = function(_, request)
+                    captured = request
+                    return {
+                        results = {
+                            { id = "a", title = "A", author = "Author", category = "article" },
+                            { id = "child", title = "Child", category = "article", parent_id = "a" },
+                        },
+                    }
+                end,
+            },
+        }
+        local candidates, err = coordinator:listCandidates(25)
+        assert(err == nil)
+        assert(#candidates == 1)
+        assert(candidates[1].id == "a")
+        assert(captured.category == "article")
+        assert(captured.limit == 25)
+        assert(captured.with_html_content == false)
+        assert(captured.with_raw_source_url == false)
+    end
+
+    do
+        local coordinator, rows, states, installs, metadata = newCoordinator()
+        local document, fetch_err = coordinator:fetchDocument("article-1")
+        assert(fetch_err == nil)
+        local result, install_err = coordinator:installDocument(document)
+        assert(install_err == nil)
+        assert(result.path == "/root/Readwise/Articles/article--rw-article-1.html")
+        assert(#installs == 1)
+        assert(installs[1].content:find("Conteúdo 🧠", 1, true))
+        assert(states["article-1"].local_format == "html")
+        assert(states["article-1"].download_strategy == "reader_html")
+        assert(states["article-1"].is_local_present == true)
+        assert(states["article-1"].last_materialized_at == 123)
+        assert(rows["article-1"].local_path == result.path)
+        assert(#metadata == 1)
+        assert(metadata[1].id == "article-1")
+    end
+
+    do
+        local exists = true
+        local coordinator, rows, _, installs = newCoordinator{
+            file_exists = function(path)
+                return exists and path == "/root/existing.html"
+            end,
+        }
+        rows["existing"] = {
+            reader_id = "existing",
+            local_path = "/root/existing.html",
+            is_local_present = true,
+        }
+        assert(coordinator:getExistingPath("existing") == "/root/existing.html")
+        local result = coordinator:installDocument{
+            id = "existing",
+            category = "article",
+            html_content = "<p>new remote content</p>",
+        }
+        assert(result.path == "/root/existing.html")
+        assert(result.existing == true)
+        assert(#installs == 0)
+    end
+end
