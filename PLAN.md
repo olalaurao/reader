@@ -3,7 +3,10 @@
 > **Status:** planejamento aprovado para implementação  
 > **Última revisão:** 2026-09-22  
 > **Repositório:** `olalaurao/reader`  
-> **Fonte de verdade:** este arquivo. Se decisões de implementação mudarem, atualizar este documento junto com o código.
+> **Fonte de verdade do escopo/V1:** este arquivo.  
+> **Spec canônica de implementação:** `IMPLEMENTATION_SPEC.md`.  
+> **Estado/handoff entre sessões:** `STATUS.md`.  
+> Mudanças de produto atualizam `PLAN.md`; mudanças técnicas atualizam a spec; toda sessão de implementação atualiza `STATUS.md`.
 
 ## 1. Objetivo
 
