@@ -293,7 +293,7 @@ Gate 2 is closed: **PASSED on 2026-09-22**.
 
 ## Gate 3 — first readable article
 
-Status: **RETEST REQUIRED — 0.1.2 fixes device-log root cause**
+Status: **PASSED — 2026-09-22**
 
 Build under test:
 - plugin version: `0.1.2` (retest build);
@@ -350,6 +350,24 @@ The uploaded PW3 `crash.log` identified the exact selector failure:
 - an untitled Reader candidate triggered `_("Untitled")`, calling the numeric index.
 
 0.1.2 renames that loop index and adds an automated untitled-candidate regression test. Run #50 passed.
+
+#### 2026-09-22 — attempt 3: PASS
+
+Build: `0.1.2`.
+
+The complete Gate 3 checklist passed on target PW3 / KOReader 2025.04:
+- article selector appeared;
+- article downloaded/opened;
+- normal render and Unicode;
+- font/margin reflow;
+- search;
+- dictionary behavior as configured;
+- local highlight;
+- local note;
+- close/reopen retained reading position;
+- highlight and note persisted.
+
+Conclusion: **Gate 3 PASSED.**
 
 ### Safety / install
 
@@ -418,4 +436,4 @@ Do not send the article title/content. Return only:
 
 If anything fails, also return the exact visible error and, only if needed, a sanitized `koreader/crash.log` excerpt with token/private content removed.
 
-Gate 3 remains open until this physical result is recorded. Phase F must not begin before Gate 3 passes.
+Gate 3 is closed: **PASSED on 2026-09-22**. Phase F may begin after Phase E is merged.

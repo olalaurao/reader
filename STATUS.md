@@ -6,9 +6,9 @@
 
 ## Current milestone
 
-**Phase E — Gate 3 attempt 2 root-caused from device log; 0.1.2 fix ready for physical retest**
+**Phase E — first readable article complete; Gate 3 PASSED on target PW3**
 
-Gate 2 passed and Phase D was merged normally through PR #4 as `489c0eaf45359fc3025072a9ba4c52297ca134d8`. Phase E E1/E2 is implemented on `phase-e/first-article-gate3`. Gate 3 attempt 2 on the target PW3 with 0.1.1 was root-caused from `koreader/crash.log`: `candidateItems()` used `for _, candidate in ...`, shadowing gettext `_`; when a Reader item lacked a title, `_("Untitled")` attempted to call the numeric loop index. 0.1.2 fixes that exact bug and adds a regression test with an untitled candidate. **Do not begin Phase F until Gate 3 passes on-device.**
+Gate 2 passed and Phase D was merged normally through PR #4 as `489c0eaf45359fc3025072a9ba4c52297ca134d8`. Phase E E1/E2 is implemented on `phase-e/first-article-gate3`. After fixing the device-log-proven untitled-selector bug in 0.1.2, the complete Gate 3 script passed on the target PW3 / KOReader 2025.04: article download/open, normal rendering, Unicode, font/margin reflow, search/dictionary behavior as configured, highlight, note, close/reopen, and persistence of reading state/annotations. Phase E is ready to merge; Phase F is unblocked after merge.
 
 ## Current branch / commit
 
@@ -263,6 +263,33 @@ Device-log root cause recovered:
 - run #50 passed the full suite/package.
 
 Gate 3 remains **OPEN** pending 0.1.2 physical retest.
+
+## Physical Gate 3 result — attempt 3 / PASS
+
+Date: 2026-09-22  
+Build: `0.1.2` / branch `phase-e/first-article-gate3`  
+Result: **PASS** on the target PW3 / KOReader 2025.04.
+
+User completed the full Gate 3 checklist successfully:
+- article candidate selector appeared;
+- selected article downloaded and opened automatically;
+- article rendered as a normal KOReader document;
+- Unicode/non-ASCII text behaved normally;
+- font size and margin controls reflowed the content;
+- search worked;
+- dictionary behavior was validated as requested/configured;
+- a local highlight was created successfully;
+- a local note was attached successfully;
+- the document was closed and reopened;
+- reading position/progress persisted;
+- highlight and note persisted after reopen;
+- KOReader remained usable;
+- plugin did not require or perform destructive document replacement.
+
+Conclusion:
+- **Gate 3 PASSED.**
+- Phase E can be merged to `main`.
+- Phase F document sync engine is unblocked.
 
 ## Phase E result
 
@@ -562,7 +589,7 @@ Current Reader documentation still matches the Phase D contracts already written
 
 ## Blockers
 
-**Gate 3 physical retest with 0.1.2 is the only blocker to Phase F.** The exact selector exception was identified and fixed from the real PW3 log; the selector plus the full render/KOReader-controls/annotation/reopen sequence still require device validation.
+Gate 3 is passed. There is no remaining Phase E blocker to Phase F.
 
 Later hard gates remain:
 - Reader v3 ↔ Readwise v2 highlight ID mapping;
@@ -574,23 +601,26 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Package the final Phase E `0.1.2` branch tip after this ledger update and require final CI success.
-2. Install 0.1.2 on the target PW3, replacing only `koreader/plugins/readwisereader.koplugin/` and preserving settings/token.
-3. Run **Readwise Reader → Download one article (Gate 3)**.
-4. Confirm the article selector appears; an untitled Reader item, if present, must display as **Untitled** rather than crashing the selector.
-5. Select one ordinary article and continue Gate 3:
-   - download/open;
-   - normal rendering/Unicode;
-   - font/margin reflow;
-   - search;
-   - dictionary UI if configured;
-   - local highlight + note;
-   - close/reopen;
-   - position/highlight/note persistence;
-   - no Wi-Fi control.
-6. If Gate 3 fails again, use the exact visible error and relevant sanitized crash-log lines to fix **Phase E only**.
-7. If Gate 3 passes, record evidence, merge Phase E to `main`, then create Phase F.
-8. **Do not implement Phase F before Gate 3 passes.**
+1. Run CI on this final Phase E Gate 3 PASS ledger tip.
+2. Merge Phase E into `main` through a normal PR/merge with no history rewrite.
+3. Create Phase F from updated `main`.
+4. Implement F1–F3 only:
+   - configurable download root and document filters;
+   - Reader-ID-owned document sync;
+   - full-first/incremental-later scan with conservative watermark commit;
+   - safe multi-article materialization;
+   - metadata/location updates without title-based duplication;
+   - KOReader collections for Reader location;
+   - cancellation, sync summary, explicit full rescan.
+5. Existing managed local content must not be destructively refreshed in Phase F; content replacement safety remains Phase Q.
+6. Add automated no-op second-sync, rename/location-change identity, watermark/cancellation and summary tests.
+7. Package Gate 4 and stop for physical validation:
+   - multiple articles;
+   - second sync unchanged;
+   - move Reader location;
+   - rename title;
+   - no duplicates.
+8. **Do not begin Phase G before Gate 4 passes.**
 
 ## Existing architectural decisions still in force
 

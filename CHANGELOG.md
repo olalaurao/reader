@@ -36,6 +36,7 @@ All notable project changes are recorded here.
 - Experimental `0.1.1` fixes the selector transition by closing the originating TouchMenu, scheduling the selector after Trapper completion, and using KOReader's Menu + CenterContainer pattern; adds a dedicated UI flow unit test and user-visible fallbacks for selector/install/open failures.
 - PW3 `crash.log` then identified the remaining selector failure: an untitled candidate caused Lua loop variable `_` to shadow gettext `_` (`attempt to call local '_' (a number value)`).
 - Experimental `0.1.2` fixes the shadowing and adds an untitled-candidate regression test.
+- Gate 3 passed on the target PW3 / KOReader 2025.04: selected article download/open, rendering, Unicode, reflow, search, highlight/note creation and close/reopen persistence were validated.
 
 ## [0.0.2] - 2026-09-22
 
