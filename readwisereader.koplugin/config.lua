@@ -61,8 +61,16 @@ function Config:setDownloadDirectory(value)
     if path == "" then
         return false, "empty"
     end
-    if not path:match("^/mnt/us/") or path:find("%z") or path:match("(^|/)%.%.(/|$)") then
+
+    local under_documents = path == "/mnt/us/documents"
+        or path:sub(1, #"/mnt/us/documents/") == "/mnt/us/documents/"
+    if not under_documents or path:find("%z") then
         return false, "unsafe"
+    end
+    for component in path:gmatch("[^/]+") do
+        if component == "." or component == ".." then
+            return false, "unsafe"
+        end
     end
     self.settings:saveSetting("download_directory", path)
     self.settings:flush()
