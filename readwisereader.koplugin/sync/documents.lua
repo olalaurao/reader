@@ -20,6 +20,11 @@ local function sortedKeys(set)
     return keys
 end
 
+local function filterScope(filters)
+    return "locations=" .. table.concat(sortedKeys(filters.locations), ",")
+        .. ";categories=" .. table.concat(sortedKeys(filters.categories), ",")
+end
+
 local function defaultFormatTime(epoch)
     return os.date("!%Y-%m-%dT%H:%M:%SZ", epoch)
 end
@@ -227,14 +232,26 @@ function DocumentsSync:sync(options)
     local started_at = self.format_time(started_epoch)
     local previous_watermark = self.sync_meta:get("document_watermark")
     local previous_query_after = self.sync_meta:get("document_query_after")
-    local full_scan = options.full_rescan == true or previous_watermark == nil
-    local query_watermark = full_scan and nil or (previous_query_after or previous_watermark)
+    local previous_filter_scope = self.sync_meta:get("document_filter_scope")
     local filters = self:_filters()
+    local current_filter_scope = filterScope(filters)
+    -- Incremental updatedAfter can only discover documents changed since the
+    -- watermark. If the enabled filter scope changes, especially when a
+    -- location is newly enabled, historical documents in that scope require
+    -- a backfill. Treat a missing scope marker from older 0.1.3 builds the
+    -- same way so a stale watermark cannot strand the first Gate 4 library.
+    local filter_scope_changed = previous_filter_scope ~= current_filter_scope
+    local full_scan = options.full_rescan == true
+        or previous_watermark == nil
+        or filter_scope_changed
+    local query_watermark = full_scan and nil or (previous_query_after or previous_watermark)
 
     local report = {
         mode = full_scan and "full" or "incremental",
         started_at = started_at,
         previous_watermark = previous_watermark,
+        filter_scope = current_filter_scope,
+        filter_scope_changed = filter_scope_changed,
         metadata_pages = 0,
         content_pages = 0,
         metadata_seen = 0,
@@ -295,12 +312,14 @@ function DocumentsSync:sync(options)
         end
         report.proposed_watermark = watermark
         report.proposed_query_after = query_after
+        report.proposed_filter_scope = current_filter_scope
         report.watermark = watermark
         report.query_after = query_after
         report.watermark_advanced = previous_watermark ~= watermark
         if options.defer_watermark ~= true then
             self.sync_meta:set("document_watermark", watermark)
             self.sync_meta:set("document_query_after", query_after)
+            self.sync_meta:set("document_filter_scope", current_filter_scope)
             self.sync_meta:set("last_successful_sync_at", completed_at)
             if full_scan then self.sync_meta:set("last_full_scan_at", completed_at) end
         end
@@ -313,5 +332,6 @@ DocumentsSync.DEFAULT_OVERLAP_SECONDS = DEFAULT_OVERLAP_SECONDS
 DocumentsSync.HTML_PAGE_LIMIT = HTML_PAGE_LIMIT
 DocumentsSync.SUPPORTED_CATEGORIES = SUPPORTED_CATEGORIES
 DocumentsSync._metadataChanged = metadataChanged
+DocumentsSync._filterScope = filterScope
 
 return DocumentsSync
