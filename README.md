@@ -4,7 +4,7 @@ A KOReader plugin project for using a Kindle as an offline reading client for Re
 
 ## Current status
 
-**Phase A / Gate 0 and Phase B / Gate 1 are complete; Phase C storage is integrated; Phase D Reader metadata is implemented and CI-validated.** Gate 2 has **passed** on the target Kindle Paperwhite 3 / KOReader 2025.04. The real Reader library traversal completed (25 API pages / 1329 top-level documents), and the corrected 0.0.4 scan is visibly rendered, cancellable and responsive without changing Wi-Fi state or downloading/modifying documents. Phase E (first readable article) is next.
+**Gates 0–2 are complete. Phase D was merged through PR #4. Phase E E1/E2 is implemented and CI-validated; Gate 3 is ready for the target Kindle Paperwhite 3 / KOReader 2025.04.** Experimental version `0.1.0` can list article candidates on-device, fetch one selected Reader article with processed HTML, atomically install it under `/mnt/us/documents/Readwise/Articles/`, write KOReader metadata, and open it as a normal local document.
 
 The Gate 2 action performs a metadata-only full Reader-library scan with cursor guards, ID deduplication, request pacing, bounded `Retry-After` recovery and cancellable KOReader UI. It reports counts by location/category. **It does not download or change Reader documents and does not perform remote writes.**
 
@@ -86,10 +86,14 @@ This repository is licensed under AGPL-3.0. See [LICENSE](LICENSE) and [NOTICE.m
 The community Readwise Reader plugin is used as an architectural/reference source and is also AGPL-3.0. The current implementation follows KOReader v2025.04 patterns while replacing the legacy monolithic architecture incrementally behind physical gates.
 
 
-## Gate 2 metadata scan — pending device validation
+## Gate 3 first article — pending device validation
 
-After installing the `0.0.4` Gate 2 retest build, enable Wi-Fi outside the plugin and use:
+After installing the experimental `0.1.0` build, enable Wi-Fi outside the plugin and use:
 
-**Tools → More tools → Readwise Reader → Scan Reader metadata (Gate 2)**
+**Tools → More tools → Readwise Reader → Download one article (Gate 3)**
 
-The scan is deliberately read-only and paced for the Reader LIST limit. Follow the exact pass/fail procedure in `docs/DEVICE_TESTS.md`. Phase E document download work is blocked until this gate passes on the real PW3.
+The plugin loads an on-device list of article candidates. Select one ordinary known article. It requests that article's processed Reader HTML, installs it atomically under `/mnt/us/documents/Readwise/Articles/`, writes KOReader custom metadata and opens it.
+
+Gate 3 validates normal KOReader document behavior: rendering, Unicode, reflow/font/margin controls, search, dictionary UI when configured, local highlight/note creation, and persistence of position/annotations after closing and reopening. Image localization is deliberately deferred to Phase G / Gate 5; PDF/EPUB originals are Phase H / Gate 6.
+
+Follow the exact procedure in `docs/DEVICE_TESTS.md`. **Phase F remains blocked until Gate 3 passes on the real PW3.**

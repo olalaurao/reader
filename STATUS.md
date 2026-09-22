@@ -6,28 +6,19 @@
 
 ## Current milestone
 
-**Phase D — Reader metadata complete; Gate 2 PASSED on target PW3**
+**Phase E — first readable article implemented and CI-validated; Gate 3 READY for physical PW3 validation**
 
-Gate 1 remains passed. Phase C was merged into `main` through PR #3 as `6db5a6802c3acd7378989e3776829ec3a4c0bf65`. Gate 2 now passes on the target PW3 / KOReader 2025.04: the full Reader library scan completed, the corrected 0.0.4 scan/cancel surface was visibly rendered and cancellable, the UI stayed responsive, Wi-Fi state was not changed, and no documents were downloaded or modified. Phase D is ready to merge; after merge, Phase E may begin.
+Gate 2 passed and Phase D was merged normally through PR #4 as `489c0eaf45359fc3025072a9ba4c52297ca134d8`. Phase E E1/E2 is now implemented off-device on `phase-e/first-article-gate3` and the integrated code passed CI. **Do not begin Phase F until Gate 3 passes on the target PW3.**
 
 ## Current branch / commit
 
-- Branch: `phase-d/reader-metadata-gate2`
-- Phase D base `main`: `6db5a6802c3acd7378989e3776829ec3a4c0bf65`
-- D1 LIST client: `02b749ebe0539b74cbf4cf604b7e9f006ad89c78`
-- D1 JSON-test fix / validated D1: `5b560b24b6fc908a70a5a587a6a73c7f1d5fec90`
-- D2 pagination/dedupe/cursor guards: `23456463d6de8f9e98d50275e584f7cac2762216`
-- D3 metadata-only Gate 2 UI: `d77cda0244fbda8c1d97eb4b8842d90b86d6d5be`
-- LIST pacing: `4d8f6dc7405154a599817086ddfb39dda5db325a`
-- Cancellation propagation: `859f724e2ae659ff45debef6b579dec84c1e8675`
-- Fast deterministic pacing fixtures: `5da20ae06472f02fdaae5b1bf730b2a9dd54db60`
-- Retry-After handling: `ea5ac3ff52497e83b3596461d8ec7c5bdac93dd2`
-- Final pacing-loop fix / first device-build code tip: `50fe2ad9bbb362b94eebc7d73bc30816e557965d`
-- First Gate 2 docs/package tip: `813dcbe901e54920389d9a4e7cf9c03fc8fb30cd`
-- Gate 2 UI coroutine fix / 0.0.4: `c4074d4746f77ebf28bfcee29046d97a900ff9ec`
-- UI test-fixture fixes: `b474e9622d724ff934dc13d3c65499d0e7ed57da`, `7001fd0a16959dc85ee9c64d0764ca1e7cc7312f`
-- Run #35 on `7001fd0a16959dc85ee9c64d0764ca1e7cc7312f`: **SUCCESS**.
-- This documentation/status update follows the validated 0.0.4 code; inspect the branch tip when resuming.
+- Branch: `phase-e/first-article-gate3`
+- Phase E base `main`: `489c0eaf45359fc3025072a9ba4c52297ca134d8` (Phase D PR #4 merge)
+- E1 materialization primitives: `655e70e76f87343bd2580d563ef6d90d75294b40`
+- E1/E2 integrated first-article flow: `26610d04e4c3e8b0414ff40a39d244763c7328ca`
+- Run #44 on `655e70e76f87343bd2580d563ef6d90d75294b40`: **SUCCESS**
+- Run #45 on `26610d04e4c3e8b0414ff40a39d244763c7328ca`: **SUCCESS**
+- This status update follows the validated code tip; inspect the final branch tip/CI when resuming.
 
 ## Target environment
 
@@ -206,8 +197,93 @@ Combined with attempt 1, Gate 2 evidence now covers:
 
 Conclusion:
 - **Gate 2 PASSED.**
-- Phase D can be merged to `main`.
-- Phase E is unblocked.
+- Phase D was subsequently merged to `main` through PR #4 as `489c0eaf45359fc3025072a9ba4c52297ca134d8`.
+- Phase E was unblocked.
+
+## Phase E result
+
+### E1 — first processed Reader article
+
+- Plugin version advanced to experimental `0.1.0`.
+- Added **Readwise Reader → Download one article (Gate 3)**.
+- Candidate selection happens locally on the Kindle:
+  - one metadata-only Reader LIST request;
+  - `category=article`;
+  - up to 100 candidates;
+  - child records are excluded;
+  - titles/authors are shown only in the device selector and are not written to fixtures/logs by the plugin.
+- Added `Reader:getDocument(id, true, false)` using the documented Reader v3 LIST-by-ID contract.
+- The selected article is fetched with `withHtmlContent=true` and `withRawSourceUrl=false`.
+- Gate 3 accepts top-level `article` records only and rejects missing/empty processed HTML.
+
+### E1 — safe local materialization
+
+- Added stable filenames in the form `<safe-title>--rw-<stable-id-label>.html`.
+- Filename handling covers:
+  - NUL/control characters;
+  - slash/backslash and common invalid filename characters;
+  - traversal-style `..`;
+  - whitespace/trailing dots;
+  - UTF-8-safe byte truncation;
+  - deterministic full-ID-sensitive suffixing.
+- Default Gate 3 destination:
+  - `/mnt/us/documents/Readwise/Articles/`
+- Added a minimal UTF-8 HTML shell around Reader's processed body without inserting a visible local-only title/author into the article body. This avoids creating highlighted text that does not exist in the Reader parent content.
+- If Reader returns a complete HTML document, only its body content is embedded in the local shell.
+- Added atomic installation:
+  - create destination directory;
+  - write `.tmp` in the same destination;
+  - verify write/size;
+  - fsync temporary file;
+  - close;
+  - atomic rename;
+  - fsync directory.
+- An existing destination is never overwritten blindly.
+- A previously managed local article is reused/opened rather than rematerialized, preserving future sidecar/progress safety.
+- Stores local format/path/content hash/fingerprint/materialization state in the Phase C SQLite document repository.
+- Temporary/signed raw-source URLs are not requested or persisted.
+
+### E2 — KOReader metadata / open
+
+- Added a KOReader adapter that writes custom metadata through the pinned KOReader 2025.04 `DocSettings:flushCustomMetadata(filepath)` path:
+  - title;
+  - authors;
+  - summary/description;
+  - site name/series.
+- Broadcasts `InvalidateMetadataCache` and `BookMetadataChanged`.
+- Opens the installed article through the pinned KOReader 2025.04 safe path:
+  - `SetupShowReader`;
+  - `ReaderUI:showReader(filepath)`.
+- Network work remains in the cancellable Trapper subprocess; SQLite/materialization/metadata occur in the parent process.
+- The plugin still only inspects connectivity and never enables/disables Wi-Fi.
+
+### Phase E automated validation
+
+Run #44: **SUCCESS**
+- Lua 5.1 syntax;
+- Reader LIST-by-ID / HTML toggle;
+- filename tests for ASCII, Portuguese, emoji, separators, traversal, long UTF-8 and deterministic collision resistance;
+- minimal HTML/Unicode/body extraction;
+- atomic installer success and no-overwrite behavior;
+- all pre-existing tests;
+- installable package/layout.
+
+Run #45: **SUCCESS**
+- first-article candidate filtering;
+- materialization/local-state wiring;
+- existing managed-file reuse;
+- KOReader metadata event wiring;
+- safe ReaderUI open wiring;
+- all prior Phase A-D/storage tests;
+- package/layout.
+
+### Phase E known scope boundaries
+
+- This is deliberately a **single-article Gate 3 path**, not the Phase F library sync engine.
+- Candidate selection shows up to 100 top-level article records from one metadata page; full library selection/sync belongs to Phase F.
+- Images are not localized/cached yet. Dedicated image behavior is Phase G / Gate 5 and must not be inferred from Gate 3.
+- PDF/EPUB raw-source handling is not implemented here; that is Phase H / Gate 6.
+- No annotation upload/remote write exists in Phase E.
 
 ## Phase C result
 
@@ -422,7 +498,7 @@ Current Reader documentation still matches the Phase D contracts already written
 
 ## Blockers
 
-Gate 2 is passed. There is no remaining Phase D blocker to Phase E.
+**Gate 3 physical validation on the target PW3 is the only blocker to Phase F.** The first-article flow is implemented and CI-validated off-device, but rendering, KOReader controls, local annotation/sidecar behavior and reopen/progress must be proven on the real device.
 
 Later hard gates remain:
 - Reader v3 ↔ Readwise v2 highlight ID mapping;
@@ -434,20 +510,24 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Run CI on this final Phase D tip.
-2. Merge Phase D into `main` through a normal pull request/merge, with no history rewrite.
-3. Create Phase E from updated `main`.
-4. Implement Phase E E1/E2 only until the Gate 3 package is ready:
-   - select one known article without exposing private content in logs/tests;
-   - fetch processed `html_content`;
-   - safe filename;
-   - minimal readable HTML;
-   - atomic local install;
-   - local metadata/state;
-   - open the file through KOReader's validated 2025.04 document-open path.
-5. Add automated tests for safe filename/HTML/install/API wiring where feasible.
-6. Update `STATUS.md` before stopping.
-7. Stop at Gate 3 physical validation; do not begin Phase F before Gate 3 passes.
+1. Package the final Phase E `0.1.0` branch tip after this ledger update and require final CI success.
+2. Install the Gate 3 package on the target PW3 while preserving `koreader/settings/readwisereader.lua`.
+3. With Wi-Fi enabled by the user outside the plugin, use **Readwise Reader → Download one article (Gate 3)**.
+4. Choose one ordinary known Reader article from the on-device selector; do not send its private title/content in chat.
+5. Verify Gate 3 on the actual article:
+   - it downloads once and opens automatically;
+   - text renders normally;
+   - Unicode/Portuguese accents/curly punctuation render;
+   - font size and margin controls reflow the article;
+   - search works;
+   - dictionary lookup UI works if a dictionary is configured;
+   - create a local highlight and local note;
+   - move reading position, close, and reopen the same local file;
+   - progress, highlight and note persist;
+   - optional but useful: disable Wi-Fi after download and confirm the local article remains readable.
+6. If Gate 3 fails, fix **Phase E only**, repackage and retest.
+7. If Gate 3 passes, record evidence in `docs/DEVICE_TESTS.md` and `STATUS.md`, merge Phase E into `main`, then create Phase F from updated `main`.
+8. **Do not implement Phase F before Gate 3 passes.**
 
 ## Existing architectural decisions still in force
 

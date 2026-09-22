@@ -29,6 +29,9 @@ All notable project changes are recorded here.
 - Fixed KOReader 2025.04 cancellation/progress wiring by entering `Trapper:wrap()` before `dismissableRunInSubprocess()`; experimental test build advanced to `0.0.4`.
 - Added UI wiring coverage ensuring online scans enter the Trapper coroutine and offline scans never start the subprocess.
 - Gate 2 passed on the target PW3 / KOReader 2025.04: real full-library metadata traversal, cancellation/responsiveness, no Wi-Fi control and no document mutation were all validated.
+- Phase D merged to `main` through PR #4.
+- Experimental `0.1.0` Gate 3 flow: on-device article selection, Reader LIST-by-ID processed HTML fetch, safe stable filenames, minimal UTF-8 HTML materialization, atomic temp/fsync/rename install, SQLite local-document state, KOReader custom metadata and safe ReaderUI opening.
+- Unit coverage for Portuguese/emoji filenames, traversal/separator sanitization, UTF-8 byte truncation, body extraction, atomic no-overwrite installation, managed-file reuse and KOReader metadata/open wiring.
 
 ## [0.0.2] - 2026-09-22
 

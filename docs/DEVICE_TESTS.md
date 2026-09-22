@@ -59,47 +59,6 @@ Conclusion:
 - HTTPS/authentication, invalid-token handling, offline detection, no-Wi-Fi-control behavior and credential clearing are validated on the target device.
 - Phase C may begin.
 
-### Run history
-
-#### 2026-09-22 — attempt 1: PARTIAL PASS
-
-Build: `0.0.3`.
-
-The full real-account metadata traversal succeeded:
-- top-level documents: **1329**;
-- API pages: **25**;
-- duplicate records ignored: **0**;
-- child records ignored: **1122**;
-- locations: archive 176 / feed 40 / later 51 / new 1062;
-- categories: article 843 / epub 88 / pdf 31 / podcast 14 / rss 40 / video 313;
-- final UI reported that no documents were downloaded or changed;
-- no pagination loop or final rate-limit failure was observed.
-
-However, no progress/cancel surface appeared while scanning. The UI looked blocked until completion, so the cancellation smoke test was not possible.
-
-Diagnosis from KOReader 2025.04 source: the plugin called `Trapper:dismissableRunInSubprocess()` without first entering `Trapper:wrap()`, causing KOReader's documented blocking fallback. Fixed in `0.0.4`.
-
-Gate remains open pending the fixed-build retest.
-
-#### 2026-09-22 — attempt 2: PASS
-
-Build: `0.0.4`.
-
-User-reported / visually confirmed results on target PW3 / KOReader 2025.04:
-- visible scan/cancel status surface rendered: **yes**;
-- placement was lower/left rather than centered: **yes; cosmetic only**;
-- cancellation worked: **yes**;
-- KOReader remained responsive / did not stay stuck: **yes**;
-- subsequent full scan completed and showed the full summary: **yes**;
-- plugin did not change Wi-Fi state: **yes**;
-- no document was downloaded or altered: **yes**.
-
-Combined with attempt 1's successful full traversal (25 pages / 1329 top-level documents), all Gate 2 criteria are satisfied.
-
-Conclusion:
-- **Gate 2 PASSED.**
-- Phase E may begin after Phase D is merged to `main`.
-
 ### Safety before testing
 
 1. Back up `koreader/settings/` and `koreader/plugins/`.
@@ -221,6 +180,31 @@ Purpose:
 - verify there is no cursor loop, crash, visible duplicate processing or uncontrolled rate-limit behavior;
 - prove this build remains read-only with respect to Reader content.
 
+### Gate 2 run history
+
+#### 2026-09-22 — attempt 1: PARTIAL PASS
+
+Build: `0.0.3`.
+
+- Full real-account traversal succeeded: **25 API pages / 1329 top-level documents**.
+- Duplicate records ignored: 0; child records ignored: 1122.
+- No pagination loop or final rate-limit failure.
+- No documents downloaded or changed.
+- Failure: the scan UI was blocking because the subprocess call lacked the required outer `Trapper:wrap()`.
+
+#### 2026-09-22 — attempt 2: PASS
+
+Build: `0.0.4`.
+
+- scan/cancel surface visibly rendered (lower-left placement was cosmetic);
+- cancellation worked;
+- KOReader remained responsive;
+- subsequent full scan completed;
+- Wi-Fi state was unchanged;
+- no document was downloaded or altered.
+
+Conclusion: **Gate 2 PASSED.**
+
 ### Safety before testing
 
 1. Back up `koreader/settings/` and `koreader/plugins/`.
@@ -305,3 +289,90 @@ For the 0.0.4 retest, return only:
 The detailed counts from attempt 1 are already recorded; resend them only if the new full scan differs materially or errors.
 
 Gate 2 is closed: **PASSED on 2026-09-22**.
+
+
+## Gate 3 — first readable article
+
+Status: **PENDING physical test**
+
+Build under test:
+- plugin version: `0.1.0`;
+- branch: `phase-e/first-article-gate3`;
+- E1 primitives: `655e70e76f87343bd2580d563ef6d90d75294b40`;
+- E1/E2 integrated code: `26610d04e4c3e8b0414ff40a39d244763c7328ca`;
+- final documentation/package tip must be taken from the branch after this ledger update.
+
+Purpose:
+- select one known Reader article on-device without sharing its title/content;
+- fetch processed `html_content`;
+- atomically install a normal local HTML document;
+- write KOReader metadata;
+- open/read/annotate/reopen it like an ordinary KOReader document.
+
+### Safety / install
+
+1. Back up `koreader/settings/` and `koreader/plugins/`.
+2. Do not send the Readwise token, private article title/content or screenshots containing private text unless intentionally sharing them.
+3. Replace only `koreader/plugins/readwisereader.koplugin/` with the Gate 3 package.
+4. Keep `koreader/settings/readwisereader.lua` to preserve the configured token.
+5. Restart KOReader.
+6. Enable Wi-Fi outside the plugin. The plugin must not change Wi-Fi state.
+
+### G3.1 — choose/download/open one article
+
+1. Open **Tools → More tools → Readwise Reader → Download one article (Gate 3)**.
+2. A cancellable metadata-loading message should appear.
+3. An on-device list of up to 100 top-level Reader article candidates should appear.
+4. Select one ordinary article you recognize. Prefer a text article with enough content to test search/reflow and, if convenient, accents or curly punctuation.
+5. A cancellable processed-article download message should appear.
+6. After successful local installation, KOReader should open the article automatically.
+
+Expected:
+- no crash;
+- one `.html` file is created below `/mnt/us/documents/Readwise/Articles/`;
+- no `.tmp` file remains after success;
+- the article opens through the normal KOReader reader UI;
+- the plugin does not alter Wi-Fi.
+
+If the same plugin-managed article is selected again later, the existing local copy should be opened instead of being blindly overwritten.
+
+### G3.2 — normal KOReader reading behavior
+
+On the opened article, validate:
+
+1. **Rendering:** article text is readable and not raw/broken HTML.
+2. **Unicode:** accents/non-ASCII punctuation visible in the chosen article render correctly.
+3. **Reflow:** change font size and margins; text reflows normally.
+4. **Search:** search for a word known to be present and confirm a result.
+5. **Dictionary:** select/long-press a word and confirm KOReader's dictionary lookup UI works if a dictionary is configured. If no dictionary is installed, report that rather than installing one just for this gate.
+6. **Highlight:** create a normal local highlight.
+7. **Note:** attach a simple local note to that highlight.
+8. Move to a different reading position, then close the document.
+
+### G3.3 — reopen / persistence
+
+1. Reopen the same local article (for example from KOReader history or the `documents/Readwise/Articles/` folder).
+2. Confirm reading position/progress was retained.
+3. Confirm the local highlight remains.
+4. Confirm the local note remains.
+5. Optional but useful: turn Wi-Fi off outside the plugin and confirm the downloaded article still opens/reads locally.
+
+Pass conditions:
+- normal render/reflow/search behavior;
+- Unicode survives;
+- local highlight/note work;
+- reopen preserves progress/highlight/note;
+- no plugin crash;
+- no unintended Wi-Fi control.
+
+Image localization/caching is **not** a Gate 3 criterion; it is Phase G / Gate 5. PDF/EPUB originals are Phase H / Gate 6.
+
+### Return with
+
+Do not send the article title/content. Return only:
+
+`baixou e abriu: sim/não / renderizou normal: sim/não / unicode ok: sim/não / reflow fonte/margem: sim/não / busca: sim/não / dicionário: sim/não/não configurado / highlight: sim/não / nota: sim/não / reabriu na posição: sim/não / highlight+nota persistiram: sim/não / wifi não foi alterado: sim/não`
+
+If anything fails, also return the exact visible error and, only if needed, a sanitized `koreader/crash.log` excerpt with token/private content removed.
+
+Gate 3 remains open until this physical result is recorded. Phase F must not begin before Gate 3 passes.
