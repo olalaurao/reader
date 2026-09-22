@@ -6,6 +6,7 @@ Collections.__index = Collections
 local LOCATION_COLLECTIONS = {
     new = "Readwise: Inbox",
     later = "Readwise: Later",
+    shortlist = "Readwise: Shortlist",
     archive = "Readwise: Archive",
     feed = "Readwise: Feed",
 }
@@ -13,6 +14,7 @@ local LOCATION_COLLECTIONS = {
 local MANAGED_COLLECTIONS = {
     ["Readwise: Inbox"] = true,
     ["Readwise: Later"] = true,
+    ["Readwise: Shortlist"] = true,
     ["Readwise: Archive"] = true,
     ["Readwise: Feed"] = true,
     ["Readwise: Other"] = true,
