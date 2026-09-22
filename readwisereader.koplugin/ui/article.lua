@@ -1,11 +1,14 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
+local CenterContainer = require("ui/widget/container/centercontainer")
+local Device = require("device")
 local InfoMessage = require("ui/widget/infomessage")
 local Menu = require("ui/widget/menu")
 local NetworkMgr = require("ui/network/manager")
 local Trapper = require("ui/trapper")
 local UIManager = require("ui/uimanager")
 local _ = require("gettext")
+local Screen = Device.screen
 
 local ArticleUI = {}
 ArticleUI.__index = ArticleUI
@@ -36,17 +39,21 @@ local function errorText(err)
     return _("The article operation failed safely.")
 end
 
-local function candidateItems(candidates)
+local function candidateItems(candidates, on_select)
     local items = {}
     for _, candidate in ipairs(candidates or {}) do
         local title = candidate.title
         if type(title) ~= "string" or title == "" then
             title = _("Untitled")
         end
+        local reader_id = candidate.id
         items[#items + 1] = {
             text = title,
             mandatory = type(candidate.author) == "string" and candidate.author or nil,
-            reader_id = candidate.id,
+            reader_id = reader_id,
+            callback = on_select and function()
+                on_select(reader_id)
+            end or nil,
         }
     end
     return items
@@ -65,7 +72,9 @@ end
 function ArticleUI:getMenuItem()
     return {
         text = _("Download one article (Gate 3)"),
-        keep_menu_open = true,
+        -- Unlike the Gate 2 InfoMessage-only action, this flow transitions
+        -- to a separate Menu after the Trapper coroutine resumes. Let the
+        -- originating TouchMenu close when the callback first yields.
         callback = function()
             self:chooseArticle()
         end,
@@ -117,20 +126,58 @@ Tap to cancel. Only article metadata is being requested.]]))
         return
     end
 
-    local menu
-    menu = Menu:new{
-        title = _("Choose a Reader article (Gate 3)"),
-        item_table = candidateItems(candidates),
-        onMenuSelect = function(_, item)
-            UIManager:close(menu)
+    -- Do not build/show a new complex Menu from inside the resumed Trapper
+    -- coroutine. Finish this coroutine and transition UI on the next tick,
+    -- matching KOReader's own menu-search pattern.
+    UIManager:nextTick(function()
+        self:_showCandidateMenu(candidates)
+    end)
+end
+
+function ArticleUI:_showCandidateMenu(candidates)
+    local ok, show_err = pcall(function()
+        local container
+        local menu
+        local function selectArticle(reader_id)
+            if container then
+                UIManager:close(container)
+            end
             self.candidate_menu = nil
             UIManager:nextTick(function()
-                self:downloadArticle(item.reader_id)
+                self:downloadArticle(reader_id)
             end)
-        end,
-    }
-    self.candidate_menu = menu
-    UIManager:show(menu)
+        end
+
+        menu = Menu:new{
+            title = _("Choose a Reader article (Gate 3)"),
+            item_table = candidateItems(candidates, selectArticle),
+            width = math.floor(Screen:getWidth() * 0.94),
+            height = math.floor(Screen:getHeight() * 0.94),
+            single_line = true,
+            close_callback = function()
+                if container then
+                    UIManager:close(container)
+                end
+                self.candidate_menu = nil
+            end,
+        }
+        container = CenterContainer:new{
+            dimen = Screen:getSize(),
+            menu,
+        }
+        menu.show_parent = container
+        self.candidate_menu = container
+        UIManager:show(container)
+    end)
+
+    if not ok then
+        self.candidate_menu = nil
+        UIManager:show(InfoMessage:new{
+            text = _("The Reader article list could not be displayed. Please retry with the updated Gate 3 build."),
+        })
+        local logger = require("logger")
+        logger.warn("ReadwiseReader: [UI] article selector failed", tostring(show_err))
+    end
 end
 
 function ArticleUI:downloadArticle(reader_id)
@@ -166,13 +213,34 @@ Tap to cancel. The final file is installed only after the request completes succ
         return
     end
 
-    local result, install_err = self.coordinator:installDocument(document)
+    local ok, result, install_err = pcall(function()
+        return self.coordinator:installDocument(document)
+    end)
+    if not ok then
+        local logger = require("logger")
+        logger.warn("ReadwiseReader: [DOC] Gate 3 install failed", tostring(result))
+        UIManager:show(InfoMessage:new{
+            text = _("The article could not be installed safely. No existing file was overwritten."),
+        })
+        return
+    end
     if not result then
         UIManager:show(InfoMessage:new{ text = errorText(install_err) })
         return
     end
 
-    self.koreader_documents:openDocument(result.path)
+    UIManager:nextTick(function()
+        local opened, open_err = pcall(function()
+            self.koreader_documents:openDocument(result.path)
+        end)
+        if not opened then
+            local logger = require("logger")
+            logger.warn("ReadwiseReader: [UI] Gate 3 open failed", tostring(open_err))
+            UIManager:show(InfoMessage:new{
+                text = _("The article was installed, but KOReader could not open it automatically. Open it from the Readwise/Articles folder."),
+            })
+        end
+    end)
 end
 
 ArticleUI._errorText = errorText

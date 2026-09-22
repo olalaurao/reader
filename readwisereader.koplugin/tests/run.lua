@@ -11,6 +11,7 @@ local tests = {
     "tests.test_reader_pagination",
     "tests.test_metadata_scan",
     "tests.test_library_ui",
+    "tests.test_article_ui",
     "tests.test_filenames",
     "tests.test_html",
     "tests.test_installer",
