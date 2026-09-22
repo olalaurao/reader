@@ -53,7 +53,7 @@ local function withStubbedSyncUI(run, options)
             wrap = function(_, callback)
                 state.wrap_calls = state.wrap_calls + 1
                 callback()
-                return ui_options.metadata_ok ~= false
+                return true
             end,
             dismissableRunInSubprocess = function(_, task)
                 state.subprocess_calls = state.subprocess_calls + 1
@@ -118,7 +118,7 @@ local function newUI(SyncUI, state, watermark, report, ui_options)
                     path = path,
                     metadata = metadata,
                 }
-                return true
+                return ui_options.metadata_ok ~= false
             end,
         },
         worker = {
