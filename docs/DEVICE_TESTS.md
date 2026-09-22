@@ -59,6 +59,28 @@ Conclusion:
 - HTTPS/authentication, invalid-token handling, offline detection, no-Wi-Fi-control behavior and credential clearing are validated on the target device.
 - Phase C may begin.
 
+### Run history
+
+#### 2026-09-22 — attempt 1: PARTIAL PASS
+
+Build: `0.0.3`.
+
+The full real-account metadata traversal succeeded:
+- top-level documents: **1329**;
+- API pages: **25**;
+- duplicate records ignored: **0**;
+- child records ignored: **1122**;
+- locations: archive 176 / feed 40 / later 51 / new 1062;
+- categories: article 843 / epub 88 / pdf 31 / podcast 14 / rss 40 / video 313;
+- final UI reported that no documents were downloaded or changed;
+- no pagination loop or final rate-limit failure was observed.
+
+However, no progress/cancel surface appeared while scanning. The UI looked blocked until completion, so the cancellation smoke test was not possible.
+
+Diagnosis from KOReader 2025.04 source: the plugin called `Trapper:dismissableRunInSubprocess()` without first entering `Trapper:wrap()`, causing KOReader's documented blocking fallback. Fixed in `0.0.4`.
+
+Gate remains open pending the fixed-build retest.
+
 ### Safety before testing
 
 1. Back up `koreader/settings/` and `koreader/plugins/`.
@@ -166,11 +188,12 @@ Gate 1 is closed; the target-device results are recorded above.
 
 ## Gate 2 — full Reader metadata scan
 
-Status: **PENDING physical test**
+Status: **PARTIAL PASS — 0.0.4 RETEST REQUIRED**
 
-Build under test:
-- plugin version: `0.0.3`;
-- validated code commit: `50fe2ad9bbb362b94eebc7d73bc30816e557965d`;
+Build under retest:
+- plugin version: `0.0.4`;
+- UI fix commit: `c4074d4746f77ebf28bfcee29046d97a900ff9ec`;
+- validated test tip before this ledger update: `7001fd0a16959dc85ee9c64d0764ca1e7cc7312f`;
 - branch: `phase-d/reader-metadata-gate2`.
 
 Purpose:
@@ -194,12 +217,20 @@ Purpose:
 3. Leave `koreader/settings/readwisereader.lua` in place if the valid token is already configured.
 4. Restart KOReader.
 
-### G2.1 — full metadata-only scan
+### G2.1 — 0.0.4 visible/cancellation smoke test
 
 1. Enable Wi-Fi outside the plugin and confirm the Kindle is online.
 2. Open **Tools → More tools → Readwise Reader → Scan Reader metadata (Gate 2)**.
-3. A scan message should state that this is metadata-only and can be cancelled.
-4. Let this run complete without tapping to cancel.
+3. Confirm a visible message appears containing **Scanning Reader library metadata…** and **Tap to cancel**.
+4. Tap the scan surface while it is running.
+5. Confirm control returns to KOReader and a cancellation result/message appears.
+6. Confirm no document was downloaded or changed.
+
+### G2.2 — 0.0.4 full metadata-only scan
+
+1. Start **Scan Reader metadata (Gate 2)** again.
+2. Confirm the visible scan/cancel surface appears.
+3. This time let it run to completion.
 
 Expected final report contains:
 - **Top-level documents**;
@@ -222,7 +253,7 @@ Pass conditions:
 
 Note: LIST requests are intentionally paced at least 3.1 seconds apart. Large libraries can therefore take longer; this is deliberate to stay below the documented Reader LIST rate limit.
 
-### G2.2 — cancellation smoke test
+### Previous 0.0.3 cancellation procedure (superseded by G2.1 above)
 
 After one successful full scan:
 
@@ -248,4 +279,10 @@ If the scan fails, also send:
 - whether it happened before any page/result or after some time;
 - a relevant **sanitized** `koreader/crash.log` tail only if there was a crash, with credentials/private content removed.
 
-Gate 2 remains open until this real-device result is recorded.
+For the 0.0.4 retest, return only:
+
+`progresso apareceu: sim/não / cancelamento funcionou: sim/não / scan completo depois funcionou: sim/não / ficou travado: sim/não / wifi não foi alterado: sim/não / nenhum arquivo foi baixado ou alterado: sim/não`
+
+The detailed counts from attempt 1 are already recorded; resend them only if the new full scan differs materially or errors.
+
+Gate 2 remains open until the 0.0.4 real-device retest is recorded.
