@@ -26,7 +26,7 @@ mkdir -p "$DIST_DIR"
 (
     cd "$ROOT_DIR"
     zip -qr "$OUT" "$PLUGIN_NAME" \
-        -x "$PLUGIN_NAME/tests/private/*" \
+        -x "$PLUGIN_NAME/tests/*" \
         -x "$PLUGIN_NAME/*.tmp"
 )
 

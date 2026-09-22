@@ -1,0 +1,6 @@
+-- SPDX-License-Identifier: AGPL-3.0-only
+
+return {
+    VERSION = "0.0.2",
+    SETTINGS_FILENAME = "readwisereader.lua",
+}

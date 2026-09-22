@@ -14,13 +14,16 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install bootstrap test dependencies
+      - name: Install test dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y lua5.1 zip
 
       - name: Run development checks
         run: ./scripts/dev-check.sh
+
+      - name: Run Lua unit tests
+        run: lua5.1 readwisereader.koplugin/tests/run.lua
 
       - name: Build installable plugin ZIP
         run: ./scripts/package.sh
@@ -30,8 +33,9 @@ jobs:
           unzip -l dist/readwisereader.koplugin.zip
           unzip -Z1 dist/readwisereader.koplugin.zip | grep -Fx 'readwisereader.koplugin/_meta.lua'
           unzip -Z1 dist/readwisereader.koplugin.zip | grep -Fx 'readwisereader.koplugin/main.lua'
+          ! unzip -Z1 dist/readwisereader.koplugin.zip | grep -F '/tests/'
 
-      - name: Upload Gate 0 package
+      - name: Upload plugin artifact
         uses: actions/upload-artifact@v4
         with:
           name: readwisereader-koplugin-${{ github.sha }}
