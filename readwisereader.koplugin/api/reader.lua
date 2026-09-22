@@ -188,6 +188,32 @@ function Reader:validateToken()
     return true
 end
 
+function Reader:_sleepCancelable(seconds, is_cancelled)
+    local remaining = math.max(tonumber(seconds) or 0, 0)
+    while remaining > 0 do
+        if is_cancelled and is_cancelled() then
+            return nil, {
+                kind = "cancelled",
+                retryable = false,
+                message = "Reader metadata scan was cancelled.",
+            }
+        end
+
+        local slice = math.min(remaining, 0.25)
+        self.sleep(slice)
+        remaining = remaining - slice
+    end
+
+    if is_cancelled and is_cancelled() then
+        return nil, {
+            kind = "cancelled",
+            retryable = false,
+            message = "Reader metadata scan was cancelled.",
+        }
+    end
+    return true
+end
+
 function Reader:_waitForListSlot(is_cancelled)
     local last_request_at = self.last_list_request_at
     if last_request_at ~= nil then
@@ -205,7 +231,10 @@ function Reader:_waitForListSlot(is_cancelled)
             -- Keep sleeps short so a future in-process caller can cooperate
             -- with cancellation instead of entering one long rate-limit sleep.
             local slice = math.min(remaining, 0.25)
-            self.sleep(slice)
+            local slept, sleep_err = self:_sleepCancelable(slice, is_cancelled)
+            if not slept then
+                return nil, sleep_err
+            end
             now = self.clock()
             remaining = self.list_min_interval - (now - last_request_at)
         end
@@ -338,13 +367,35 @@ function Reader:iterateDocuments(options, callback)
         local page_options = copyOptions(options)
         page_options.page_cursor = cursor
 
-        local page, err = self:listDocuments(page_options)
-        if not page then
-            if err then
-                err.page = report.pages + 1
-                err.report = report
+        local page
+        local err
+        local rate_limit_retries = 0
+        while true do
+            page, err = self:listDocuments(page_options)
+            if page then
+                break
             end
-            return nil, err
+
+            local can_retry_rate_limit = err
+                and err.kind == "rate_limit"
+                and rate_limit_retries < Constants.READER_LIST_MAX_RATE_LIMIT_RETRIES
+            if not can_retry_rate_limit then
+                if err then
+                    err.page = report.pages + 1
+                    err.report = report
+                end
+                return nil, err
+            end
+
+            rate_limit_retries = rate_limit_retries + 1
+            local retry_delay = tonumber(err.retry_after)
+                or (Constants.READER_LIST_RATE_LIMIT_BACKOFF_SECONDS[rate_limit_retries] or 15)
+            local slept, sleep_err = self:_sleepCancelable(retry_delay, options.is_cancelled)
+            if not slept then
+                sleep_err.page = report.pages + 1
+                sleep_err.report = report
+                return nil, sleep_err
+            end
         end
 
         report.pages = report.pages + 1

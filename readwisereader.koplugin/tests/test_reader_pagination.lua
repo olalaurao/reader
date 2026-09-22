@@ -122,7 +122,10 @@ return function()
     end
 
     do
-        local reader = sequenceReader({
+        local now = 0
+        local sleeps = {}
+        local call_index = 0
+        local responses = {
             {
                 results = { { id = "a" } },
                 nextPageCursor = "cursor-2",
@@ -131,17 +134,76 @@ return function()
                 error = {
                     kind = "rate_limit",
                     retryable = true,
-                    retry_after = 17,
+                    retry_after = 7,
                 },
             },
-        })
+            {
+                results = { { id = "b" } },
+            },
+        }
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function()
+                    call_index = call_index + 1
+                    local response = responses[call_index]
+                    if response.error then
+                        return nil, response.error
+                    end
+                    return { status = 200, headers = {}, body = tostring(call_index) }
+                end,
+            },
+            json_decode = function(body)
+                return responses[tonumber(body)]
+            end,
+            clock = function() return now end,
+            sleep = function(seconds)
+                sleeps[#sleeps + 1] = seconds
+                now = now + seconds
+            end,
+            list_min_interval = 0,
+        }
+
+        local report, err = reader:iterateDocuments({}, function() end)
+        assert(err == nil)
+        assert(report.pages == 2)
+        assert(report.unique == 2)
+        assert(call_index == 3)
+        local slept_total = 0
+        for _, seconds in ipairs(sleeps) do
+            slept_total = slept_total + seconds
+        end
+        assert(slept_total >= 7)
+    end
+
+    do
+        local now = 0
+        local call_index = 0
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function()
+                    call_index = call_index + 1
+                    return nil, {
+                        kind = "rate_limit",
+                        retryable = true,
+                        retry_after = 1,
+                    }
+                end,
+            },
+            json_decode = function() return {} end,
+            clock = function() return now end,
+            sleep = function(seconds) now = now + seconds end,
+            list_min_interval = 0,
+        }
+
         local report, err = reader:iterateDocuments({}, function() end)
         assert(report == nil)
         assert(err.kind == "rate_limit")
-        assert(err.retry_after == 17)
-        assert(err.page == 2)
-        assert(err.report.pages == 1)
-        assert(err.report.unique == 1)
+        assert(err.retry_after == 1)
+        assert(err.page == 1)
+        assert(err.report.pages == 0)
+        assert(call_index == 3)
     end
 
     do
