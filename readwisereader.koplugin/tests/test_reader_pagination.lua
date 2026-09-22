@@ -32,7 +32,7 @@ local function sequenceReader(pages, options)
         end,
         clock = options.clock,
         sleep = options.sleep,
-        list_min_interval = options.list_min_interval,
+        list_min_interval = options.list_min_interval or 0,
     }
     return reader, captured
 end
