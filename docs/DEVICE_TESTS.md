@@ -446,7 +446,10 @@ Status: **PENDING — run on KOReader 2025.04 before the planned KOReader upgrad
 Build target:
 - plugin version: `0.1.3`;
 - branch: `phase-f/document-sync-gate4`;
-- use the final CI artifact from the Gate 4 preparation tip.
+- Gate 4 preparation commit: `5fb309774d8d4442b17251d582e475b21688a331`;
+- GitHub Actions run: #70 — **SUCCESS**;
+- workflow artifact ID: `10723390104`;
+- installable ZIP SHA-256: `ab055261fd54f48936e603f342310b5957ca000e717dca15e6e3fd44eca5afe9`.
 
 Purpose:
 - validate real multi-document materialization and incremental ownership;

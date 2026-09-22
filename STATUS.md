@@ -29,7 +29,10 @@ After Gate 4 passes and Phase F is merged, the next step is the newly-planned **
 - Run #66 on `84b356c...`: **SUCCESS**
 - Run #67 on `13e7537...`: **SUCCESS**
 - Run #68 failed only in the newly-edited `test_sync_ui.lua` fixture because the simulated metadata result was accidentally inserted into the Trapper stub; production code was not implicated.
-- Run #69 on `6d4a8d5...`: Lua syntax, all unit tests, ZIP build/layout and artifact upload **SUCCESS**; inspect final workflow conclusion when resuming.
+- Run #69 on `6d4a8d5...`: **SUCCESS** — Lua syntax, all unit tests, ZIP build/layout and artifact upload.
+- Run #70 on Gate 4 prep tip `5fb309774d8d4442b17251d582e475b21688a331`: **SUCCESS** — development checks, all Lua tests, package/layout and artifact upload.
+- Gate 4 CI artifact ID: `10723390104`; artifact digest: `sha256:fdbd74728a74c41d8649e4c3930fc843bb0acc0921910f54507c44e910d88344`.
+- Installable inner ZIP `readwisereader.koplugin.zip` verified with `unzip -t`; SHA-256: `ab055261fd54f48936e603f342310b5957ca000e717dca15e6e3fd44eca5afe9`.
 
 ## Target environment
 
@@ -688,8 +691,8 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Finish CI on the final Phase F Gate 4 preparation tip.
-2. Download/package the resulting `0.1.3` artifact.
+1. Use the verified Gate 4 `0.1.3` package from run #70 / prep tip `5fb309774d8d4442b17251d582e475b21688a331` (inner ZIP SHA-256 `ab055261fd54f48936e603f342310b5957ca000e717dca15e6e3fd44eca5afe9`).
+2. Install that package on the target PW3 while it is still on KOReader 2025.04.
 3. On the PW3 **still running KOReader 2025.04**, review `Settings → Documents` and disable Inbox for the first test unless a large initial download is intentionally wanted.
 4. Run Gate 4 exactly from `docs/DEVICE_TESTS.md`:
    - multiple supported articles;
