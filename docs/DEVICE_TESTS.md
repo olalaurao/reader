@@ -293,7 +293,7 @@ Gate 2 is closed: **PASSED on 2026-09-22**.
 
 ## Gate 3 — first readable article
 
-Status: **RETEST REQUIRED — attempt 1 failed before selector**
+Status: **BLOCKED ON DEVICE LOG — attempt 2 failed during selector construction**
 
 Build under test:
 - plugin version: `0.1.1` (retest build);
@@ -323,6 +323,24 @@ Observed:
 - no article was selected or downloaded.
 
 The 0.1.1 retest changes the UI transition so the originating TouchMenu closes first and the selector is shown on the next UI tick using KOReader's `Menu` + `CenterContainer` pattern.
+
+#### 2026-09-22 — attempt 2: FAIL during selector construction
+
+Build: `0.1.1`.
+
+Observed:
+- metadata loading surface appeared and completed;
+- selector did not render;
+- explicit guarded fallback appeared: **The Reader article list could not be displayed. Please retry with the updated Gate 3 build.**
+- KOReader stayed usable;
+- no article was selected/downloaded.
+
+Interpretation:
+- metadata/API path completed far enough to schedule selector construction;
+- the protected selector creation/show block raised an on-device KOReader UI error.
+
+Before another fix, retrieve the most recent sanitized `koreader/crash.log` entry containing:
+`ReadwiseReader: [UI] article selector failed`
 
 ### Safety / install
 

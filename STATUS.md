@@ -6,9 +6,9 @@
 
 ## Current milestone
 
-**Phase E — Gate 3 attempt 1 exposed selector UI transition bug; 0.1.1 fix ready for physical retest**
+**Phase E — Gate 3 attempt 2 reached selector construction but failed; exact KOReader log required before another fix**
 
-Gate 2 passed and Phase D was merged normally through PR #4 as `489c0eaf45359fc3025072a9ba4c52297ca134d8`. Phase E E1/E2 is implemented on `phase-e/first-article-gate3`. Gate 3 attempt 1 on the target PW3 reached the cancellable article-metadata loading surface, but after it disappeared no candidate list was shown. The 0.1.1 UI transition fix is implemented and CI-validated off-device. **Do not begin Phase F until Gate 3 passes on the target PW3.**
+Gate 2 passed and Phase D was merged normally through PR #4 as `489c0eaf45359fc3025072a9ba4c52297ca134d8`. Phase E E1/E2 is implemented on `phase-e/first-article-gate3`. Gate 3 attempt 2 on the target PW3 with 0.1.1 reached candidate-selector construction, but the guarded selector creation failed and showed the expected fallback message. **Do not make another speculative selector change until the exact `ReadwiseReader: [UI] article selector failed` error is recovered from `koreader/crash.log`. Do not begin Phase F until Gate 3 passes.**
 
 ## Current branch / commit
 
@@ -231,6 +231,31 @@ Diagnosis:
 - added `test_article_ui.lua` covering the complete selector transition sequence.
 
 Gate 3 remains **OPEN** pending 0.1.1 physical retest.
+
+## Physical Gate 3 result — attempt 2 / FAIL during selector construction
+
+Date: 2026-09-22  
+Build: `0.1.1` / package based on `e4e844427b73af2a36c6b92e0f74a10b170cf15d`  
+Result: **FAIL — selector construction raised a caught KOReader UI error**
+
+Observed on the target PW3 / KOReader 2025.04:
+- **Loading Reader articles…** appeared;
+- the metadata request completed and the loading surface disappeared;
+- the plugin then displayed the explicit fallback:
+  - **“The Reader article list could not be displayed. Please retry with the updated Gate 3 build.”**
+- this proves the flow reached `_showCandidateMenu()` and the protected selector construction/exhibition block raised an error;
+- KOReader remained usable;
+- no article was selected/downloaded, so later Gate 3 checks were not reached.
+
+Required next evidence:
+- recover the sanitized `koreader/crash.log` line containing:
+  - `ReadwiseReader: [UI] article selector failed`
+- include its immediate stack/error context if present;
+- do not include token or private article content.
+
+Per the Phase E safety rule, **do not make another speculative UI fix without this exact device error**.
+
+Gate 3 remains **OPEN**.
 
 ## Phase E result
 
@@ -530,7 +555,7 @@ Current Reader documentation still matches the Phase D contracts already written
 
 ## Blockers
 
-**Gate 3 physical retest with 0.1.1 on the target PW3 is the only blocker to Phase F.** Attempt 1 failed before article selection; the selector transition has been fixed and CI-validated, but the full render/KOReader-controls/annotation/reopen sequence still requires device evidence.
+**The exact selector exception from the target PW3 crash log is now the immediate blocker.** Attempt 2 proved the selector transition is reached, but selector construction itself fails on-device. After the exact error is identified and fixed, Gate 3 still requires the full render/KOReader-controls/annotation/reopen sequence before Phase F.
 
 Later hard gates remain:
 - Reader v3 ↔ Readwise v2 highlight ID mapping;
@@ -542,26 +567,14 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Package the final Phase E `0.1.1` branch tip after this ledger update and require final CI success.
-2. Install the 0.1.1 Gate 3 retest package on the target PW3, replacing only `koreader/plugins/readwisereader.koplugin/` and preserving the token/settings.
-3. Enable Wi-Fi outside the plugin and run **Readwise Reader → Download one article (Gate 3)**.
-4. First retest only the failed transition:
-   - **Loading Reader articles…** appears;
-   - it disappears;
-   - a separate article selector appears.
-5. If the selector appears, choose one ordinary article and continue the existing Gate 3 checks:
-   - download/open;
-   - normal rendering/Unicode;
-   - font/margin reflow;
-   - search;
-   - dictionary UI if configured;
-   - local highlight + note;
-   - close/reopen;
-   - position/highlight/note persistence;
-   - no Wi-Fi control.
-6. If the selector still does not appear, collect the relevant sanitized `koreader/crash.log` tail before making another speculative UI change.
-7. If Gate 3 passes, record evidence, merge Phase E to `main`, then create Phase F from updated `main`.
-8. **Do not implement Phase F before Gate 3 passes.**
+1. On the target Kindle, connect by USB and retrieve `koreader/crash.log`.
+2. Find the most recent line containing `ReadwiseReader: [UI] article selector failed`.
+3. Capture that line plus nearby stack/error lines only; sanitize any private title/content if present. The plugin does not intentionally log the token.
+4. Use that exact KOReader 2025.04 device error to fix **Phase E only**.
+5. Add/adjust an automated regression test for the real failure mechanism.
+6. Run CI, package a new Gate 3 build and retest selector → download → render → highlight/note → reopen persistence.
+7. If Gate 3 passes, record evidence, merge Phase E to `main`, then create Phase F.
+8. **Do not implement Phase F and do not make another speculative selector rewrite before the log is inspected.**
 
 ## Existing architectural decisions still in force
 
