@@ -6,16 +6,17 @@
 
 ## Current milestone
 
-**Phase A — repository/bootstrap COMPLETE; Gate 0 PASSED on target PW3**
+**Phase B — config/auth implemented off-device; Gate 1 ready for physical PW3 validation**
 
-Gate 0 was physically validated on 2026-09-22. The plugin appeared in the KOReader menu, the bootstrap dialog opened, and removing the plugin restored normal baseline behavior. Phase B may now begin after the validated bootstrap branch is integrated into `main`.
+Gate 0 passed on the target PW3 on 2026-09-22. Phase A was merged into `main`. Phase B B1/B2 is now implemented and CI-validated. **Do not begin Phase C until Gate 1 passes on the target PW3.**
 
 ## Current branch / commit
 
-- Branch: `phase-a/bootstrap-gate0`
-- Validated implementation/code HEAD: `98f7526c8d8c0295ee8b3c4ee64b76701d394c61`
-- This STATUS update is the next commit on the same branch; when resuming, inspect the branch tip rather than relying on a self-referential hash in this file.
-- Base `main` at session start: `fea2c10f4e6fc1d17f9586960f846608ad4b54d2`
+- Branch: `phase-b/config-auth-gate1`
+- Phase B base `main`: `e050f21246706ee25c79f011ba1cfdc389c827bd`
+- B1 code commit: `2b9d5ebb1ab72ad6729f474a20f7b869fc964130`
+- B2 validated code commit: `6e776d8c903b846ff5f89b0aa06a4bf88394d7f9`
+- This documentation/status update follows the validated code commit; inspect the branch tip when resuming.
 
 ## Target environment
 
@@ -25,154 +26,188 @@ Gate 0 was physically validated on 2026-09-22. The plugin appeared in the KORead
 - Jailbreak/KUAL functional
 - KOReader: `2025.04`
 
-## Files changed this session
+## Phase A result
 
-Added/updated on `phase-a/bootstrap-gate0`:
+- Gate 0: **PASSED** on 2026-09-22.
+- Readwise Reader menu appeared.
+- Bootstrap popup opened.
+- Removing the plugin restored normal KOReader behavior.
+- Phase A PR #1 was merged into `main` as `e050f21246706ee25c79f011ba1cfdc389c827bd`.
 
-- `.gitignore`
+## Files changed in Phase B
+
+Added/updated on `phase-b/config-auth-gate1`:
+
 - `.github/workflows/test.yml`
 - `CHANGELOG.md`
-- `LICENSE`
-- `NOTICE.md`
 - `README.md`
+- `STATUS.md`
 - `docs/DEVICE_TESTS.md`
 - `readwisereader.koplugin/_meta.lua`
+- `readwisereader.koplugin/constants.lua`
+- `readwisereader.koplugin/config.lua`
 - `readwisereader.koplugin/main.lua`
-- `scripts/dev-check.sh`
+- `readwisereader.koplugin/api/http.lua`
+- `readwisereader.koplugin/api/reader.lua`
+- `readwisereader.koplugin/ui/settings.lua`
+- `readwisereader.koplugin/tests/run.lua`
+- `readwisereader.koplugin/tests/test_config.lua`
+- `readwisereader.koplugin/tests/test_http.lua`
+- `readwisereader.koplugin/tests/test_reader.lua`
 - `scripts/package.sh`
-- `STATUS.md`
 
 ## What was implemented
 
-### Licensing / provenance
+### B1 — local configuration / access token
 
-- Inspected the existing community plugin lineage before copying any code.
-- Confirmed AGPL-3.0 licensing.
-- Recorded the reference lineage:
-  - `Endle/readwisereader`
-  - `tomtom800/readwisereader`
-  - `koreader/contrib/readwisereader.koplugin`
-- Added the complete AGPL-3.0 license and a provenance notice.
-- Phase A's minimal shell was written against KOReader v2025.04's plugin loader / hello-plugin pattern rather than copied from the legacy monolithic plugin.
+- Added `LuaSettings`-backed config at `<DataStorage:getSettingsDir()>/readwisereader.lua`.
+- Token is intentionally local plaintext because KOReader settings are plaintext; it is not described as encrypted.
+- Added password-masked token entry.
+- Saved token value is never displayed after saving; menu exposes only configured/not-set state.
+- Added replace and clear behavior.
+- Blank/whitespace-only token is rejected.
+- Token is not copied into SQLite or any other state.
+- No token logging was introduced.
 
-### Minimal KOReader plugin shell
+### B2 — auth transport / Test connection
 
-- Added `readwisereader.koplugin/_meta.lua`.
-- Added `readwisereader.koplugin/main.lua`.
-- Plugin name: `readwisereader`.
-- Menu label: **Readwise Reader**.
-- Plugin is not document-only.
-- Bootstrap version constant: `0.0.1`.
-- Menu action opens a minimal `InfoMessage` confirming the bootstrap plugin loaded and is ready for Gate 0.
-- No auth, network, database, Reader API or destructive behavior exists yet.
+- Added a small HTTP transport abstraction using KOReader/LuaSocket patterns:
+  - `socket.http`;
+  - `ltn12`;
+  - KOReader `socketutil` timeout helpers.
+- Socket timeout is reset after each attempted request, including thrown errors.
+- Request logging contains only HTTP method and URL without query parameters; Authorization headers are never logged.
+- Normalized error classes implemented for:
+  - offline/network;
+  - timeout;
+  - TLS;
+  - rate limit + numeric `Retry-After` when available;
+  - auth;
+  - other client errors;
+  - server errors;
+  - unknown errors.
+- Added Reader auth wrapper using:
+  - `GET https://readwise.io/api/v2/auth/`;
+  - `Authorization: Token <TOKEN>`;
+  - expected success `204`.
+- Added **Settings → Account → Test connection**.
+- User-facing results distinguish valid token, rejected token, offline, timeout, TLS, rate limit, server and unknown errors.
+- The plugin checks `NetworkMgr:isOnline()` only. It deliberately does **not** use `runWhenOnline`, `beforeWifiAction` or any Wi-Fi enable/disable flow.
 
-### Packaging / checks
+### Packaging/tests
 
-- Added `scripts/dev-check.sh`.
-- Added `scripts/package.sh`.
-- Package output is `dist/readwisereader.koplugin.zip`.
-- ZIP root expands to `readwisereader.koplugin/`.
-- Added GitHub Actions workflow to:
-  - install Lua 5.1 + zip;
-  - run syntax checks;
-  - build the installable ZIP;
-  - verify package layout;
-  - upload the Gate 0 ZIP artifact.
-- Added Gate 0 backup/install/rollback instructions to README and `docs/DEVICE_TESTS.md`.
+- Version advanced to experimental `0.0.2`.
+- Lua unit tests now run in CI.
+- Installable ZIP excludes development tests.
+- Gate 1 device instructions explicitly document token cleanup in addition to plugin rollback.
 
-## What works
+## What works off-device
 
-- Repository/bootstrap documentation exists.
-- Minimal plugin package builds deterministically enough for Gate 0.
-- CI validates Lua syntax with Lua 5.1.
-- CI validates the required package layout.
-- No token or Reader credential is needed or handled by this build.
-- Rollback is removing only `koreader/plugins/readwisereader.koplugin/` and restarting KOReader.
+- Config set/get/clear behavior.
+- Whitespace trimming and empty-token rejection.
+- Auth request construction.
+- 204 success handling.
+- 401/403 auth failure classification.
+- 429 + `Retry-After`.
+- timeout/offline/TLS/server classification helpers.
+- timeout reset even when the HTTP stack throws.
+- token/query redaction from normal request logging.
+- deterministic package layout without test files.
 
 ## Tests executed and results
 
-### Physical Gate 0 — target PW3
+### B1 GitHub Actions
 
-Date: 2026-09-22
+Commit: `2b9d5ebb1ab72ad6729f474a20f7b869fc964130`  
+Workflow run #8: **SUCCESS**
 
-Result: **PASS**
+Validated:
+- Lua 5.1 syntax;
+- config unit tests;
+- packaging;
+- required ZIP structure;
+- development tests excluded from ZIP.
 
-User-reported checks:
-- Readwise Reader menu appeared: **yes**;
-- bootstrap popup opened: **yes**;
-- removing the plugin restored normal KOReader behavior: **yes**.
+### B2 GitHub Actions
 
-This validates install/load/menu registration and rollback on the required target hardware.
+Commit: `6e776d8c903b846ff5f89b0aa06a4bf88394d7f9`  
+Workflow run #9: **SUCCESS**
 
+Validated:
+- Lua 5.1 syntax for all plugin/test files;
+- config tests;
+- HTTP transport/error/redaction tests;
+- Reader auth wrapper tests;
+- packaging;
+- required ZIP structure;
+- development tests excluded from ZIP.
 
+### External contracts checked before B2
 
-### GitHub Actions — authoritative bootstrap CI
+Against current Readwise documentation:
+- authentication uses `Authorization: Token <TOKEN>`;
+- validation endpoint is `GET /api/v2/auth/`;
+- successful validation returns `204`.
 
-Commit: `98f7526c8d8c0295ee8b3c4ee64b76701d394c61`
-
-Run:
-- workflow `test`, run #1
-- result: **success**
-- bootstrap job: **success**
-
-Successful steps:
-- checkout;
-- install Lua 5.1 and zip;
-- `./scripts/dev-check.sh`;
-- `./scripts/package.sh`;
-- verify `readwisereader.koplugin/_meta.lua` is present in ZIP;
-- verify `readwisereader.koplugin/main.lua` is present in ZIP;
-- upload Gate 0 artifact.
-
-### Local supplementary checks
-
-- `sh -n scripts/dev-check.sh`: passed.
-- `sh -n scripts/package.sh`: passed.
-- Lua parse of `_meta.lua` through `loadfile`: passed.
-- Lua parse of `main.lua` through `loadfile`: passed.
-- Package creation: passed.
-- `unzip -t` on generated package: passed.
-- Package contains only the expected bootstrap directory/files.
+Against KOReader v2025.04 source:
+- `LuaSettings` supports local settings + flush/backups;
+- password fields use `text_type = "password"`;
+- `socketutil` provides timeout/table-sink helpers;
+- `NetworkMgr:isOnline()` checks online state, while `runWhenOnline()` can enter Wi-Fi connection flows and is therefore intentionally not used.
 
 ## Gates completed
 
-- **Gate 0: PASSED on 2026-09-22 on the target PW3 / KOReader 2025.04.**
-- Phase A/A1 repository/bootstrap implementation: complete.
-- Phase A/A2 physical bootstrap/rollback validation: complete.
+- Gate 0: **PASSED**.
+- B1 off-device implementation: complete.
+- B2 off-device implementation: complete.
+- **Gate 1: OPEN — physical PW3 test required next.**
 
 ## Physical tests pending
 
-No Phase A physical test remains.
+### Gate 1 — required next
 
-Next physical gate:
-- **Gate 1**, after Phase B implements local token configuration and the auth test flow.
-- Gate 1 must validate a real token on the target PW3 without exposing the credential.
+Use the exact matrix in `docs/DEVICE_TESTS.md`.
+
+Minimum required real-device evidence:
+- token field is masked;
+- saved token persists without being displayed;
+- valid token succeeds;
+- deliberately fake token is rejected cleanly;
+- Wi-Fi-off path reports offline and does not turn Wi-Fi on;
+- token can be cleared without exposure.
+
+Do not send the real token in chat or Git.
 
 ## Bugs / failures found
 
-- No implementation bug was found in the bootstrap shell or package CI.
-- The implementation environment could not clone GitHub directly because outbound DNS/network is blocked; repository reads/writes were performed through the GitHub connector instead. This is a tooling/environment limitation, not a repository blocker.
-- A local attempt to use TeX Live's `texluac -p` as if it were standard `luac -p` was invalid and was discarded. The authoritative Lua 5.1 syntax check is the successful GitHub Actions run.
+- No B1/B2 implementation failure remains in CI.
+- A single oversized Git-data connector request for the B2 commit was blocked by the connector before execution. Repository state was verified unchanged, and the exact work was safely retried as smaller Git object operations.
+- Direct container Git/network access remains unavailable; repository operations use the GitHub connector. This is a tooling limitation, not a repository blocker.
 
 ## Technical decisions made
 
-- Keep the project under AGPL-3.0 to remain compatible with future reuse/adaptation of the existing AGPL community implementation.
-- Use a newly written minimal shell for Gate 0 rather than porting legacy behavior prematurely.
-- Follow the KOReader v2025.04 plugin loader and `hello.koplugin` registration pattern.
-- Do not introduce dispatcher actions, settings, networking or database code before Gate 0.
-- Use version `0.0.1` for the bootstrap package.
-- Package the plugin with the `readwisereader.koplugin/` directory at ZIP root.
-- Treat GitHub Actions Lua 5.1 checks as the authoritative off-device bootstrap syntax gate.
+- Keep `main.lua` small: dependency construction/menu/lifecycle only.
+- Keep token configuration in `config.lua`.
+- Keep network transport in `api/http.lua`.
+- Keep Readwise/Reader auth contract in `api/reader.lua`.
+- Use KOReader's password input support rather than custom masking.
+- Never prefill the token dialog with the stored secret.
+- Do not expose a "show token" action.
+- Persist config immediately on save/clear.
+- Use `pcall` around low-level HTTP and reset socket timeout afterward.
+- Treat all HTTP 2xx as transport success, while `validateToken()` requires the documented 204 specifically.
+- Strip query parameters from request log URLs and never log request headers.
+- Do not use KOReader network helpers that may toggle/connect Wi-Fi.
 
 ## Spec deviations
 
 None.
 
-No evidence discovered in this session requires changing `IMPLEMENTATION_SPEC.md`.
+No evidence found during Phase B requires changing `IMPLEMENTATION_SPEC.md`.
 
 ## Blockers
 
-No Phase A blocker remains. Gate 0 has passed, so Phase B may begin once the bootstrap branch is integrated into `main`.
+The only blocker to Phase C is **Gate 1 physical validation on the target PW3**.
 
 Later hard gates remain:
 - Reader v3 ↔ Readwise v2 highlight ID mapping;
@@ -184,13 +219,15 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Integrate `phase-a/bootstrap-gate0` into `main` without rewriting validated history.
-2. Create a dedicated Phase B branch from the updated `main`.
-3. Implement B1 only: LuaSettings config, masked token entry, replace/clear, zero token logging.
-4. Add tests/static checks for token redaction and configuration behavior where feasible.
-5. Implement B2 auth transport/test connection using the official `GET /api/v2/auth/` contract only after B1 is sound.
-6. Package the Phase B build.
-7. Stop at **Gate 1** and run it physically on the PW3 before beginning Phase C.
+1. Install the Gate 1 `0.0.2` package on the target PW3.
+2. Run G1.1–G1.5 from `docs/DEVICE_TESTS.md`; never share the real token.
+3. Record the physical results in `docs/DEVICE_TESTS.md` and `STATUS.md`.
+4. If Gate 1 fails, fix **Phase B only**, repackage and retest.
+5. If Gate 1 passes, merge the validated Phase B branch into `main`.
+6. Create the Phase C storage branch from updated `main`.
+7. Implement C1 SQLite/schema/migrations/unit tests.
+8. Implement C2 repositories/sync_meta only after C1 is sound.
+9. Do not make remote content writes in Phase C.
 
 ## Existing architectural decisions still in force
 
@@ -198,15 +235,15 @@ Later hard gates remain:
 - Manual sync only in V1.
 - Plugin does not toggle Wi-Fi.
 - Reader is the source for library content; Kindle/KOReader is the primary reading surface.
-- Use Reader v3 for library and parent-linked highlight creation.
-- Use Readwise v2 only after proving ID interoperability where needed.
-- Use SQLite for documents/annotation links/queue/sync watermarks.
-- Use LuaSettings for small user config/token.
-- Read KOReader's `annotations` sidecar data directly.
-- Do not use `My Clippings.txt` as source of truth.
+- Reader v3 is used for library and parent-linked highlight creation.
+- Readwise v2 is used only where later interoperability testing proves it required/reliable.
+- SQLite will hold documents/annotation links/queue/watermarks.
+- LuaSettings holds small user config/token.
+- KOReader sidecar `annotations` is the annotation source of truth.
+- Never use `My Clippings.txt` as source of truth.
 - Preserve note text literally, including `[[wikilinks]]`.
 - Deletion propagation is OFF by default.
 - Remote archive does not delete local files in V1.
-- Do not blindly retry highlight creation after an ambiguous timeout.
+- Never blindly retry highlight creation after an ambiguous timeout.
 
 Never rely on chat history alone for project state.

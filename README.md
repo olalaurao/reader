@@ -4,9 +4,11 @@ A KOReader plugin project for using a Kindle as an offline reading client for Re
 
 ## Current status
 
-Implementation is in **Phase A — repository/bootstrap**. The current build is only the Gate 0 plugin shell: it must first prove that a minimal external plugin loads correctly on the target Kindle/KOReader combination before network/authentication work begins.
+**Phase A / Gate 0 is complete.** The minimal plugin load/menu/rollback flow passed on the target Kindle Paperwhite 3 with KOReader 2025.04.
 
-No Readwise token is required for Gate 0, and this bootstrap build does not perform any network calls.
+Implementation is now in **Phase B — config/auth**. Version `0.0.2` adds local access-token configuration and the Gate 1 **Test connection** flow. Phase C storage/library work must not begin until Gate 1 passes on the real device.
+
+The Gate 1 build does not list, download, upload, archive or delete Reader content.
 
 ## Primary target
 
@@ -22,21 +24,35 @@ Do not update Kindle firmware or KOReader merely to test this project.
 - [PLAN.md](PLAN.md) — V1 product scope and roadmap.
 - [IMPLEMENTATION_SPEC.md](IMPLEMENTATION_SPEC.md) — canonical implementation architecture, invariants, gates and test requirements.
 - [STATUS.md](STATUS.md) — resumable implementation ledger and exact current next steps.
+- [docs/DEVICE_TESTS.md](docs/DEVICE_TESTS.md) — physical test procedures and results.
 
 If code and the implementation spec diverge, either the code must be fixed or the spec must be deliberately updated in the same work and the reason recorded in `STATUS.md`.
 
-## Gate 0 installation test
+## Gate 1 account test
 
 Before installing an experimental build, back up the relevant KOReader data, especially `koreader/settings/` and `koreader/plugins/`.
 
-1. Build or obtain `readwisereader.koplugin.zip`.
-2. Extract it so the Kindle contains `koreader/plugins/readwisereader.koplugin/_meta.lua` and `main.lua`.
-3. Restart KOReader.
-4. Confirm **Readwise Reader** appears in the KOReader menu.
-5. Open it and confirm the bootstrap information dialog appears.
-6. Close KOReader, remove `koreader/plugins/readwisereader.koplugin/`, restart KOReader, and confirm normal baseline behavior returns.
+1. Install `readwisereader.koplugin/` under `koreader/plugins/` and restart KOReader.
+2. Open **Readwise Reader → Settings → Account → Access token**.
+3. Enter the Readwise token **on the Kindle only**. Do not paste it into Git, chat, logs or test fixtures.
+4. The entry field is password-masked and the menu only reports whether a token is configured.
+5. With Wi-Fi enabled outside the plugin, use **Test connection**.
+6. Follow the complete Gate 1 matrix in `docs/DEVICE_TESTS.md`.
 
-Do not enter or commit an access token during Gate 0.
+The plugin deliberately checks connectivity without enabling or disabling Wi-Fi.
+
+### Credential storage
+
+KOReader's `LuaSettings` files are plaintext. The access token is therefore stored locally, unencrypted, in:
+
+`koreader/settings/readwisereader.lua`
+
+The UI never displays the saved value after saving it, and normal plugin logs never include the Authorization header/token.
+
+To remove the credential, use **Access token → Clear**. Removing only the plugin directory does **not** remove the settings file. For a full manual cleanup, close KOReader and remove both:
+
+- `koreader/plugins/readwisereader.koplugin/`
+- `koreader/settings/readwisereader.lua`
 
 ## Development checks
 
@@ -44,6 +60,7 @@ With Lua 5.1 (or a compatible `luac`) and `zip` installed:
 
 ```sh
 ./scripts/dev-check.sh
+lua5.1 readwisereader.koplugin/tests/run.lua
 ./scripts/package.sh
 ```
 
@@ -53,7 +70,7 @@ The package script writes:
 dist/readwisereader.koplugin.zip
 ```
 
-The ZIP root expands to the required `readwisereader.koplugin/` directory.
+The ZIP root expands to `readwisereader.koplugin/`. Development tests are excluded from the installable ZIP.
 
 ## Safety rules
 
@@ -61,10 +78,11 @@ The ZIP root expands to the required `readwisereader.koplugin/` directory.
 - Never use `My Clippings.txt` as the annotation source of truth.
 - Preserve KOReader sidecars, progress, highlights and notes.
 - No destructive remote behavior is enabled by default.
+- The plugin does not control Wi-Fi in V1.
 - Do not advance past a device/API gate until the required test has actually passed.
 
 ## License and provenance
 
 This repository is licensed under AGPL-3.0. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md).
 
-The community Readwise Reader plugin is used as an architectural/reference source and is also AGPL-3.0. Phase A's minimal shell is intentionally small and follows the KOReader v2025.04 plugin loader/hello-plugin pattern rather than copying the legacy monolithic implementation.
+The community Readwise Reader plugin is used as an architectural/reference source and is also AGPL-3.0. The current implementation follows KOReader v2025.04 patterns while replacing the legacy monolithic architecture incrementally behind physical gates.

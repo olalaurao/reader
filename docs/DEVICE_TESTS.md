@@ -13,38 +13,6 @@ Do not mark a device gate complete until its result is recorded here and in `STA
 
 Status: **PASSED — 2026-09-22**
 
-### Before installing
-
-Back up, at minimum:
-
-- `koreader/settings/`
-- `koreader/plugins/`
-- `koreader/crash.log` if it already contains useful baseline diagnostics
-
-No token is needed for this test.
-
-### Test
-
-1. Extract `readwisereader.koplugin.zip`.
-2. Copy the resulting `readwisereader.koplugin/` directory into `koreader/plugins/`.
-3. Confirm these paths exist on the Kindle:
-   - `koreader/plugins/readwisereader.koplugin/_meta.lua`
-   - `koreader/plugins/readwisereader.koplugin/main.lua`
-4. Restart KOReader.
-5. Confirm **Readwise Reader** appears in the menu.
-6. Tap **Readwise Reader**.
-7. Confirm an information dialog says the bootstrap plugin loaded successfully and shows version `0.0.1`.
-8. Close KOReader.
-9. Remove only `koreader/plugins/readwisereader.koplugin/`.
-10. Restart KOReader.
-11. Confirm KOReader returns to normal baseline behavior and the Readwise Reader item is gone.
-
-### Return with
-
-- whether steps 5, 7 and 11 passed;
-- if any step failed, the exact visible error;
-- the relevant sanitized tail of `koreader/crash.log` (do not include credentials; Gate 0 should contain none).
-
 ### Run history
 
 #### 2026-09-22 — PASS
@@ -59,4 +27,116 @@ User-reported results:
 Conclusion:
 - Gate 0 passed.
 - The plugin load/menu registration path and uninstall rollback are validated on the target device.
-- Phase B config/auth work may begin.
+
+## Gate 1 — local token + authentication
+
+Status: **PENDING physical test**
+
+Build under test:
+- plugin version: `0.0.2`;
+- implementation commit: `6e776d8c903b846ff5f89b0aa06a4bf88394d7f9`;
+- branch: `phase-b/config-auth-gate1`.
+
+### Safety before testing
+
+1. Back up `koreader/settings/` and `koreader/plugins/`.
+2. Do **not** paste the real Readwise token into chat, GitHub, logs or screenshots.
+3. Enter the token only into the password-masked field on the Kindle.
+4. Wi-Fi must be enabled/disabled by the user outside the plugin. The plugin must not toggle it.
+5. Remember that the saved token is local plaintext in `koreader/settings/readwisereader.lua`.
+
+### Install
+
+1. Extract the Gate 1 `readwisereader.koplugin.zip`.
+2. Copy `readwisereader.koplugin/` to `koreader/plugins/`, replacing the prior test copy if present.
+3. Restart KOReader.
+4. Open **Tools → More tools → Readwise Reader → Settings → Account**.
+
+### G1.1 — token UI / persistence
+
+1. Open **Access token**.
+2. Confirm the input is password-masked.
+3. Paste the real Readwise token and tap **Save**.
+4. Confirm the menu reports **Access token: configured** and never displays the token value.
+5. Leave and reopen the Readwise Reader menu; confirm it still reports configured.
+
+Expected:
+- token persists locally;
+- token value is not echoed in the menu.
+
+### G1.2 — valid token
+
+1. Enable Wi-Fi outside the plugin and wait until the Kindle is online.
+2. Open **Readwise Reader → Settings → Account → Test connection**.
+
+Expected message:
+
+`Connected to Readwise successfully.`
+
+This validates the real PW3 HTTPS/auth path and the documented 204 success response.
+
+### G1.3 — invalid token
+
+1. Open **Access token** and replace the real token temporarily with a deliberately fake value such as `invalid-gate1-token`.
+2. Save it.
+3. With Wi-Fi still on, run **Test connection**.
+
+Expected:
+- a message saying Readwise rejected the access token;
+- no crash;
+- no token shown in the error.
+
+Then restore the real token locally on the Kindle.
+
+### G1.4 — offline behavior / no Wi-Fi control
+
+1. Turn Wi-Fi **off outside the plugin**.
+2. Run **Test connection**.
+
+Expected:
+- a no-internet/network message;
+- the plugin does **not** turn Wi-Fi on;
+- no crash.
+
+### G1.5 — clear / replace
+
+1. Open **Access token → Clear**.
+2. Confirm the menu changes to **Access token: not set**.
+3. Run **Test connection**.
+
+Expected:
+- message that no access token is configured;
+- no network request should be needed.
+
+4. Re-enter the real token locally if continuing development.
+
+### Timeout/TLS classification
+
+The transport has automated tests for timeout and TLS classification. Do not deliberately damage certificates or network configuration merely to force these cases on the Kindle. If a genuine timeout/TLS error occurs during Gate 1, record the exact user-facing message and a sanitized log tail.
+
+### Rollback / credential cleanup
+
+Removing only:
+
+`koreader/plugins/readwisereader.koplugin/`
+
+disables the plugin but does **not** erase its saved token.
+
+To remove the credential, either use **Access token → Clear** before uninstalling or, with KOReader closed, also remove:
+
+`koreader/settings/readwisereader.lua`
+
+### Return with
+
+Do not send the token. Return only:
+
+- password field masked: yes/no;
+- valid token → connected successfully: yes/no;
+- fake token → rejected cleanly: yes/no;
+- Wi-Fi off → offline message: yes/no;
+- plugin did not turn Wi-Fi on: yes/no;
+- clear → menu says not set: yes/no;
+- any exact visible error that differed from the expected behavior;
+- if there was a crash/failure, a relevant **sanitized** `koreader/crash.log` tail with credentials removed.
+
+Gate 1 remains open until the target-device results are recorded.
