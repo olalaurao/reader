@@ -1,6 +1,6 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
-local function withStubbedLibraryUI(run)
+local function withStubbedLibraryUI(run, initial_online)
     local module_names = {
         "ui.library",
         "ui/widget/infomessage",
@@ -19,7 +19,7 @@ local function withStubbedLibraryUI(run)
 
     local shown = {}
     local state = {
-        online = true,
+        online = initial_online ~= false,
         wrap_calls = 0,
         subprocess_calls = 0,
     }
@@ -116,7 +116,6 @@ return function()
     end)
 
     withStubbedLibraryUI(function(LibraryUI, state, shown)
-        state.online = false
         local ui = LibraryUI:new{
             config = {
                 hasAccessToken = function()
@@ -136,5 +135,5 @@ return function()
         assert(state.subprocess_calls == 0)
         assert(#shown == 1)
         assert(shown[1].text:find("No internet connection", 1, true))
-    end)
+    end, false)
 end
