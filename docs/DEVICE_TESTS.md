@@ -162,3 +162,90 @@ Do not send the token. Return only:
 - if there was a crash/failure, a relevant **sanitized** `koreader/crash.log` tail with credentials removed.
 
 Gate 1 is closed; the target-device results are recorded above.
+
+
+## Gate 2 — full Reader metadata scan
+
+Status: **PENDING physical test**
+
+Build under test:
+- plugin version: `0.0.3`;
+- validated code commit: `50fe2ad9bbb362b94eebc7d73bc30816e557965d`;
+- branch: `phase-d/reader-metadata-gate2`.
+
+Purpose:
+- traverse the real Reader library using metadata-only LIST requests;
+- validate full cursor pagination, performance and memory behavior on the target PW3;
+- verify there is no cursor loop, crash, visible duplicate processing or uncontrolled rate-limit behavior;
+- prove this build remains read-only with respect to Reader content.
+
+### Safety before testing
+
+1. Back up `koreader/settings/` and `koreader/plugins/`.
+2. Do not send the Readwise token, private document titles/content or signed URLs in chat/log excerpts.
+3. Keep the existing token only on the Kindle.
+4. Turn Wi-Fi on/off outside the plugin. The plugin must not control it.
+5. This build is expected to make Reader LIST requests only. It must not download or modify documents.
+
+### Install
+
+1. Extract the Gate 2 `readwisereader.koplugin.zip`.
+2. Replace `koreader/plugins/readwisereader.koplugin/` with the extracted folder.
+3. Leave `koreader/settings/readwisereader.lua` in place if the valid token is already configured.
+4. Restart KOReader.
+
+### G2.1 — full metadata-only scan
+
+1. Enable Wi-Fi outside the plugin and confirm the Kindle is online.
+2. Open **Tools → More tools → Readwise Reader → Scan Reader metadata (Gate 2)**.
+3. A scan message should state that this is metadata-only and can be cancelled.
+4. Let this run complete without tapping to cancel.
+
+Expected final report contains:
+- **Top-level documents**;
+- **API pages**;
+- **Duplicate records ignored**;
+- **Child records ignored**;
+- **Locations** counts;
+- **Categories** counts;
+- explicit confirmation that no documents were downloaded or changed.
+
+Pass conditions:
+- scan reaches the final report;
+- KOReader does not crash or become permanently unresponsive;
+- no cursor-loop/pagination error;
+- no final rate-limit failure;
+- duplicate API records, if any, are counted/ignored rather than emitted twice;
+- child Reader records/highlights are not counted as top-level reading documents;
+- plugin does not toggle Wi-Fi;
+- no local Reader document is downloaded/created/changed by this scan.
+
+Note: LIST requests are intentionally paced at least 3.1 seconds apart. Large libraries can therefore take longer; this is deliberate to stay below the documented Reader LIST rate limit.
+
+### G2.2 — cancellation smoke test
+
+After one successful full scan:
+
+1. Start **Scan Reader metadata (Gate 2)** again.
+2. While the scan message is visible, tap to cancel.
+
+Expected:
+- scan closes/cancels cleanly;
+- KOReader remains usable;
+- no document is downloaded or changed;
+- a later full scan can still run normally.
+
+Cancellation is useful evidence for PW3 responsiveness but does not replace the successful full scan in G2.1.
+
+### Return with
+
+Do not send token or private titles/content. Return:
+
+`scan completou: sim/não / travou: sim/não / wifi não foi alterado: sim/não / nenhum arquivo foi baixado ou alterado: sim/não / cancelamento funcionou: sim/não / páginas: N / documentos: N / duplicatas ignoradas: N / child records ignorados: N / locations: ... / categories: ...`
+
+If the scan fails, also send:
+- the exact visible error;
+- whether it happened before any page/result or after some time;
+- a relevant **sanitized** `koreader/crash.log` tail only if there was a crash, with credentials/private content removed.
+
+Gate 2 remains open until this real-device result is recorded.

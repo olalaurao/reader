@@ -18,6 +18,13 @@ All notable project changes are recorded here.
 - Transactional schema migration foundation with rollback and future migration backup support.
 - Storage repositories keyed by stable Reader/local IDs, with queue idempotency and stale in-flight recovery.
 - Real-SQLite CI coverage for schema constraints, rollback and storage repository invariants.
+- Reader v3 metadata LIST client with validated query encoding and response parsing.
+- Full cursor pagination with repeated-cursor/empty-loop guards and ID deduplication.
+- Metadata-only Gate 2 full-library scanner with location/category/child/duplicate counts.
+- Proactive Reader LIST pacing at 3.1 seconds between requests for the documented 20/minute limit.
+- Bounded 429 retry handling that honors `Retry-After` and never advances a failed page cursor.
+- Cancellable Gate 2 scanning via KOReader's subprocess trap pattern so long metadata/rate-limit waits remain dismissable.
+- Unit coverage for 21-page pacing, cancellation, cursor loops, deduplication and rate-limit recovery.
 
 ## [0.0.2] - 2026-09-22
 

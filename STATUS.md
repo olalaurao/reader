@@ -6,19 +6,24 @@
 
 ## Current milestone
 
-**Phase C — storage foundation COMPLETE off-device; ready to integrate before Phase D**
+**Phase D — Reader metadata implemented and CI-validated; Gate 2 READY for physical PW3 validation**
 
-Gate 1 remains passed on the target PW3. Phase B was merged to `main` through PR #2 as `0538b00c8ac4237afd42db9ed6c8dcc0737dffdd`. Phase C C1/C2 is implemented and CI-validated. There is no physical gate between Phase C and Phase D, so Reader metadata work may begin after Phase C is integrated.
+Gate 1 remains passed. Phase C was merged into `main` through PR #3 as `6db5a6802c3acd7378989e3776829ec3a4c0bf65`. Phase D D1/D2/D3 is implemented off-device and the final code tip passed CI. **Do not begin Phase E until Gate 2 passes on the target PW3.**
 
 ## Current branch / commit
 
-- Branch: `phase-c/storage-foundation`
-- Phase C base `main`: `0538b00c8ac4237afd42db9ed6c8dcc0737dffdd`
-- C1 schema commit: `1ad0c060a0403a17ddaa5d7f72dbb4539c4ae4e6`
-- CI dependency fix: `77ee86aa99c730d6bb8f41f9b539aada9890eafe`
-- SQLite test compatibility fix / validated C1 tip: `803e9ea1a20fdaba8b0649253ff015278a44bc3d`
-- C2 repositories commit: `123d1bb9c0e227f56c0acd7a63bca86883af8912`
-- This documentation/status update follows the validated C2 code; inspect the branch tip when resuming.
+- Branch: `phase-d/reader-metadata-gate2`
+- Phase D base `main`: `6db5a6802c3acd7378989e3776829ec3a4c0bf65`
+- D1 LIST client: `02b749ebe0539b74cbf4cf604b7e9f006ad89c78`
+- D1 JSON-test fix / validated D1: `5b560b24b6fc908a70a5a587a6a73c7f1d5fec90`
+- D2 pagination/dedupe/cursor guards: `23456463d6de8f9e98d50275e584f7cac2762216`
+- D3 metadata-only Gate 2 UI: `d77cda0244fbda8c1d97eb4b8842d90b86d6d5be`
+- LIST pacing: `4d8f6dc7405154a599817086ddfb39dda5db325a`
+- Cancellation propagation: `859f724e2ae659ff45debef6b579dec84c1e8675`
+- Fast deterministic pacing fixtures: `5da20ae06472f02fdaae5b1bf730b2a9dd54db60`
+- Retry-After handling: `ea5ac3ff52497e83b3596461d8ec7c5bdac93dd2`
+- Final pacing-loop fix / validated code tip: `50fe2ad9bbb362b94eebc7d73bc30816e557965d`
+- This documentation/status update follows the validated code tip; inspect the branch tip when resuming.
 
 ## Target environment
 
@@ -58,6 +63,73 @@ Added/updated on `phase-b/config-auth-gate1`:
 - `readwisereader.koplugin/tests/test_reader.lua`
 - `scripts/package.sh`
 
+
+## Phase D result
+
+### D1 — Reader v3 LIST one page
+
+- Added Reader v3 `GET /api/v3/list/` support with `Authorization: Token <TOKEN>`.
+- Added deterministic percent-encoded query construction for:
+  - `id`;
+  - `updatedAfter`;
+  - `location`;
+  - `category`;
+  - repeated `tag`;
+  - `limit` (validated 1..100);
+  - `pageCursor`;
+  - `withHtmlContent`;
+  - `withRawSourceUrl`.
+- Metadata scans explicitly request neither HTML bodies nor raw-source URLs.
+- Added JSON decoding and response-shape validation.
+- Documents without a valid Reader ID are rejected as malformed rather than silently accepted.
+- The normalized document shape includes the documented metadata needed by later phases.
+- No remote-write endpoint was added.
+
+### D2 — complete pagination / safety
+
+- Added sequential cursor pagination with `limit=100`.
+- Added repeated-cursor detection.
+- Added guard against an empty page that still advertises another cursor.
+- Deduplicates records by Reader document ID across pages while recording duplicate count.
+- Keeps only IDs in the dedupe set; it does not retain all document bodies/pages in memory.
+- Propagates partial scan metrics with failures.
+- Added cooperative cancellation checks.
+- Added proactive LIST pacing at 3.1 seconds between request starts, slightly below the documented 20 requests/minute ceiling.
+- Added bounded 429 recovery:
+  - honors numeric `Retry-After` when supplied;
+  - otherwise uses bounded 5s/15s fallback delays;
+  - retries the same page at most twice;
+  - never advances the cursor or dispatches page data before a successful response.
+- Sleep/pacing is cancellation-aware.
+
+### D3 — Gate 2 metadata-only UI
+
+- Plugin version advanced to experimental `0.0.3`.
+- Added **Readwise Reader → Scan Reader metadata (Gate 2)**.
+- Requires an already-configured token and checks current connectivity only; it does not enable Wi-Fi.
+- Runs the scan using KOReader's cancellable `Trapper:dismissableRunInSubprocess` pattern so the e-ink UI remains dismissable during network/pacing waits.
+- Full-library result reports:
+  - top-level Reader documents;
+  - API pages;
+  - duplicate records ignored;
+  - child records ignored;
+  - counts by Reader location;
+  - counts by category.
+- Child records with `parent_id` are counted diagnostically but never treated as top-level reading documents.
+- Gate 2 scan does **not**:
+  - download or materialize any document;
+  - request `html_content`;
+  - request `raw_source_url`;
+  - write Reader/Readwise state;
+  - enqueue annotation/archive operations;
+  - toggle Wi-Fi.
+
+### Phase D automated validation
+
+- Run #24 on `5b560b24b6fc908a70a5a587a6a73c7f1d5fec90`: **SUCCESS** — D1 request/query/parser tests.
+- Run #25 on `23456463d6de8f9e98d50275e584f7cac2762216`: **SUCCESS** — multi-page pagination, dedupe, repeated cursor, malformed empty-loop, cancellation, 429 propagation.
+- Run #26 on `d77cda0244fbda8c1d97eb4b8842d90b86d6d5be`: **SUCCESS** — metadata scanner/UI wiring and package.
+- Run #31 on `50fe2ad9bbb362b94eebc7d73bc30816e557965d`: **SUCCESS** — final Phase D code including 21-page pacing simulation, cancellation during pacing, bounded Retry-After recovery, syntax, all unit tests, package and ZIP layout.
 
 ## Phase C result
 
@@ -236,6 +308,10 @@ Next physical gate: **Gate 2**, after Phase C storage and Phase D Reader metadat
 
 ## Bugs / failures found
 
+- Phase D run #23 exposed a test-injection bug: the injected JSON decoder was shaped like KOReader's JSON module but the test supplied a function. Production parsing design was unchanged; decoder injection was simplified and run #24 passed.
+- After D3, review against the current Reader contract found that merely handling 429 was insufficient for a full library: unrestricted pagination could itself exceed the documented 20 LIST requests/minute ceiling. Proactive 3.1s request pacing was added before Gate 2.
+- Cancellation was initially not forwarded into the per-page pacing call because the copied option was cleared; this was corrected before device testing.
+- A synthetic 21-page pacing test then exposed a sub-millisecond floating-point residue loop in the simulated clock. The pacing guard now ignores <1ms residue; final run #31 passed.
 - Phase C run #15 failed before tests because the workflow accidentally contained a literal `\\n` inside the apt command; the workflow was corrected.
 - Phase C run #16 reached the storage tests and exposed a test-only `lsqlite3` compatibility bug: `get_values()` already returns an array. The shim was corrected; production schema code did not require a change.
 - C1 then passed in run #17 and C2 passed in run #18.
@@ -262,11 +338,11 @@ Next physical gate: **Gate 2**, after Phase C storage and Phase D Reader metadat
 
 None.
 
-No Phase C evidence required changing `IMPLEMENTATION_SPEC.md`. The implementation follows its SQLite schema/storage boundaries and does not persist temporary raw-source URLs.
+Current Reader documentation still matches the Phase D contracts already written in `IMPLEMENTATION_SPEC.md`: cursor pagination, `limit <= 100`, metadata toggles, 20 LIST requests/minute and `Retry-After` behavior. No spec or PLAN change was required.
 
 ## Blockers
 
-No Phase C blocker remains. The next hard stop is **Gate 2**, after Phase D implements a metadata-only full-library scan on the real account/PW3.
+**Gate 2 physical validation on the target PW3 is the only blocker to Phase E.** Phase D is implemented and CI-validated, but the full real-account library traversal, memory/performance and device cancellation behavior must be observed on the actual Kindle before any document-download code is allowed.
 
 Later hard gates remain:
 - Reader v3 ↔ Readwise v2 highlight ID mapping;
@@ -278,13 +354,13 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Integrate the validated Phase C branch into `main` without rewriting history.
-2. Create a Phase D Reader-metadata branch from updated `main`.
-3. Implement D1: Reader v3 LIST one page and required-field parsing.
-4. Implement D2: cursor pagination, repeated-cursor guard, deduplication and rate-limit handling.
-5. Add a metadata-only device action that reports total/pages plus location/category counts and performs no downloads or remote writes.
-6. Run CI and package the Gate 2 build.
-7. Stop at **Gate 2** for the full-library metadata scan on the target PW3 before Phase E.
+1. Install the Gate 2 `0.0.3` package on the target PW3.
+2. Run the Gate 2 procedure in `docs/DEVICE_TESTS.md` with Wi-Fi enabled by the user outside the plugin.
+3. Record the complete scan result: completion/no hang, page count, document count, duplicates, child records, location/category counts, and whether any rate-limit/error occurred.
+4. Confirm no Reader document was downloaded/changed and the plugin did not toggle Wi-Fi.
+5. If Gate 2 fails, fix **Phase D only**, repackage and retest.
+6. If Gate 2 passes, record the physical result in `docs/DEVICE_TESTS.md` and `STATUS.md`, merge the validated Phase D branch into `main`, then create Phase E from updated `main`.
+7. Do **not** implement Phase E before Gate 2 passes.
 
 ## Existing architectural decisions still in force
 
