@@ -1,0 +1,148 @@
+-- SPDX-License-Identifier: AGPL-3.0-only
+
+local Http = require("api/http")
+
+local function newSocketUtil()
+    local s = {
+        LARGE_BLOCK_TIMEOUT = 10,
+        LARGE_TOTAL_TIMEOUT = 30,
+        FILE_BLOCK_TIMEOUT = 15,
+        FILE_TOTAL_TIMEOUT = 60,
+        set_count = 0,
+        reset_count = 0,
+    }
+
+    function s.table_sink(target)
+        return function(chunk)
+            if chunk then table.insert(target, chunk) end
+            return 1
+        end
+    end
+
+    function s:set_timeout()
+        self.set_count = self.set_count + 1
+    end
+
+    function s:reset_timeout()
+        self.reset_count = self.reset_count + 1
+    end
+
+    return s
+end
+
+local fakeLtn12 = {
+    source = {
+        string = function(value)
+            return function()
+                local result = value
+                value = nil
+                return result
+            end
+        end,
+    },
+}
+
+return function()
+    do
+        local socketutil = newSocketUtil()
+        local logged = {}
+        local captured
+        local http = Http:new{
+            http = {
+                request = function(request)
+                    captured = request
+                    return 1, 204, {}, "HTTP/1.1 204 No Content"
+                end,
+            },
+            ltn12 = fakeLtn12,
+            socketutil = socketutil,
+            logger = {
+                dbg = function(...)
+                    for i = 1, select("#", ...) do
+                        table.insert(logged, tostring(select(i, ...)))
+                    end
+                end,
+            },
+        }
+
+        local response, err = http:request{
+            method = "GET",
+            url = "https://readwise.io/api/v2/auth/?secret=query",
+            headers = { Authorization = "Token abc123" },
+        }
+
+        assert(err == nil)
+        assert(response.status == 204)
+        assert(captured.headers.Authorization == "Token abc123")
+        assert(socketutil.set_count == 1)
+        assert(socketutil.reset_count == 1)
+        local log_text = table.concat(logged, " ")
+        assert(log_text:find("abc123", 1, true) == nil)
+        assert(log_text:find("secret=query", 1, true) == nil)
+    end
+
+    do
+        local socketutil = newSocketUtil()
+        local http = Http:new{
+            http = {
+                request = function()
+                    return 1, 429, { ["Retry-After"] = "7" }, "HTTP/1.1 429 Too Many Requests"
+                end,
+            },
+            ltn12 = fakeLtn12,
+            socketutil = socketutil,
+            logger = { dbg = function() end },
+        }
+
+        local response, err = http:request{ url = "https://readwise.io/" }
+        assert(response == nil)
+        assert(err.kind == "rate_limit")
+        assert(err.retryable == true)
+        assert(err.retry_after == 7)
+    end
+
+    do
+        local socketutil = newSocketUtil()
+        local http = Http:new{
+            http = {
+                request = function()
+                    return nil, "timeout", nil, nil
+                end,
+            },
+            ltn12 = fakeLtn12,
+            socketutil = socketutil,
+            logger = { dbg = function() end },
+        }
+
+        local response, err = http:request{ url = "https://readwise.io/" }
+        assert(response == nil)
+        assert(err.kind == "timeout")
+        assert(err.retryable == true)
+        assert(socketutil.reset_count == 1)
+    end
+
+    do
+        local socketutil = newSocketUtil()
+        local http = Http:new{
+            http = {
+                request = function()
+                    error("boom")
+                end,
+            },
+            ltn12 = fakeLtn12,
+            socketutil = socketutil,
+            logger = { dbg = function() end },
+        }
+
+        local response, err = http:request{ url = "https://readwise.io/" }
+        assert(response == nil)
+        assert(err.kind == "unknown")
+        assert(socketutil.reset_count == 1)
+    end
+
+    assert(Http._statusError(401, {}).kind == "auth")
+    assert(Http._statusError(403, {}).kind == "auth")
+    assert(Http._statusError(500, {}).retryable == true)
+    assert(Http._networkError("host not found").kind == "offline")
+    assert(Http._networkError("certificate verify failed").kind == "tls")
+end

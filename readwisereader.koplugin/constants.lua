@@ -3,4 +3,5 @@
 return {
     VERSION = "0.0.2",
     SETTINGS_FILENAME = "readwisereader.lua",
+    AUTH_URL = "https://readwise.io/api/v2/auth/",
 }

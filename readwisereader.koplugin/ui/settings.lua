@@ -2,6 +2,7 @@
 
 local InfoMessage = require("ui/widget/infomessage")
 local MultiInputDialog = require("ui/widget/multiinputdialog")
+local NetworkMgr = require("ui/network/manager")
 local UIManager = require("ui/uimanager")
 local _ = require("gettext")
 
@@ -11,6 +12,7 @@ SettingsUI.__index = SettingsUI
 function SettingsUI:new(options)
     return setmetatable({
         config = assert(options.config, "config is required"),
+        reader = assert(options.reader, "reader is required"),
         token_dialog = nil,
     }, self)
 end
@@ -32,6 +34,13 @@ function SettingsUI:getSettingsMenu()
                         keep_menu_open = true,
                         callback = function()
                             self:showTokenDialog()
+                        end,
+                    },
+                    {
+                        text = _("Test connection"),
+                        keep_menu_open = true,
+                        callback = function()
+                            self:testConnection()
                         end,
                     },
                 },
@@ -100,6 +109,50 @@ function SettingsUI:showTokenDialog()
 
     UIManager:show(self.token_dialog)
     self.token_dialog:onShowKeyboard()
+end
+
+function SettingsUI:testConnection()
+    if not self.config:hasAccessToken() then
+        UIManager:show(InfoMessage:new{
+            text = _("No access token is configured."),
+        })
+        return
+    end
+
+    -- Deliberately do not call runWhenOnline/beforeWifiAction: V1 never toggles Wi-Fi.
+    if not NetworkMgr:isOnline() then
+        UIManager:show(InfoMessage:new{
+            text = _("No internet connection. Turn Wi-Fi on outside the plugin and try again."),
+        })
+        return
+    end
+
+    local ok, err = self.reader:validateToken()
+    if ok then
+        UIManager:show(InfoMessage:new{
+            text = _("Connected to Readwise successfully."),
+        })
+        return
+    end
+
+    local text
+    if err and err.kind == "auth" then
+        text = _("Readwise rejected the access token. Replace it and try again.")
+    elseif err and err.kind == "timeout" then
+        text = _("The Readwise connection timed out. Try again.")
+    elseif err and err.kind == "tls" then
+        text = _("A secure TLS connection to Readwise could not be established.")
+    elseif err and err.kind == "rate_limit" then
+        text = _("Readwise rate limit reached. Try again later.")
+    elseif err and err.kind == "offline" then
+        text = _("The network is unavailable. Check Wi-Fi and try again.")
+    elseif err and err.kind == "server" then
+        text = _("Readwise reported a server error. Try again later.")
+    else
+        text = _("Could not validate the Readwise connection.")
+    end
+
+    UIManager:show(InfoMessage:new{ text = text })
 end
 
 return SettingsUI

@@ -2,6 +2,8 @@
 
 local Config = require("config")
 local Constants = require("constants")
+local Http = require("api/http")
+local Reader = require("api/reader")
 local SettingsUI = require("ui/settings")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
@@ -14,8 +16,14 @@ local ReadwiseReader = WidgetContainer:extend{
 
 function ReadwiseReader:init()
     self.config = Config:new()
+    self.http = Http:new()
+    self.reader_api = Reader:new{
+        http = self.http,
+        config = self.config,
+    }
     self.settings_ui = SettingsUI:new{
         config = self.config,
+        reader = self.reader_api,
     }
     self.ui.menu:registerToMainMenu(self)
 end
