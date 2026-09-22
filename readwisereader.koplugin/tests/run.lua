@@ -9,6 +9,7 @@ local tests = {
     "tests.test_http",
     "tests.test_reader",
     "tests.test_reader_pagination",
+    "tests.test_metadata_scan",
     "tests.test_storage_db",
     "tests.test_storage_repositories",
 }
