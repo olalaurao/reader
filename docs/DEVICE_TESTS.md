@@ -293,10 +293,10 @@ Gate 2 is closed: **PASSED on 2026-09-22**.
 
 ## Gate 3 — first readable article
 
-Status: **BLOCKED ON DEVICE LOG — attempt 2 failed during selector construction**
+Status: **RETEST REQUIRED — 0.1.2 fixes device-log root cause**
 
 Build under test:
-- plugin version: `0.1.1` (retest build);
+- plugin version: `0.1.2` (retest build);
 - branch: `phase-e/first-article-gate3`;
 - E1 primitives: `655e70e76f87343bd2580d563ef6d90d75294b40`;
 - E1/E2 integrated code: `26610d04e4c3e8b0414ff40a39d244763c7328ca`;
@@ -342,6 +342,15 @@ Interpretation:
 Before another fix, retrieve the most recent sanitized `koreader/crash.log` entry containing:
 `ReadwiseReader: [UI] article selector failed`
 
+#### 2026-09-22 — 0.1.2 root-cause fix
+
+The uploaded PW3 `crash.log` identified the exact selector failure:
+- `attempt to call local '_' (a number value)` in `candidateItems`;
+- the article loop index `_` shadowed gettext `_`;
+- an untitled Reader candidate triggered `_("Untitled")`, calling the numeric index.
+
+0.1.2 renames that loop index and adds an automated untitled-candidate regression test. Run #50 passed.
+
 ### Safety / install
 
 1. Back up `koreader/settings/` and `koreader/plugins/`.
@@ -355,7 +364,7 @@ Before another fix, retrieve the most recent sanitized `koreader/crash.log` entr
 
 1. Open **Tools → More tools → Readwise Reader → Download one article (Gate 3)**.
 2. A cancellable metadata-loading message should appear.
-3. When it disappears, a separate on-device article selector should appear. **This is the specific 0.1.1 retest point.**
+3. When it disappears, a separate on-device article selector should appear. **This is the specific 0.1.2 retest point.**
 4. The selector should contain up to 100 top-level Reader article candidates.
 5. Select one ordinary article you recognize. Prefer a text article with enough content to test search/reflow and, if convenient, accents or curly punctuation.
 6. A cancellable processed-article download message should appear.

@@ -4,7 +4,7 @@ A KOReader plugin project for using a Kindle as an offline reading client for Re
 
 ## Current status
 
-**Gates 0–2 are complete. Phase D was merged through PR #4. Phase E E1/E2 is implemented and CI-validated; Gate 3 is ready for the target Kindle Paperwhite 3 / KOReader 2025.04.** Experimental version `0.1.1` can list article candidates on-device, fetch one selected Reader article with processed HTML, atomically install it under `/mnt/us/documents/Readwise/Articles/`, write KOReader metadata, and open it as a normal local document.
+**Gates 0–2 are complete. Phase D was merged through PR #4. Phase E E1/E2 is implemented and CI-validated; Gate 3 is ready for the target Kindle Paperwhite 3 / KOReader 2025.04.** Experimental version `0.1.2` can list article candidates on-device, fetch one selected Reader article with processed HTML, atomically install it under `/mnt/us/documents/Readwise/Articles/`, write KOReader metadata, and open it as a normal local document.
 
 The Gate 2 action performs a metadata-only full Reader-library scan with cursor guards, ID deduplication, request pacing, bounded `Retry-After` recovery and cancellable KOReader UI. It reports counts by location/category. **It does not download or change Reader documents and does not perform remote writes.**
 
@@ -86,11 +86,11 @@ This repository is licensed under AGPL-3.0. See [LICENSE](LICENSE) and [NOTICE.m
 The community Readwise Reader plugin is used as an architectural/reference source and is also AGPL-3.0. The current implementation follows KOReader v2025.04 patterns while replacing the legacy monolithic architecture incrementally behind physical gates.
 
 
-## Gate 3 first article — 0.1.1 physical retest
+## Gate 3 first article — 0.1.2 physical retest
 
-Gate 3 attempt 1 on `0.1.0` reached **Loading Reader articles…** but returned to the menu without showing the candidate selector. `0.1.1` fixes that UI transition by closing the source TouchMenu and showing the selector on the next KOReader UI tick.
+Gate 3 attempt 2 on `0.1.1` reached selector construction but the real PW3 log exposed an untitled-item bug: the numeric Lua loop variable `_` shadowed gettext `_`, so `_("Untitled")` failed. `0.1.2` fixes the exact device-log error and adds regression coverage.
 
-After installing the experimental `0.1.1` retest build, enable Wi-Fi outside the plugin and use:
+After installing the experimental `0.1.2` retest build, enable Wi-Fi outside the plugin and use:
 
 **Tools → More tools → Readwise Reader → Download one article (Gate 3)**
 

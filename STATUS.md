@@ -6,9 +6,9 @@
 
 ## Current milestone
 
-**Phase E — Gate 3 attempt 2 reached selector construction but failed; exact KOReader log required before another fix**
+**Phase E — Gate 3 attempt 2 root-caused from device log; 0.1.2 fix ready for physical retest**
 
-Gate 2 passed and Phase D was merged normally through PR #4 as `489c0eaf45359fc3025072a9ba4c52297ca134d8`. Phase E E1/E2 is implemented on `phase-e/first-article-gate3`. Gate 3 attempt 2 on the target PW3 with 0.1.1 reached candidate-selector construction, but the guarded selector creation failed and showed the expected fallback message. **Do not make another speculative selector change until the exact `ReadwiseReader: [UI] article selector failed` error is recovered from `koreader/crash.log`. Do not begin Phase F until Gate 3 passes.**
+Gate 2 passed and Phase D was merged normally through PR #4 as `489c0eaf45359fc3025072a9ba4c52297ca134d8`. Phase E E1/E2 is implemented on `phase-e/first-article-gate3`. Gate 3 attempt 2 on the target PW3 with 0.1.1 was root-caused from `koreader/crash.log`: `candidateItems()` used `for _, candidate in ...`, shadowing gettext `_`; when a Reader item lacked a title, `_("Untitled")` attempted to call the numeric loop index. 0.1.2 fixes that exact bug and adds a regression test with an untitled candidate. **Do not begin Phase F until Gate 3 passes on-device.**
 
 ## Current branch / commit
 
@@ -21,7 +21,10 @@ Gate 2 passed and Phase D was merged normally through PR #4 as `489c0eaf45359fc3
 - Gate 3 attempt 1 package/docs tip: `c6484ceb3dd0ca1427623921cc718e3588852e94`
 - Gate 3 selector UI fix / 0.1.1: `bd77a0024f80570af3f4031e0f159449ef62836a`
 - Run #47 on `bd77a0024f80570af3f4031e0f159449ef62836a`: **SUCCESS** (all steps completed successfully).
-- This status update follows the validated 0.1.1 code; inspect the final branch tip/CI when resuming.
+- Device-log root cause: `ui/article.lua` gettext `_` shadowed by numeric loop index on untitled candidate.
+- Gate 3 gettext-shadowing fix / 0.1.2: `799878d7018d4a035f031afa8e9d7380b0552bf1`
+- Run #50 on `799878d7018d4a035f031afa8e9d7380b0552bf1`: **SUCCESS** (development checks, all Lua tests including untitled candidate regression, package/layout/artifact).
+- This status update follows the validated 0.1.2 code; inspect the final branch tip/CI when resuming.
 
 ## Target environment
 
@@ -247,15 +250,19 @@ Observed on the target PW3 / KOReader 2025.04:
 - KOReader remained usable;
 - no article was selected/downloaded, so later Gate 3 checks were not reached.
 
-Required next evidence:
-- recover the sanitized `koreader/crash.log` line containing:
-  - `ReadwiseReader: [UI] article selector failed`
-- include its immediate stack/error context if present;
-- do not include token or private article content.
+Device-log root cause recovered:
+- 0.1.0 repeatedly logged `ui/article.lua:44: attempt to call local '_' (a number value)` from `candidateItems`;
+- 0.1.1 logged `ReadwiseReader: [UI] article selector failed ... ui/article.lua:47: attempt to call local '_' (a number value)`;
+- the selector loop used `for _, candidate in ipairs(...)`, which locally shadowed gettext `_`;
+- the failure is triggered specifically when a candidate has no title and the fallback calls `_("Untitled")`.
 
-Per the Phase E safety rule, **do not make another speculative UI fix without this exact device error**.
+0.1.2 fix:
+- rename the numeric loop index so gettext `_` remains callable;
+- index the generated item table explicitly;
+- add a UI regression fixture with an untitled Reader candidate and assert the visible fallback is exactly `Untitled`;
+- run #50 passed the full suite/package.
 
-Gate 3 remains **OPEN**.
+Gate 3 remains **OPEN** pending 0.1.2 physical retest.
 
 ## Phase E result
 
@@ -555,7 +562,7 @@ Current Reader documentation still matches the Phase D contracts already written
 
 ## Blockers
 
-**The exact selector exception from the target PW3 crash log is now the immediate blocker.** Attempt 2 proved the selector transition is reached, but selector construction itself fails on-device. After the exact error is identified and fixed, Gate 3 still requires the full render/KOReader-controls/annotation/reopen sequence before Phase F.
+**Gate 3 physical retest with 0.1.2 is the only blocker to Phase F.** The exact selector exception was identified and fixed from the real PW3 log; the selector plus the full render/KOReader-controls/annotation/reopen sequence still require device validation.
 
 Later hard gates remain:
 - Reader v3 ↔ Readwise v2 highlight ID mapping;
@@ -567,14 +574,23 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. On the target Kindle, connect by USB and retrieve `koreader/crash.log`.
-2. Find the most recent line containing `ReadwiseReader: [UI] article selector failed`.
-3. Capture that line plus nearby stack/error lines only; sanitize any private title/content if present. The plugin does not intentionally log the token.
-4. Use that exact KOReader 2025.04 device error to fix **Phase E only**.
-5. Add/adjust an automated regression test for the real failure mechanism.
-6. Run CI, package a new Gate 3 build and retest selector → download → render → highlight/note → reopen persistence.
+1. Package the final Phase E `0.1.2` branch tip after this ledger update and require final CI success.
+2. Install 0.1.2 on the target PW3, replacing only `koreader/plugins/readwisereader.koplugin/` and preserving settings/token.
+3. Run **Readwise Reader → Download one article (Gate 3)**.
+4. Confirm the article selector appears; an untitled Reader item, if present, must display as **Untitled** rather than crashing the selector.
+5. Select one ordinary article and continue Gate 3:
+   - download/open;
+   - normal rendering/Unicode;
+   - font/margin reflow;
+   - search;
+   - dictionary UI if configured;
+   - local highlight + note;
+   - close/reopen;
+   - position/highlight/note persistence;
+   - no Wi-Fi control.
+6. If Gate 3 fails again, use the exact visible error and relevant sanitized crash-log lines to fix **Phase E only**.
 7. If Gate 3 passes, record evidence, merge Phase E to `main`, then create Phase F.
-8. **Do not implement Phase F and do not make another speculative selector rewrite before the log is inspected.**
+8. **Do not implement Phase F before Gate 3 passes.**
 
 ## Existing architectural decisions still in force
 
