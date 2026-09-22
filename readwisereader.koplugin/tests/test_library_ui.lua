@@ -2,7 +2,7 @@
 
 local function withStubbedLibraryUI(run, initial_online)
     local module_names = {
-        "ui.library",
+        "ui/library",
         "ui/widget/infomessage",
         "ui/network/manager",
         "ui/trapper",
