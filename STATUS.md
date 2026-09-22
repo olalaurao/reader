@@ -6,25 +6,30 @@
 
 ## Current milestone
 
-**Phase E — first readable article complete; Gate 3 PASSED on target PW3**
+**Phase F — document sync engine implemented off-device; Gate 4 ready for physical PW3 validation**
 
-Gate 2 passed and Phase D was merged normally through PR #4 as `489c0eaf45359fc3025072a9ba4c52297ca134d8`. Phase E E1/E2 is implemented on `phase-e/first-article-gate3`. After fixing the device-log-proven untitled-selector bug in 0.1.2, the complete Gate 3 script passed on the target PW3 / KOReader 2025.04: article download/open, normal rendering, Unicode, font/margin reflow, search/dictionary behavior as configured, highlight, note, close/reopen, and persistence of reading state/annotations. Phase E is ready to merge; Phase F is unblocked after merge.
+Phase E was merged normally to `main` as `e5de4a75a9e8e43dd270194201626c80d0c15802`. Phase F `0.1.3` is implemented on `phase-f/document-sync-gate4`: configurable document ownership/filtering, full-first/incremental-later article sync, conservative watermarking, Reader-ID identity, metadata/location updates, Readwise collections, cancellable UI, summaries and explicit full rescan. The latest code checks pass off-device. **Do not begin Phase G before Gate 4 passes on KOReader 2025.04.**
+
+After Gate 4 passes and Phase F is merged, the next step is the newly-planned **Phase F.5 / Gate 4A**: back up the device, upgrade KOReader to official `v2026.07.1` using the PW3 `kindlepw2` package, revalidate Readwise Reader alone, then install/test Bookshelf `v5.1.4`. Phase G remains blocked until both compatibility sub-gates pass.
 
 ## Current branch / commit
 
-- Branch: `phase-e/first-article-gate3`
-- Phase E base `main`: `489c0eaf45359fc3025072a9ba4c52297ca134d8` (Phase D PR #4 merge)
-- E1 materialization primitives: `655e70e76f87343bd2580d563ef6d90d75294b40`
-- E1/E2 integrated first-article flow: `26610d04e4c3e8b0414ff40a39d244763c7328ca`
-- Run #44 on `655e70e76f87343bd2580d563ef6d90d75294b40`: **SUCCESS**
-- Run #45 on `26610d04e4c3e8b0414ff40a39d244763c7328ca`: **SUCCESS**
-- Gate 3 attempt 1 package/docs tip: `c6484ceb3dd0ca1427623921cc718e3588852e94`
-- Gate 3 selector UI fix / 0.1.1: `bd77a0024f80570af3f4031e0f159449ef62836a`
-- Run #47 on `bd77a0024f80570af3f4031e0f159449ef62836a`: **SUCCESS** (all steps completed successfully).
-- Device-log root cause: `ui/article.lua` gettext `_` shadowed by numeric loop index on untitled candidate.
-- Gate 3 gettext-shadowing fix / 0.1.2: `799878d7018d4a035f031afa8e9d7380b0552bf1`
-- Run #50 on `799878d7018d4a035f031afa8e9d7380b0552bf1`: **SUCCESS** (development checks, all Lua tests including untitled candidate regression, package/layout/artifact).
-- This status update follows the validated 0.1.2 code; inspect the final branch tip/CI when resuming.
+- Branch: `phase-f/document-sync-gate4`
+- Base `main`: `e5de4a75a9e8e43dd270194201626c80d0c15802` (Phase E merge)
+- F1 settings/root ownership: `a57da9980d1b77a16bf2a0b8fbaa09327b1691d9`
+- F1/F2 incremental sync engine: `265405a479ab538ed4fbdde9223ca97c28aaad07`
+- canonical watermark overlap fixes/tests: `e2669755be705686a13977f0b99aa9ccf472b46c`, `e2d97fd8002fc26847243073457b91b70876df86`
+- path validation fixes/tests: `d5d219c42ddd08a3997095e5d69f099699d217a6`, `0a73e69e92f69b57250f0261f8f2d1dd553a7e5c`
+- F3 cancellable sync UI: `0fa4fa29cb160baedace4b978a6faab477c87af0`
+- menu/settings wiring: `029e0caea35fe5a86c8fe26c852b71696bf6ac4b`
+- Trapper parent/child safety refactor: `84b356c1c7757c56ea66624e117a63ad2b4c4a68`
+- Phase F.5 canonical planning: `13e7537cf97dba68b5119d1910348b1e188c28c9`
+- atomic parent watermark commit: `1fe9b5d2b4456405d282240e8171fc0abba4be4c`
+- corrected parent-failure test fixture: `6d4a8d5499f52c8f2bc2985e0707183fe1d288dc`
+- Run #66 on `84b356c...`: **SUCCESS**
+- Run #67 on `13e7537...`: **SUCCESS**
+- Run #68 failed only in the newly-edited `test_sync_ui.lua` fixture because the simulated metadata result was accidentally inserted into the Trapper stub; production code was not implicated.
+- Run #69 on `6d4a8d5...`: Lua syntax, all unit tests, ZIP build/layout and artifact upload **SUCCESS**; inspect final workflow conclusion when resuming.
 
 ## Target environment
 
@@ -32,7 +37,9 @@ Gate 2 passed and Phase D was merged normally through PR #4 as `489c0eaf45359fc3
 - Serial prefix: `G090KB`
 - Firmware: `5.16.2.1.1 (4097470002)`
 - Jailbreak/KUAL functional
-- KOReader: `2025.04`
+- KOReader for **Gate 4**: `2025.04`
+- planned post-Gate-4 target: official KOReader `v2026.07.1`, `kindlepw2` package
+- planned Bookshelf coexistence target: `v5.1.4`
 
 ## Phase A result
 
@@ -290,6 +297,84 @@ Conclusion:
 - **Gate 3 PASSED.**
 - Phase E can be merged to `main`.
 - Phase F document sync engine is unblocked.
+
+## Phase F result — off-device complete, Gate 4 pending
+
+### F1 — document ownership and filters
+
+- Plugin version advanced to experimental `0.1.3`.
+- Added configurable download root under `/mnt/us/documents/` with traversal/root-escape validation.
+- Added persistent Reader location filters for Inbox (`new`), Later, Shortlist, Feed and Archive.
+- Added category filter UI; only `article` is enabled/supported in Phase F. PDF/EPUB/Email/RSS remain later gates.
+- Default root remains `/mnt/us/documents/Readwise`.
+- Default Phase F locations remain Inbox + Later; Gate 4 instructions deliberately require reviewing filters first so the real account is not bulk-downloaded accidentally.
+
+### F1/F2 — full-first / incremental-later article sync
+
+- First document sync performs a metadata pass and full materialization only for supported articles matching configured filters.
+- Subsequent syncs use Reader `updatedAfter` with a canonical scan-start watermark plus a separate 5-minute overlap query bound.
+- Reader document ID is the only ownership identity. Title changes never create a second document.
+- Missing managed local files can be rematerialized when still eligible.
+- Existing managed files are reused; Phase F does not blindly replace remote-changed content.
+- Remote title/author/site/location changes update the existing row and KOReader metadata.
+- Remote content changes on an existing local document are counted as `content_refresh_deferred`; destructive replacement remains Phase Q.
+- Reader location maps idempotently to managed collections:
+  - Readwise: Inbox;
+  - Readwise: Later;
+  - Readwise: Shortlist;
+  - Readwise: Feed;
+  - Readwise: Archive.
+- Collection sync removes a file only from other **plugin-managed** Readwise collections; unrelated user collections are preserved.
+
+### F3 — responsive/cancellable sync and parent-process finalization
+
+- Added top-level:
+  - `Sync now (Gate 4)`;
+  - `Sync status`;
+  - `Full document rescan`.
+- First sync and full rescan require explicit confirmation.
+- Long work runs through `Trapper:wrap()` + `dismissableRunInSubprocess`.
+- Review of KOReader 2025.04 Trapper documentation exposed an important process-boundary rule: the child process must not manipulate UIManager or KOReader settings/cache known by the parent.
+- Final architecture therefore keeps network requests, atomic file installation and SQLite work in the child, but defers KOReader custom metadata and Collection writes to the parent.
+- The document watermark is proposed by the child but committed only after parent metadata/Collection post-processing succeeds.
+- Watermark, overlap query bound, last-success time and full-scan time are committed transactionally with `SyncMeta:setMany()`.
+- If post-processing or the atomic sync-meta transaction fails, the summary reports an error and the watermark is not advanced.
+- Cancellation keeps already-installed atomic files but does not commit a new watermark.
+- The plugin still only inspects connectivity and never toggles Wi-Fi.
+
+### Phase F automated validation
+
+Successful coverage includes:
+- first full sync of multiple articles;
+- second incremental no-op;
+- rename + location change without re-download/path duplication;
+- canonical watermark + 5-minute overlap;
+- failed scan does not advance watermark;
+- deferred watermark path used by subprocess worker;
+- parent metadata/collection failure does not advance watermark;
+- atomic sync-meta commit;
+- download-root path traversal/root escape rejection;
+- unrelated Collections preservation + idempotent managed Collection writes;
+- UI first-sync confirmation, cancellation, offline preflight and completion summary;
+- all previous Phase A-E/storage/API tests;
+- package/layout and tests excluded from the installable ZIP.
+
+Gate 4 is still **OPEN** until the real PW3 validates:
+- multiple article download;
+- second sync unchanged/no duplicates;
+- Reader location move;
+- Reader title rename;
+- cancellation/recovery.
+
+### Planned Phase F.5 / Gate 4A
+
+Research recorded in `docs/KOREADER_UPGRADE.md`:
+- upgrade only **after Gate 4** so 2025.04 remains a clean before/after baseline;
+- pin official KOReader `v2026.07.1`;
+- use `koreader-kindlepw2-v2026.07.1.zip` on this PW3/firmware; `kindlehf` requires firmware >= 5.16.3;
+- revalidate Readwise Reader alone before introducing Bookshelf;
+- then install/test Bookshelf `v5.1.4` with Cover browser enabled;
+- do not begin Phase G until Gate 4A-1 and Gate 4A-2 pass.
 
 ## Phase E result
 
@@ -581,15 +666,17 @@ Next physical gate: **Gate 2**, after Phase C storage and Phase D Reader metadat
 - Strip query parameters from request log URLs and never log request headers.
 - Do not use KOReader network helpers that may toggle/connect Wi-Fi.
 
-## Spec deviations
+## Spec deviations / deliberate canonical changes
 
-None.
+No accidental implementation deviation is open.
 
-Current Reader documentation still matches the Phase D contracts already written in `IMPLEMENTATION_SPEC.md`: cursor pagination, `limit <= 100`, metadata toggles, 20 LIST requests/minute and `Retry-After` behavior. No spec or PLAN change was required.
+A deliberate roadmap/spec change was made on 2026-09-22 at the user's request: KOReader is no longer assumed to remain at 2025.04 through the whole V1. The canonical order now inserts **Phase F.5 / Gate 4A after Gate 4 and before Phase G**, migrating to official KOReader v2026.07.1 and then validating Bookshelf v5.1.4 coexistence. The reason is to establish a clean Phase F before/after compatibility baseline while avoiding implementing image/raw-format/sidecar internals twice. Full procedure is in `docs/KOREADER_UPGRADE.md`.
 
 ## Blockers
 
-Gate 3 is passed. There is no remaining Phase E blocker to Phase F.
+Immediate blocker: **physical Gate 4 on the target PW3 / KOReader 2025.04**. Phase G is blocked.
+
+After Gate 4, **Gate 4A** becomes the next blocker: Readwise Reader regression on official KOReader v2026.07.1, then Bookshelf v5.1.4 coexistence.
 
 Later hard gates remain:
 - Reader v3 ↔ Readwise v2 highlight ID mapping;
@@ -601,30 +688,28 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Run CI on this final Phase E Gate 3 PASS ledger tip.
-2. Merge Phase E into `main` through a normal PR/merge with no history rewrite.
-3. Create Phase F from updated `main`.
-4. Implement F1–F3 only:
-   - configurable download root and document filters;
-   - Reader-ID-owned document sync;
-   - full-first/incremental-later scan with conservative watermark commit;
-   - safe multi-article materialization;
-   - metadata/location updates without title-based duplication;
-   - KOReader collections for Reader location;
-   - cancellation, sync summary, explicit full rescan.
-5. Existing managed local content must not be destructively refreshed in Phase F; content replacement safety remains Phase Q.
-6. Add automated no-op second-sync, rename/location-change identity, watermark/cancellation and summary tests.
-7. Package Gate 4 and stop for physical validation:
-   - multiple articles;
-   - second sync unchanged;
-   - move Reader location;
-   - rename title;
-   - no duplicates.
-8. **Do not begin Phase G before Gate 4 passes.**
+1. Finish CI on the final Phase F Gate 4 preparation tip.
+2. Download/package the resulting `0.1.3` artifact.
+3. On the PW3 **still running KOReader 2025.04**, review `Settings → Documents` and disable Inbox for the first test unless a large initial download is intentionally wanted.
+4. Run Gate 4 exactly from `docs/DEVICE_TESTS.md`:
+   - multiple supported articles;
+   - second sync unchanged/no duplicate;
+   - Reader location move;
+   - Reader title rename;
+   - cancellation + recovery.
+5. If any item fails, fix Phase F only and retest; do not advance.
+6. If Gate 4 passes, record the physical result, run CI, and merge Phase F normally to `main`.
+7. Execute `docs/KOREADER_UPGRADE.md`:
+   - backup;
+   - update KOReader to official v2026.07.1 `kindlepw2`;
+   - Gate 4A-1 Readwise Reader regression **without Bookshelf**;
+   - install Bookshelf v5.1.4;
+   - Gate 4A-2 coexistence.
+8. **Do not begin Phase G until Gate 4A-1 and Gate 4A-2 pass.**
 
 ## Existing architectural decisions still in force
 
-- KOReader 2025.04 is the first compatibility target.
+- KOReader 2025.04 remains the compatibility baseline through Gate 4; official v2026.07.1 becomes the physical V1 baseline only after Gate 4A-1 passes.
 - Manual sync only in V1.
 - Plugin does not toggle Wi-Fi.
 - Reader is the source for library content; Kindle/KOReader is the primary reading surface.
