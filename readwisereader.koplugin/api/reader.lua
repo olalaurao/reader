@@ -337,7 +337,6 @@ function Reader:iterateDocuments(options, callback)
 
         local page_options = copyOptions(options)
         page_options.page_cursor = cursor
-        page_options.is_cancelled = nil
 
         local page, err = self:listDocuments(page_options)
         if not page then
