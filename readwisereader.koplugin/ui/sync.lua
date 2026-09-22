@@ -206,6 +206,7 @@ Tap to cancel. Completed files are installed atomically; the incremental waterma
             local final_meta = {
                 document_watermark = report.proposed_watermark,
                 document_query_after = report.proposed_query_after,
+                document_filter_scope = report.proposed_filter_scope,
                 last_successful_sync_at = report.completed_at,
             }
             if report.mode == "full" then
