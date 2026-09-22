@@ -1,0 +1,2473 @@
+# KOReader ↔ Readwise Reader — Implementation Specification
+
+> **Canonical execution spec**  
+> **Repository:** `olalaurao/reader`  
+> **Target V1 device:** Kindle Paperwhite 3 / 7th gen (PW3), firmware 5.16.2.1.1, KUAL, KOReader 2025.04  
+> **Last verified:** 2026-09-22  
+> **Companion roadmap:** `PLAN.md`  
+> **Progress ledger:** `STATUS.md`
+>
+> This file is the implementation source of truth. If code and this spec disagree, either the code is wrong or this file must be deliberately updated in the same change with the reason documented in `STATUS.md`.
+
+---
+
+# 0. Mission
+
+Build a KOReader plugin that makes the Kindle a practical offline reading client for Readwise Reader.
+
+Primary user workflow:
+
+```text
+Phone / desktop
+    ↓
+Save and organize content in Readwise Reader
+    ↓
+Kindle → Readwise Reader → Sync now
+    ↓
+Documents are downloaded locally
+    ↓
+Read normally in KOReader, including offline
+    ↓
+Highlight and add notes, including literal Markdown such as:
+    [[Foucault]]
+    [[Biopolitics]]
+    #research
+    ↓
+Kindle → Sync now
+    ↓
+New highlights/notes are attached to the original Reader document
+    ↓
+Readwise exports new annotations to Obsidian
+```
+
+The plugin is **not** intended to reproduce the Reader UI. Reader is the capture/organization layer; KOReader is the reading/annotation layer.
+
+---
+
+# 1. Product requirements
+
+## 1.1 P0 — must ship in V1
+
+### Reader → Kindle
+
+- Authenticate using a Readwise access token.
+- Test authentication independently of a full sync.
+- List the Reader library with full cursor pagination.
+- Perform an initial sync.
+- Perform incremental subsequent syncs.
+- Download supported content to a dedicated local directory.
+- Open downloaded files as normal KOReader documents.
+- Continue reading downloaded files offline.
+- Preserve local KOReader sidecars and reading progress.
+- Handle Reader location/category changes without duplicating local documents.
+- Archive Reader documents when the corresponding local document is marked finished, if enabled.
+- Never delete a local file merely because a remote item is archived unless a future explicit deletion policy is enabled.
+
+### Formats
+
+- Article → readable local document.
+- Email/newsletter → readable local document.
+- RSS → readable local document.
+- PDF → original PDF when `raw_source_url` is available and valid; safe fallback otherwise.
+- EPUB → original EPUB when `raw_source_url` is available and valid; safe fallback otherwise.
+- Tweet/video/other textual categories → readable HTML/text representation when Reader provides usable content.
+- Unicode, Portuguese accents, curly quotes, emoji and non-ASCII text must survive round-trip.
+
+### Kindle → Reader
+
+- Discover annotations belonging to Reader-managed local documents.
+- Create a new Reader highlight attached to its original Reader document.
+- Include the KOReader note at highlight creation time.
+- Preserve note text literally, including `[[wikilinks]]`, Markdown, hashtags, emoji and line breaks.
+- Avoid creating the same remote highlight twice.
+- Queue unsent writes when offline or after retryable failure.
+- Resume pending writes after restart.
+- Never silently discard an annotation that could not be synchronized.
+
+### Safety
+
+- Token must never enter Git.
+- Token must never be printed in logs.
+- Signed temporary source URLs must not be logged.
+- Destructive remote actions are disabled by default.
+- Failed downloads must not replace valid local documents.
+- A crash or power loss during sync must leave recoverable state.
+
+## 1.2 P1 — implement if the API spike proves safe before V1 freeze
+
+- Update an already-created remote highlight note when the KOReader note changes.
+- Delete a remote highlight when a locally-created/synced annotation is intentionally deleted and the user explicitly enabled deletion propagation.
+- Sync highlight color when a reliable mapping exists.
+- Optional "sync only tag `koreader`".
+- Optional maximum download size.
+
+## 1.3 Explicit non-goals for V1
+
+- Import Reader highlights into exact KOReader positions.
+- Reader ↔ KOReader reading-position synchronization.
+- Full bidirectional conflict-free annotation editing.
+- Feed discovery/search UI on the Kindle.
+- Background automatic sync.
+- Full Reader tag-management UI.
+- Automatic local deletion of archived items.
+- Firmware/jailbreak management.
+- Supporting every KOReader version before the target device works.
+- Styling parity with Reader.
+- Automatically updating existing Obsidian exports after a Readwise note edit.
+
+---
+
+# 2. Known external facts and constraints
+
+These were verified against current documentation on 2026-09-22 and must be rechecked if APIs behave differently during implementation.
+
+## 2.1 Reader API v3
+
+Base: `https://readwise.io/api/v3`
+
+Authentication header:
+
+```http
+Authorization: Token <TOKEN>
+```
+
+Auth validation:
+
+```http
+GET https://readwise.io/api/v2/auth/
+Expected success: 204
+```
+
+### LIST
+
+```http
+GET /api/v3/list/
+```
+
+Important query params:
+
+- `id`
+- `updatedAfter` ISO 8601
+- `location`
+- `category`
+- repeated `tag`, up to documented limit
+- `limit` 1..100
+- `pageCursor`
+- `withHtmlContent=true|false`
+- `withRawSourceUrl=true|false`
+
+Important result fields:
+
+- `id`
+- `url`
+- `source_url`
+- `title`
+- `author`
+- `source`
+- `category`
+- `location`
+- `tags`
+- `site_name`
+- `word_count`
+- `reading_time`
+- `created_at`
+- `updated_at`
+- `notes`
+- `summary`
+- `image_url`
+- `parent_id`
+- `reading_progress`
+- `first_opened_at`
+- `last_opened_at`
+- `saved_at`
+- `last_moved_at`
+- optionally `html_content`
+- optionally `raw_source_url`
+
+Highlights and notes in Reader are themselves documents and can have `parent_id`.
+
+LIST rate limit is documented as 20 requests/minute/token.
+
+### Create highlight attached to a Reader document
+
+```http
+POST /api/v3/save/
+Content-Type: application/json
+```
+
+Payload:
+
+```json
+{
+  "parent_id": "<reader-document-id>",
+  "content": "<exact substring from parent document content>",
+  "notes": "<literal note>",
+  "saved_using": "koreader-readwise-reader"
+}
+```
+
+When `parent_id` is supplied, the request creates a highlight. The `content` must be copied character-for-character from the parent content; if it cannot be found, the API returns 400 and creates nothing.
+
+Document/highlight create rate limit is documented as 50/minute/token.
+
+Successful response contains a Reader-style string document ID. **Do not assume this is the same identifier used by Readwise API v2.**
+
+### Document update
+
+```http
+PATCH /api/v3/update/<document_id>/
+```
+
+Useful for document fields such as `location`. The docs explicitly say the `notes` update field does not add notes to highlights. Therefore do **not** assume this endpoint can update a highlight annotation.
+
+### Bulk update
+
+```http
+PATCH /api/v3/bulk_update/
+```
+
+Up to 50 document updates. A `207` response can contain mixed success/failure. This is useful for batching archive operations after the manual path is proven.
+
+### Delete
+
+```http
+DELETE /api/v3/delete/<document_id>/
+```
+
+Documented success: 204. The endpoint is generic at the documentation level, but whether it safely deletes a highlight document created through `parent_id` must be verified in the annotation API spike before relying on it.
+
+### Raw source
+
+`raw_source_url` is a temporary direct source URL, empty for non-distributable documents and documented as valid for one hour.
+
+Rules:
+
+- consume it immediately;
+- never store it as durable identity;
+- never log it;
+- never assume availability;
+- request a fresh one if download is retried after expiration.
+
+Official docs:
+- https://readwise.io/reader_api
+
+## 2.2 Readwise API v2
+
+Base: `https://readwise.io/api/v2`
+
+The v2 API has numeric highlight IDs and supports:
+- highlight list/detail;
+- highlight update:
+  `PATCH /api/v2/highlights/<id>/`
+- highlight delete:
+  `DELETE /api/v2/highlights/<id>/`
+
+Update supports fields including `text`, `note`, `location`, `url`, `color`.
+
+**Unknown until proven:** reliable mapping from the string ID returned by Reader v3 highlight creation to the numeric Readwise v2 highlight ID.
+
+Official docs:
+- https://readwise.io/api_deets
+
+## 2.3 Obsidian export behavior
+
+Current official docs state:
+- new highlights are appended on later exports;
+- edits to a highlight/note/tag that was already exported do not automatically rewrite the existing Obsidian note;
+- refreshing/re-exporting an already exported document may require deleting the generated note and explicitly refreshing the item.
+
+Therefore our product contract is:
+
+- preserve `[[wikilinks]]` exactly in Readwise notes;
+- ensure **new** annotations reach Readwise correctly;
+- do not claim that edits to an annotation already exported to Obsidian will automatically update the Obsidian file.
+
+Official docs:
+- https://docs.readwise.io/readwise/docs/exporting-highlights/obsidian
+- https://docs.readwise.io/readwise/docs/exporting-highlights
+
+---
+
+# 3. Target KOReader facts — pinned to v2025.04
+
+Development must be compatible with tag `v2025.04` first.
+
+Reference source:
+- https://github.com/koreader/koreader/tree/v2025.04
+
+## 3.1 Plugin bootstrap
+
+The built-in hello plugin demonstrates the target pattern:
+
+```lua
+local WidgetContainer = require("ui/widget/container/widgetcontainer")
+
+local Plugin = WidgetContainer:extend{
+    name = "readwisereader",
+    is_doc_only = false,
+}
+
+function Plugin:init()
+    self.ui.menu:registerToMainMenu(self)
+end
+
+function Plugin:addToMainMenu(menu_items)
+    ...
+end
+
+return Plugin
+```
+
+Use public/stable KOReader patterns when possible; avoid monkey-patching reader internals.
+
+## 3.2 Annotation storage
+
+KOReader 2025.04 `ReaderAnnotation` persists:
+
+```lua
+doc_settings:saveSetting("annotations", annotations)
+```
+
+An annotation includes:
+
+```text
+datetime          creation time, intended not to change
+datetime_updated
+drawer
+color
+text              highlighted text
+text_edited
+note              user's note
+chapter
+pageno
+pageref
+page              XPointer for rolling documents or page number for paging documents
+pos0
+pos1
+pboxes
+ext
+```
+
+Therefore:
+
+- use the sidecar `annotations` table as the primary source;
+- do not use Kindle `My Clippings.txt` as the source of truth;
+- do not identify highlights by title;
+- do not depend on parsing human-facing clipping strings.
+
+## 3.3 Sidecars
+
+Use KOReader `DocSettings` abstractions instead of hardcoding one sidecar path because sidecar storage can vary.
+
+Updating document content must not casually delete/recreate the sidecar.
+
+## 3.4 SQLite availability
+
+KOReader 2025.04 includes `lua-ljsqlite3/init` and built-in plugins use SQLite databases.
+
+Use SQLite for sync state and queue. Use `LuaSettings` only for small user configuration/credentials.
+
+---
+
+# 4. Repository shape
+
+Target repository structure:
+
+```text
+/
+├── README.md
+├── PLAN.md
+├── IMPLEMENTATION_SPEC.md
+├── STATUS.md
+├── LICENSE
+├── CHANGELOG.md
+├── .gitignore
+├── .github/
+│   └── workflows/
+│       └── test.yml
+├── scripts/
+│   ├── package.sh
+│   └── dev-check.sh
+└── readwisereader.koplugin/
+    ├── _meta.lua
+    ├── main.lua
+    ├── config.lua
+    ├── constants.lua
+    ├── api/
+    │   ├── http.lua
+    │   ├── reader.lua
+    │   └── readwise.lua
+    ├── storage/
+    │   ├── db.lua
+    │   ├── migrations.lua
+    │   ├── documents.lua
+    │   ├── annotations.lua
+    │   └── queue.lua
+    ├── content/
+    │   ├── downloader.lua
+    │   ├── html.lua
+    │   ├── images.lua
+    │   ├── filenames.lua
+    │   └── textmatch.lua
+    ├── koreader/
+    │   ├── annotations.lua
+    │   ├── metadata.lua
+    │   ├── collections.lua
+    │   ├── documents.lua
+    │   └── status.lua
+    ├── sync/
+    │   ├── coordinator.lua
+    │   ├── documents.lua
+    │   ├── annotations.lua
+    │   └── archive.lua
+    ├── ui/
+    │   ├── menu.lua
+    │   ├── settings.lua
+    │   ├── progress.lua
+    │   └── diagnostics.lua
+    └── tests/
+        ├── fixtures/
+        └── ...
+```
+
+Do not create empty abstraction files merely to match this tree. Introduce modules when their responsibility exists.
+
+---
+
+# 5. Architectural boundaries
+
+## 5.1 `main.lua`
+
+Responsibilities only:
+
+- plugin declaration;
+- initialize config/database;
+- register dispatcher/menu;
+- create top-level dependencies;
+- invoke coordinator;
+- handle plugin lifecycle.
+
+It must **not**:
+- construct raw HTTP requests;
+- parse Reader payloads;
+- manipulate SQLite directly;
+- implement text matching;
+- scan sidecars inline.
+
+Goal: keep `main.lua` small enough to understand at a glance.
+
+## 5.2 `config.lua`
+
+Backed by `LuaSettings`.
+
+Settings:
+
+```text
+access_token
+download_directory
+sync_locations
+sync_categories
+sync_only_tag
+download_images
+max_image_bytes
+max_document_bytes
+archive_finished
+propagate_annotation_deletes   default false
+upload_annotations             default true
+debug_logging                  default false
+```
+
+Credential reality:
+- token is stored locally in plaintext because KOReader settings are plaintext;
+- do not describe this as encrypted;
+- mask it in UI/logging;
+- never copy it into SQLite unless technically unavoidable.
+
+## 5.3 `api/http.lua`
+
+Single transport abstraction.
+
+Interface concept:
+
+```lua
+response, err = http:request{
+    method = "GET",
+    url = "...",
+    headers = {...},
+    body = nil,
+    sink_file = nil,
+    timeout_class = "api" | "download",
+}
+```
+
+Normalized response:
+
+```lua
+{
+    status = 200,
+    headers = {},
+    body = "...",
+}
+```
+
+Normalized error:
+
+```lua
+{
+    kind = "offline" | "timeout" | "tls" | "rate_limit" |
+           "auth" | "client" | "server" | "decode" |
+           "io" | "cancelled" | "unknown",
+    status = nil,
+    retryable = true|false,
+    retry_after = nil,
+    message = "...",
+}
+```
+
+Requirements:
+
+- use KOReader-provided socket/http/ltn12/socketutil stack;
+- restore socket timeout after request even on errors;
+- support streaming to file;
+- support JSON request/response;
+- accept 2xx families correctly; do not hardcode only 200;
+- parse `Retry-After`;
+- redact sensitive headers/URLs in logs;
+- never recursively retry inside low-level HTTP indefinitely.
+
+Retry orchestration belongs above the transport layer.
+
+## 5.4 `api/reader.lua`
+
+Typed-ish wrapper around Reader v3.
+
+Methods:
+
+```text
+validateToken()
+listDocuments(options)
+iterateDocuments(options, callback)
+getDocument(id, with_html, with_raw_source)
+createHighlight(parent_id, exact_content, note, tags?)
+updateDocument(id, patch)
+bulkUpdateDocuments(updates)
+deleteDocument(id)
+listTags()
+```
+
+No KOReader UI code in this module.
+
+## 5.5 `api/readwise.lua`
+
+Only for v2 behavior that Reader v3 cannot provide after the interoperability spike.
+
+Potential methods:
+
+```text
+listHighlights(filters)
+getHighlight(id)
+updateHighlight(id, patch)
+deleteHighlight(id)
+```
+
+Do not make v2 mandatory for basic document download or initial highlight creation.
+
+## 5.6 Storage layer
+
+All database SQL lives under `storage/`.
+
+No sync module should build SQL strings.
+
+Use transactions for multi-step state changes.
+
+## 5.7 KOReader adapter layer
+
+All direct KOReader-specific operations live under `koreader/`:
+- sidecars;
+- annotation parsing;
+- metadata;
+- finished status;
+- collections;
+- file-manager refresh/invalidation.
+
+This keeps API/sync logic testable off-device.
+
+## 5.8 Sync coordinator
+
+`sync/coordinator.lua` owns the high-level sequence and report.
+
+Concept:
+
+```text
+preflight
+→ process durable pending queue
+→ fetch remote document changes
+→ materialize/update local documents
+→ scan local annotations
+→ enqueue outbound annotation changes
+→ execute queue again
+→ detect finished documents / enqueue archive
+→ execute archive queue
+→ commit watermarks
+→ show summary
+```
+
+Watermarks are committed only when their corresponding remote scan completed successfully.
+
+---
+
+# 6. Persistent database design
+
+Database path:
+
+```text
+<DataStorage:getSettingsDir()>/readwisereader.sqlite3
+```
+
+Use KOReader SQLite binding:
+
+```lua
+local SQ3 = require("lua-ljsqlite3/init")
+```
+
+Journal mode:
+- if `Device:canUseWAL()`, use WAL;
+- otherwise TRUNCATE, matching KOReader patterns.
+
+Enable:
+- foreign keys;
+- sensible busy timeout if supported.
+
+Use `PRAGMA user_version` for schema migration.
+
+## 6.1 `documents`
+
+Proposed schema:
+
+```sql
+CREATE TABLE documents (
+    reader_id TEXT PRIMARY KEY,
+    parent_id TEXT,
+    category TEXT,
+    location TEXT,
+    title TEXT,
+    author TEXT,
+    site_name TEXT,
+    source_url TEXT,
+    local_path TEXT UNIQUE,
+    local_format TEXT,
+    download_strategy TEXT,
+    remote_updated_at TEXT,
+    remote_saved_at TEXT,
+    remote_last_moved_at TEXT,
+    local_content_hash TEXT,
+    remote_content_fingerprint TEXT,
+    raw_source_available INTEGER NOT NULL DEFAULT 0,
+    is_managed INTEGER NOT NULL DEFAULT 1,
+    is_local_present INTEGER NOT NULL DEFAULT 0,
+    last_materialized_at INTEGER,
+    last_seen_remote_at INTEGER,
+    last_sync_error TEXT
+);
+```
+
+Do not store temporary `raw_source_url`.
+
+## 6.2 `annotation_links`
+
+```sql
+CREATE TABLE annotation_links (
+    local_annotation_id TEXT PRIMARY KEY,
+    reader_document_id TEXT NOT NULL,
+    reader_highlight_document_id TEXT,
+    readwise_v2_highlight_id INTEGER,
+    created_remote INTEGER NOT NULL DEFAULT 0,
+    local_created_at TEXT,
+    locator_fingerprint TEXT NOT NULL,
+    original_text_hash TEXT,
+    last_text_hash TEXT,
+    last_note_hash TEXT,
+    last_synced_text TEXT,
+    last_synced_note TEXT,
+    remote_updated_marker TEXT,
+    local_deleted_at INTEGER,
+    sync_state TEXT NOT NULL DEFAULT 'local_only',
+    last_sync_error TEXT,
+    FOREIGN KEY(reader_document_id) REFERENCES documents(reader_id)
+);
+```
+
+Important: never assume the two remote ID columns are interchangeable.
+
+## 6.3 `queue`
+
+```sql
+CREATE TABLE queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    operation TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    local_annotation_id TEXT,
+    reader_document_id TEXT,
+    reader_highlight_document_id TEXT,
+    readwise_v2_highlight_id INTEGER,
+    payload_json TEXT NOT NULL,
+    payload_hash TEXT NOT NULL,
+    status TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    available_after INTEGER,
+    last_attempt_at INTEGER,
+    last_error_kind TEXT,
+    last_error_message TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+```
+
+Statuses:
+
+```text
+pending
+in_flight
+retry_wait
+blocked
+conflict
+done
+cancelled
+```
+
+Startup rule:
+- convert stale `in_flight` rows back to `pending` unless operation reconciliation proves they completed.
+
+## 6.4 `sync_meta`
+
+```sql
+CREATE TABLE sync_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT
+);
+```
+
+Keys may include:
+
+```text
+document_watermark
+document_scan_started_at
+document_scan_completed_at
+annotation_scan_completed_at
+last_full_scan_at
+last_successful_sync_at
+plugin_schema_version
+```
+
+## 6.5 Optional `remote_annotation_probe`
+
+Only if needed to cache interoperability discoveries. Do not persist experimental junk after architecture stabilizes.
+
+---
+
+# 7. Local annotation identity
+
+KOReader annotations do not expose an application-owned UUID in the v2025.04 schema. We need a deterministic identity that survives note/text edits.
+
+For a Reader-managed document, compute:
+
+```text
+local_annotation_id =
+SHA256(
+  reader_document_id
+  + "\n" + annotation.datetime
+  + "\n" + canonical_locator(annotation)
+)
+```
+
+`canonical_locator`:
+
+### Rolling/reflow documents
+
+Use stable serialized:
+- `page` XPointer;
+- `pos0`;
+- `pos1`.
+
+### Paging/PDF
+
+Use:
+- page number;
+- normalized `pos0`;
+- normalized `pos1`;
+- if needed, normalized geometry fingerprint.
+
+Serialization must:
+- be deterministic;
+- sort table keys;
+- avoid locale-dependent number formatting;
+- not include mutable note/text fields.
+
+Fallback if `datetime` is absent:
+- hash locator + first-seen text hash;
+- mark identity quality `degraded`;
+- never allow automatic destructive delete for degraded IDs.
+
+Collision handling:
+- detect a second live annotation resolving to an existing ID but with a different locator fingerprint;
+- generate a deterministic suffix;
+- log a warning;
+- disable destructive propagation for that pair.
+
+---
+
+# 8. Managed-document identity
+
+A document is managed only when it has a row in `documents` and the local path resolves to that row.
+
+Do not infer ownership solely from:
+- directory;
+- filename prefix;
+- title;
+- author.
+
+For resilience after DB loss, filenames may include a short Reader ID, but that is recovery metadata, not the normal source of truth.
+
+Suggested filename:
+
+```text
+<sanitized-title>--rw-<reader-id-short>.<ext>
+```
+
+If renamed by user:
+- DB link remains canonical while local path exists;
+- a later recovery tool may search short IDs;
+- do not automatically duplicate unless path truly vanished.
+
+---
+
+# 9. Filename/path rules
+
+`content/filenames.lua` must:
+
+- strip/control NUL and control characters;
+- replace `/` and path separators;
+- remove `..` path traversal semantics;
+- normalize excessive whitespace;
+- trim trailing dots/spaces where relevant;
+- cap title component by bytes, not only codepoints, with UTF-8-safe truncation;
+- preserve extension;
+- append stable ID suffix before extension;
+- handle collision deterministically.
+
+Do not trust remote title, author, MIME filename or `Content-Disposition`.
+
+All final paths must be checked to remain under the configured download root.
+
+---
+
+# 10. Download directory layout
+
+Default proposal:
+
+```text
+/mnt/us/documents/Readwise/
+├── Articles/
+├── Email/
+├── RSS/
+├── PDF/
+├── EPUB/
+└── Other/
+```
+
+Assets:
+
+```text
+/mnt/us/documents/Readwise/.assets/<reader_id>/
+```
+
+Temporary downloads:
+
+```text
+/mnt/us/documents/Readwise/.tmp/
+```
+
+Do not expose temporary files as readable library documents.
+
+Before finalizing the assets layout, spike whether CRengine in KOReader 2025.04 resolves relative local image paths robustly. If yes, use external assets to avoid huge base64 HTML. If no, use a capped fallback strategy and document the memory tradeoff.
+
+---
+
+# 11. Document materialization strategy
+
+## 11.1 Common pipeline
+
+```text
+remote metadata
+→ choose strategy
+→ choose safe destination
+→ download/build into temp path
+→ validate minimum invariants
+→ compute hash
+→ close all handles
+→ atomic rename/swap
+→ update DB in transaction
+→ update KOReader metadata/collection
+```
+
+If replacing an existing document:
+- preserve sidecar;
+- never delete old content before replacement validates;
+- retain backup until new rename succeeds.
+
+## 11.2 HTML categories
+
+For article/email/rss/tweet/video textual fallback:
+
+1. fetch document with `withHtmlContent=true`;
+2. reject missing/empty HTML unless a sensible text fallback exists;
+3. wrap in minimal UTF-8 HTML shell;
+4. preserve semantic content;
+5. sanitize only what is needed for local rendering/security;
+6. optionally localize images;
+7. store metadata externally through KOReader APIs, not by bloating the body.
+
+Do not re-scrape `source_url` unless Reader content is unavailable and a future explicit fallback is added. Reader's processed content is the canonical input for V1.
+
+## 11.3 PDF/EPUB
+
+1. request `withRawSourceUrl=true`;
+2. if non-empty, stream original to temp file;
+3. validate:
+   - HTTP success;
+   - nonzero size;
+   - size under configured limit if enabled;
+   - basic magic/extension sanity where practical;
+4. atomically install;
+5. if no raw source:
+   - use HTML processed content if meaningful;
+   - mark `download_strategy=html_fallback`;
+   - never lie by naming HTML `.pdf` or `.epub`.
+
+## 11.4 Updated remote documents
+
+Do not automatically replace a locally annotated file until the "content replacement + sidecar position stability" spike has been completed.
+
+Initial safe policy:
+- if remote content changed but local document has annotations/progress:
+  - update metadata/location;
+  - mark content refresh pending;
+  - do not replace content silently.
+- if no local annotations/progress:
+  - safe replacement may proceed.
+
+Later, if testing proves stable, relax per format.
+
+---
+
+# 12. Image policy
+
+Defaults for PW3:
+- images enabled;
+- per-image and total-document caps conservative;
+- failure of one image does not fail article;
+- do not decode large images in Lua unless necessary;
+- stream downloads to disk.
+
+Image URL handling:
+- allow HTTP(S) only;
+- handle redirects with finite limit;
+- normalize URL corruption only with narrowly tested rules;
+- cache by content hash or deterministic URL hash;
+- do not log query strings that may contain secrets.
+
+A document with no images must remain fully readable.
+
+---
+
+# 13. Free-space policy
+
+Before a large raw-source download:
+- query free space using a KOReader-supported/system-safe method;
+- reserve a safety margin;
+- if `Content-Length` exists, check before download;
+- during stream, abort if configured max bytes exceeded.
+
+Never fill the filesystem to zero.
+
+Error shown:
+
+```text
+Not enough free space to download this document.
+The existing local copy was kept.
+```
+
+No automatic deletion to make space in V1.
+
+---
+
+# 14. Reader library fetch algorithm
+
+## 14.1 Initial sync
+
+Prefer a metadata-first pass without `withHtmlContent` or `withRawSourceUrl` for the whole library.
+
+Reason:
+- smaller responses;
+- lower memory;
+- decide filters before fetching bodies.
+
+Algorithm:
+
+```text
+cursor = nil
+repeat
+  GET list(limit=100, pageCursor=cursor)
+  validate response
+  for each result:
+      if parent_id != nil:
+          ignore as top-level reading document for materialization
+      else:
+          upsert remote metadata candidate
+  cursor = nextPageCursor
+until cursor == nil
+```
+
+Detect:
+- repeated cursor;
+- malformed response;
+- impossible empty-loop scenarios.
+
+Then materialize only documents selected by configured filters.
+
+## 14.2 Incremental sync
+
+At start:
+- `scan_started_at = current UTC timestamp`;
+- derive `updatedAfter` from last successful watermark minus overlap.
+
+Overlap default proposal: 5 minutes.
+
+Reason:
+- clock/boundary safety;
+- idempotent DB upserts make overlap cheap.
+
+Only after **all pages** succeed:
+- set watermark to `scan_started_at`, not wall clock at end.
+
+If page N fails:
+- do not advance watermark.
+
+## 14.3 Periodic reconciliation
+
+Incremental feeds can miss local anomalies or deletions/moves not represented as expected.
+
+Perform a full metadata reconciliation periodically, e.g. manually exposed "Full rescan" first; automatic cadence can be added after performance testing.
+
+V1 UI should include:
+- `Sync now`
+- diagnostics-only `Full rescan`
+
+---
+
+# 15. Remote filtering
+
+Filtering order:
+
+1. ignore child documents for library materialization (`parent_id != nil`);
+2. location filter;
+3. category filter;
+4. optional required tag;
+5. download size policy;
+6. local state.
+
+Do not assume all accounts have Shortlist enabled.
+
+Known locations from LIST docs include:
+- `new`
+- `later`
+- `shortlist`
+- `archive`
+- `feed`
+
+Update endpoint documents `new/later/archive/feed`; treat `shortlist` carefully when writing. Do not attempt to move to shortlist unless current API behavior is explicitly verified.
+
+---
+
+# 16. KOReader metadata and collections
+
+Use:
+- `DocSettings`;
+- cache invalidation events used by KOReader;
+- `ReadCollection` only when available.
+
+Metadata fields:
+- title;
+- author;
+- keywords/tags;
+- description/summary;
+- site name as series only if that remains useful in device testing.
+
+Collections:
+- `Readwise: Inbox` for location `new`;
+- `Readwise: Later`;
+- `Readwise: Shortlist`;
+- `Readwise: Feed`;
+- Archive normally not synced unless user explicitly includes it.
+
+Collection updates must be idempotent.
+
+Do not delete arbitrary user collections.
+
+---
+
+# 17. Reading/finished status
+
+Determine finished status using KOReader's canonical summary/status representation for v2025.04. Do not parse visible strings.
+
+Archive action:
+
+```json
+{"location":"archive"}
+```
+
+Prefer individual PATCH until proven; bulk update may be used later.
+
+State machine:
+- local finished detected;
+- enqueue archive operation;
+- remote success;
+- update local document row location to archive;
+- keep local file.
+
+Do not repeatedly enqueue archive once remote state is known archived.
+
+---
+
+# 18. Annotation scan
+
+Only scan annotations for Reader-managed documents.
+
+Preferred sources:
+- currently open document: `self.ui.annotation.annotations` when appropriate;
+- closed documents: read the canonical sidecar `annotations` through `DocSettings`/KOReader APIs.
+
+Do not parse:
+- `My Clippings.txt`;
+- rendered bookmark strings;
+- titles to infer document mapping.
+
+For each annotation:
+- ignore pure page bookmarks;
+- require highlight text for remote highlight creation;
+- compute stable `local_annotation_id`;
+- compute text/note hashes;
+- compare with `annotation_links`.
+
+New local annotation:
+- create/update DB row `local_only`;
+- enqueue `create_highlight`.
+
+Changed local note:
+- if remote mapping for update is proven, enqueue `update_highlight_note`;
+- otherwise mark `remote_update_unsupported` and keep local data intact.
+
+Missing formerly linked local annotation:
+- mark `local_deleted_at`;
+- do not enqueue destructive delete unless enabled and identity is high confidence.
+
+---
+
+# 19. Exact-content matching for Reader highlight creation
+
+Reader requires exact parent content.
+
+Input:
+- KOReader annotation text;
+- Reader document HTML content.
+
+Need a robust but conservative matching pipeline.
+
+## 19.1 Extract Reader visible text map
+
+Do **not** simply strip tags with a regex if that changes entity decoding/whitespace unpredictably.
+
+Implement or reuse a small HTML-to-text/token mapping sufficient to produce:
+- normalized search representation;
+- mapping back to exact source-visible text span expected by Reader.
+
+First spike the API's interpretation:
+- whether `content` expects decoded visible text versus raw HTML substring;
+- how HTML entities, NBSP, line breaks, soft hyphens are handled.
+
+## 19.2 Candidate stages
+
+1. exact text occurrence;
+2. Unicode NFC normalization;
+3. whitespace equivalence:
+   - spaces;
+   - tabs;
+   - line breaks;
+   - NBSP;
+4. conservative punctuation equivalence:
+   - straight/curly quotes;
+   - common hyphen/dash forms;
+   - soft hyphen removal;
+5. unique candidate recovery.
+
+Never:
+- fuzzy Levenshtein-match a materially different sentence;
+- silently choose among multiple equally valid occurrences.
+
+## 19.3 Ambiguous repeated quote
+
+If identical quote appears multiple times:
+- the API itself only accepts content, not KOReader position;
+- if the Reader endpoint chooses a deterministic occurrence, test and document it;
+- if ambiguity affects placement or order and cannot be resolved, create only if behavior is harmless and user-visible;
+- otherwise leave unsynced with reason `ambiguous_text_match`.
+
+## 19.4 Failure state
+
+Keep:
+- local annotation;
+- note;
+- locator;
+- hashes;
+- error class.
+
+UI summary:
+```text
+1 highlight could not be matched to the Reader text.
+Nothing was deleted.
+```
+
+---
+
+# 20. Creating remote highlights
+
+Queue operation `create_highlight`.
+
+Preconditions:
+- document has Reader ID;
+- exact content resolved;
+- operation is not already represented by a confirmed remote link.
+
+Payload generated at execution time where possible, so a fresh source body can be used for matching.
+
+On success:
+- persist returned Reader highlight document ID;
+- set `created_remote=1`;
+- store sent text/note hashes;
+- mark queue done in same DB transaction.
+
+## 20.1 Timeout-after-create problem
+
+A POST can succeed remotely while the client times out before receiving the ID.
+
+Therefore retrying blindly can duplicate.
+
+Required reconciliation strategy before retrying ambiguous create:
+
+1. record operation payload fingerprint;
+2. query Reader child documents updated in the relevant time window and/or v2 highlights after interoperability is understood;
+3. look for a high-confidence match:
+   - parent document;
+   - exact text;
+   - exact note;
+   - creation time window;
+   - source marker if available;
+4. if unique, link it instead of POSTing again;
+5. if ambiguous, mark `blocked_reconciliation` and do not duplicate automatically.
+
+This is a hard requirement for production V1.
+
+---
+
+# 21. Annotation API interoperability spike — hard gate
+
+Before implementing edit/delete propagation, create a disposable Reader document and perform these experiments manually through code/tests:
+
+## H1 — create
+
+- Create highlight via Reader v3 `save` with `parent_id`.
+- Record returned Reader highlight document ID.
+
+Expected:
+- visible under original Reader document.
+
+## H2 — v3 listing
+
+- LIST by returned ID if supported.
+- LIST recent child docs.
+- Capture actual child object fields.
+- Determine whether note is represented directly or through a child note document.
+
+## H3 — v2 visibility
+
+- Query Readwise v2 highlights created/updated after spike start.
+- Identify the same highlight.
+- Record numeric v2 ID.
+- Determine if v2 `external_id`, URL, book/source metadata or another field exposes a deterministic mapping.
+
+## H4 — update note
+
+Try, in safe order:
+1. documented v2 PATCH using discovered numeric ID;
+2. verify Reader UI changes;
+3. verify v3 LIST representation changes.
+
+Do not rely on v3 document `notes` PATCH for a highlight because docs say that field does not work to add notes to highlights.
+
+## H5 — delete
+
+Test:
+1. v3 DELETE with Reader highlight document ID;
+2. verify disappearance from Reader and v2;
+3. if needed, v2 DELETE with numeric ID.
+
+## H6 — tags/color
+
+Only if easy:
+- test Reader tags on create;
+- test v2 color update;
+- decide whether V1 exposes either.
+
+### Required artifact
+
+Record observed behavior in:
+
+```text
+docs/API_INTEROP.md
+```
+
+Include date and sanitized request/response shapes.
+
+No edit/delete implementation may proceed before this file exists.
+
+---
+
+# 22. Updating an annotation note
+
+Only enabled if H4 produces a reliable remote mapping.
+
+Trigger:
+- linked annotation exists;
+- local `note_hash != last_note_hash`.
+
+Conflict check:
+- if we can fetch remote update timestamp/value and it changed since our last known version while local also changed:
+  - mark conflict;
+  - do not overwrite.
+
+Otherwise:
+- PATCH v2 `note`;
+- verify 200;
+- update hashes/state.
+
+If update support cannot be made reliable:
+- V1 will support note-at-creation;
+- UI will clearly report later local edits as unsynced;
+- do **not** implement delete-and-recreate silently, because that can duplicate Obsidian exports and reorder highlights.
+
+---
+
+# 23. Deleting a remote annotation
+
+Default setting:
+
+```text
+propagate_annotation_deletes = false
+```
+
+Eligibility when enabled:
+- plugin has a confirmed remote link;
+- local identity is high confidence;
+- annotation was originally created/linked by this plugin;
+- remote record has not diverged unexpectedly.
+
+Then:
+- use the API path proven by H5;
+- require confirmed 204/expected success;
+- preserve tombstone locally long enough to prevent recreation.
+
+Never treat:
+- missing sidecar;
+- missing local file;
+- failed disk mount;
+- parser error
+
+as proof the user intended remote deletion.
+
+---
+
+# 24. Notes, Markdown and Obsidian
+
+Plugin behavior:
+- never interpret `[[...]]`;
+- never normalize brackets;
+- never convert note to HTML;
+- never trim meaningful internal/newline whitespace;
+- preserve UTF-8 exactly.
+
+Test note:
+
+```text
+Relacionar com [[Foucault]] e [[Biopolítica]].
+
+#pesquisar
+🧠
+```
+
+End-to-end test:
+1. create note in KOReader;
+2. sync to Reader;
+3. inspect Reader;
+4. trigger official Readwise → Obsidian export;
+5. inspect generated Markdown;
+6. verify Obsidian recognizes intended links with the user's current export template.
+
+Document limitation:
+- if the same annotation was already exported and later edited, official Readwise docs say that edit is not automatically rewritten in the existing Obsidian note; refresh/re-export is separate from our plugin.
+
+---
+
+# 25. Queue semantics
+
+Operations:
+
+```text
+create_highlight
+update_highlight_note
+delete_highlight
+archive_document
+```
+
+Potential future:
+- mark_seen;
+- update_tags.
+
+## 25.1 Idempotency key
+
+Examples:
+
+```text
+create_highlight:<local_annotation_id>:<payload_hash>
+update_highlight_note:<local_annotation_id>:<note_hash>
+archive_document:<reader_document_id>:archive
+```
+
+The DB unique constraint prevents duplicate queued work.
+
+## 25.2 Retry classes
+
+Retry:
+- offline;
+- timeout;
+- DNS/transient TLS;
+- HTTP 408;
+- HTTP 429 honoring `Retry-After`;
+- HTTP 5xx.
+
+Do not auto-retry forever:
+- auth 401/403;
+- validation 400;
+- not found when identity is suspect;
+- conflict/ambiguous reconciliation.
+
+Backoff example:
+- attempt 1: immediate/manual cycle;
+- then 5s, 15s, 60s within one active sync only if UX allows;
+- after bounded attempts, persist for next manual sync.
+
+Do not sleep 60 seconds while freezing the UI if a better "defer until next sync" path is available.
+
+---
+
+# 26. Sync transaction/watermark rules
+
+A sync is not one giant DB transaction because network and downloads are long-running.
+
+Use small transactions around durable state transitions.
+
+Never:
+- hold SQLite transaction open during network download;
+- advance document watermark before pagination completes;
+- mark queue item done before remote success is persisted.
+
+Suggested sequence for a queue item:
+
+```text
+DB: pending → in_flight, commit
+network operation
+if success:
+    DB transaction:
+      update entity link/state
+      queue → done
+    commit
+else:
+    DB:
+      queue → retry_wait/blocked/conflict
+      store sanitized error
+    commit
+```
+
+On startup, reconcile stale `in_flight`.
+
+---
+
+# 27. Preflight
+
+Before sync:
+
+1. config initialized;
+2. database open/migrated;
+3. download root exists/is writable;
+4. token exists;
+5. no migration failure;
+6. recover stale queue state;
+7. check network state without toggling Wi-Fi;
+8. compute free-space snapshot;
+9. create sync report object.
+
+If offline:
+- still scan local annotations if useful and enqueue pending work;
+- do not show a fatal crash;
+- report "queued; connect Wi-Fi and sync again."
+
+---
+
+# 28. No Wi-Fi control
+
+The plugin must not call Wi-Fi enable/disable flows in V1.
+
+It may use KOReader NetworkMgr to:
+- inspect current connectivity;
+- react to current state.
+
+Reason:
+- target PW3/firmware combination has historically had Wi-Fi/KOReader quirks;
+- user can enable Wi-Fi before sync;
+- network control is outside the core product.
+
+---
+
+# 29. UI specification
+
+Top-level:
+
+```text
+Readwise Reader
+├── Sync now
+├── Sync status
+├── Open Readwise folder
+├── Full rescan
+└── Settings
+```
+
+Settings:
+
+```text
+Account
+├── Access token
+└── Test connection
+
+Documents
+├── Download folder
+├── Locations
+├── Categories
+├── Download images
+├── Maximum image size
+├── Maximum document size
+└── Sync only tag (optional)
+
+Annotations
+├── Upload highlights        [ON]
+├── Upload notes             [ON]
+└── Propagate deletions      [OFF]
+
+Finished documents
+└── Archive in Reader        [ON/OFF]
+
+Diagnostics
+├── Plugin version
+├── Database schema version
+├── Last successful sync
+├── Pending operations
+└── Debug logging            [OFF]
+```
+
+Token entry:
+- mask display after save;
+- provide replace/clear;
+- no "show token" unless unavoidable.
+
+## 29.1 Progress
+
+Do not update e-ink UI for every tiny item.
+
+Batch/throttle visible progress:
+
+```text
+Readwise sync
+Fetching library… 2/5 pages
+Downloading… 7/18
+Uploading annotations… 3/4
+```
+
+## 29.2 Completion summary
+
+```text
+Readwise sync complete
+
+Documents
+  3 downloaded
+  1 updated
+  12 unchanged
+  1 deferred
+
+Annotations
+  4 uploaded
+  1 pending
+  0 deleted
+
+1 warning
+```
+
+"Details" can point to diagnostics/log rather than dumping stack traces.
+
+---
+
+# 30. Logging
+
+Prefix all logs:
+
+```text
+ReadwiseReader:
+```
+
+Examples:
+
+```text
+ReadwiseReader: [SYNC] start
+ReadwiseReader: [API] list page=2 count=100
+ReadwiseReader: [DOC] installed id=...
+ReadwiseReader: [DOC] refresh deferred: local annotations
+ReadwiseReader: [ANN] created local=... reader_child=...
+ReadwiseReader: [ANN] match failed reason=ambiguous
+ReadwiseReader: [QUEUE] retry op=... reason=timeout
+```
+
+Redaction:
+- Authorization header → always `<redacted>`;
+- token substrings → always `<redacted>`;
+- `raw_source_url` → do not log;
+- signed query params → do not log;
+- full article/note content → not in normal logs.
+
+Debug mode may log hashes, lengths and IDs, not private body text by default.
+
+---
+
+# 31. Migrations
+
+Use `PRAGMA user_version`.
+
+Each migration:
+- numeric ordered version;
+- transaction;
+- forward-only;
+- idempotent where feasible;
+- backup DB before risky migration.
+
+If migration fails:
+- rollback;
+- leave old DB untouched/backup available;
+- disable sync;
+- show diagnostics instruction.
+
+Never silently delete/recreate DB to fix migration errors.
+
+---
+
+# 32. Database backup/recovery
+
+Before schema migration:
+- create `.bak` copy if size permits.
+
+SQLite corruption:
+- detect open/integrity failure;
+- do not delete automatically;
+- offer diagnostics;
+- documents themselves remain usable because content is stored separately.
+
+Future recovery tool can reconstruct `documents` partially from filenames/metadata, but this is not required for first implementation.
+
+---
+
+# 33. Cancellation and e-ink performance
+
+PW3 is constrained.
+
+Rules:
+- sequential downloads first;
+- no unbounded parallel requests;
+- no loading all HTML bodies into memory during metadata pass;
+- stream raw source to disk;
+- release large strings quickly;
+- use local scopes and avoid retaining page responses;
+- throttle UI redraws.
+
+If KOReader provides cancellable progress primitives in 2025.04, use them. Otherwise check a cancellation flag between network/document operations.
+
+Cancel:
+- leaves installed docs intact;
+- leaves queue/state resumable;
+- does not advance unfinished watermark.
+
+---
+
+# 34. Source plugin reuse
+
+Existing community implementation:
+- `koreader/contrib/readwisereader.koplugin`
+- archived upstream by original owner in 2026 but still useful as reference.
+
+Before copying implementation:
+- inspect original license;
+- preserve required attribution/license notices;
+- record origin in README/LICENSE notices.
+
+Reuse concepts selectively:
+- menu integration;
+- Reader pagination;
+- image handling lessons;
+- collection handling;
+- metadata events;
+- finished/archive detection.
+
+Do **not** blindly port:
+- monolithic architecture;
+- filename-as-ID coupling;
+- generic v2 highlight export that creates a separate Readwise source;
+- `My Clippings` parsing as annotation source;
+- fixed sleep-based rate limiting;
+- remote-archive → local-delete behavior.
+
+---
+
+# 35. Testing strategy
+
+## 35.1 Unit tests — pure Lua
+
+Must cover:
+
+### Filenames
+- ASCII;
+- Portuguese;
+- emoji;
+- slash/backslash;
+- `../`;
+- huge UTF-8 title;
+- collisions.
+
+### Cursor pagination
+- one page;
+- many pages;
+- repeated cursor;
+- malformed next cursor;
+- empty page.
+
+### HTTP classification
+- 204 auth;
+- 200 JSON;
+- 201 create;
+- 207 bulk;
+- 400;
+- 401;
+- 403;
+- 404;
+- 429 with/without Retry-After;
+- 500;
+- timeout.
+
+### Database
+- fresh schema;
+- migration;
+- rollback;
+- queue uniqueness;
+- stale in-flight recovery.
+
+### Annotation ID
+- note edit does not change ID;
+- text edit does not change ID;
+- locator change does;
+- rolling vs paging deterministic.
+
+### Text matching
+- exact;
+- line breaks;
+- NBSP;
+- curly quotes;
+- soft hyphen;
+- repeated identical phrase;
+- no match;
+- Unicode normalization.
+
+### Queue
+- retryable;
+- permanent error;
+- timeout-after-create reconciliation path;
+- idempotency.
+
+## 35.2 Integration tests with mocked API
+
+Fixtures:
+- Reader LIST pages;
+- parent + child documents;
+- raw source missing;
+- raw source expired;
+- highlight create;
+- rate limits;
+- v2 mapping responses after spike.
+
+Never store a real user's Reader document bodies or token in fixtures.
+
+## 35.3 Device tests
+
+Maintain `docs/DEVICE_TESTS.md` with each run:
+- plugin commit;
+- device;
+- firmware;
+- KOReader version;
+- exact test;
+- result;
+- relevant sanitized log.
+
+---
+
+# 36. Required device test corpus
+
+Create/supply test items in Reader deliberately:
+
+1. short article;
+2. long article;
+3. article with many images;
+4. Portuguese accents;
+5. curly quotes/dashes;
+6. same sentence repeated twice;
+7. newsletter;
+8. RSS item;
+9. small text PDF;
+10. image-heavy PDF;
+11. EPUB;
+12. item without raw source if available;
+13. document moved between new/later/archive;
+14. document whose title changes;
+15. document updated after partial local reading.
+
+Annotation cases:
+16. highlight only;
+17. highlight + plain note;
+18. note `[[Foucault]]`;
+19. two wikilinks;
+20. multiline note;
+21. emoji;
+22. repeated-highlight text;
+23. edit note;
+24. delete local highlight;
+25. create while offline;
+26. crash/restart with queued operation;
+27. network drop after POST;
+28. sync twice unchanged.
+
+---
+
+# 37. CI
+
+CI should not try to emulate the Kindle GUI.
+
+Initial CI goals:
+- syntax/lint;
+- unit tests;
+- deterministic package structure;
+- no obvious secrets;
+- build ZIP artifact.
+
+If KOReader's test environment can be reused without excessive maintenance, add it later.
+
+Package output:
+
+```text
+readwisereader.koplugin.zip
+```
+
+ZIP root must expand to:
+
+```text
+readwisereader.koplugin/
+  _meta.lua
+  main.lua
+  ...
+```
+
+---
+
+# 38. Versioning
+
+SemVer for plugin releases.
+
+Suggested progression:
+
+```text
+0.0.1 bootstrap
+0.0.x connectivity/API spikes
+0.1.x Reader document sync
+0.2.x PDF/EPUB/raw formats
+0.3.x annotation create
+0.4.x queue + offline + reconciliation
+0.5.x note update if proven
+0.6.x archive/collections/hardening
+0.9.x release candidates on PW3
+1.0.0 V1 acceptance passed
+```
+
+Database migrations are independent numeric schema versions.
+
+---
+
+# 39. Development branch/commit discipline
+
+Use small commits that leave repository understandable.
+
+Preferred phases:
+- branch per milestone/spike;
+- squash only if history becomes noise;
+- commit message describes one coherent change.
+
+Examples:
+
+```text
+chore: bootstrap KOReader plugin skeleton
+feat(auth): validate Readwise token
+feat(storage): add sqlite state schema
+feat(reader): paginate Reader documents
+feat(sync): materialize article html
+feat(annotations): scan KOReader sidecars
+spike(api): document Reader v3/v2 highlight mapping
+feat(annotations): create linked Reader highlights
+fix(queue): reconcile ambiguous create timeout
+```
+
+Never combine:
+- schema migration;
+- API behavior change;
+- unrelated UI redesign
+
+in one opaque commit.
+
+---
+
+# 40. STATUS.md protocol — mandatory while implementing
+
+After every meaningful implementation session update `STATUS.md`.
+
+It must answer:
+
+```text
+Current milestone:
+Current branch/commit:
+What works:
+What is in progress:
+What failed / learned:
+Decisions made:
+Tests run:
+Device test needed:
+Exact next steps:
+Known blockers:
+```
+
+If work stops because of tool/quota/context limits, `STATUS.md` must be enough for a fresh implementation session to continue without reconstructing decisions from chat history.
+
+Do not mark a gate complete without evidence/test.
+
+---
+
+# 41. Implementation sequence — authoritative
+
+Do not skip ahead because a later feature is more interesting.
+
+## Phase A — repository/bootstrap
+
+### A1
+- inspect old plugin license;
+- add LICENSE/NOTICE as required;
+- add README;
+- add .gitignore;
+- add skeleton plugin;
+- add version constant.
+
+### A2 — Gate 0
+- package plugin;
+- user copies to `koreader/plugins/`;
+- restart KOReader;
+- menu appears;
+- basic info dialog works;
+- removing folder restores baseline.
+
+**Do not implement full API before Gate 0 passes on PW3.**
+
+## Phase B — config/auth
+
+### B1
+- LuaSettings config;
+- masked token entry;
+- clear/replace;
+- no token logs.
+
+### B2 — Gate 1
+- `GET /api/v2/auth/`;
+- success 204;
+- invalid token path;
+- offline path;
+- timeout path.
+
+## Phase C — storage foundation
+
+### C1
+- SQLite DB;
+- schema;
+- migrations;
+- DB unit tests.
+
+### C2
+- documents repository;
+- queue repository;
+- annotation-links repository;
+- sync_meta.
+
+No remote write yet.
+
+## Phase D — Reader metadata
+
+### D1
+- Reader client;
+- LIST one page;
+- parse required fields.
+
+### D2
+- pagination;
+- cursor-loop guard;
+- rate-limit handling.
+
+### D3 — Gate 2
+- metadata-only full library scan on real account;
+- report counts without downloading;
+- verify memory/performance on PW3.
+
+## Phase E — first readable document
+
+### E1
+- select one known article;
+- fetch `html_content`;
+- safe filename;
+- build minimal HTML;
+- atomic install.
+
+### E2
+- write metadata;
+- open in KOReader.
+
+### E3 — Gate 3
+Verify on PW3:
+- renders;
+- Unicode;
+- reflow;
+- font/margin controls;
+- search;
+- dictionary;
+- highlight;
+- note;
+- reopen retains progress.
+
+## Phase F — document sync engine
+
+### F1
+- configurable root;
+- locations/categories;
+- DB ownership;
+- incremental watermark.
+
+### F2
+- update metadata/location;
+- no duplicate on title rename;
+- collections.
+
+### F3
+- cancellation;
+- summaries;
+- full rescan.
+
+### F4 — Gate 4
+- multiple articles;
+- second sync unchanged;
+- move Reader location;
+- rename title;
+- no duplicates.
+
+## Phase G — images
+
+### G1 spike
+- test relative local assets with CRengine 2025.04.
+
+### G2
+- implement chosen asset strategy;
+- caps;
+- failure tolerance.
+
+### Gate 5
+- image-heavy article does not destabilize PW3;
+- text remains usable when some images fail.
+
+## Phase H — raw formats
+
+### H1
+- raw_source download abstraction;
+- temp/atomic;
+- source expiry handling;
+- max size/free-space.
+
+### H2
+- PDF.
+
+### H3
+- EPUB.
+
+### H4
+- fallback HTML.
+
+### Gate 6
+- real PDF and EPUB open/read/reopen on PW3.
+
+## Phase I — sidecar/annotation adapter
+
+### I1
+- read managed document annotations via DocSettings;
+- stable local annotation ID;
+- detect add/edit/delete.
+
+### I2
+- never touch unrelated docs;
+- unit tests around identity.
+
+### Gate 7
+- create highlight and note on device;
+- scanner sees correct text/note/locator;
+- reopening document preserves identity.
+
+## Phase J — annotation API spike
+
+Execute H1–H6 from section 21.
+
+### Deliverable
+- `docs/API_INTEROP.md`.
+
+### Gate 8
+We know:
+- exact create behavior;
+- returned ID semantics;
+- whether v2 mapping exists;
+- how note edit can be implemented;
+- safe delete path.
+
+No assumptions beyond this gate.
+
+## Phase K — text matching
+
+### K1
+- fetch exact parent HTML;
+- visible text normalization;
+- exact substring recovery.
+
+### K2
+- ambiguous/no-match handling.
+
+### Gate 9
+Test:
+- ordinary article;
+- line-break selection;
+- curly quotes;
+- repeated sentence.
+
+## Phase L — create highlights
+
+### L1
+- queue create;
+- Reader v3 parent-linked highlight;
+- note at create;
+- persist Reader child ID.
+
+### L2
+- reconcile timeout-after-create;
+- dedupe retries.
+
+### Gate 10
+On PW3:
+- highlight + `[[Foucault]]`;
+- sync;
+- correct original Reader document;
+- sync again;
+- no duplicate.
+
+## Phase M — Obsidian end-to-end
+
+### M1
+- official Readwise export;
+- verify note content;
+- verify wikilink.
+
+### Gate 11
+`[[Foucault]]` functions in Obsidian as intended with user's real template/config.
+
+Document append-only/edit limitation clearly.
+
+## Phase N — update/delete annotations
+
+Only if Gate 8 proved reliable.
+
+### N1
+- note update;
+- conflict detection.
+
+### N2
+- optional delete propagation, default off;
+- tombstones.
+
+### Gate 12
+- edit note on Kindle → Reader changes;
+- local delete with propagation off → remote remains;
+- with propagation deliberately on → only linked target deleted.
+
+If interoperability cannot satisfy this safely, document limitation and do not fake it.
+
+## Phase O — offline queue hardening
+
+### O1
+- create offline;
+- restart KOReader;
+- connect;
+- retry.
+
+### O2
+- server 429;
+- timeout;
+- 5xx;
+- auth expiration.
+
+### O3
+- stale in-flight reconciliation.
+
+### Gate 13
+No duplicate and no lost annotation across all scenarios.
+
+## Phase P — finished/archive
+
+### P1
+- canonical finished detection;
+- queue archive;
+- Reader PATCH;
+- local keep.
+
+### Gate 14
+Finished → archive exactly once; local file/sidecar remain intact.
+
+## Phase Q — content refresh safety
+
+### Q1
+- test article update after progress/highlights;
+- test PDF/EPUB replacement implications.
+
+### Q2
+- implement conservative refresh policy.
+
+### Gate 15
+No local annotation/progress loss caused by remote content update.
+
+## Phase R — hardening
+
+- large library;
+- low disk;
+- malformed document;
+- huge document;
+- Unicode;
+- 429;
+- intermittent Wi-Fi;
+- force-close;
+- reboot;
+- migration;
+- rollback;
+- debug log review for secrets.
+
+### Gate 16
+Release candidate stable on target PW3.
+
+## Phase S — V1 acceptance
+
+Run the complete acceptance script in section 42.
+
+Tag `v1.0.0` only after all P0 acceptance steps pass or a deliberate scope change is written into this spec and PLAN.md.
+
+---
+
+# 42. V1 acceptance script
+
+On the actual PW3:
+
+1. Start with valid installed plugin and empty pending queue.
+2. Save a new article in Reader.
+3. Enable Wi-Fi outside KOReader.
+4. Sync.
+5. Confirm article downloaded once.
+6. Open and read.
+7. Turn Wi-Fi off.
+8. Continue reading.
+9. Highlight text.
+10. Add:
+   `ver [[Foucault]] e [[Biopolítica]]\n\n#pesquisar`
+11. Close/reopen document.
+12. Confirm annotation remains.
+13. Sync while offline.
+14. Confirm annotation becomes pending, not lost.
+15. Enable Wi-Fi.
+16. Sync.
+17. Confirm highlight appears under the original Reader document.
+18. Confirm note is exact.
+19. Sync again.
+20. Confirm no duplicate.
+21. Export/sync Readwise to Obsidian.
+22. Confirm wikilinks behave as expected.
+23. If update is part of V1 after API spike, edit note and verify Reader.
+24. Simulate one retryable network failure and recover without duplicate.
+25. Restart KOReader with a pending queue item; recover it.
+26. Mark document finished.
+27. Sync.
+28. Confirm Reader location becomes archive.
+29. Confirm local file remains.
+30. Confirm sidecar/progress/annotations remain.
+31. Inspect logs: no token, no signed source URL, no full private content leak.
+32. Run second no-op sync: zero new documents/highlights.
+
+---
+
+# 43. Definition of done per code change
+
+A change is not done merely because code exists.
+
+For each milestone:
+- code implemented;
+- unit tests where feasible;
+- static/syntax checks pass;
+- manual test instructions documented;
+- `STATUS.md` updated;
+- no secret committed;
+- no known regression left undocumented.
+
+For device gates:
+- exact device result recorded.
+
+---
+
+# 44. Stop conditions during implementation
+
+Stop advancing to later phases when:
+
+- plugin no longer loads on KOReader 2025.04;
+- database migration is unsafe;
+- network operation duplicates data;
+- token appears in logs;
+- a local file/sidecar is at risk of silent loss;
+- exact highlight matching is ambiguous;
+- remote ID mapping is assumed rather than demonstrated;
+- a destructive operation cannot be linked to a known plugin-managed entity.
+
+Fix or explicitly redesign before continuing.
+
+---
+
+# 45. Default decisions unless later evidence changes them
+
+These choices are intentional so future implementation sessions do not repeatedly reopen settled questions.
+
+1. **Target KOReader 2025.04 first.**
+2. **Manual sync first; no background sync V1.**
+3. **Do not control Wi-Fi.**
+4. **SQLite for sync state/queue.**
+5. **LuaSettings for small config/token.**
+6. **Reader ID is document identity.**
+7. **Sidecar `annotations` is annotation source of truth.**
+8. **No `My Clippings.txt` dependency.**
+9. **No filename/title-based annotation identity.**
+10. **Use Reader v3 for library and linked highlight creation.**
+11. **Use Readwise v2 only where API spike proves it is required/reliable.**
+12. **Deletion propagation off by default.**
+13. **Remote archive does not imply local deletion.**
+14. **Atomic document replacement.**
+15. **Conservative content refresh when local reading state exists.**
+16. **No aggressive fuzzy text matching.**
+17. **No blind retry after ambiguous highlight POST timeout.**
+18. **Preserve notes literally.**
+19. **New Obsidian annotations are in scope; automatic rewriting of already-exported edited notes is not.**
+20. **Every implementation session updates STATUS.md.**
+
+---
+
+# 46. Open questions — resolve by spikes, not speculation
+
+- Does Reader v3 highlight create return an ID that can be deterministically mapped to Readwise v2?
+- Does Reader v3 DELETE on a highlight child behave exactly as desired?
+- What child-document shape does a Reader highlight/note expose today?
+- How does Reader match repeated identical `content` within one document?
+- Does Reader's exact-content requirement compare decoded visible text exactly as documented examples imply for HTML entities/soft hyphens?
+- Which KOReader sidecar API is safest for closed-document annotation reads in 2025.04?
+- What is the safest canonical "finished" signal in KOReader 2025.04?
+- Do relative local image files render robustly in CRengine HTML on PW3?
+- How much HTML/image content can this PW3 handle comfortably?
+- How stable are XPointer positions after replacing an HTML document with changed content?
+- Can original EPUB/PDF updates preserve sidecar positions reliably?
+- What specific filesystem free-space API is cleanest on Kindle through KOReader?
+- Does the user's Readwise → Obsidian template preserve raw `[[...]]` exactly without needing template adjustment?
+
+Each answer must be captured in a documentation or code change; do not rely only on chat memory.
+
+---
+
+# 47. References
+
+Current API/docs:
+- Reader API: https://readwise.io/reader_api
+- Readwise API: https://readwise.io/api_deets
+- Readwise → Obsidian: https://docs.readwise.io/readwise/docs/exporting-highlights/obsidian
+- Export refresh behavior: https://docs.readwise.io/readwise/docs/exporting-highlights
+
+KOReader:
+- KOReader v2025.04 source: https://github.com/koreader/koreader/tree/v2025.04
+- ReaderAnnotation v2025.04: `frontend/apps/reader/modules/readerannotation.lua`
+- DocSettings v2025.04: `frontend/docsettings.lua`
+- Hello plugin v2025.04: `plugins/hello.koplugin/main.lua`
+
+Existing Readwise plugin reference:
+- https://github.com/koreader/contrib/tree/main/readwisereader.koplugin
+
+---
+
+# 48. Immediate next action
+
+Do **Phase A only**.
+
+Before implementing network sync:
+
+1. inspect and document upstream license;
+2. scaffold repository;
+3. create minimal `readwisereader.koplugin`;
+4. package it;
+5. install on target PW3;
+6. pass Gate 0;
+7. record the result in `STATUS.md`.
+
+Do not start the full Reader client until the plugin shell has actually loaded on the user's KOReader 2025.04.
