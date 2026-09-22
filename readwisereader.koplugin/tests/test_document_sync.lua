@@ -59,8 +59,8 @@ local function newSync(options)
         repository = repository,
         sync_meta = meta,
         config = {
-            getSyncLocations = function() return { "new", "later" } end,
-            getSyncCategories = function() return { "article" } end,
+            getSyncLocations = function() return options.locations or { "new", "later" } end,
+            getSyncCategories = function() return options.categories or { "article" } end,
         },
         materializer = {
             installDocument = function(_, doc)
@@ -131,6 +131,7 @@ return function()
         assert(repository.rows.b.local_path == "/Readwise/b.html")
         assert(meta.values.document_watermark == "T001000")
         assert(meta.values.document_query_after == "T000995")
+        assert(meta.values.document_filter_scope == "locations=later,new;categories=article")
     end
 
     do
@@ -144,6 +145,7 @@ return function()
         local meta = fakeMeta({
             document_watermark = "T001000",
             document_query_after = "T000995",
+            document_filter_scope = "locations=later,new;categories=article",
         })
         local reader = {
             iterateDocuments = function(_, options)
@@ -174,6 +176,7 @@ return function()
         local meta = fakeMeta({
             document_watermark = "T001000",
             document_query_after = "T000995",
+            document_filter_scope = "locations=later,new;categories=article",
         })
         local reader = {
             iterateDocuments = function(_, _, callback)
@@ -214,9 +217,43 @@ return function()
     end
 
     do
+        -- Expanding filters after a successful sync must backfill historical
+        -- documents instead of relying on updatedAfter.
         local meta = fakeMeta({
             document_watermark = "T001000",
             document_query_after = "T000995",
+            document_filter_scope = "locations=new;categories=article",
+        })
+        local saw_incremental = false
+        local reader = {
+            iterateDocuments = function(_, options, callback)
+                if options.updated_after then saw_incremental = true end
+                if options.with_html_content and options.location == "archive" then
+                    callback(doc("old", "archive", "Historical", "u0", "<p>Old</p>"))
+                end
+                return { pages = 1, duplicates = 0 }
+            end,
+        }
+        local syncer, _, updated_meta, installs = newSync{
+            reader = reader,
+            meta = meta,
+            locations = { "new", "archive" },
+            now_values = { 1040, 1041 },
+        }
+        local report, err = syncer:sync{}
+        assert(err == nil)
+        assert(report.mode == "full")
+        assert(report.filter_scope_changed == true)
+        assert(saw_incremental == false)
+        assert(report.downloaded == 1 and installs[1] == "old")
+        assert(updated_meta.values.document_filter_scope == "locations=archive,new;categories=article")
+    end
+
+    do
+        local meta = fakeMeta({
+            document_watermark = "T001000",
+            document_query_after = "T000995",
+            document_filter_scope = "locations=later,new;categories=article",
         })
         local syncer = newSync{
             meta = meta,
