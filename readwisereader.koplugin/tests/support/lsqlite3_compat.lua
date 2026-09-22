@@ -28,7 +28,7 @@ function Compat.open(path)
             stmt:finalize()
             return nil
         end
-        local values = { stmt:get_values() }
+        local values = stmt:get_values()
         stmt:finalize()
         if #values == 1 then
             return values[1]
@@ -41,13 +41,13 @@ function Compat.open(path)
         local stmt = {}
 
         function stmt:reset()
-            check(raw, raw_stmt:reset())
+            raw_stmt:reset()
             return self
         end
 
         function stmt:clearbind()
             if raw_stmt.clear_bindings then
-                check(raw, raw_stmt:clear_bindings())
+                raw_stmt:clear_bindings()
             end
             return self
         end
@@ -60,7 +60,7 @@ function Compat.open(path)
         function stmt:step()
             local rc = check(raw, raw_stmt:step())
             if rc == sqlite3.ROW then
-                return { raw_stmt:get_values() }
+                return raw_stmt:get_values()
             end
             return nil
         end
