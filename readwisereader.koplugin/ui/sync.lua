@@ -179,25 +179,42 @@ Tap to cancel. Completed files are installed atomically; the incremental waterma
         -- incremental watermark.
         for _, item in ipairs(report.postprocess or {}) do
             if item.metadata then
-                local metadata_ok = self.koreader_documents:writeMetadata(item.path, item.metadata)
-                if not metadata_ok then
+                local call_ok, metadata_ok = pcall(
+                    self.koreader_documents.writeMetadata,
+                    self.koreader_documents,
+                    item.path,
+                    item.metadata
+                )
+                if not call_ok or not metadata_ok then
                     report.errors = (report.errors or 0) + 1
                 end
             end
             if item.location then
-                local collection_ok = self.collections:syncLocation(item.path, item.location)
-                if not collection_ok then
+                local call_ok, collection_ok = pcall(
+                    self.collections.syncLocation,
+                    self.collections,
+                    item.path,
+                    item.location
+                )
+                if not call_ok or not collection_ok then
                     report.errors = (report.errors or 0) + 1
                 end
             end
         end
 
         if (report.errors or 0) == 0 and report.proposed_watermark then
-            self.sync_meta:set("document_watermark", report.proposed_watermark)
-            self.sync_meta:set("document_query_after", report.proposed_query_after)
-            self.sync_meta:set("last_successful_sync_at", report.completed_at)
+            local final_meta = {
+                document_watermark = report.proposed_watermark,
+                document_query_after = report.proposed_query_after,
+                last_successful_sync_at = report.completed_at,
+            }
             if report.mode == "full" then
-                self.sync_meta:set("last_full_scan_at", report.completed_at)
+                final_meta.last_full_scan_at = report.completed_at
+            end
+            local committed = pcall(self.sync_meta.setMany, self.sync_meta, final_meta)
+            if not committed then
+                report.errors = (report.errors or 0) + 1
+                report.watermark_advanced = false
             end
         else
             report.watermark_advanced = false

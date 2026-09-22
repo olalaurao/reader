@@ -53,7 +53,7 @@ local function withStubbedSyncUI(run, options)
             wrap = function(_, callback)
                 state.wrap_calls = state.wrap_calls + 1
                 callback()
-                return true
+                return ui_options.metadata_ok ~= false
             end,
             dismissableRunInSubprocess = function(_, task)
                 state.subprocess_calls = state.subprocess_calls + 1
@@ -78,7 +78,8 @@ local function withStubbedSyncUI(run, options)
     if not ok then error(err) end
 end
 
-local function newUI(SyncUI, state, watermark, report)
+local function newUI(SyncUI, state, watermark, report, ui_options)
+    ui_options = ui_options or {}
     return SyncUI:new{
         config = { hasAccessToken = function() return true end },
         sync_meta = {
@@ -89,6 +90,14 @@ local function newUI(SyncUI, state, watermark, report)
             set = function(_, key, value)
                 state.meta_writes[key] = value
             end,
+            setMany = function(_, values)
+                if ui_options.meta_commit_ok == false then
+                    error("simulated sync_meta commit failure")
+                end
+                for key, value in pairs(values) do
+                    state.meta_writes[key] = value
+                end
+            end,
         },
         collections = {
             syncLocation = function(_, path, location)
@@ -96,7 +105,7 @@ local function newUI(SyncUI, state, watermark, report)
                     path = path,
                     location = location,
                 }
-                return options and options.collection_ok ~= false or true
+                return ui_options.collection_ok ~= false
             end,
             refresh = function()
                 state.refresh_calls = state.refresh_calls + 1
@@ -167,6 +176,21 @@ return function()
         state.shown[#state.shown].ok_callback()
         assert(state.wrap_calls == 1)
         assert(#state.worker_calls == 1)
+    end)
+
+    withStubbedSyncUI(function(SyncUI, state)
+        local ui = newUI(SyncUI, state, "watermark", nil, { collection_ok = false })
+        ui:syncNow(false)
+        assert(next(state.meta_writes) == nil, "parent postprocess failure must not advance watermark")
+        assert(state.shown[#state.shown].text:find("Errors: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("not advanced", 1, true))
+    end)
+
+    withStubbedSyncUI(function(SyncUI, state)
+        local ui = newUI(SyncUI, state, "watermark", nil, { meta_commit_ok = false })
+        ui:syncNow(false)
+        assert(next(state.meta_writes) == nil, "failed atomic watermark commit must leave test state unchanged")
+        assert(state.shown[#state.shown].text:find("Errors: 1", 1, true))
     end)
 
     withStubbedSyncUI(function(SyncUI, state)
