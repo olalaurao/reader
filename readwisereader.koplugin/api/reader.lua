@@ -219,7 +219,9 @@ function Reader:_waitForListSlot(is_cancelled)
     if last_request_at ~= nil then
         local now = self.clock()
         local remaining = self.list_min_interval - (now - last_request_at)
-        while remaining > 0 do
+        -- Ignore sub-millisecond floating-point residue; neither LuaSocket
+        -- timers nor the device scheduler can meaningfully honor it.
+        while remaining > 0.001 do
             if is_cancelled and is_cancelled() then
                 return nil, {
                     kind = "cancelled",
