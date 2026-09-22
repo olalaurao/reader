@@ -316,11 +316,13 @@ Observed on the target PW3 / KOReader 2025.04:
 Root cause:
 - Phase F persisted only the time watermark, not the filter scope associated with that watermark;
 - after a successful sync, changing Locations/Types still used `updatedAfter`;
+- the first recovery implementation also exposed a Lua-specific bug in `full_scan and nil or fallback`: because the true branch is `nil`, Lua evaluates the fallback and accidentally restores the old watermark;
 - `updatedAfter` can only discover records changed since the watermark, so old documents in a newly-enabled location are invisible to that incremental pass.
 
 0.1.4 fix:
 - persist a canonical sorted document-filter scope alongside the watermark;
 - any scope change forces a safe full backfill using the current filters;
+- full/backfill scans now set `updated_after` explicitly to nil rather than using the invalid Lua nil-valued ternary idiom;
 - a missing scope marker from the earlier 0.1.3 build also forces a full backfill, recovering the device automatically without deleting the database or files;
 - commit the new scope only after parent-process metadata/Collection post-processing succeeds together with the watermark;
 - added regression coverage proving that enabling Archive after a prior Inbox-only sync downloads an old Archive article without using `updatedAfter`.
