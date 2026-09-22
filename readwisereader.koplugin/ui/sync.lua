@@ -47,6 +47,8 @@ local function summaryText(report)
         string.format(_("Metadata documents seen: %d"), report.metadata_seen or 0),
         string.format(_("Active filters: %s"), report.filter_scope or _("unknown")),
         string.format(_("Errors: %d"), report.errors or 0),
+        string.format(_("Metadata write errors: %d"), report.postprocess_metadata_errors or 0),
+        string.format(_("Collection write errors: %d"), report.postprocess_collection_errors or 0),
         "",
         string.format(_("Metadata pages: %d"), report.metadata_pages or 0),
         string.format(_("Content pages: %d"), report.content_pages or 0),
@@ -179,6 +181,17 @@ Tap to cancel. Completed files are installed atomically; the incremental waterma
         -- Trapper child work deliberately avoids KOReader settings/cache.
         -- Apply metadata and collections in the parent before committing the
         -- incremental watermark.
+        -- Collections keep an in-memory cache. The child may have run for minutes,
+        -- so refresh it once before applying a large parent-side postprocess batch.
+        -- Without this, stale collection state can turn harmless idempotent writes
+        -- into per-item failures after a full materialization.
+        local collection_refresh_ok = pcall(self.collections.refresh, self.collections)
+        if not collection_refresh_ok then
+            report.errors = (report.errors or 0) + 1
+        end
+
+        report.postprocess_metadata_errors = 0
+        report.postprocess_collection_errors = 0
         for _, item in ipairs(report.postprocess or {}) do
             if item.metadata then
                 local call_ok, metadata_ok = pcall(
@@ -189,6 +202,7 @@ Tap to cancel. Completed files are installed atomically; the incremental waterma
                 )
                 if not call_ok or not metadata_ok then
                     report.errors = (report.errors or 0) + 1
+                    report.postprocess_metadata_errors = report.postprocess_metadata_errors + 1
                 end
             end
             if item.location then
@@ -200,6 +214,7 @@ Tap to cancel. Completed files are installed atomically; the incremental waterma
                 )
                 if not call_ok or not collection_ok then
                     report.errors = (report.errors or 0) + 1
+                    report.postprocess_collection_errors = report.postprocess_collection_errors + 1
                 end
             end
         end
