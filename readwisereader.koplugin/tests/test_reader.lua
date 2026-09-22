@@ -234,4 +234,55 @@ return function()
         assert(url == nil)
         assert(err.kind == "client")
     end
+    do
+        local captured
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function(_, request)
+                    captured = request
+                    return { status = 200, headers = {}, body = "doc-body" }
+                end,
+            },
+            json_decode = function()
+                return {
+                    results = {
+                        {
+                            id = "doc/with space",
+                            category = "article",
+                            html_content = "<p>Olá</p>",
+                        },
+                    },
+                }
+            end,
+            list_min_interval = 0,
+        }
+
+        local document, err = reader:getDocument("doc/with space", true, false)
+        assert(err == nil)
+        assert(document.id == "doc/with space")
+        assert(document.html_content == "<p>Olá</p>")
+        assert(captured.url:find("id=doc%2Fwith%20space", 1, true))
+        assert(captured.url:find("withHtmlContent=true", 1, true))
+        assert(captured.url:find("withRawSourceUrl=false", 1, true))
+    end
+
+    do
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function()
+                    return { status = 200, headers = {}, body = "empty" }
+                end,
+            },
+            json_decode = function()
+                return { results = {} }
+            end,
+            list_min_interval = 0,
+        }
+        local document, err = reader:getDocument("missing", true, false)
+        assert(document == nil)
+        assert(err.kind == "not_found")
+    end
+
 end
