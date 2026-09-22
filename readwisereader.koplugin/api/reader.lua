@@ -110,12 +110,24 @@ local function defaultJsonDecode(body)
     return JSON.decode(body, JSON.decode.simple)
 end
 
+local function defaultClock()
+    return require("socket").gettime()
+end
+
+local function defaultSleep(seconds)
+    require("socket").sleep(seconds)
+end
+
 function Reader:new(options)
     options = options or {}
     return setmetatable({
         http = assert(options.http, "http is required"),
         config = assert(options.config, "config is required"),
         json_decode = options.json_decode,
+        clock = options.clock or defaultClock,
+        sleep = options.sleep or defaultSleep,
+        list_min_interval = options.list_min_interval or Constants.READER_LIST_MIN_INTERVAL_SECONDS,
+        last_list_request_at = nil,
     }, self)
 end
 
@@ -176,6 +188,41 @@ function Reader:validateToken()
     return true
 end
 
+function Reader:_waitForListSlot(is_cancelled)
+    local last_request_at = self.last_list_request_at
+    if last_request_at ~= nil then
+        local now = self.clock()
+        local remaining = self.list_min_interval - (now - last_request_at)
+        while remaining > 0 do
+            if is_cancelled and is_cancelled() then
+                return nil, {
+                    kind = "cancelled",
+                    retryable = false,
+                    message = "Reader metadata scan was cancelled.",
+                }
+            end
+
+            -- Keep sleeps short so a future in-process caller can cooperate
+            -- with cancellation instead of entering one long rate-limit sleep.
+            local slice = math.min(remaining, 0.25)
+            self.sleep(slice)
+            now = self.clock()
+            remaining = self.list_min_interval - (now - last_request_at)
+        end
+    end
+
+    if is_cancelled and is_cancelled() then
+        return nil, {
+            kind = "cancelled",
+            retryable = false,
+            message = "Reader metadata scan was cancelled.",
+        }
+    end
+
+    self.last_list_request_at = self.clock()
+    return true
+end
+
 function Reader:listDocuments(options)
     options = options or {}
     local token, token_err = self:_getToken()
@@ -186,6 +233,11 @@ function Reader:listDocuments(options)
     local request_url, url_err = buildListUrl(options)
     if not request_url then
         return nil, url_err
+    end
+
+    local allowed, limit_err = self:_waitForListSlot(options.is_cancelled)
+    if not allowed then
+        return nil, limit_err
     end
 
     local response, err = self.http:request{

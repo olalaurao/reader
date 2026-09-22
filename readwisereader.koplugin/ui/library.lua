@@ -2,6 +2,7 @@
 
 local InfoMessage = require("ui/widget/infomessage")
 local NetworkMgr = require("ui/network/manager")
+local Trapper = require("ui/trapper")
 local UIManager = require("ui/uimanager")
 local _ = require("gettext")
 
@@ -120,16 +121,18 @@ function LibraryUI:scanMetadata()
         return
     end
 
-    local progress = InfoMessage:new{
-        text = _([[Scanning Reader library metadata…
+    local completed, report, err = Trapper:dismissableRunInSubprocess(function()
+        return self.scanner:scan()
+    end, _([[Scanning Reader library metadata…
 
-This Gate 2 scan only reads metadata. It will not download or change documents.]]),
-    }
-    UIManager:show(progress)
-    UIManager:forceRePaint()
+Tap to cancel. This Gate 2 scan only reads metadata; it will not download or change documents.]]))
 
-    local report, err = self.scanner:scan()
-    UIManager:close(progress)
+    if not completed then
+        UIManager:show(InfoMessage:new{
+            text = _("Reader metadata scan cancelled. Nothing was downloaded or changed."),
+        })
+        return
+    end
 
     if not report then
         UIManager:show(InfoMessage:new{

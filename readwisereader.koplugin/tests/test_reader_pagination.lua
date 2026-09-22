@@ -2,7 +2,8 @@
 
 local Reader = require("api/reader")
 
-local function sequenceReader(pages)
+local function sequenceReader(pages, options)
+    options = options or {}
     local call_index = 0
     local captured = {}
     local reader = Reader:new{
@@ -29,6 +30,9 @@ local function sequenceReader(pages)
         json_decode = function(body)
             return pages[tonumber(body)]
         end,
+        clock = options.clock,
+        sleep = options.sleep,
+        list_min_interval = options.list_min_interval,
     }
     return reader, captured
 end
@@ -152,5 +156,94 @@ return function()
         assert(report == nil)
         assert(err.kind == "callback")
         assert(err.report.pages == 1)
+    end
+
+    do
+        local now = 0
+        local sleeps = {}
+        local request_times = {}
+        local pages = {}
+        for i = 1, 21 do
+            pages[i] = {
+                results = { { id = "doc-" .. tostring(i) } },
+                nextPageCursor = i < 21 and ("cursor-" .. tostring(i + 1)) or nil,
+            }
+        end
+
+        local call_index = 0
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function()
+                    call_index = call_index + 1
+                    request_times[call_index] = now
+                    return { status = 200, headers = {}, body = tostring(call_index) }
+                end,
+            },
+            json_decode = function(body)
+                return pages[tonumber(body)]
+            end,
+            clock = function()
+                return now
+            end,
+            sleep = function(seconds)
+                sleeps[#sleeps + 1] = seconds
+                now = now + seconds
+            end,
+            list_min_interval = 3.1,
+        }
+
+        local report, err = reader:iterateDocuments({}, function() end)
+        assert(err == nil)
+        assert(report.pages == 21)
+        assert(report.unique == 21)
+        assert(#request_times == 21)
+        assert(request_times[1] == 0)
+        assert(request_times[21] >= 62)
+        for i = 2, #request_times do
+            assert(request_times[i] - request_times[i - 1] >= 3.099)
+        end
+        assert(#sleeps > 0)
+    end
+
+    do
+        local now = 0
+        local cancelled = false
+        local requests = 0
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function()
+                    requests = requests + 1
+                    return { status = 200, headers = {}, body = tostring(requests) }
+                end,
+            },
+            json_decode = function(body)
+                if tonumber(body) == 1 then
+                    return {
+                        results = { { id = "a" } },
+                        nextPageCursor = "cursor-2",
+                    }
+                end
+                return { results = { { id = "b" } } }
+            end,
+            clock = function()
+                return now
+            end,
+            sleep = function(seconds)
+                now = now + seconds
+                cancelled = true
+            end,
+            list_min_interval = 3.1,
+        }
+
+        local report, err = reader:iterateDocuments({
+            is_cancelled = function()
+                return cancelled
+            end,
+        }, function() end)
+        assert(report == nil)
+        assert(err.kind == "cancelled")
+        assert(requests == 1)
     end
 end
