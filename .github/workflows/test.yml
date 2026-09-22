@@ -1,0 +1,39 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install bootstrap test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.1 zip
+
+      - name: Run development checks
+        run: ./scripts/dev-check.sh
+
+      - name: Build installable plugin ZIP
+        run: ./scripts/package.sh
+
+      - name: Verify package layout
+        run: |
+          unzip -l dist/readwisereader.koplugin.zip
+          unzip -Z1 dist/readwisereader.koplugin.zip | grep -Fx 'readwisereader.koplugin/_meta.lua'
+          unzip -Z1 dist/readwisereader.koplugin.zip | grep -Fx 'readwisereader.koplugin/main.lua'
+
+      - name: Upload Gate 0 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: readwisereader-koplugin-${{ github.sha }}
+          path: dist/readwisereader.koplugin.zip
+          if-no-files-found: error
