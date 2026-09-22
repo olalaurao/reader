@@ -129,7 +129,8 @@ return function()
         assert(#installs == 2)
         assert(repository.rows.a.local_path == "/Readwise/a.html")
         assert(repository.rows.b.local_path == "/Readwise/b.html")
-        assert(meta.values.document_watermark == "T000995")
+        assert(meta.values.document_watermark == "T001000")
+        assert(meta.values.document_query_after == "T000995")
     end
 
     do
@@ -140,7 +141,10 @@ return function()
                 local_path = "/Readwise/a.html", is_local_present = true, is_managed = true,
             },
         })
-        local meta = fakeMeta({ document_watermark = "T000995" })
+        local meta = fakeMeta({
+            document_watermark = "T001000",
+            document_query_after = "T000995",
+        })
         local reader = {
             iterateDocuments = function(_, options)
                 assert(options.updated_after == "T000995")
@@ -155,7 +159,8 @@ return function()
         assert(err == nil)
         assert(report.mode == "incremental")
         assert(report.downloaded == 0 and #installs == 0)
-        assert(meta.values.document_watermark == "T001015")
+        assert(meta.values.document_watermark == "T001020")
+        assert(meta.values.document_query_after == "T001015")
     end
 
     do
@@ -166,7 +171,10 @@ return function()
                 local_path = "/Readwise/a.html", is_local_present = true, is_managed = true,
             },
         })
-        local meta = fakeMeta({ document_watermark = "T000995" })
+        local meta = fakeMeta({
+            document_watermark = "T001000",
+            document_query_after = "T000995",
+        })
         local reader = {
             iterateDocuments = function(_, _, callback)
                 callback(doc("a", "later", "Renamed", "u2"))
@@ -190,13 +198,16 @@ return function()
     end
 
     do
-        local meta = fakeMeta({ document_watermark = "T000995" })
+        local meta = fakeMeta({
+            document_watermark = "T001000",
+            document_query_after = "T000995",
+        })
         local syncer = newSync{
             meta = meta,
             reader = { iterateDocuments = function() return nil, { kind = "timeout" } end },
         }
         local report, err = syncer:sync{}
         assert(report == nil and err.kind == "timeout")
-        assert(meta.values.document_watermark == "T000995")
+        assert(meta.values.document_watermark == "T001000")
     end
 end
