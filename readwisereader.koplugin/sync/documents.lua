@@ -99,6 +99,7 @@ function DocumentsSync:_updateExistingMetadata(existing, document, seen_at, repo
                 report.errors = report.errors + 1
             else
                 report.metadata_updated = report.metadata_updated + 1
+                report.metadata_invalidate_paths[#report.metadata_invalidate_paths + 1] = existing.local_path
             end
         end
         if moved then report.location_moved = report.location_moved + 1 end
@@ -242,6 +243,7 @@ function DocumentsSync:sync(options)
         downloaded = 0,
         unchanged = 0,
         metadata_updated = 0,
+        metadata_invalidate_paths = {},
         location_moved = 0,
         content_refresh_deferred = 0,
         filtered_out = 0,

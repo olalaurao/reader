@@ -25,6 +25,7 @@ local function withStubbedSyncUI(run, options)
         wrap_calls = 0,
         subprocess_calls = 0,
         refresh_calls = 0,
+        invalidated = {},
         worker_calls = {},
     }
 
@@ -90,6 +91,12 @@ local function newUI(SyncUI, state, watermark, report)
                 return true
             end,
         },
+        koreader_documents = {
+            invalidateMetadata = function(_, path)
+                state.invalidated[#state.invalidated + 1] = path
+                return true
+            end,
+        },
         worker = {
             run = function(_, options)
                 state.worker_calls[#state.worker_calls + 1] = options
@@ -98,6 +105,7 @@ local function newUI(SyncUI, state, watermark, report)
                     downloaded = 2,
                     unchanged = 3,
                     metadata_updated = 1,
+                    metadata_invalidate_paths = { "/Readwise/a.html" },
                     location_moved = 1,
                     content_refresh_deferred = 0,
                     filtered_out = 4,
@@ -121,6 +129,7 @@ return function()
         assert(#state.worker_calls == 1)
         assert(state.worker_calls[1].full_rescan == false)
         assert(state.refresh_calls == 1)
+        assert(#state.invalidated == 1 and state.invalidated[1] == "/Readwise/a.html")
         assert(state.shown[#state.shown].text:find("Downloaded: 2", 1, true))
     end)
 

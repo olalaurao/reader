@@ -67,6 +67,7 @@ function SyncUI:new(options)
         config = assert(options.config, "config is required"),
         sync_meta = assert(options.sync_meta, "sync_meta is required"),
         collections = assert(options.collections, "collections is required"),
+        koreader_documents = assert(options.koreader_documents, "koreader_documents is required"),
         worker = options.worker or Worker,
     }, self)
 end
@@ -176,6 +177,9 @@ Tap to cancel. Completed files are installed atomically; the incremental waterma
         -- The child process updates collection.lua. Reload the parent's
         -- in-memory ReadCollection view after it exits.
         self.collections:refresh()
+        for _, filepath in ipairs(report.metadata_invalidate_paths or {}) do
+            self.koreader_documents:invalidateMetadata(filepath)
+        end
         UIManager:show(InfoMessage:new{
             text = summaryText(report),
         })

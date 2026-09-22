@@ -36,7 +36,9 @@ function Worker:run(options)
             http = http,
             config = config,
         }
-        local koreader_documents = KOReaderDocuments:new()
+        local koreader_documents = KOReaderDocuments:new{
+            broadcast_events = false,
+        }
         local collections = KOReaderCollections:new()
         local materializer = FirstArticle:new{
             reader = reader,
