@@ -1,0 +1,27 @@
+# Build artifacts
+/dist/
+*.zip
+
+# Local/editor noise
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Local KOReader / device data
+/koreader-settings/
+/device-backup/
+crash.log
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+
+# Credentials and private fixtures
+.env
+.env.*
+*.token
+readwisereader.lua
+/tests/private/
+/readwisereader.koplugin/tests/private/
