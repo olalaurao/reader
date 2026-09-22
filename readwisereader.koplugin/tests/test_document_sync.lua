@@ -1,0 +1,202 @@
+-- SPDX-License-Identifier: AGPL-3.0-only
+
+local DocumentsSync = require("sync/documents")
+
+local function copy(value)
+    local out = {}
+    for key, item in pairs(value or {}) do out[key] = item end
+    return out
+end
+
+local function fakeRepository(initial)
+    local rows = {}
+    for id, row in pairs(initial or {}) do rows[id] = copy(row) end
+    return {
+        rows = rows,
+        getById = function(self, id) return self.rows[id] and copy(self.rows[id]) or nil end,
+        listManaged = function(self)
+            local result = {}
+            for _, row in pairs(self.rows) do result[#result + 1] = copy(row) end
+            return result
+        end,
+        upsertRemote = function(self, doc, seen)
+            local row = self.rows[doc.id] or {
+                reader_id = doc.id, is_managed = true, is_local_present = false,
+            }
+            row.parent_id, row.category, row.location = doc.parent_id, doc.category, doc.location
+            row.title, row.author, row.site_name = doc.title, doc.author, doc.site_name
+            row.remote_updated_at, row.last_seen_remote_at = doc.updated_at, seen
+            self.rows[doc.id] = row
+            return copy(row)
+        end,
+        setLastSyncError = function(self, id, kind)
+            self.rows[id] = self.rows[id] or { reader_id = id }
+            self.rows[id].last_sync_error = kind
+        end,
+        setLocalState = function(self, id, state)
+            self.rows[id] = self.rows[id] or { reader_id = id }
+            for key, value in pairs(state) do self.rows[id][key] = value end
+        end,
+    }
+end
+
+local function fakeMeta(initial)
+    local values = copy(initial)
+    return {
+        values = values,
+        get = function(self, key) return self.values[key] end,
+        set = function(self, key, value) self.values[key] = value end,
+    }
+end
+
+local function newSync(options)
+    local repository = options.repository or fakeRepository()
+    local meta = options.meta or fakeMeta()
+    local installs, collection_calls, metadata_calls = {}, {}, {}
+    local times, time_index = options.now_values or { 1000, 1010 }, 0
+    local syncer = DocumentsSync:new{
+        reader = options.reader,
+        repository = repository,
+        sync_meta = meta,
+        config = {
+            getSyncLocations = function() return { "new", "later" } end,
+            getSyncCategories = function() return { "article" } end,
+        },
+        materializer = {
+            installDocument = function(_, doc)
+                installs[#installs + 1] = doc.id
+                local path = "/Readwise/" .. doc.id .. ".html"
+                repository:setLocalState(doc.id, {
+                    local_path = path, is_local_present = true, local_format = "html",
+                })
+                return { path = path }
+            end,
+        },
+        collections = {
+            syncLocation = function(_, path, location)
+                collection_calls[#collection_calls + 1] = { path = path, location = location }
+                return true
+            end,
+        },
+        koreader_documents = {
+            writeMetadata = function(_, path, doc)
+                metadata_calls[#metadata_calls + 1] = { path = path, title = doc.title }
+                return true
+            end,
+        },
+        now = function()
+            time_index = time_index + 1
+            return times[time_index] or times[#times]
+        end,
+        format_time = function(epoch) return string.format("T%06d", epoch) end,
+        overlap_seconds = 5,
+        file_exists = function(path)
+            for _, row in pairs(repository.rows) do
+                if row.local_path == path and row.is_local_present then return true end
+            end
+            return false
+        end,
+    }
+    return syncer, repository, meta, installs, collection_calls, metadata_calls
+end
+
+local function doc(id, location, title, updated, html)
+    return {
+        id = id, category = "article", location = location,
+        title = title, updated_at = updated, html_content = html,
+    }
+end
+
+return function()
+    do
+        local reader = {
+            iterateDocuments = function(_, options, callback)
+                if options.with_html_content then
+                    if options.location == "new" then callback(doc("a", "new", "Alpha", "u1", "<p>A</p>")) end
+                    if options.location == "later" then callback(doc("b", "later", "Beta", "u1", "<p>B</p>")) end
+                else
+                    callback(doc("a", "new", "Alpha", "u1"))
+                    callback(doc("b", "later", "Beta", "u1"))
+                end
+                return { pages = 1, duplicates = 0 }
+            end,
+        }
+        local syncer, repository, meta, installs = newSync{ reader = reader }
+        local report, err = syncer:sync{}
+        assert(err == nil)
+        assert(report.mode == "full")
+        assert(report.downloaded == 2)
+        assert(#installs == 2)
+        assert(repository.rows.a.local_path == "/Readwise/a.html")
+        assert(repository.rows.b.local_path == "/Readwise/b.html")
+        assert(meta.values.document_watermark == "T000995")
+    end
+
+    do
+        local repository = fakeRepository({
+            a = {
+                reader_id = "a", category = "article", location = "new",
+                title = "Alpha", remote_updated_at = "u1",
+                local_path = "/Readwise/a.html", is_local_present = true, is_managed = true,
+            },
+        })
+        local meta = fakeMeta({ document_watermark = "T000995" })
+        local reader = {
+            iterateDocuments = function(_, options)
+                assert(options.updated_after == "T000995")
+                return { pages = 1, duplicates = 0 }
+            end,
+            getDocument = function() error("no pending document expected") end,
+        }
+        local syncer, _, _, installs = newSync{
+            reader = reader, repository = repository, meta = meta, now_values = { 1020, 1021 },
+        }
+        local report, err = syncer:sync{}
+        assert(err == nil)
+        assert(report.mode == "incremental")
+        assert(report.downloaded == 0 and #installs == 0)
+        assert(meta.values.document_watermark == "T001015")
+    end
+
+    do
+        local repository = fakeRepository({
+            a = {
+                reader_id = "a", category = "article", location = "new",
+                title = "Old", author = "A", remote_updated_at = "u1",
+                local_path = "/Readwise/a.html", is_local_present = true, is_managed = true,
+            },
+        })
+        local meta = fakeMeta({ document_watermark = "T000995" })
+        local reader = {
+            iterateDocuments = function(_, _, callback)
+                callback(doc("a", "later", "Renamed", "u2"))
+                return { pages = 1, duplicates = 0 }
+            end,
+            getDocument = function() error("existing document must not be re-downloaded") end,
+        }
+        local syncer, repo, _, installs, collections, metadata = newSync{
+            reader = reader, repository = repository, meta = meta, now_values = { 1030, 1031 },
+        }
+        local report, err = syncer:sync{}
+        assert(err == nil)
+        assert(#installs == 0)
+        assert(repo.rows.a.title == "Renamed")
+        assert(repo.rows.a.location == "later")
+        assert(repo.rows.a.local_path == "/Readwise/a.html")
+        assert(report.location_moved == 1)
+        assert(report.metadata_updated == 1)
+        assert(report.content_refresh_deferred == 1)
+        assert(#collections >= 1 and #metadata == 1)
+    end
+
+    do
+        local meta = fakeMeta({ document_watermark = "T000995" })
+        local syncer = newSync{
+            meta = meta,
+            reader = { iterateDocuments = function() return nil, { kind = "timeout" } end },
+        }
+        local report, err = syncer:sync{}
+        assert(report == nil and err.kind == "timeout")
+        assert(meta.values.document_watermark == "T000995")
+    end
+end
