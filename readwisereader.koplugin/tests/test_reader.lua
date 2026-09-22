@@ -2,6 +2,18 @@
 
 local Reader = require("api/reader")
 
+local function fakeJson(value)
+    return {
+        decode = function()
+            if value == "__throw__" then
+                error("bad json")
+            end
+            return value
+        end,
+        simple = {},
+    }
+end
+
 return function()
     do
         local captured
@@ -64,5 +76,165 @@ return function()
         local ok, err = reader:validateToken()
         assert(ok == nil)
         assert(err.kind == "auth")
+    end
+
+    do
+        local captured
+        local reader = Reader:new{
+            config = {
+                getAccessToken = function()
+                    return "reader-token"
+                end,
+            },
+            http = {
+                request = function(_, options)
+                    captured = options
+                    return {
+                        status = 200,
+                        headers = {},
+                        body = "{}",
+                    }
+                end,
+            },
+            json = fakeJson({
+                results = {
+                    {
+                        id = "doc-1",
+                        title = "Título ç",
+                        author = "Author",
+                        category = "article",
+                        location = "new",
+                        parent_id = nil,
+                        updated_at = "2026-09-22T10:00:00Z",
+                        saved_at = "2026-09-20T10:00:00Z",
+                    },
+                    {
+                        id = "child-1",
+                        title = "Highlight",
+                        category = "highlight",
+                        parent_id = "doc-1",
+                    },
+                },
+                nextPageCursor = "cursor/2 + next",
+            }),
+        }
+
+        local page, err = reader:listDocuments{
+            updated_after = "2026-09-22T10:00:00Z",
+            location = "new",
+            category = "article",
+            tags = { "koreader", "deep work" },
+            page_cursor = "cursor/1",
+        }
+
+        assert(err == nil)
+        assert(#page.results == 2)
+        assert(page.results[1].id == "doc-1")
+        assert(page.results[1].title == "Título ç")
+        assert(page.results[2].parent_id == "doc-1")
+        assert(page.next_page_cursor == "cursor/2 + next")
+        assert(captured.method == "GET")
+        assert(captured.headers.Authorization == "Token reader-token")
+        assert(captured.url:find("limit=100", 1, true))
+        assert(captured.url:find("withHtmlContent=false", 1, true))
+        assert(captured.url:find("withRawSourceUrl=false", 1, true))
+        assert(captured.url:find("updatedAfter=2026%-09%-22T10%%3A00%%3A00Z"))
+        assert(captured.url:find("pageCursor=cursor%%2F1"))
+        assert(captured.url:find("tag=koreader", 1, true))
+        assert(captured.url:find("tag=deep%%20work"))
+    end
+
+    do
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "token" end },
+            http = {
+                request = function()
+                    return { status = 200, headers = {}, body = "not-json" }
+                end,
+            },
+            json = fakeJson("__throw__"),
+        }
+        local page, err = reader:listDocuments()
+        assert(page == nil)
+        assert(err.kind == "decode")
+    end
+
+    do
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "token" end },
+            http = {
+                request = function()
+                    return { status = 200, headers = {}, body = "{}" }
+                end,
+            },
+            json = fakeJson({ nextPageCursor = nil }),
+        }
+        local page, err = reader:listDocuments()
+        assert(page == nil)
+        assert(err.kind == "decode")
+    end
+
+    do
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "token" end },
+            http = {
+                request = function()
+                    return { status = 200, headers = {}, body = "{}" }
+                end,
+            },
+            json = fakeJson({
+                results = {},
+                nextPageCursor = 42,
+            }),
+        }
+        local page, err = reader:listDocuments()
+        assert(page == nil)
+        assert(err.kind == "decode")
+    end
+
+    do
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "token" end },
+            http = {
+                request = function()
+                    return { status = 200, headers = {}, body = "{}" }
+                end,
+            },
+            json = fakeJson({
+                results = {
+                    { title = "missing id" },
+                },
+            }),
+        }
+        local page, err = reader:listDocuments()
+        assert(page == nil)
+        assert(err.kind == "decode")
+        assert(err.index == 1)
+    end
+
+    do
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "token" end },
+            http = {
+                request = function()
+                    return nil, {
+                        kind = "rate_limit",
+                        retryable = true,
+                        retry_after = 12,
+                    }
+                end,
+            },
+            json = fakeJson({}),
+        }
+        local page, err = reader:listDocuments()
+        assert(page == nil)
+        assert(err.kind == "rate_limit")
+        assert(err.retry_after == 12)
+    end
+
+    do
+        local url, err = Reader._buildListUrl{ limit = 101 }
+        assert(url == nil)
+        assert(err.kind == "client")
     end
 end
