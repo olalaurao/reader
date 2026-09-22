@@ -244,7 +244,10 @@ function DocumentsSync:sync(options)
     local full_scan = options.full_rescan == true
         or previous_watermark == nil
         or filter_scope_changed
-    local query_watermark = full_scan and nil or (previous_query_after or previous_watermark)
+    local query_watermark
+    if not full_scan then
+        query_watermark = previous_query_after or previous_watermark
+    end
 
     local report = {
         mode = full_scan and "full" or "incremental",
