@@ -6,9 +6,9 @@
 
 ## Current milestone
 
-**Phase A — repository/bootstrap, Gate 0 ready for physical device validation**
+**Phase A — repository/bootstrap COMPLETE; Gate 0 PASSED on target PW3**
 
-Phase A implementation work that does not require the Kindle is complete. Do **not** begin Phase B until Gate 0 passes on the target PW3.
+Gate 0 was physically validated on 2026-09-22. The plugin appeared in the KOReader menu, the bootstrap dialog opened, and removing the plugin restored normal baseline behavior. Phase B may now begin after the validated bootstrap branch is integrated into `main`.
 
 ## Current branch / commit
 
@@ -91,6 +91,21 @@ Added/updated on `phase-a/bootstrap-gate0`:
 
 ## Tests executed and results
 
+### Physical Gate 0 — target PW3
+
+Date: 2026-09-22
+
+Result: **PASS**
+
+User-reported checks:
+- Readwise Reader menu appeared: **yes**;
+- bootstrap popup opened: **yes**;
+- removing the plugin restored normal KOReader behavior: **yes**.
+
+This validates install/load/menu registration and rollback on the required target hardware.
+
+
+
 ### GitHub Actions — authoritative bootstrap CI
 
 Commit: `98f7526c8d8c0295ee8b3c4ee64b76701d394c61`
@@ -121,32 +136,17 @@ Successful steps:
 
 ## Gates completed
 
-- No numbered device gate is complete yet.
-- Phase A/A1 repository/bootstrap implementation is complete enough to enter Gate 0.
-- **Gate 0 remains OPEN and must not be marked complete before the PW3 physical test passes.**
+- **Gate 0: PASSED on 2026-09-22 on the target PW3 / KOReader 2025.04.**
+- Phase A/A1 repository/bootstrap implementation: complete.
+- Phase A/A2 physical bootstrap/rollback validation: complete.
 
 ## Physical tests pending
 
-### Gate 0 — required next
+No Phase A physical test remains.
 
-On the target PW3 / KOReader 2025.04:
-
-1. Back up `koreader/settings/` and `koreader/plugins/`.
-2. Extract the Gate 0 ZIP.
-3. Copy `readwisereader.koplugin/` to `koreader/plugins/`.
-4. Restart KOReader.
-5. Confirm **Readwise Reader** appears in the menu.
-6. Tap it.
-7. Confirm the info dialog reports bootstrap version `0.0.1` loaded successfully.
-8. Close KOReader.
-9. Remove only `koreader/plugins/readwisereader.koplugin/`.
-10. Restart KOReader.
-11. Confirm baseline behavior returns and the menu item is gone.
-
-Return:
-- pass/fail for steps 5, 7 and 11;
-- exact visible error if any;
-- relevant sanitized `koreader/crash.log` tail if there is a failure.
+Next physical gate:
+- **Gate 1**, after Phase B implements local token configuration and the auth test flow.
+- Gate 1 must validate a real token on the target PW3 without exposing the credential.
 
 ## Bugs / failures found
 
@@ -172,11 +172,7 @@ No evidence discovered in this session requires changing `IMPLEMENTATION_SPEC.md
 
 ## Blockers
 
-Only one blocker prevents further implementation:
-
-- **Gate 0 requires the physical Kindle PW3 test.**
-
-Per the canonical spec, Phase B authentication/config must not begin until that test passes.
+No Phase A blocker remains. Gate 0 has passed, so Phase B may begin once the bootstrap branch is integrated into `main`.
 
 Later hard gates remain:
 - Reader v3 ↔ Readwise v2 highlight ID mapping;
@@ -188,14 +184,13 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Run physical Gate 0 on the PW3 using the packaged `readwisereader.koplugin.zip`.
-2. Record the Gate 0 result in `docs/DEVICE_TESTS.md` and this file.
-3. If Gate 0 fails, inspect the sanitized KOReader log and fix **Phase A only** until it passes.
-4. If Gate 0 passes, close Phase A and integrate the validated bootstrap branch into `main`.
-5. Create the Phase B branch.
-6. Implement B1 only: LuaSettings config, masked token entry, replace/clear, zero token logging.
-7. Implement B2 auth transport/test connection only after B1.
-8. Run Gate 1 physically before advancing to Phase C.
+1. Integrate `phase-a/bootstrap-gate0` into `main` without rewriting validated history.
+2. Create a dedicated Phase B branch from the updated `main`.
+3. Implement B1 only: LuaSettings config, masked token entry, replace/clear, zero token logging.
+4. Add tests/static checks for token redaction and configuration behavior where feasible.
+5. Implement B2 auth transport/test connection using the official `GET /api/v2/auth/` contract only after B1 is sound.
+6. Package the Phase B build.
+7. Stop at **Gate 1** and run it physically on the PW3 before beginning Phase C.
 
 ## Existing architectural decisions still in force
 
