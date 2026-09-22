@@ -41,6 +41,23 @@ return function()
 
     assert(config:getAccessToken() == nil)
     assert(config:hasAccessToken() == false)
+    assert(config:getDownloadDirectory() == "/mnt/us/documents/Readwise")
+    assert(config:isSyncLocationEnabled("new") == true)
+    assert(config:isSyncLocationEnabled("later") == true)
+    assert(config:isSyncLocationEnabled("archive") == false)
+    assert(config:isSyncCategoryEnabled("article") == true)
+
+    local root_ok, root_err = config:setDownloadDirectory("../unsafe")
+    assert(root_ok == false)
+    assert(root_err == "unsafe")
+    root_ok = config:setDownloadDirectory("/mnt/us/documents/My Reader/")
+    assert(root_ok == true)
+    assert(config:getDownloadDirectory() == "/mnt/us/documents/My Reader")
+
+    config:setSyncLocationEnabled("archive", true)
+    config:setSyncLocationEnabled("new", false)
+    assert(config:isSyncLocationEnabled("archive") == true)
+    assert(config:isSyncLocationEnabled("new") == false)
 
     local ok, err = config:setAccessToken("   ")
     assert(ok == false)
