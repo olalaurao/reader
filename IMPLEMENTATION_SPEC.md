@@ -2,7 +2,7 @@
 
 > **Canonical execution spec**  
 > **Repository:** `olalaurao/reader`  
-> **Target V1 device:** Kindle Paperwhite 3 / 7th gen (PW3), firmware 5.16.2.1.1, KUAL, KOReader 2025.04  
+> **Target V1 device:** Kindle Paperwhite 3 / 7th gen (PW3), firmware 5.16.2.1.1, KUAL. KOReader `v2025.04` is the validated baseline through Gate 4; planned migration target is official `v2026.07.1` at Gate 4A.  
 > **Last verified:** 2026-09-22  
 > **Companion roadmap:** `PLAN.md`  
 > **Progress ledger:** `STATUS.md`
@@ -288,12 +288,18 @@ Official docs:
 
 ---
 
-# 3. Target KOReader facts — pinned to v2025.04
+# 3. Target KOReader facts — staged baseline
 
-Development must be compatible with tag `v2025.04` first.
+Development through **Phase F / Gate 4** remains pinned to `v2025.04`, because Gates 0–3 were physically validated there and Phase F needs a known before/after baseline.
 
-Reference source:
-- https://github.com/koreader/koreader/tree/v2025.04
+Immediately after Gate 4, the project executes **Phase F.5 / Gate 4A**: migrate the same PW3 to the official KOReader `v2026.07.1` release, revalidate this plugin before adding another variable, and only then install/test Bookshelf `v5.1.4`. Phase G and later phases are blocked until Gate 4A passes.
+
+After Gate 4A-1 passes, `v2026.07.1` becomes the physical V1 target and every later KOReader-internal spike must use that tag first.
+
+References:
+- current validated baseline: https://github.com/koreader/koreader/tree/v2025.04
+- planned target: https://github.com/koreader/koreader/tree/v2026.07.1
+- migration/rollback runbook: `docs/KOREADER_UPGRADE.md`
 
 ## 3.1 Plugin bootstrap
 
@@ -366,6 +372,24 @@ Updating document content must not casually delete/recreate the sidecar.
 KOReader 2025.04 includes `lua-ljsqlite3/init` and built-in plugins use SQLite databases.
 
 Use SQLite for sync state and queue. Use `LuaSettings` only for small user configuration/credentials.
+
+## 3.5 KOReader 2026.07.1 + Bookshelf compatibility migration
+
+Research refreshed on 2026-09-22:
+
+- latest official stable KOReader release: `v2026.07.1`;
+- for PW2 and newer, KOReader exposes the optimized `kindlepw2` target; the `kindlehf` target requires firmware >= 5.16.3, so this PW3 on firmware 5.16.2.1.1 must use the `kindlepw2` release package for Gate 4A;
+- current Bookshelf release: `v5.1.4`;
+- Bookshelf requires KOReader's built-in **Cover browser** plugin;
+- current Bookshelf `_meta.lua` does not declare a formal minimum KOReader version, so support for `2025.04` must not be assumed merely because the plugin can be copied there;
+- Bookshelf release history contains explicit compatibility fixes for older KOReader releases, which is evidence of maintained backward compatibility but not a guarantee for this exact old baseline;
+- an upstream KOReader issue reported an updater-labelled `2026.07.02` build where several plugins failed to load. Gate 4A therefore pins the published official `v2026.07.1` release, not a nightly/development build.
+
+Source comparison between KOReader `v2025.04` and `v2026.07.1` confirms that the internal APIs currently used by this plugin are still present: `Trapper:dismissableRunInSubprocess`, `ReadCollection`, `DocSettings:flushCustomMetadata`, `ReaderUI:showReader`, `NetworkMgr:isOnline`, `LuaSettings`, `DataStorage:getSettingsDir()` and `ReaderAnnotation` persistence via the `annotations` sidecar setting.
+
+The plugin loader changed materially: newer KOReader normalizes plugin identity from the `.koplugin` directory and treats `_meta.lua` `name` as deprecated for enabled plugins. Keep `name = "readwisereader"` in `_meta.lua` while the 2025.04 compatibility path exists, because older loaders still use it in disabled-plugin flows; newer KOReader tolerates it with a warning.
+
+API presence is not behavioral proof. **Physical regression testing is mandatory before `v2026.07.1` becomes canonical.** See `docs/KOREADER_UPGRADE.md`.
 
 ---
 
@@ -890,7 +914,7 @@ Temporary downloads:
 
 Do not expose temporary files as readable library documents.
 
-Before finalizing the assets layout, spike whether CRengine in KOReader 2025.04 resolves relative local image paths robustly. If yes, use external assets to avoid huge base64 HTML. If no, use a capped fallback strategy and document the memory tradeoff.
+Before finalizing the assets layout, spike whether CRengine on the **post-Gate-4A pinned KOReader target** (expected `v2026.07.1`) resolves relative local image paths robustly. If yes, use external assets to avoid huge base64 HTML. If no, use a capped fallback strategy and document the memory tradeoff.
 
 ---
 
@@ -1119,7 +1143,7 @@ Do not delete arbitrary user collections.
 
 # 17. Reading/finished status
 
-Determine finished status using KOReader's canonical summary/status representation for v2025.04. Do not parse visible strings.
+Determine finished status using KOReader's canonical summary/status representation on the **post-Gate-4A pinned KOReader target**. Do not parse visible strings.
 
 Archive action:
 
@@ -1714,7 +1738,7 @@ Rules:
 - use local scopes and avoid retaining page responses;
 - throttle UI redraws.
 
-If KOReader provides cancellable progress primitives in 2025.04, use them. Otherwise check a cancellation flag between network/document operations.
+Use the cancellable progress primitives verified on the currently pinned KOReader baseline; revalidate them during Gate 4A before relying on them in later phases.
 
 Cancel:
 - leaves installed docs intact;
@@ -2111,10 +2135,50 @@ Verify on PW3:
 - rename title;
 - no duplicates.
 
+## Phase F.5 — KOReader baseline migration + Bookshelf coexistence
+
+**Run only after Gate 4 passes on `v2025.04`, and finish it before any Phase G work.**
+
+### F5.1 — freeze + backup
+- record the exact Gate 4 plugin commit/package and successful no-op second sync;
+- back up KOReader settings/plugins/database and `/mnt/us/documents/Readwise/` including sidecars;
+- do not update Kindle firmware, jailbreak or KUAL.
+
+### F5.2 — upgrade KOReader only
+- install the published official KOReader `v2026.07.1` **`kindlepw2`** package on this PW3;
+- do not use `kindlehf` on firmware 5.16.2.1.1;
+- do not use a nightly/development build for this gate;
+- leave Bookshelf absent/disabled for the first regression pass.
+
+### Gate 4A-1 — Readwise Reader compatibility
+Verify on the real PW3:
+- KOReader starts normally;
+- plugin loads and can be disabled/re-enabled;
+- token/config/database survive;
+- existing Reader article, progress, highlight and note survive;
+- auth works;
+- sync, no-op second sync and full-rescan cancellation still work;
+- Reader title/location changes retain the same Reader-ID-owned local document;
+- no sensitive data appears in logs.
+
+Only after this passes does `v2026.07.1` become the physical V1 baseline.
+
+### F5.3 — Bookshelf `v5.1.4`
+- confirm built-in **Cover browser** is enabled;
+- install Bookshelf `v5.1.4`;
+- initially keep KOReader's normal File Manager as the startup view;
+- verify Readwise Reader menu/sync, new documents, Readwise collections and open/close behavior while Bookshelf is installed;
+- only then optionally set `Start with -> Bookshelf`.
+
+### Gate 4A-2 — coexistence
+Both plugins must survive restart and a no-op sync without crash, duplicate document, settings loss, sidecar loss or deletion of unrelated user collections.
+
+Full procedure and rollback: `docs/KOREADER_UPGRADE.md`.
+
 ## Phase G — images
 
 ### G1 spike
-- test relative local assets with CRengine 2025.04.
+- test relative local assets with CRengine on the post-Gate-4A pinned target (expected `v2026.07.1`).
 
 ### G2
 - implement chosen asset strategy;
@@ -2377,7 +2441,7 @@ For device gates:
 
 Stop advancing to later phases when:
 
-- plugin no longer loads on KOReader 2025.04;
+- plugin no longer loads on the currently pinned KOReader baseline;
 - database migration is unsafe;
 - network operation duplicates data;
 - token appears in logs;
@@ -2394,7 +2458,7 @@ Fix or explicitly redesign before continuing.
 
 These choices are intentional so future implementation sessions do not repeatedly reopen settled questions.
 
-1. **Target KOReader 2025.04 first.**
+1. **Target KOReader `v2025.04` through Gate 4, then deliberately migrate to official `v2026.07.1` at Gate 4A before Phase G.**
 2. **Manual sync first; no background sync V1.**
 3. **Do not control Wi-Fi.**
 4. **SQLite for sync state/queue.**
@@ -2424,8 +2488,8 @@ These choices are intentional so future implementation sessions do not repeatedl
 - What child-document shape does a Reader highlight/note expose today?
 - How does Reader match repeated identical `content` within one document?
 - Does Reader's exact-content requirement compare decoded visible text exactly as documented examples imply for HTML entities/soft hyphens?
-- Which KOReader sidecar API is safest for closed-document annotation reads in 2025.04?
-- What is the safest canonical "finished" signal in KOReader 2025.04?
+- Which KOReader sidecar API is safest for closed-document annotation reads on the post-Gate-4A target (expected `v2026.07.1`)?
+- What is the safest canonical "finished" signal on that target?
 - Do relative local image files render robustly in CRengine HTML on PW3?
 - How much HTML/image content can this PW3 handle comfortably?
 - How stable are XPointer positions after replacing an HTML document with changed content?
@@ -2447,6 +2511,10 @@ Current API/docs:
 
 KOReader:
 - KOReader v2025.04 source: https://github.com/koreader/koreader/tree/v2025.04
+- KOReader v2026.07.1 source: https://github.com/koreader/koreader/tree/v2026.07.1
+- KOReader v2026.07.1 release: https://github.com/koreader/koreader/releases/tag/v2026.07.1
+- Bookshelf v5.1.4 release: https://github.com/AndyHazz/bookshelf.koplugin/releases/tag/v5.1.4
+- migration runbook: `docs/KOREADER_UPGRADE.md`
 - ReaderAnnotation v2025.04: `frontend/apps/reader/modules/readerannotation.lua`
 - DocSettings v2025.04: `frontend/docsettings.lua`
 - Hello plugin v2025.04: `plugins/hello.koplugin/main.lua`
@@ -2458,16 +2526,12 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Do **Phase A only**.
+Complete **Phase F / Gate 4** on the existing KOReader `v2025.04` baseline:
 
-Before implementing network sync:
-
-1. inspect and document upstream license;
-2. scaffold repository;
-3. create minimal `readwisereader.koplugin`;
-4. package it;
-5. install on target PW3;
-6. pass Gate 0;
-7. record the result in `STATUS.md`.
-
-Do not start the full Reader client until the plugin shell has actually loaded on the user's KOReader 2025.04.
+1. finish CI/documentation for the document-sync engine;
+2. package the Gate 4 build;
+3. physically validate multi-article sync, no-op second sync, location move, title rename, cancellation/recovery and no duplicates;
+4. record and merge Gate 4 through a normal PR;
+5. execute **Phase F.5 / Gate 4A** exactly as `docs/KOREADER_UPGRADE.md` describes;
+6. only after Readwise Reader passes on official KOReader `v2026.07.1`, install/test Bookshelf `v5.1.4`;
+7. do not begin Phase G until Gate 4A-1 and Gate 4A-2 pass.
