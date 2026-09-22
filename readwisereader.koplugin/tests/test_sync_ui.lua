@@ -25,7 +25,9 @@ local function withStubbedSyncUI(run, options)
         wrap_calls = 0,
         subprocess_calls = 0,
         refresh_calls = 0,
-        invalidated = {},
+        metadata_writes = {},
+        collection_writes = {},
+        meta_writes = {},
         worker_calls = {},
     }
 
@@ -84,16 +86,29 @@ local function newUI(SyncUI, state, watermark, report)
                 if key == "document_watermark" then return watermark end
                 return nil
             end,
+            set = function(_, key, value)
+                state.meta_writes[key] = value
+            end,
         },
         collections = {
+            syncLocation = function(_, path, location)
+                state.collection_writes[#state.collection_writes + 1] = {
+                    path = path,
+                    location = location,
+                }
+                return options and options.collection_ok ~= false or true
+            end,
             refresh = function()
                 state.refresh_calls = state.refresh_calls + 1
                 return true
             end,
         },
         koreader_documents = {
-            invalidateMetadata = function(_, path)
-                state.invalidated[#state.invalidated + 1] = path
+            writeMetadata = function(_, path, metadata)
+                state.metadata_writes[#state.metadata_writes + 1] = {
+                    path = path,
+                    metadata = metadata,
+                }
                 return true
             end,
         },
@@ -105,7 +120,6 @@ local function newUI(SyncUI, state, watermark, report)
                     downloaded = 2,
                     unchanged = 3,
                     metadata_updated = 1,
-                    metadata_invalidate_paths = { "/Readwise/a.html" },
                     location_moved = 1,
                     content_refresh_deferred = 0,
                     filtered_out = 4,
@@ -114,6 +128,16 @@ local function newUI(SyncUI, state, watermark, report)
                     content_pages = 2,
                     duplicates_ignored = 0,
                     watermark_advanced = true,
+                    proposed_watermark = "2026-09-22T20:00:00Z",
+                    proposed_query_after = "2026-09-22T19:55:00Z",
+                    completed_at = "2026-09-22T20:01:00Z",
+                    postprocess = {
+                        {
+                            path = "/Readwise/a.html",
+                            location = "later",
+                            metadata = { title = "A" },
+                        },
+                    },
                 }
             end,
         },
@@ -128,8 +152,10 @@ return function()
         assert(state.subprocess_calls == 1)
         assert(#state.worker_calls == 1)
         assert(state.worker_calls[1].full_rescan == false)
-        assert(state.refresh_calls == 1)
-        assert(#state.invalidated == 1 and state.invalidated[1] == "/Readwise/a.html")
+        assert(#state.metadata_writes == 1)
+        assert(#state.collection_writes == 1)
+        assert(state.meta_writes.document_watermark == "2026-09-22T20:00:00Z")
+        assert(state.meta_writes.document_query_after == "2026-09-22T19:55:00Z")
         assert(state.shown[#state.shown].text:find("Downloaded: 2", 1, true))
     end)
 
@@ -146,7 +172,7 @@ return function()
     withStubbedSyncUI(function(SyncUI, state)
         local ui = newUI(SyncUI, state, "watermark")
         ui:syncNow(false)
-        assert(state.refresh_calls == 0)
+        assert(next(state.meta_writes) == nil)
         assert(state.shown[#state.shown].text:find("cancelled", 1, true))
     end, { cancelled = true })
 

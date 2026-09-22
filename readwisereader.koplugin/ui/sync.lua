@@ -174,12 +174,35 @@ Tap to cancel. Completed files are installed atomically; the incremental waterma
             return
         end
 
-        -- The child process updates collection.lua. Reload the parent's
-        -- in-memory ReadCollection view after it exits.
-        self.collections:refresh()
-        for _, filepath in ipairs(report.metadata_invalidate_paths or {}) do
-            self.koreader_documents:invalidateMetadata(filepath)
+        -- Trapper child work deliberately avoids KOReader settings/cache.
+        -- Apply metadata and collections in the parent before committing the
+        -- incremental watermark.
+        for _, item in ipairs(report.postprocess or {}) do
+            if item.metadata then
+                local metadata_ok = self.koreader_documents:writeMetadata(item.path, item.metadata)
+                if not metadata_ok then
+                    report.errors = (report.errors or 0) + 1
+                end
+            end
+            if item.location then
+                local collection_ok = self.collections:syncLocation(item.path, item.location)
+                if not collection_ok then
+                    report.errors = (report.errors or 0) + 1
+                end
+            end
         end
+
+        if (report.errors or 0) == 0 and report.proposed_watermark then
+            self.sync_meta:set("document_watermark", report.proposed_watermark)
+            self.sync_meta:set("document_query_after", report.proposed_query_after)
+            self.sync_meta:set("last_successful_sync_at", report.completed_at)
+            if report.mode == "full" then
+                self.sync_meta:set("last_full_scan_at", report.completed_at)
+            end
+        else
+            report.watermark_advanced = false
+        end
+
         UIManager:show(InfoMessage:new{
             text = summaryText(report),
         })

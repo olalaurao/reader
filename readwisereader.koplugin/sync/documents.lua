@@ -280,6 +280,7 @@ function DocumentsSync:sync(options)
 
     local completed_epoch = self.now()
     local completed_at = self.format_time(completed_epoch)
+    report.completed_at = completed_at
     self.sync_meta:set("document_scan_completed_at", completed_at)
 
     if report.errors == 0 then
@@ -292,13 +293,17 @@ function DocumentsSync:sync(options)
             watermark = previous_watermark
             query_after = previous_query_after or previous_watermark
         end
-        self.sync_meta:set("document_watermark", watermark)
-        self.sync_meta:set("document_query_after", query_after)
-        self.sync_meta:set("last_successful_sync_at", completed_at)
-        if full_scan then self.sync_meta:set("last_full_scan_at", completed_at) end
+        report.proposed_watermark = watermark
+        report.proposed_query_after = query_after
         report.watermark = watermark
         report.query_after = query_after
         report.watermark_advanced = previous_watermark ~= watermark
+        if options.defer_watermark ~= true then
+            self.sync_meta:set("document_watermark", watermark)
+            self.sync_meta:set("document_query_after", query_after)
+            self.sync_meta:set("last_successful_sync_at", completed_at)
+            if full_scan then self.sync_meta:set("last_full_scan_at", completed_at) end
+        end
     end
 
     return report

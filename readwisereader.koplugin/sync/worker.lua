@@ -2,6 +2,15 @@
 
 local Worker = {}
 
+local function copyMetadata(document)
+    return {
+        title = document.title,
+        author = document.author,
+        summary = document.summary,
+        site_name = document.site_name,
+    }
+end
+
 function Worker:run(options)
     options = options or {}
 
@@ -15,8 +24,6 @@ function Worker:run(options)
     local Html = require("content/html")
     local Http = require("api/http")
     local Installer = require("content/installer")
-    local KOReaderCollections = require("koreader/collections")
-    local KOReaderDocuments = require("koreader/documents")
     local Reader = require("api/reader")
     local DocumentsSync = require("sync/documents")
     local logger = require("logger")
@@ -25,9 +32,9 @@ function Worker:run(options)
     local db
 
     local ok, report, err = pcall(function()
-        -- The long-running sync executes inside Trapper's child process.
-        -- Open a fresh SQLite connection here instead of using the parent's
-        -- inherited connection after fork.
+        -- Trapper's child process must not manipulate UIManager or KOReader
+        -- settings/cache owned by the parent. It may perform network work,
+        -- atomic file installs and durable SQLite writes.
         db = DB:new()
         local repository = DocumentsRepository:new{ db = db }
         local sync_meta = SyncMeta:new{ db = db }
@@ -36,10 +43,30 @@ function Worker:run(options)
             http = http,
             config = config,
         }
-        local koreader_documents = KOReaderDocuments:new{
-            broadcast_events = false,
+
+        local postprocess_by_path = {}
+        local function postprocess(path)
+            local item = postprocess_by_path[path]
+            if not item then
+                item = { path = path }
+                postprocess_by_path[path] = item
+            end
+            return item
+        end
+
+        local deferred_documents = {
+            writeMetadata = function(_, path, document)
+                postprocess(path).metadata = copyMetadata(document)
+                return true
+            end,
         }
-        local collections = KOReaderCollections:new()
+        local deferred_collections = {
+            syncLocation = function(_, path, location)
+                postprocess(path).location = location
+                return true
+            end,
+        }
+
         local materializer = FirstArticle:new{
             reader = reader,
             repository = repository,
@@ -47,7 +74,7 @@ function Worker:run(options)
             filenames = Filenames,
             installer = Installer:new(),
             hasher = Hash,
-            koreader_documents = koreader_documents,
+            koreader_documents = deferred_documents,
             download_root = config:getDownloadDirectory(),
         }
         local syncer = DocumentsSync:new{
@@ -55,13 +82,31 @@ function Worker:run(options)
             repository = repository,
             sync_meta = sync_meta,
             materializer = materializer,
-            collections = collections,
-            koreader_documents = koreader_documents,
+            collections = deferred_collections,
+            koreader_documents = deferred_documents,
             config = config,
         }
-        return syncer:sync{
+
+        local sync_report, sync_err = syncer:sync{
             full_rescan = options.full_rescan == true,
+            defer_watermark = true,
         }
+        if not sync_report then
+            return nil, sync_err
+        end
+
+        local paths = {}
+        for path in pairs(postprocess_by_path) do
+            paths[#paths + 1] = path
+        end
+        table.sort(paths)
+        sync_report.postprocess = {}
+        for _, path in ipairs(paths) do
+            sync_report.postprocess[#sync_report.postprocess + 1] = postprocess_by_path[path]
+        end
+        -- Cache invalidation is performed implicitly by parent metadata writes.
+        sync_report.metadata_invalidate_paths = nil
+        return sync_report
     end)
 
     if db then
@@ -72,8 +117,6 @@ function Worker:run(options)
     end
 
     if not ok then
-        -- Do not copy the thrown error to the UI/log: it can contain a local
-        -- filename derived from private Reader metadata.
         logger.warn("ReadwiseReader: [SYNC] worker failed safely")
         return nil, {
             kind = "worker",

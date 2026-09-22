@@ -197,6 +197,22 @@ return function()
         assert(#collections >= 1 and #metadata == 1)
     end
 
+
+    do
+        local reader = {
+            iterateDocuments = function()
+                return { pages = 1, duplicates = 0 }
+            end,
+        }
+        local syncer, _, meta = newSync{ reader = reader }
+        local report, err = syncer:sync{ defer_watermark = true }
+        assert(err == nil)
+        assert(report.proposed_watermark == "T001000")
+        assert(report.proposed_query_after == "T000995")
+        assert(meta.values.document_watermark == nil, "worker-deferred sync must not commit watermark")
+        assert(meta.values.last_successful_sync_at == nil)
+    end
+
     do
         local meta = fakeMeta({
             document_watermark = "T001000",
