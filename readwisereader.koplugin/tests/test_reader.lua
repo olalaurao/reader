@@ -2,16 +2,13 @@
 
 local Reader = require("api/reader")
 
-local function fakeJson(value)
-    return {
-        decode = function()
-            if value == "__throw__" then
-                error("bad json")
-            end
-            return value
-        end,
-        simple = {},
-    }
+local function fakeJsonDecode(value)
+    return function()
+        if value == "__throw__" then
+            error("bad json")
+        end
+        return value
+    end
 end
 
 return function()
@@ -96,7 +93,7 @@ return function()
                     }
                 end,
             },
-            json = fakeJson({
+            json_decode = fakeJsonDecode({
                 results = {
                     {
                         id = "doc-1",
@@ -152,7 +149,7 @@ return function()
                     return { status = 200, headers = {}, body = "not-json" }
                 end,
             },
-            json = fakeJson("__throw__"),
+            json_decode = fakeJsonDecode("__throw__"),
         }
         local page, err = reader:listDocuments()
         assert(page == nil)
@@ -167,7 +164,7 @@ return function()
                     return { status = 200, headers = {}, body = "{}" }
                 end,
             },
-            json = fakeJson({ nextPageCursor = nil }),
+            json_decode = fakeJsonDecode({ nextPageCursor = nil }),
         }
         local page, err = reader:listDocuments()
         assert(page == nil)
@@ -182,7 +179,7 @@ return function()
                     return { status = 200, headers = {}, body = "{}" }
                 end,
             },
-            json = fakeJson({
+            json_decode = fakeJsonDecode({
                 results = {},
                 nextPageCursor = 42,
             }),
@@ -200,7 +197,7 @@ return function()
                     return { status = 200, headers = {}, body = "{}" }
                 end,
             },
-            json = fakeJson({
+            json_decode = fakeJsonDecode({
                 results = {
                     { title = "missing id" },
                 },
@@ -224,7 +221,7 @@ return function()
                     }
                 end,
             },
-            json = fakeJson({}),
+            json_decode = fakeJsonDecode({}),
         }
         local page, err = reader:listDocuments()
         assert(page == nil)

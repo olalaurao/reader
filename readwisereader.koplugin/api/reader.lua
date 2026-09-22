@@ -105,8 +105,9 @@ local function normalizeDocument(raw)
     }
 end
 
-local function defaultJson()
-    return require("json")
+local function defaultJsonDecode(body)
+    local JSON = require("json")
+    return JSON.decode(body, JSON.decode.simple)
 end
 
 function Reader:new(options)
@@ -114,7 +115,7 @@ function Reader:new(options)
     return setmetatable({
         http = assert(options.http, "http is required"),
         config = assert(options.config, "config is required"),
-        json = options.json,
+        json_decode = options.json_decode,
     }, self)
 end
 
@@ -131,8 +132,8 @@ function Reader:_getToken()
 end
 
 function Reader:_decodeJson(body)
-    local json = self.json or defaultJson()
-    local ok, result = pcall(json.decode, body, json.decode.simple)
+    local decode = self.json_decode or defaultJsonDecode
+    local ok, result = pcall(decode, body)
     if not ok or type(result) ~= "table" then
         return nil, {
             kind = "decode",
