@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase F — document sync engine implemented off-device; Gate 4 ready for physical PW3 validation**
+**Phase F — Gate 4 physical attempt 1 exposed filter-scope backfill bug; 0.1.4 recovery build pending validation**
 
 Phase E was merged normally to `main` as `e5de4a75a9e8e43dd270194201626c80d0c15802`. Phase F `0.1.3` is implemented on `phase-f/document-sync-gate4`: configurable document ownership/filtering, full-first/incremental-later article sync, conservative watermarking, Reader-ID identity, metadata/location updates, Readwise collections, cancellable UI, summaries and explicit full rescan. The latest code checks pass off-device. **Do not begin Phase G before Gate 4 passes on KOReader 2025.04.**
 
@@ -300,6 +300,32 @@ Conclusion:
 - **Gate 3 PASSED.**
 - Phase E can be merged to `main`.
 - Phase F document sync engine is unblocked.
+
+## Physical Gate 4 result — attempt 1 / FAIL (filter-scope backfill)
+
+Date: 2026-09-22  
+Build: `0.1.3` / branch `phase-f/document-sync-gate4`  
+Result: **FAIL — incremental sync could advance its watermark while newly-enabled historical filter scope remained undiscovered.**
+
+Observed on the target PW3 / KOReader 2025.04:
+- sync completed without crash and reported `Mode: incremental`;
+- `Downloaded: 0`, `Already local / unchanged: 0`, `Metadata updated: 0`, `Reader location changes: 0`, `Filtered out: 0`, `Errors: 0`;
+- metadata traversal was one page and the UI reported `Incremental watermark updated`;
+- enabling all Reader locations afterward still did not backfill historical documents.
+
+Root cause:
+- Phase F persisted only the time watermark, not the filter scope associated with that watermark;
+- after a successful sync, changing Locations/Types still used `updatedAfter`;
+- `updatedAfter` can only discover records changed since the watermark, so old documents in a newly-enabled location are invisible to that incremental pass.
+
+0.1.4 fix:
+- persist a canonical sorted document-filter scope alongside the watermark;
+- any scope change forces a safe full backfill using the current filters;
+- a missing scope marker from the earlier 0.1.3 build also forces a full backfill, recovering the device automatically without deleting the database or files;
+- commit the new scope only after parent-process metadata/Collection post-processing succeeds together with the watermark;
+- added regression coverage proving that enabling Archive after a prior Inbox-only sync downloads an old Archive article without using `updatedAfter`.
+
+Gate 4 remains **OPEN** pending the 0.1.4 physical retest.
 
 ## Phase F result — off-device complete, Gate 4 pending
 
