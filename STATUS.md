@@ -97,6 +97,21 @@ Controlled recovery before retest:
 5. restart KOReader once so the font scanner sees them before Bookshelf is opened;
 6. retry only Bookshelf Home -> Recent navigation first. If it still hard-freezes, stop and collect the new log before any further coexistence work.
 
+### Gate 4A-2 attempt 2 — recovery retest
+
+After a controlled Kindle/Documents cleanup and recovery of the required KUAL/Readwise content:
+- Bookshelf opens;
+- Home navigation works;
+- Series and Genres are noticeably slow on the PW3, but no longer hard-freeze;
+- the previous hard-freeze was **not reproduced** in this retest;
+- required KUAL launcher files and Readwise document content were restored successfully.
+
+Current interpretation:
+- Bookshelf is usable again, but Series/Genres performance remains a device/library-size concern;
+- keep `Start with -> Bookshelf` disabled until the remaining coexistence checks pass;
+- continue Gate 4A-2 with targeted functional checks only; do not stress-test large grouped shelves unnecessarily.
+
+
 
 
 
