@@ -120,8 +120,20 @@ end
 function DocumentsSync:_install(document, report)
     local result, err = self.materializer:installDocument(document)
     if not result then
+        local kind = err and err.kind or "unknown"
+        self.repository:setLastSyncError(document.id, kind)
+        -- A document that Reader itself cannot materialize (for example an
+        -- article with no processed HTML) is a permanent per-item skip for
+        -- this remote revision, not a failed sync transaction. Counting it as
+        -- fatal strands the global watermark and forces every later sync back
+        -- through the entire library. If Reader changes the document later,
+        -- updatedAfter will surface it again and we can retry.
+        if err and err.retryable == false then
+            report.nonretryable_skipped = report.nonretryable_skipped + 1
+            return false
+        end
         report.errors = report.errors + 1
-        self.repository:setLastSyncError(document.id, err and err.kind or "unknown")
+        report.retryable_item_errors = report.retryable_item_errors + 1
         return false
     end
 
@@ -268,6 +280,8 @@ function DocumentsSync:sync(options)
         content_refresh_deferred = 0,
         filtered_out = 0,
         unsupported_categories = 0,
+        nonretryable_skipped = 0,
+        retryable_item_errors = 0,
         errors = 0,
         watermark_advanced = false,
     }
