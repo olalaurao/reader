@@ -2439,12 +2439,12 @@ verify in the user's real Obsidian vault:
 
 No new Kindle build was required. The user's real export configuration passed all criteria: correct article/highlight, note present, literal `[[Foucault]]`, preserved `#pesquisar`, and a functioning Obsidian internal wikilink. Gate 11 is closed and Phase N / Gate 12 is unblocked.
 
-## Phase N — update/delete annotations — IMPLEMENTED, GATE 12 PENDING
+## Phase N — update/delete annotations — IMPLEMENTED, GATE 12A NOTE UPDATE PASSED; 12B–12D PENDING
 
 Gate 8 physically proved on the target account/device that the linked Reader v3 highlight child accepted a note PATCH and reflected it in Reader. The current public Reader API page contains wording that is more restrictive for highlight-note updates, so **the physically observed Gate 8 contract remains the project contract and Gate 12 revalidates it in the production path**. Do not generalize beyond this tested linked-highlight workflow.
 
 ### N1 — note update + conflict detection
-Implemented in build 0.1.31 for the currently-open managed Reader document:
+Implemented and physically validated for note update in build 0.1.31 on the currently-open managed Reader document:
 - only annotations with a durable `reader_highlight_document_id` and `created_remote=true` are eligible;
 - the exact Reader child is fetched before mutation;
 - for **note update**, durable child id + original `parent_id` + `category=highlight` are the required identity; exact per-annotation or legacy plugin `source` markers are accepted as additional evidence when Reader returns them, but are not mandatory because physical Gate 12 testing showed Reader LIST can omit/change that marker on a correctly linked child;
@@ -2456,6 +2456,7 @@ Implemented in build 0.1.31 for the currently-open managed Reader document:
 - if only the local note changed, the exact mapped Readwise v2 highlight is PATCHed with the new note; the returned id/note must match, then the exact linked Reader v3 child is polled until it reflects the note;
 - if v2 already has the desired note but Reader v3 remains stale, a Reader v3 repair PATCH is issued to the already-validated child and verified;
 - `last_synced_note` / hashes advance and `Notes updated` increments only after Reader v3 visibility is proven;
+- the exact v2 response is treated as an intermediate acknowledgement, never as end-to-end success;
 - a previously blocked/conflict state is re-evaluated on later Sync now when the local note still differs from the durable `last_synced_note` baseline, so a fixed identity/read path can recover without recreating the highlight;
 - the 0.1.30 premature-success state is also recoverable: when local + durable baseline + v2 agree but Reader v3 is stale, the Reader child is repaired without another v2 write;
 - a nil-note clear is currently blocked until highlight-note clearing is physically validated.
@@ -2473,6 +2474,8 @@ Implemented:
 
 The current-document scope from Phase L remains in force for Gate 12 to keep destructive operations bounded on the PW3. Phase O owns broader queue/backlog retry hardening.
 
+**Required engineering memory:** before changing annotations again, read `docs/ANNOTATION_SYNC_LESSONS.md`. That document captures the production-only behavior discovered across builds 0.1.26–0.1.31 and supersedes any simpler single-API assumption.
+
 Automated tests cover:
 - deterministic Reader-child → Readwise-v2 external-id mapping for note mutation;
 - normal note update through the exact mapped v2 highlight and response verification;
@@ -2485,16 +2488,18 @@ Automated tests cover:
 - explicit confirmation before enabling deletion;
 - existing storage state transitions and Sync summary counters.
 
-### Gate 12 — physical validation pending
+### Gate 12 — partial physical pass
 On the target PW3 / KOReader v2026.07.1:
-1. prove a linked Kindle note edit reaches Reader exactly;
+1. **PASS on build 0.1.31:** linked Kindle note edit reaches Reader exactly, with Reader-visible end-to-end verification/repair before durable success;
 2. prove a simultaneous local+Reader note edit is reported as conflict and neither side is overwritten;
 3. with deletion propagation OFF, delete one linked KOReader test highlight and prove Reader keeps it;
 4. enable deletion only after the OFF sync reports exactly one pending local deletion for the clean test article;
 5. sync again and prove only that linked target is deleted remotely;
 6. disable deletion propagation again after the test.
 
-Gate 12 closes only after those observations pass. Do not proceed to Phase O / Gate 13 first.
+Physical note-update evidence on build 0.1.31: 2 linked highlights scanned; 1 note updated; 1 reconciled; 0 conflicts; 0 mutation blocks; 2 v2 remote-note reads; 1 v2 note update; 6 Reader verification reads; 1 propagation miss; 2 v3 repair PATCHes; 2 completed repairs; 0 remote errors; user visually confirmed the final Reader note.
+
+Gate 12 closes only after conflict and deletion observations also pass. Do not proceed to Phase O / Gate 13 first.
 
 ## Phase O — offline queue hardening
 
