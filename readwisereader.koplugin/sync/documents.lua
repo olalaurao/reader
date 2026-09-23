@@ -292,8 +292,10 @@ function DocumentsSync:sync(options)
     -- downloaded documents receive newly-supported fields (currently Reader
     -- tags -> KOReader keywords). Do not turn that into a full HTML/content
     -- rescan: the metadata LIST already contains the required tag values.
-    local metadata_query_watermark =
-        metadata_projection_changed and nil or query_watermark
+    local metadata_query_watermark = query_watermark
+    if metadata_projection_changed then
+        metadata_query_watermark = nil
+    end
 
     local report = {
         mode = full_scan and "full" or "incremental",
