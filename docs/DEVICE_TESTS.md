@@ -592,7 +592,7 @@ Gate 4 is closed. Do not replay all Gates 0–4 after the KOReader upgrade. Gate
 
 ## Gate 4A — KOReader v2026.07.1 + Bookshelf migration
 
-Status: **Gate 4A COMPLETE; Phase G / Gate 5 G1 relative-image spike pending**
+Status: **Gate 5 COMPLETE — Phase G PASSED; Phase H / Gate 6 next**
 
 Canonical detailed runbook: `docs/KOREADER_UPGRADE.md`.
 
@@ -824,3 +824,14 @@ Retest:
 
 Return:
 `image candidates >0: sim/não / images downloaded >0: sim/não / real images visible: sim/não / text usable: sim/não / no crash/freeze: sim/não / reopen/offline ok: sim/não / Errors=0: sim/não`
+
+
+Recorded physical result:
+- at least one real article image rendered: **PASS**;
+- surrounding article text remained usable: **PASS**;
+- KOReader remained responsive: **PASS**;
+- close/reopen preserved the localized image: **PASS**;
+- not every remote image rendered, accepted under Gate 5's explicit graceful-failure criterion;
+- exact sync image counters were not captured and are not required to close the gate because end-to-end rendering + failure tolerance were directly observed.
+
+**Gate 5 PASSED. Proceed to Phase H / Gate 6.**
