@@ -129,6 +129,140 @@ function Installer:install(content, final_path)
     }
 end
 
+function Installer:installStream(final_path, producer, validator)
+    assert(type(final_path) == "string" and final_path ~= "", "final_path is required")
+    assert(type(producer) == "function", "producer is required")
+
+    if self:fileExists(final_path) then
+        return nil, {
+            kind = "exists",
+            retryable = false,
+            message = "Destination already exists; it was not overwritten.",
+        }
+    end
+
+    local directory = final_path:match("^(.*)/[^/]+$")
+    if not directory or directory == "" then
+        return nil, ioError("path", "Destination directory is invalid.")
+    end
+
+    local made, make_err = self.deps.make_path(directory)
+    if not made then
+        return nil, ioError(
+            "mkdir",
+            "Could not create the Readwise document directory: " .. tostring(make_err or "unknown error")
+        )
+    end
+
+    local temp_path = final_path .. ".tmp"
+    if self.deps.attributes(temp_path, "mode") ~= nil then
+        self.deps.remove(temp_path)
+    end
+
+    local file, open_err = self.deps.open_file(temp_path, "wb")
+    if not file then
+        return nil, ioError(
+            "open",
+            "Could not create temporary document.",
+            classifyOpenError(open_err)
+        )
+    end
+
+    local bytes = 0
+    local write_error
+    local function sink(chunk)
+        if chunk == nil then return 1 end
+        local ok, err = file:write(chunk)
+        if not ok then
+            write_error = err
+            return nil, err
+        end
+        bytes = bytes + #chunk
+        return 1
+    end
+
+    local produced_ok, produced, producer_err = pcall(producer, sink)
+    if not produced_ok or not produced or write_error then
+        pcall(file.close, file)
+        self.deps.remove(temp_path)
+        if write_error then
+            return nil, ioError(
+                "write",
+                "Could not write streamed document.",
+                classifyOpenError(write_error)
+            )
+        end
+        if not produced_ok then
+            return nil, {
+                kind = "io",
+                stage = "stream",
+                retryable = true,
+                message = "The streamed download failed safely.",
+            }
+        end
+        return nil, producer_err or {
+            kind = "io",
+            stage = "stream",
+            retryable = true,
+            message = "The streamed download failed safely.",
+        }
+    end
+
+    local sync_ok, sync_err = pcall(self.deps.fsync_opened_file, file)
+    local close_ok, close_err = pcall(file.close, file)
+    if not sync_ok or not close_ok then
+        self.deps.remove(temp_path)
+        return nil, ioError(
+            "flush",
+            "Could not safely flush streamed document: " .. tostring(sync_err or close_err or "unknown error")
+        )
+    end
+
+    local size = tonumber(self.deps.attributes(temp_path, "size"))
+    if not size or size ~= bytes or bytes == 0 then
+        self.deps.remove(temp_path)
+        return nil, ioError("size", "Streamed document failed size validation.")
+    end
+
+    if validator then
+        local valid_ok, valid, validation_err = pcall(validator, temp_path, bytes, produced)
+        if not valid_ok or valid ~= true then
+            self.deps.remove(temp_path)
+            if not valid_ok then
+                return nil, {
+                    kind = "content",
+                    stage = "validate",
+                    retryable = false,
+                    message = "Raw source validation failed safely.",
+                }
+            end
+            return nil, validation_err or {
+                kind = "content",
+                stage = "validate",
+                retryable = false,
+                message = "Raw source content did not match its expected format.",
+            }
+        end
+    end
+
+    local renamed, rename_err = self.deps.rename(temp_path, final_path)
+    if not renamed then
+        self.deps.remove(temp_path)
+        return nil, ioError(
+            "rename",
+            "Could not atomically install streamed document: " .. tostring(rename_err or "unknown error")
+        )
+    end
+
+    local durable, durability_err = pcall(self.deps.fsync_directory, final_path)
+    return {
+        path = final_path,
+        bytes = bytes,
+        producer_result = produced,
+        durability_warning = durable and nil or tostring(durability_err or "directory fsync failed"),
+    }
+end
+
 Installer._classifyOpenError = classifyOpenError
 
 return Installer
