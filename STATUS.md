@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase F.5 — Gate 4A-1 PASSED; Gate 4A-2 base coexistence + Collections PASSED; Reader-tag metadata projection 0.1.12 pending physical validation**
+**Phase F.5 COMPLETE — Gate 4A-1 and Gate 4A-2 PASSED on PW3 / KOReader 2026.07.1; Phase G images is next**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -253,7 +253,28 @@ Experimental **0.1.16** fix:
 - do not repeat invalidation per article;
 - no-op syncs still perform no Bookshelf cache refresh.
 
-Next physical action: install 0.1.16, keep `tag teste` unchanged, run one normal **Sync now**, then open Bookshelf -> Genres. The tag should appear without a full rescan or KOReader restart. If it appears, change/remove the tag once in Reader, normal-sync again, and verify Genres updates in place.
+0.1.16 physical result:
+- existing Reader document tag `tag teste` appeared in Bookshelf Genres after one normal incremental sync;
+- the tag was then deleted in Reader;
+- one more normal incremental sync removed it from Bookshelf Genres;
+- no Full document rescan or extra KOReader restart was required for either direction;
+- the stale Bookshelf light-metadata cache fix therefore behaves as intended.
+
+### Gate 4A-2 — PASS
+
+Gate 4A-2 is closed on the target PW3 / KOReader 2026.07.1 + Bookshelf v5.1.4.
+
+Validated across the complete coexistence sequence:
+- both plugins load and survive restart;
+- Bookshelf opens Reader-managed documents and preserves progress/highlight/note state;
+- normal and no-op Readwise syncs remain idempotent;
+- Reader location changes update only plugin-managed Collections and preserve unrelated user Collections;
+- Reader document tags appear as Bookshelf Genres;
+- later tag add/remove changes propagate through a normal incremental sync;
+- no duplicate local document is created;
+- the initial Bookshelf hard-freeze did not reproduce after the controlled device/library/font recovery; Series/Genres can still be slow on the PW3, so this remains a performance note rather than a gate blocker.
+
+**Phase F.5 is complete. Phase G / Gate 5 (images) is now unblocked.**
 
 
 
