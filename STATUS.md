@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase K IMPLEMENTED — Gate 9 PHYSICAL VALIDATION PENDING on PW3 / KOReader 2026.07.1; build 0.1.24**
+**Phase K COMPLETE — Gate 9 PASSED on PW3 / KOReader 2026.07.1; build 0.1.24**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Current work is **Phase K / Gate 9 exact Reader-visible text matching**. Remote highlight creation remains blocked until Gate 9 passes physically. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. **Phase K / Gate 9 exact Reader-visible text matching has now passed physically** on the target PW3 / KOReader v2026.07.1. The next step is to merge Phase K, then begin Phase L / Gate 10 remote create + note + duplicate-safe reconciliation. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -1447,7 +1447,7 @@ Current authoritative summary:
 - Gate 6: **PASSED** — original Reader PDF + EPUB.
 - Gate 7: **PASSED** — KOReader sidecar annotation identity.
 - Gate 8: **PASSED** — Reader v3 ↔ Readwise v2 annotation interoperability.
-- Gate 9: **PENDING PHYSICAL TEST** — build 0.1.24.
+- Gate 9: **PASSED** — physical PW3 / KOReader v2026.07.1, build 0.1.24.
 - Gates 10–14: **NOT YET PASSED**.
 
 Historical early-gate detail:
@@ -1514,31 +1514,31 @@ A pre-existing Phase K branch state had incorrectly grouped remote highlight cre
 
 ## Blockers
 
-Immediate blocker: **Gate 9 physical validation of exact Reader-visible text matching on real managed Reader HTML** using build 0.1.24 on the target PW3 / KOReader v2026.07.1.
+No Gate 9 blocker remains. The four physical cases in build 0.1.24 passed on the target PW3 / KOReader v2026.07.1:
+- ordinary unique passage matched safely;
+- paragraph/line-boundary passage matched safely;
+- typographic quote/dash case matched safely;
+- repeated identical passage was rejected as ambiguous;
+- the diagnostic remained remotely read-only (`Remote writes: none`);
+- no crash/freeze was observed.
 
-Required observed proof:
-- ordinary unique passage matches safely;
-- a passage spanning a visible paragraph/line boundary matches through safe whitespace equivalence;
-- typographic/straight quote or common dash differences match only through conservative punctuation equivalence when needed;
-- repeated identical passage is classified `ambiguous` and is not guessed;
-- every Gate 9 diagnostic reports `Remote writes: none`;
-- no crash/freeze.
+Next hard gate:
+- **Phase L / Gate 10** — Reader v3 create + literal note + correct-parent attachment + durable remote identity + duplicate-safe retry/reconciliation.
 
 Later hard gates remain:
-- Phase L / Gate 10 Reader v3 create + literal note + same-parent attachment + duplicate-safe retry/reconciliation;
 - durable outbound queue/retry semantics;
 - safe note conflicts/deletion policy;
 - content replacement vs existing KOReader positions/sidecars.
 
 ## Exact next steps
 
-1. Install the CI artifact for **0.1.24** while preserving `readwisereader.lua`, `readwisereader.sqlite3`, downloaded documents and sidecars.
-2. Keep Wi-Fi on; open an already-managed Reader article.
-3. Run the four **Readwise Reader -> Test current highlight match (Gate 9)** cases documented in `docs/DEVICE_TESTS.md`: unique text, line/paragraph boundary, curly quote/dash, and repeated text.
-4. For each case make that test highlight the newest one, close/reopen the article first so the sidecar is flushed, then run the diagnostic.
-5. Return: `unique: matched yes/no + result / line-break: matched yes/no + result / curly-dash: matched yes/no + result / repeated: ambiguous yes/no / every screen said Remote writes none: yes/no / no crash-freeze: yes/no`.
-6. Do **not** run remote highlight upload/create yet. Gate 9 must be recorded PASS first.
-7. After Gate 9 passes, close/merge Phase K and only then proceed to Phase L / Gate 10 create + note + deduplication.
+1. Close Phase K documentation and merge `phase-k/annotation-sync` to `main`.
+2. Start Phase L only from the merged Gate 9 baseline.
+3. Review the quarantined 0.1.23 upload implementation against the current Gate 8/9 contracts; do not simply re-enable it unchanged.
+4. Implement Gate 10 create flow with Reader v3 parent linkage, literal note preservation, remote ID persistence only after confirmed creation, and timeout-after-create reconciliation before any retry.
+5. Add automated tests for duplicate-safe repeated sync and ambiguous POST outcomes.
+6. Produce a dedicated Phase L physical-test artifact and direct download link.
+7. Physical Gate 10 must verify a Kindle highlight with `[[Foucault]]` reaches the correct original Reader document and a second sync creates no duplicate.
 
 ## Existing architectural decisions still in force
 
@@ -1562,7 +1562,7 @@ Never rely on chat history alone for project state.
 
 ## Phase K — Gate 9 exact Reader-visible text matching
 
-**Status: IMPLEMENTED / READY FOR PHYSICAL TEST — build 0.1.24; GATE 9 IS NOT YET PASSED**
+**Status: COMPLETE — build 0.1.24; GATE 9 PASSED PHYSICALLY on PW3 / KOReader v2026.07.1**
 
 Implemented on branch `phase-k/annotation-sync`:
 - visible-text extraction from Reader HTML instead of searching raw markup;
@@ -1621,5 +1621,5 @@ Phase K:
 ### Gates
 
 - Gate 8: **PASSED** physically and merged to `main`.
-- Gate 9: **PENDING PHYSICAL TEST**. Do not mark complete from CI alone.
-- Gate 10 and later: **NOT STARTED in gate terms**. Existing staged upload code is not evidence that Gate 10 is complete and must not be exercised before Gate 9 passes.
+- Gate 9: **PASSED physically** on the target PW3 / KOReader v2026.07.1. All four documented matching cases passed, every diagnostic remained remotely read-only, and no crash/freeze was observed.
+- Gate 10 and later: **NOT STARTED in gate terms**. Existing staged upload code is not evidence that Gate 10 is complete; it must be reviewed against the now-validated Gate 8/9 contracts before Phase L exposure.

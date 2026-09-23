@@ -1074,3 +1074,17 @@ Return:
 `unique: matched yes/no + result / line-break: matched yes/no + result / curly-dash: matched yes/no + result / repeated: ambiguous yes/no / every screen said Remote writes none: yes/no / no crash-freeze: yes/no`
 
 Gate 9 passes only when the three safe-match cases recover the intended Reader-visible passage and the repeated case is rejected as ambiguous, with no remote write.
+
+### Recorded physical result — 2026-09-23
+
+**PASS** on the target Kindle PW3 / KOReader v2026.07.1.
+
+Observed:
+- unique-text case passed;
+- paragraph/line-boundary case passed;
+- curly quote/dash case passed;
+- repeated-text case was correctly rejected as ambiguous;
+- every diagnostic remained remotely read-only (`Remote writes: none`);
+- no crash/freeze was observed.
+
+**Gate 9 PASSED. Proceed to Phase L / Gate 10 only after Phase K is merged to `main`.**

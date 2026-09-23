@@ -2319,7 +2319,7 @@ Physical validation on the target PW3 / KOReader v2026.07.1 established:
 
 Gate 8 is closed. Phase K text matching is unblocked; edit/delete production behavior must still obey the safety/conflict rules in later phases.
 
-## Phase K — text matching — IMPLEMENTED, GATE 9 PENDING
+## Phase K — text matching — COMPLETE, GATE 9 PASSED
 
 ### K1
 Implemented:
@@ -2340,14 +2340,16 @@ Implemented:
 
 The pre-existing staged Phase L upload code from 0.1.23 remains in the branch for later work but its menu entry is deliberately disabled until Gate 9 passes. It is not part of Gate 9 and must not be exercised as a substitute for this gate.
 
-### Gate 9 — physical validation pending
-On the target PW3 / KOReader v2026.07.1, validate:
-- ordinary unique selection → matched;
-- selection spanning a paragraph/line-break boundary → matched through whitespace normalization and recovered Reader-visible text is correct;
-- curly/straight quote or common dash variant → matched only through conservative punctuation equivalence when needed;
-- repeated identical passage → reported ambiguous, with no remote write.
+### Gate 9 — PASSED
+Physical validation on the target PW3 / KOReader v2026.07.1 passed all documented cases:
+- ordinary unique selection matched safely;
+- selection spanning a paragraph/line-break boundary matched safely with the intended Reader-visible passage recovered;
+- curly/straight quote or common dash case matched safely under the conservative equivalence rules when needed;
+- repeated identical passage was reported ambiguous and not guessed;
+- every diagnostic reported `Remote writes: none`;
+- no crash/freeze was observed.
 
-Gate 9 closes only after these cases are observed on real managed Reader HTML. Do not proceed to Phase L / Gate 10 remote creation until Gate 9 is recorded PASS.
+Gate 9 is closed. Phase L / Gate 10 remote creation is now unblocked, but must still satisfy timeout reconciliation and deduplication before physical validation.
 
 ## Phase L — create highlights
 
