@@ -196,6 +196,12 @@ Automated validation:
 
 Gate 4A-2 remains **OPEN only for a short 0.1.13 physical tag visibility check**. Do not run a manual full document rescan.
 
+0.1.13 physical retest — partial:
+- Bookshelf Genres is no longer empty; existing Reader document tags now appear, confirming the tag-object decoding/projection fix works on-device;
+- the distinctive temporary test tag did **not** appear;
+- before treating this as another plugin failure, verify the test tag was applied as a **document tag** (Reader list/document metadata), not as a highlight tag. Reader distinguishes document tags from highlight tags, and Gate 4A-2 intentionally projects document tags only;
+- if it is confirmed to be a document tag on the same already-managed article and still does not appear after normal sync, capture that case as the remaining Gate 4A-2 bug.
+
 
 
 
