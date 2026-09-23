@@ -1364,12 +1364,15 @@ Expected:
 
 ## H4 — update note
 
-Try, in safe order:
-1. documented v2 PATCH using discovered numeric ID;
-2. verify Reader UI changes;
-3. verify v3 LIST representation changes.
+Public Reader docs rechecked on 2026-09-23 now explicitly state that a highlight accepts `notes` and `tags` through Document UPDATE. This changed the documented contract from the older assumption captured when this spec was first written.
 
-Do not rely on v3 document `notes` PATCH for a highlight because docs say that field does not work to add notes to highlights.
+Test, in safe order:
+1. documented Reader v3 PATCH `notes` + `tags` using the returned Reader highlight child ID;
+2. verify Reader UI and v3 LIST reflect the change;
+3. after H3 establishes a deterministic numeric v2 mapping, PATCH the same disposable highlight through documented Readwise v2 `note`;
+4. verify Reader UI and v3 LIST reflect the v2 change.
+
+Production architecture must follow the observed Gate 8 result. Do not keep v2 mandatory for note edits merely because the older spec assumed v3 could not update highlight notes.
 
 ## H5 — delete
 
@@ -2287,22 +2290,32 @@ Physical PW3 validation on KOReader v2026.07.1 passed:
 
 The optional emoji fixture was not entered because the Kindle keyboard has no emoji input; this is not a persistence or identity failure.
 
-## Phase J — annotation API spike
+## Phase J — annotation API spike — IMPLEMENTED, GATE 8 PENDING
 
-Execute H1–H6 from section 21.
+Execute H1–H6 from section 21 against disposable Reader data only.
+
+Implementation:
+- Reader v3 create/update/delete wrappers;
+- Readwise v2 highlight LIST/DETAIL/PATCH/DELETE + Export probe;
+- staged on-device Gate 8 workflow with persistent disposable IDs;
+- deterministic mapping requires Reader/v2 external IDs, never title/text-only guessing;
+- separate recovery cleanup action;
+- no existing user document/highlight is mutated by the spike.
 
 ### Deliverable
-- `docs/API_INTEROP.md`.
+- `docs/API_INTEROP.md` exists and contains current documented contracts plus pending/observed sanitized shapes.
 
-### Gate 8
-We know:
-- exact create behavior;
-- returned ID semantics;
-- whether v2 mapping exists;
-- how note edit can be implemented;
-- safe delete path.
+### Gate 8 — physical/account validation pending
+We must know from the user's real account:
+- exact v3 create behavior and child fields;
+- returned Reader highlight ID semantics;
+- whether v2 `external_id` provides a deterministic mapping to the v3 child;
+- whether documented v3 highlight note PATCH propagates reliably;
+- whether v2 note PATCH propagates back to Reader;
+- safe delete behavior across v3/v2;
+- tag/color behavior if easy.
 
-No assumptions beyond this gate.
+No production edit/delete implementation may proceed beyond this gate based on documentation alone.
 
 ## Phase K — text matching
 
