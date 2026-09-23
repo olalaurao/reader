@@ -28,6 +28,7 @@ function Worker:run(options)
     local FirstArticle = require("sync/first_article")
     local Hash = require("content/hash")
     local Html = require("content/html")
+    local Images = require("content/images")
     local Http = require("api/http")
     local Installer = require("content/installer")
     local Reader = require("api/reader")
@@ -75,12 +76,22 @@ function Worker:run(options)
         }
 
         local storage_before = util.diskUsage(config:getDownloadDirectory())
+        local installer = Installer:new()
+        local image_localizer = Images:new{
+            http = http,
+            installer = installer,
+            enabled = config:getDownloadImages(),
+            per_image_max = config:getMaxImageBytes(),
+            total_max = config:getMaxArticleImageBytes(),
+            max_images = config:getMaxImagesPerArticle(),
+        }
         local materializer = FirstArticle:new{
             reader = reader,
             repository = repository,
             html = Html,
+            images = image_localizer,
             filenames = Filenames,
-            installer = Installer:new(),
+            installer = installer,
             hasher = Hash,
             koreader_documents = deferred_documents,
             download_root = config:getDownloadDirectory(),
