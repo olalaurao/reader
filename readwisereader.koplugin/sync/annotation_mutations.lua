@@ -36,6 +36,9 @@ function Mutations:new(options)
         v2_by_external_id = {},
         v2_duplicate_external_id = {},
         v2_scan_complete = false,
+        sleep = options.sleep or function(seconds) require("socket").sleep(seconds) end,
+        reader_verify_attempts = options.reader_verify_attempts or 4,
+        reader_verify_delay = options.reader_verify_delay or 2,
         propagate_deletions = options.propagate_deletions == true,
         file_exists = options.file_exists or function(path)
             return require("libs/libkoreader-lfs").attributes(path, "mode") == "file"
@@ -218,6 +221,63 @@ function Mutations:_markSynced(candidate, link)
     )
 end
 
+function Mutations:_waitForReaderNote(document, link, expected_note, report)
+    local last_err
+    for attempt = 1, self.reader_verify_attempts do
+        local child, child_err, identity_mode = self:_verifyChild(
+            document,
+            link,
+            {
+                allow_legacy_source = true,
+                allow_durable_link_without_source = true,
+            }
+        )
+        report.reader_note_verification_reads = report.reader_note_verification_reads + 1
+        if child then
+            if identity_mode == "legacy" then
+                report.legacy_identity_accepted = report.legacy_identity_accepted + 1
+            elseif identity_mode == "durable_link" then
+                report.durable_link_identity_accepted = report.durable_link_identity_accepted + 1
+            end
+            if comparableNote(child.notes) == comparableNote(expected_note) then
+                return child
+            end
+            last_err = err(
+                "reader_note_not_visible",
+                "Reader child did not yet reflect the expected note.",
+                true
+            )
+        else
+            last_err = child_err
+        end
+        if attempt < self.reader_verify_attempts then
+            self.sleep(self.reader_verify_delay)
+        end
+    end
+    return nil, last_err
+end
+
+function Mutations:_repairReaderNote(document, candidate, link, report)
+    if candidate.note == nil then
+        return nil, err("note_clear_unvalidated", "Note clearing is not validated.", false)
+    end
+    local updated, update_err = self.reader:updateDocument(
+        link.reader_highlight_document_id,
+        { notes = candidate.note }
+    )
+    if not updated then return nil, update_err end
+    report.reader_v3_note_repairs = report.reader_v3_note_repairs + 1
+
+    local verified, verify_err = self:_waitForReaderNote(
+        document,
+        link,
+        candidate.note,
+        report
+    )
+    if not verified then return nil, verify_err end
+    return verified
+end
+
 function Mutations:_syncChangedNote(document, candidate, link, report)
     if candidate.text ~= link.last_synced_text then
         self.annotations:setSyncState(
@@ -260,12 +320,6 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
     local baseline = link.last_synced_note
     local local_note = candidate.note
 
-    if comparableNote(local_note) == comparableNote(baseline) then
-        self:_markSynced(candidate, link)
-        report.notes_reconciled = report.notes_reconciled + 1
-        return
-    end
-
     local remote_v2, v2_err = self:_getV2Highlight(link, report)
     if not remote_v2 then
         local safe_block = v2_err and (
@@ -288,13 +342,79 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
     end
 
     local remote_note = remote_v2.note
-    if comparableNote(remote_note) == comparableNote(local_note) then
-        self:_markSynced(candidate, link)
-        report.notes_reconciled = report.notes_reconciled + 1
+    local local_eq_baseline = comparableNote(local_note) == comparableNote(baseline)
+    local remote_eq_local = comparableNote(remote_note) == comparableNote(local_note)
+    local remote_eq_baseline = comparableNote(remote_note) == comparableNote(baseline)
+    local reader_eq_local = comparableNote(child.notes) == comparableNote(local_note)
+
+    -- Recovery for 0.1.30's premature success: local + durable baseline + v2
+    -- already agree, but the Reader child still shows the old note.
+    if local_eq_baseline and remote_eq_local then
+        if reader_eq_local then
+            self:_markSynced(candidate, link)
+            report.notes_reconciled = report.notes_reconciled + 1
+            return
+        end
+        local repaired, repair_err = self:_repairReaderNote(
+            document,
+            candidate,
+            link,
+            report
+        )
+        if repaired then
+            self:_markSynced(candidate, link)
+            report.notes_reconciled = report.notes_reconciled + 1
+            report.reader_note_repairs = report.reader_note_repairs + 1
+        else
+            self.annotations:setSyncState(
+                candidate.local_annotation_id,
+                "local_changed",
+                repair_err and repair_err.kind or "reader_note_repair"
+            )
+            report.remote_errors = report.remote_errors + 1
+        end
         return
     end
 
-    if comparableNote(remote_note) ~= comparableNote(baseline) then
+    -- A remote-only change is not overwritten automatically.
+    if local_eq_baseline and not remote_eq_baseline then
+        self.annotations:setSyncState(
+            candidate.local_annotation_id,
+            "conflict",
+            "remote_note_changed"
+        )
+        report.conflicts = report.conflicts + 1
+        return
+    end
+
+    if remote_eq_local then
+        if reader_eq_local then
+            self:_markSynced(candidate, link)
+            report.notes_reconciled = report.notes_reconciled + 1
+            return
+        end
+        local repaired, repair_err = self:_repairReaderNote(
+            document,
+            candidate,
+            link,
+            report
+        )
+        if repaired then
+            self:_markSynced(candidate, link)
+            report.notes_reconciled = report.notes_reconciled + 1
+            report.reader_note_repairs = report.reader_note_repairs + 1
+        else
+            self.annotations:setSyncState(
+                candidate.local_annotation_id,
+                "local_changed",
+                repair_err and repair_err.kind or "reader_note_repair"
+            )
+            report.remote_errors = report.remote_errors + 1
+        end
+        return
+    end
+
+    if not remote_eq_baseline then
         self.annotations:setSyncState(
             candidate.local_annotation_id,
             "conflict",
@@ -327,7 +447,8 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
         report.remote_errors = report.remote_errors + 1
         return
     end
-    if updated.id ~= remote_v2.id or updated.note ~= local_note then
+    if updated.id ~= remote_v2.id
+        or comparableNote(updated.note) ~= comparableNote(local_note) then
         self.annotations:setSyncState(
             candidate.local_annotation_id,
             "local_changed",
@@ -336,11 +457,33 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
         report.remote_errors = report.remote_errors + 1
         return
     end
+    report.v2_note_updates = report.v2_note_updates + 1
 
+    local visible = self:_waitForReaderNote(document, link, local_note, report)
+    if not visible then
+        report.reader_note_propagation_misses = report.reader_note_propagation_misses + 1
+        local repaired, repair_err = self:_repairReaderNote(
+            document,
+            candidate,
+            link,
+            report
+        )
+        if not repaired then
+            self.annotations:setSyncState(
+                candidate.local_annotation_id,
+                "local_changed",
+                repair_err and repair_err.kind or "reader_note_repair"
+            )
+            report.remote_errors = report.remote_errors + 1
+            return
+        end
+        report.reader_note_repairs = report.reader_note_repairs + 1
+    end
+
+    -- Only now is end-to-end Reader visibility proven.
     self.annotations:setReadwiseV2Id(candidate.local_annotation_id, updated.id)
     self:_markSynced(candidate, link)
     report.notes_updated = report.notes_updated + 1
-    report.v2_note_updates = report.v2_note_updates + 1
 end
 
 function Mutations:_syncDeletion(document, link, report)
@@ -417,6 +560,10 @@ function Mutations:syncPath(local_path)
         v2_mappings_resolved = 0,
         v2_remote_note_reads = 0,
         v2_note_updates = 0,
+        reader_note_verification_reads = 0,
+        reader_note_propagation_misses = 0,
+        reader_v3_note_repairs = 0,
+        reader_note_repairs = 0,
     }
     if not scan.authoritative then return report end
 
@@ -427,11 +574,15 @@ function Mutations:syncPath(local_path)
         if link
             and link.created_remote == true
             and link.local_deleted_at == nil then
-            local note_differs_from_baseline = candidate.note ~= link.last_synced_note
+            local note_differs_from_baseline =
+                comparableNote(candidate.note) ~= comparableNote(link.last_synced_note)
             local should_retry_note = link.sync_state == "local_changed"
                 or link.sync_state == "blocked"
                 or link.sync_state == "conflict"
-            if note_differs_from_baseline and should_retry_note then
+            local needs_cross_api_verification =
+                link.readwise_v2_highlight_id ~= nil
+            if (note_differs_from_baseline and should_retry_note)
+                or needs_cross_api_verification then
                 self:_syncChangedNote(document, candidate, link, report)
             end
         end
