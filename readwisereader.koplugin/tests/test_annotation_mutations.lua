@@ -231,6 +231,25 @@ local function reconcileCase()
     assert(state.row.sync_state == "synced")
 end
 
+local function normalizedBaselineCase()
+    local state = baseState()
+    state.row.last_synced_note = "old note\r\n"
+    local mutator = newMutator(state, "new note", "old note\n", false)
+    local report = assert(mutator:syncPath("/Readwise/a.html"))
+    assert(report.notes_updated == 1)
+    assert(report.conflicts == 0)
+    assert(state.v2_updates == 1)
+end
+
+local function normalizedRemoteEqualsLocalCase()
+    local state = baseState()
+    local mutator = newMutator(state, "same note\n", "same note\r\n", false)
+    local report = assert(mutator:syncPath("/Readwise/a.html"))
+    assert(report.notes_reconciled == 1)
+    assert(report.notes_updated == 0)
+    assert(report.conflicts == 0)
+end
+
 local function conflictCase()
     local state = baseState()
     local mutator = newMutator(state, "local edit", "remote edit", false)
@@ -339,6 +358,8 @@ return function()
     legacyUpdateCase()
     missingMarkerUpdateCase()
     reconcileCase()
+    normalizedBaselineCase()
+    normalizedRemoteEqualsLocalCase()
     conflictCase()
     deletionOffCase()
     deletionOnCase()
