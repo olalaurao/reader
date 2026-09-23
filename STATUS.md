@@ -360,6 +360,19 @@ Interpretation:
 - regression tests cover stage classification and aggregation;
 - Gate 4 remains **OPEN** until those 10 failures are diagnosed/fixed and a subsequent no-change sync is truly incremental.
 
+0.1.9 physical diagnostic:
+- all 10 retryable failures are `open/invalid_name`;
+- available storage after sync: **2552.8 MB**, so ENOSPC is ruled out;
+- metadata and Collection parent-side writes remain at 0 errors;
+- therefore the remaining blocker is path/filename acceptance on the Kindle filesystem for those 10 titles, not storage pressure or post-processing.
+
+0.1.10 fix:
+- when the first install attempt fails specifically with `io/open/invalid_name`, retry the same rendered content once using an ASCII-safe fallback filename derived from the Reader ID;
+- Reader ID remains the ownership identity and the real Reader title remains in KOReader metadata, so the fallback does not lose title display or create title-based identity;
+- other retryable I/O failures are not reclassified or hidden;
+- added regression coverage for the invalid-name fallback path.
+
+
 
 ## Phase F result — off-device complete, Gate 4 pending
 
