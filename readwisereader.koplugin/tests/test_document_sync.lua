@@ -282,6 +282,35 @@ return function()
     end
 
     do
+        local reader = {
+            iterateDocuments = function(_, options, callback)
+                if options.with_html_content and options.location == "new" then
+                    callback(doc("retry", "new", "Retry", "u1", "<p>x</p>"))
+                elseif not options.with_html_content then
+                    callback(doc("retry", "new", "Retry", "u1"))
+                end
+                return { pages = 1, duplicates = 0 }
+            end,
+        }
+        local repository = fakeRepository()
+        local materializer = {
+            installDocument = function(_, document)
+                repository:upsertRemote(document, 1000)
+                return nil, { kind = "io", stage = "write", retryable = true }
+            end,
+        }
+        local syncer, _, meta = newSync{
+            reader = reader, repository = repository, materializer = materializer,
+        }
+        local report, err = syncer:sync{}
+        assert(err == nil)
+        assert(report.errors == 1)
+        assert(report.retryable_item_errors == 1)
+        assert(report.retryable_error_stages.write == 1)
+        assert(meta.values.document_watermark == nil)
+    end
+
+    do
         local meta = fakeMeta({
             document_watermark = "T001000",
             document_query_after = "T000995",
