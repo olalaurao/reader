@@ -5,7 +5,7 @@ DocumentsSync.__index = DocumentsSync
 
 local DEFAULT_OVERLAP_SECONDS = 300
 local HTML_PAGE_LIMIT = 25
-local METADATA_PROJECTION_VERSION = "reader-tags-v1"
+local METADATA_PROJECTION_VERSION = "reader-tags-v2"
 local SUPPORTED_CATEGORIES = { article = true }
 local PERMANENT_MATERIALIZATION_ERRORS = {
     content = true,
@@ -107,7 +107,7 @@ function DocumentsSync:_syncCollection(existing, document, report)
     return true
 end
 
-function DocumentsSync:_updateExistingMetadata(existing, document, seen_at, report, force_metadata)
+function DocumentsSync:_updateExistingMetadata(existing, document, seen_at, report, force_metadata, projection_backfill)
     local changed = force_metadata == true or metadataChanged(existing, document)
     local moved = existing.location ~= document.location
     local remote_changed = existing.remote_updated_at ~= nil
@@ -130,7 +130,7 @@ function DocumentsSync:_updateExistingMetadata(existing, document, seen_at, repo
         -- files adds hundreds of unnecessary settings writes on a Kindle.
         -- Preserve normal collection-repair behavior outside the backfill,
         -- while still applying any real Reader-side location move we discover.
-        if moved or not force_metadata then
+        if moved or not projection_backfill then
             self:_syncCollection(existing, document, report)
         end
         if remote_changed then
@@ -180,6 +180,11 @@ end
 function DocumentsSync:_scanMetadata(watermark, filters, managed_by_id, pending_new, report, seen_at, force_metadata)
     local scan, err = self.reader:iterateDocuments({
         updated_after = watermark,
+        -- Projection backfills only need currently-supported reading
+        -- documents. Filtering server-side excludes highlight/note child
+        -- records and cuts the one-time tag repair from the whole Reader
+        -- corpus to the article subset.
+        category = force_metadata and "article" or nil,
         limit = 100,
         with_html_content = false,
         with_raw_source_url = false,
@@ -192,8 +197,16 @@ function DocumentsSync:_scanMetadata(watermark, filters, managed_by_id, pending_
         report.metadata_seen = report.metadata_seen + 1
         local existing = managed_by_id[document.id]
         if existing then
+            local force_document_metadata = force_metadata
+                and type(document.tags) == "table"
+                and #document.tags > 0
             local current = self:_updateExistingMetadata(
-                existing, document, seen_at, report, force_metadata
+                existing,
+                document,
+                seen_at,
+                report,
+                force_document_metadata,
+                force_metadata
             )
             managed_by_id[document.id] = current
             if not self:_hasLocal(existing)
