@@ -5,5 +5,5 @@ local _ = require("gettext")
 return {
     name = "readwisereader",
     fullname = _("Readwise Reader"),
-    description = _([[Synchronize Readwise Reader content with KOReader. Experimental 0.1.14 adds targeted Reader document-tag diagnostics for Gate 4A.]]),
+    description = _([[Synchronize Readwise Reader content with KOReader. Experimental 0.1.15 probes incremental visibility of Reader document-tag changes.]]),
 }
