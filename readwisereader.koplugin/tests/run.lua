@@ -19,6 +19,7 @@ local tests = {
     "tests.test_annotation_sync",
     "tests.test_text_match",
     "tests.test_text_match_probe",
+    "tests.test_text_match_diagnostics_ui",
     "tests.test_annotation_upload",
     "tests.test_api_interop",
     "tests.test_filenames",
