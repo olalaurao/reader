@@ -210,7 +210,7 @@ local function blockedNoMatchNeverRetries()
     state.queue[key] = {
         idempotency_key = key,
         operation = "create_highlight",
-        status = "blocked",
+        status = "pending",
         attempts = 1,
     }
     local reader = {
@@ -223,6 +223,7 @@ local function blockedNoMatchNeverRetries()
     assert(result.blocked == 1)
     assert(state.creates == 0, "unreconciled blocked create must never be blindly retried")
     assert(state.queue[key].last_error_kind == "reconcile_not_found")
+    assert(state.queue[key].attempts == 1)
 end
 
 local function ambiguousTextNeverQueues()

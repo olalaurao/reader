@@ -212,12 +212,15 @@ function Upload:syncPath(local_path)
             local key = queueKey(candidate.local_annotation_id)
             local queued = self.queue:getByKey(key)
 
-            if queued and (queued.status == "blocked" or queued.status == "in_flight" or queued.status == "succeeded") then
-                if queued.status == "in_flight" then
+            local must_reconcile = queued
+                and not (queued.status == "pending" and (queued.attempts or 0) == 0)
+            if must_reconcile then
+                if queued.status == "in_flight"
+                    or (queued.status == "pending" and (queued.attempts or 0) > 0) then
                     queued = self.queue:markBlocked(
                         key,
                         "stale_create_in_flight",
-                        "Create outcome is unknown; reconcile before retry.",
+                        "A prior create attempt may have reached Reader; reconcile before retry.",
                         self.now()
                     )
                 end
