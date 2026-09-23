@@ -61,6 +61,24 @@ Physical Gate 4A-2 smoke result:
 Next: open Bookshelf manually, verify Readwise-managed documents/Collections/open-close/progress and run Readwise sync while Bookshelf is installed. Reader-tag metadata projection is not yet implemented in code and will be added after the base coexistence checks pass.
 
 
+### Gate 4A-2 attempt 1 — FAIL / hard UI freeze in Bookshelf
+
+Physical result on target PW3 / KOReader 2026.07.1 + Bookshelf v5.1.4:
+- Bookshelf opened successfully;
+- a Readwise-managed article was visible in Bookshelf;
+- while navigating Bookshelf tabs/shelves (Home/Recent), the UI hard-froze;
+- the Kindle stopped responding to normal input;
+- recovery required holding the power button until the Kindle rebooted.
+
+This is a **Gate 4A-2 failure**, not a cosmetic issue. Do not mark Bookshelf coexistence passed until the freeze is diagnosed and reproduced/fixed or safely attributed upstream.
+
+Immediate next action:
+- preserve/retrieve the latest `koreader/crash.log` before more Bookshelf activity can overwrite useful context;
+- do not enable `Start with -> Bookshelf`;
+- keep normal File Manager as startup;
+- Readwise Reader baseline from Gate 4A-1 remains valid unless the log shows cross-plugin corruption.
+
+
 
 
 - freeze/back up the known-good 2025.04 state;
