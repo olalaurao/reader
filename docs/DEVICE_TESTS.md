@@ -592,7 +592,7 @@ Gate 4 is closed. Do not replay all Gates 0–4 after the KOReader upgrade. Gate
 
 ## Gate 4A — KOReader v2026.07.1 + Bookshelf migration
 
-Status: **Gate 4A COMPLETE — Gate 4A-1 and Gate 4A-2 PASSED; Phase G / Gate 5 next**
+Status: **Gate 4A COMPLETE; Phase G / Gate 5 G1 relative-image spike pending**
 
 Canonical detailed runbook: `docs/KOREADER_UPGRADE.md`.
 
@@ -726,3 +726,26 @@ Final 0.1.16 tag/cache validation:
 
 Proceed to Phase G / Gate 5.
 
+
+
+## Phase G / Gate 5 — G1 relative local asset spike
+
+Build: **0.1.17**
+
+Purpose: validate the exact CRengine contract before production image downloads are implemented.
+
+Procedure:
+1. Install build 0.1.17 and restart KOReader.
+2. Open **Readwise Reader -> Image asset spike (Gate 5)**.
+3. The diagnostic HTML should open automatically.
+4. Confirm a bordered/crossed image labelled **GATE 5** is visibly rendered between the first two text boxes.
+5. Continue past the intentionally missing image reference.
+6. Confirm **TEXT AFTER MISSING IMAGE** is still visible/readable.
+7. Confirm KOReader remains responsive; close the document normally.
+8. Reopen the same diagnostic action once and confirm it opens again without duplicate diagnostic files or crash.
+
+Pass report:
+`local GATE 5 image appeared: sim/não / text after image readable: sim/não / missing image did not crash: sim/não / text after missing image readable: sim/não / close-reopen ok: sim/não`
+
+Stop condition:
+- if the local relative image does not render, do not implement G2 against that strategy; collect `crash.log` only if KOReader crashes/freezes.
