@@ -103,6 +103,8 @@ function Images:localize(document, absolute_asset_dir, relative_asset_dir)
     }
     local seen = {}
     local index = 0
+    local attempts = 0
+    local budget_used = 0
 
     local processed = html:gsub("<[iI][mM][gG][^>]*>", function(tag)
         local raw_src = extractSrc(tag)
@@ -132,18 +134,19 @@ function Images:localize(document, absolute_asset_dir, relative_asset_dir)
             return string.format('<img src="%s" alt="%s">', seen[url], escapeAttr(decodeAttr(extractAlt(tag))))
         end
 
-        if index >= self.max_images or report.bytes >= self.total_max then
+        if attempts >= self.max_images or budget_used >= self.total_max then
             report.skipped = report.skipped + 1
             return placeholder(tag, "image limit reached")
         end
 
-        local remaining = self.total_max - report.bytes
+        local remaining = self.total_max - budget_used
         local body_limit = math.min(self.per_image_max, remaining)
         if body_limit <= 0 then
             report.skipped = report.skipped + 1
             return placeholder(tag, "image limit reached")
         end
 
+        attempts = attempts + 1
         local response, err = self.http:request{
             method = "GET",
             url = url,
@@ -157,6 +160,7 @@ function Images:localize(document, absolute_asset_dir, relative_asset_dir)
             return placeholder(tag, err and err.kind == "too_large" and "image too large" or "image unavailable")
         end
 
+        budget_used = budget_used + #response.body
         local ext = detectExt(response.body, response.headers)
         if not ext then
             report.failed = report.failed + 1
