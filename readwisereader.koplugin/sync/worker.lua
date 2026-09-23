@@ -162,6 +162,10 @@ function Worker:run(options)
         sync_report.v2_annotation_mappings_resolved = 0
         sync_report.v2_remote_note_reads = 0
         sync_report.v2_note_updates = 0
+        sync_report.reader_note_verification_reads = 0
+        sync_report.reader_note_propagation_misses = 0
+        sync_report.reader_v3_note_repairs = 0
+        sync_report.reader_note_repairs = 0
         sync_report.annotation_sync_status = "no_current_document"
 
         if type(options.current_path) == "string" and options.current_path ~= "" then
@@ -247,6 +251,14 @@ function Worker:run(options)
                                 mutation_report.v2_remote_note_reads or 0
                             sync_report.v2_note_updates =
                                 mutation_report.v2_note_updates or 0
+                            sync_report.reader_note_verification_reads =
+                                mutation_report.reader_note_verification_reads or 0
+                            sync_report.reader_note_propagation_misses =
+                                mutation_report.reader_note_propagation_misses or 0
+                            sync_report.reader_v3_note_repairs =
+                                mutation_report.reader_v3_note_repairs or 0
+                            sync_report.reader_note_repairs =
+                                mutation_report.reader_note_repairs or 0
                         end
                     end
                 end
