@@ -27,6 +27,8 @@ local function baseState()
         },
         updates = 0,
         deletes = 0,
+        v2_updates = 0,
+        v2_lists = 0,
     }
 end
 
@@ -75,6 +77,10 @@ local function repos(state)
             state.row.last_sync_error = nil
             return copy(state.row)
         end,
+        setReadwiseV2Id = function(_, id, v2_id)
+            assert(id == "ann-1")
+            state.row.readwise_v2_highlight_id = v2_id
+        end,
     }
     local documents = {
         getByLocalPath = function(_, path)
@@ -103,21 +109,44 @@ end
 
 local function newMutator(state, local_note, remote_note, propagate, source)
     local documents, annotations = repos(state)
-    local remote = child(remote_note, source)
+    local remote = child("unreliable-v3-note", source)
+    local v2 = {
+        id = 77,
+        external_id = "remote-1",
+        note = remote_note,
+    }
     local reader = {
         getDocument = function()
             return copy(remote)
         end,
-        updateDocument = function(_, id, patch)
-            assert(id == "remote-1")
-            state.updates = state.updates + 1
-            remote.notes = patch.notes
-            return { id = id }
+        updateDocument = function()
+            error("production note updates must not use Reader v3 PATCH")
         end,
         deleteDocument = function(_, id)
             assert(id == "remote-1")
             state.deletes = state.deletes + 1
             return true
+        end,
+    }
+    local readwise = {
+        listHighlights = function(_, options)
+            state.v2_lists = state.v2_lists + 1
+            assert(options.page_size == 1000)
+            assert(options.page == 1)
+            return {
+                count = 1,
+                results = { copy(v2) },
+            }
+        end,
+        getHighlight = function(_, id)
+            assert(id == 77)
+            return copy(v2)
+        end,
+        updateHighlight = function(_, id, patch)
+            assert(id == 77)
+            state.v2_updates = state.v2_updates + 1
+            v2.note = patch.note
+            return copy(v2)
         end,
     }
     return Mutations:new{
@@ -133,6 +162,7 @@ local function newMutator(state, local_note, remote_note, propagate, source)
             end,
         },
         reader = reader,
+        readwise = readwise,
         propagate_deletions = propagate == true,
         file_exists = function() return true end,
     }
@@ -144,7 +174,9 @@ local function updateCase()
     local report = assert(mutator:syncPath("/Readwise/a.html"))
     assert(report.notes_updated == 1)
     assert(report.conflicts == 0)
-    assert(state.updates == 1)
+    assert(state.v2_updates == 1)
+    assert(state.v2_lists == 1)
+    assert(state.row.readwise_v2_highlight_id == 77)
     assert(state.row.last_synced_note == "new [[Foucault]]")
     assert(state.row.sync_state == "synced")
 end
@@ -164,7 +196,7 @@ local function legacyUpdateCase()
     assert(report.blocked == 0)
     assert(report.remote_errors == 0)
     assert(report.legacy_identity_accepted >= 1)
-    assert(state.updates == 1)
+    assert(state.v2_updates == 1)
     assert(state.row.last_synced_note == "legacy updated [[Foucault]]")
 end
 
@@ -184,7 +216,7 @@ local function missingMarkerUpdateCase()
     assert(report.blocked == 0)
     assert(report.remote_errors == 0)
     assert(report.durable_link_identity_accepted >= 1)
-    assert(state.updates == 1)
+    assert(state.v2_updates == 1)
     assert(state.row.sync_state == "synced")
     assert(state.row.last_synced_note == "retry after missing marker")
 end
@@ -195,7 +227,7 @@ local function reconcileCase()
     local report = assert(mutator:syncPath("/Readwise/a.html"))
     assert(report.notes_updated == 0)
     assert(report.notes_reconciled == 1)
-    assert(state.updates == 0)
+    assert(state.v2_updates == 0)
     assert(state.row.sync_state == "synced")
 end
 
@@ -204,7 +236,7 @@ local function conflictCase()
     local mutator = newMutator(state, "local edit", "remote edit", false)
     local report = assert(mutator:syncPath("/Readwise/a.html"))
     assert(report.conflicts == 1)
-    assert(state.updates == 0)
+    assert(state.v2_updates == 0)
     assert(state.row.sync_state == "conflict")
     assert(state.row.last_sync_error == "note_conflict")
     assert(state.row.last_synced_note == "old note")
