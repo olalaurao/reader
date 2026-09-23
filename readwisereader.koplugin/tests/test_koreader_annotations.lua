@@ -3,7 +3,7 @@
 local KOReaderAnnotations = require("koreader/annotations")
 
 local hasher = {
-    digest = function(value)
+    sha256 = function(value)
         return "H[" .. tostring(value) .. "]"
     end,
 }
