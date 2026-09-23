@@ -3,7 +3,7 @@
 > **Canonical execution spec**  
 > **Repository:** `olalaurao/reader`  
 > **Target V1 device:** Kindle Paperwhite 3 / 7th gen (PW3), firmware 5.16.2.1.1, KUAL. KOReader `v2025.04` is the validated baseline through Gate 4; planned migration target is official `v2026.07.1` at Gate 4A.  
-> **Last verified:** 2026-09-22  
+> **Last verified:** 2026-09-23  
 > **Companion roadmap:** `PLAN.md`  
 > **Progress ledger:** `STATUS.md`
 >
@@ -107,7 +107,7 @@ The plugin is **not** intended to reproduce the Reader UI. Reader is the capture
 
 - Update an already-created remote highlight note when the KOReader note changes.
 - Delete a remote highlight when a locally-created/synced annotation is intentionally deleted and the user explicitly enabled deletion propagation.
-- Sync highlight color when a reliable mapping exists.
+- Highlight color synchronization is intentionally out of V1: the target PW3 is monochrome and the current Reader workflow does not expose a useful multi-color requirement for this project.
 - Optional "sync only tag `koreader`".
 - Optional maximum download size.
 
@@ -228,7 +228,7 @@ Successful response contains a Reader-style string document ID. **Do not assume 
 PATCH /api/v3/update/<document_id>/
 ```
 
-Useful for document fields such as `location`. The docs explicitly say the `notes` update field does not add notes to highlights. Therefore do **not** assume this endpoint can update a highlight annotation.
+Useful for document fields such as `location`. Current Reader documentation explicitly permits `notes` and `tags` updates on highlight children. Gate 8 physically verified this on the target account. Production note updates should therefore prefer Reader v3 for the known Reader child ID.
 
 ### Bulk update
 
@@ -274,7 +274,7 @@ The v2 API has numeric highlight IDs and supports:
 
 Update supports fields including `text`, `note`, `location`, `url`, `color`.
 
-**Unknown until proven:** reliable mapping from the string ID returned by Reader v3 highlight creation to the numeric Readwise v2 highlight ID.
+**Gate 8 result:** the disposable physical spike established a deterministic Reader-child ↔ Readwise-v2 mapping path. Production code may use v2 only after that deterministic mapping is proven for the specific stored child; text/note heuristics are forbidden.
 
 Official docs:
 - https://readwise.io/api_deets
@@ -1364,12 +1364,15 @@ Expected:
 
 ## H4 — update note
 
-Try, in safe order:
-1. documented v2 PATCH using discovered numeric ID;
-2. verify Reader UI changes;
-3. verify v3 LIST representation changes.
+Public Reader docs rechecked on 2026-09-23 now explicitly state that a highlight accepts `notes` and `tags` through Document UPDATE. This changed the documented contract from the older assumption captured when this spec was first written.
 
-Do not rely on v3 document `notes` PATCH for a highlight because docs say that field does not work to add notes to highlights.
+Test, in safe order:
+1. documented Reader v3 PATCH `notes` + `tags` using the returned Reader highlight child ID;
+2. verify Reader UI and v3 LIST reflect the change;
+3. after H3 establishes a deterministic numeric v2 mapping, PATCH the same disposable highlight through documented Readwise v2 `note`;
+4. verify Reader UI and v3 LIST reflect the v2 change.
+
+Production architecture must follow the observed Gate 8 result. Do not keep v2 mandatory for note edits merely because the older spec assumed v3 could not update highlight notes.
 
 ## H5 — delete
 
@@ -1413,13 +1416,14 @@ Conflict check:
   - do not overwrite.
 
 Otherwise:
-- PATCH v2 `note`;
-- verify 200;
-- update hashes/state.
+- PATCH Reader v3 `notes` on the confirmed Reader highlight child ID;
+- verify success and re-read the same child when practical;
+- update hashes/state only after confirmed remote success.
 
-If update support cannot be made reliable:
-- V1 will support note-at-creation;
-- UI will clearly report later local edits as unsynced;
+Gate 8 physically proved that Reader v3 highlight note updates are supported and propagate correctly. Readwise v2 is therefore **not mandatory for normal note edits**. Use the deterministic Reader-child ↔ v2 mapping only when a later feature specifically needs a v2-only capability.
+
+If update support later proves unreliable for a specific record:
+- keep the local edit intact and report it as unsynced/blocked;
 - do **not** implement delete-and-recreate silently, because that can duplicate Obsidian exports and reorder highlights.
 
 ---
@@ -2287,22 +2291,33 @@ Physical PW3 validation on KOReader v2026.07.1 passed:
 
 The optional emoji fixture was not entered because the Kindle keyboard has no emoji input; this is not a persistence or identity failure.
 
-## Phase J — annotation API spike
+## Phase J — annotation API spike — COMPLETE
 
-Execute H1–H6 from section 21.
+H1–H6 from section 21 were executed against plugin-created disposable Reader data only.
+
+Implementation:
+- Reader v3 create/update/delete wrappers;
+- Readwise v2 highlight LIST/DETAIL/PATCH/DELETE + Export probe;
+- staged on-device Gate 8 workflow with persistent disposable IDs;
+- deterministic mapping requires Reader/v2 external IDs, never title/text-only guessing;
+- separate recovery cleanup action;
+- no existing user document/highlight is mutated by the spike.
 
 ### Deliverable
-- `docs/API_INTEROP.md`.
+- `docs/API_INTEROP.md` records the dated sanitized request/response shapes and physical observations.
 
-### Gate 8
-We know:
-- exact create behavior;
-- returned ID semantics;
-- whether v2 mapping exists;
-- how note edit can be implemented;
-- safe delete path.
+### Gate 8 — PASSED
+Physical validation on the target PW3 / KOReader v2026.07.1 established:
+- Reader v3 create returns a child ID and attaches the highlight/note/tag to the intended disposable parent;
+- v3 LIST exposes the expected parent/category/note and locator evidence;
+- the Reader highlight child maps deterministically to a numeric Readwise v2 highlight ID; text/note heuristics are not accepted;
+- Reader v3 PATCH of highlight `notes`/`tags` succeeds and is reflected in Reader;
+- Readwise v2 PATCH of the deterministically mapped highlight succeeds and its note change propagates back to the same Reader child;
+- Reader v3 DELETE removes the child and the corresponding v2 highlight disappears without needing a v2 delete fallback;
+- disposable parent cleanup succeeds;
+- color mutation worked as interoperability evidence, but highlight-color synchronization is deliberately out of V1.
 
-No assumptions beyond this gate.
+Gate 8 is closed. Phase K text matching is unblocked; edit/delete production behavior must still obey the safety/conflict rules in later phases.
 
 ## Phase K — text matching
 

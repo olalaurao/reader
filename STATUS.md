@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase I COMPLETE — Gate 7 PASSED on PW3 / KOReader 2026.07.1; Phase J annotation API interoperability spike is next**
+**Phase J COMPLETE — Gate 8 PASSED on PW3 / KOReader 2026.07.1; Phase K production annotation sync is next**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Current work is **Phase I / Gate 7**. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Current work is **Phase K / Gate 9 text matching next**, after integrating the completed Phase J / Gate 8 branch. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -526,6 +526,76 @@ Physical Gate 7 result on the target PW3 / KOReader 2026.07.1:
 
 Gate 7 is closed. **Phase I is complete and Phase J / Gate 8 (annotation API interoperability spike) is now unblocked.**
 
+## Phase J — annotation API interoperability spike
+
+### 0.1.22 implementation ready for Gate 8
+
+Public API research refreshed on 2026-09-23 before writing mutation code:
+- Reader v3 highlight create remains `POST /api/v3/save/` with `parent_id` + exact `content`;
+- Reader LIST now explicitly documents highlight `notes`, `highlight_offset` and serialized DOM `highlight_location`;
+- **Reader UPDATE now explicitly documents that highlights accept `notes` and `tags`**, superseding the older project assumption that note updates required v2;
+- Reader v3 DELETE documents 204 for deleting a highlight child;
+- Readwise v2 Highlight LIST/DETAIL expose numeric ID + `external_id`;
+- Readwise Export documents Reader-backed user-book `external_id` and highlight `external_id`, giving a candidate deterministic bridge between Reader child IDs and v2 numeric highlight IDs;
+- Readwise v2 PATCH supports note/color and DELETE supports numeric highlight deletion.
+
+Canonical research/evidence ledger: `docs/API_INTEROP.md`.
+
+Implemented:
+- Reader v3 save/create-highlight/update/delete wrappers with JSON request validation;
+- Reader child normalization now includes `highlight_offset` and `highlight_location`;
+- new Readwise v2 wrapper for Highlight LIST/DETAIL/PATCH/DELETE plus Export probe;
+- staged Gate 8 state machine using only plugin-created disposable data;
+- **Step 1** creates a temporary Reader HTML article, waits until the exact test phrase is highlightable, creates one Reader v3 child highlight with note/tag, and records the IDs durably before any cancellable follow-up;
+- **Step 2** requires a deterministic v2 mapping (prefer `v2 highlight.external_id == Reader child id`; Export external IDs are a second deterministic path), then PATCHes note/tags through Reader v3 and verifies v3 LIST;
+- a parent+text+note-only v2 match is explicitly classified non-deterministic and blocks the spike rather than being accepted;
+- **Step 3** PATCHes the same proven numeric v2 highlight note + green color and polls Reader v3 to test cross-API propagation;
+- **Step 4** DELETEs through Reader v3, verifies v3 disappearance, allows several seconds for v2 propagation, uses v2 DELETE only if that exact proven disposable numeric ID still exists, then deletes the disposable parent;
+- separate recovery cleanup action only touches Gate 8 IDs durably stored by the spike;
+- cancellation after parent/highlight creation cannot strand an unknown remote object because each disposable ID is persisted immediately;
+- no existing Reader document/highlight is selected or mutated by Gate 8.
+
+Automated coverage:
+- Reader v3 mutation request methods, payloads and child locator fields;
+- Readwise v2 LIST/DETAIL/PATCH/DELETE/Export request shapes;
+- staged create → deterministic mapping → v3 update → v2 update → v3 delete/cleanup state machine;
+- ambiguous text/note-only mapping is blocked;
+- v2 cleanup fallback only targets a deterministic stored numeric ID;
+- partial parent-only state is recoverable;
+- all existing Phase A–I tests continue to pass through the latest successful Phase J runs.
+
+Automated/package validation:
+- run #371 on `3eeb7efb...`: **SUCCESS** — syntax, all unit tests, package/layout and artifact;
+- workflow artifact digest: `sha256:df8d7a86ab921345789aac79b578fc2aca926e4e8ad0c6430b7b7ecb18aa8d49`;
+- installable inner ZIP verified with `unzip -t`; SHA-256: `17e5ae9c060407becb1053684f557d3aeae04042c0e790b42b8b5c0518a4db6d`.
+
+Physical Gate 8 result on the target PW3 / KOReader 2026.07.1:
+- all four disposable spike steps completed successfully;
+- Reader v3 highlight create/parent linkage/note/tag verification passed;
+- deterministic Reader-child ↔ Readwise-v2 mapping passed, so no text/note heuristic was needed;
+- Reader v3 note/tag update passed;
+- Readwise v2 note update response matched and the same Reader v3 child reflected the new note after refresh;
+- the v2 response also reported green for the disposable color mutation;
+- Reader v3 delete succeeded, the child disappeared from v3, and Readwise v2 no longer exposed it; v2 DELETE cleanup fallback was not needed;
+- disposable parent cleanup succeeded.
+
+Product decision from the physical run:
+- **highlight color synchronization is dropped from V1**. Reader currently provides no useful multi-color workflow for this project and the target PW3 is monochrome. The Gate 8 green mutation remains interoperability evidence only.
+
+### Gate 8 — PASS
+
+Gate 8 is closed. **Phase J is complete and Phase K text matching is now unblocked.** The canonical gate order remains Phase K / Gate 9 (matching only) before Phase L / Gate 10 remote creation/deduplication.
+
+Phase J closeout in this continuation session:
+- branch: `phase-j/annotation-api-gate8`;
+- pre-closeout branch tip: `4a21b1fee3a28e95fbf81e343edee9b12a0a645d`;
+- canonical spec closeout commit: `3951c04732819ef99d415f173b27699013c97998`;
+- files changed in this closeout: `IMPLEMENTATION_SPEC.md`, `STATUS.md`;
+- no production mutation code changed after the physically validated 0.1.22 behavior;
+- latest code-bearing branch CI before the documentation closeout: run #375 on `4a21b1f...` — **SUCCESS**;
+- the documentation closeout CI must be green before merge.
+
+
 
 
 
@@ -542,8 +612,10 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 
 ## Current branch / commit
 
-- Branch: `phase-i/sidecar-gate7`
-- Base `main`: `3995dbee0b6f3171793abab50cb541af10a48d5c` (PR #9 merge / Phase H + Gate 6 passed)
+- Branch: `phase-j/annotation-api-gate8`
+- Base `main`: `a7d0ca39ca1e7a1df1f775b9eb1ca121a572d802` (PR #10 merge / Phase I + Gate 7 passed)
+- Phase J pre-closeout tip: `4a21b1fee3a28e95fbf81e343edee9b12a0a645d`
+- Phase J canonical-spec closeout: `3951c04732819ef99d415f173b27699013c97998`
 - Phase F historical merge: `21dd64719ca248dd7706895fab1651751edf8844` (Gate 4 passed on KOReader 2025.04)
 - F1 settings/root ownership: `a57da9980d1b77a16bf2a0b8fbaa09327b1691d9`
 - F1/F2 incremental sync engine: `265405a479ab538ed4fbdde9223ca97c28aaad07`
@@ -571,7 +643,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Jailbreak/KUAL functional
 - KOReader historical Gate 0–4 baseline: `2025.04`
 - canonical physical V1 baseline from Gate 4A-1 onward: official KOReader `v2026.07.1`, `kindlepw2` package
-- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase I / Gate 7 sidecar/annotation adapter
+- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target after Phase J merge is Phase K / Gate 9 text matching
 
 ## Phase A result
 
@@ -1426,26 +1498,34 @@ No accidental implementation deviation is open.
 
 A deliberate roadmap/spec change was made on 2026-09-22 at the user's request: KOReader is no longer assumed to remain at 2025.04 through the whole V1. The canonical order now inserts **Phase F.5 / Gate 4A after Gate 4 and before Phase G**, migrating to official KOReader v2026.07.1 and then validating Bookshelf v5.1.4 coexistence. The reason is to establish a clean Phase F before/after compatibility baseline while avoiding implementing image/raw-format/sidecar internals twice. Full procedure is in `docs/KOREADER_UPGRADE.md`.
 
+Gate 8 produced a deliberate canonical API-contract correction on 2026-09-23: current Reader documentation plus physical account evidence prove that Reader v3 highlight children accept `notes`/`tags` updates, and the update is reflected in Reader. The spec now prefers Reader v3 for normal note updates instead of making Readwise v2 mandatory. The physical spike also established deterministic v3-child ↔ v2 highlight mapping when v2 is needed. Highlight color synchronization was removed from V1 because it adds no useful target-device workflow; the v2 green mutation remains spike evidence only.
+
 ## Blockers
 
-Immediate blocker: **Gate 7 physical validation on the target PW3** for one managed article highlight/note and stable sidecar identity after reopen.
+Immediate blocker after Phase J integration: **Phase K / Gate 9 exact-content matching on real managed Reader HTML**.
+
+Gate 9 must be closed before exercising Phase L remote highlight creation. Required proof:
+- ordinary unique selection matches;
+- a selection spanning a line/whitespace boundary recovers the exact Reader substring;
+- conservative curly/straight quote or dash equivalence recovers the exact Reader substring only when unique;
+- repeated identical text is reported as ambiguous and is not guessed.
 
 Later hard gates remain:
-- Reader v3 ↔ Readwise v2 highlight ID mapping;
-- safe note-update path;
-- safe highlight-delete path;
-- exact-content matching edge cases;
+- timeout-after-create reconciliation/deduplication;
+- durable outbound queue/retry semantics;
+- safe note conflicts/deletion policy;
 - content replacement vs existing KOReader positions/sidecars.
 
 ## Exact next steps
 
-1. Finish final CI/package for build **0.1.21**.
-2. Install only the updated `readwisereader.koplugin`; keep the existing database/settings/documents.
-3. On one already-managed article, create a short highlight and the distinctive Gate 7 note from `docs/DEVICE_TESTS.md`.
-4. Close/reopen the article and run **Scan current annotations (Gate 7)** from inside that article.
-5. Verify exact selected text/note, populated locator evidence and `Identity quality: strong`; record the Local ID.
-6. Close/reopen once more and rescan; the same Local ID must remain and the item should be unchanged.
-7. If Gate 7 passes, close/merge Phase I and begin **Phase J / Gate 8 annotation API interoperability spike**. No outbound annotation sync should be implemented before that spike proves the current Reader/Readwise ID/update/delete behavior.
+1. Merge the completed Phase J / Gate 8 branch only after its final documentation CI is green.
+2. Continue Phase K from the Gate 8 contract, but keep remote create/upload blocked until Gate 9 passes.
+3. Complete the conservative text matcher required by spec section 19, including HTML visible-text handling, whitespace/NBSP, punctuation variants, soft hyphen and ambiguity rejection.
+4. Add a **read-only Gate 9 diagnostic** that fetches the current managed Reader parent content and reports the match result without creating/updating/deleting any remote annotation.
+5. Add/expand unit coverage for ordinary text, line breaks, NBSP, curly quotes/dashes, soft hyphen, Unicode normalization, repeated text and no-match.
+6. Run syntax/unit/package CI.
+7. Stop at the Gate 9 physical test on the target PW3. Do not run the existing staged remote upload action until Gate 9 is recorded PASS.
+8. Only after Gate 9 passes proceed to Phase L / Gate 10 create + note + deduplication.
 
 ## Existing architectural decisions still in force
 

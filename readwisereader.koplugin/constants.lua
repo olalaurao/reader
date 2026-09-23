@@ -1,7 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
 return {
-    VERSION = "0.1.21",
+    VERSION = "0.1.22",
     SETTINGS_FILENAME = "readwisereader.lua",
     DEFAULT_DOWNLOAD_ROOT = "/mnt/us/documents/Readwise",
     DEFAULT_SYNC_LOCATIONS = { "new", "later" },
@@ -15,6 +15,11 @@ return {
     AUTH_URL = "https://readwise.io/api/v2/auth/",
     READER_LIST_URL = "https://readwise.io/api/v3/list/",
     READER_TAG_LIST_URL = "https://readwise.io/api/v3/tags/",
+    READER_SAVE_URL = "https://readwise.io/api/v3/save/",
+    READER_UPDATE_URL_PREFIX = "https://readwise.io/api/v3/update/",
+    READER_DELETE_URL_PREFIX = "https://readwise.io/api/v3/delete/",
+    READWISE_HIGHLIGHTS_URL = "https://readwise.io/api/v2/highlights/",
+    READWISE_EXPORT_URL = "https://readwise.io/api/v2/export/",
     -- LIST is documented at 20 requests/minute. 3.1s leaves a small safety margin.
     READER_LIST_MIN_INTERVAL_SECONDS = 3.1,
     READER_LIST_MAX_RATE_LIMIT_RETRIES = 2,

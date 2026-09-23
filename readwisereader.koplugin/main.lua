@@ -2,6 +2,7 @@
 
 local ArticleUI = require("ui/article")
 local AnnotationDiagnosticsUI = require("ui/annotation_diagnostics")
+local ApiInteropUI = require("ui/api_interop")
 local Config = require("config")
 local Constants = require("constants")
 local DB = require("storage/db")
@@ -131,6 +132,9 @@ function ReadwiseReader:init()
             return self.ui and self.ui.document and self.ui.document.file or nil
         end,
     }
+    self.api_interop_ui = ApiInteropUI:new{
+        config = self.config,
+    }
     self.ui.menu:registerToMainMenu(self)
 end
 
@@ -148,6 +152,7 @@ function ReadwiseReader:addToMainMenu(menu_items)
             self.image_spike_ui:getMenuItem(),
             self.raw_format_ui:getMenuItem(),
             self.annotation_diagnostics_ui:getMenuItem(),
+            self.api_interop_ui:getMenuItem(),
             self.settings_ui:getSettingsMenu(),
         },
     }

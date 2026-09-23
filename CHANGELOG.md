@@ -1,4 +1,7 @@
 # Changelog
+- Phase J experimental 0.1.22 adds a staged, disposable annotation API interoperability spike: Reader v3 child create/LIST/PATCH/DELETE, deterministic Reader↔Readwise v2 external-ID mapping probe, v2 note/color PATCH, cross-API delete observation, and recovery cleanup that only targets persisted Gate 8 disposable IDs.
+- Refreshed the annotation architecture for the current Reader API contract: Reader v3 now explicitly documents `notes` and `tags` PATCH support on highlight children, so Gate 8 tests v3 note update directly instead of assuming v2 is mandatory.
+
 - Phase I experimental 0.1.21 adds a read-only KOReader sidecar annotation adapter using `DocSettings`, deterministic SHA-256 local annotation IDs, literal note/text preservation, add/edit/delete detection and safe non-authoritative handling for missing files/sidecars.
 - Added **Scan current annotations (Gate 7)** so one already-managed open document can prove exact text/note/locator identity on-device without scanning the full library or writing anything remotely.
 
