@@ -592,7 +592,7 @@ Gate 4 is closed. Do not replay all Gates 0–4 after the KOReader upgrade. Gate
 
 ## Gate 4A — KOReader v2026.07.1 + Bookshelf migration
 
-Status: **Gate 5 COMPLETE; Phase H / Gate 6 build 0.1.20 pending physical PDF/EPUB validation**
+Status: **Gate 6 COMPLETE — Phase H PASSED; Phase I / Gate 7 next**
 
 Canonical detailed runbook: `docs/KOREADER_UPGRADE.md`.
 
@@ -879,3 +879,14 @@ Return:
 `PDF abriu: sim/não / PDF original: sim/não / PDF reabriu+progresso: sim/não / EPUB abriu: sim/não / EPUB original+reflow: sim/não / EPUB reabriu+progresso: sim/não / offline ok: sim/não / sem crash: sim/não`
 
 Gate 6 passes only with at least one **original PDF** and one **original EPUB**. HTML fallback is valid product behavior but is not evidence for the original-format gate.
+
+Recorded physical result:
+- original Reader PDF opened successfully: **PASS**;
+- PDF close/reopen + progress preservation: **PASS**;
+- original Reader EPUB opened successfully: **PASS**;
+- EPUB reflow/font controls behaved normally: **PASS**;
+- EPUB close/reopen + progress preservation: **PASS**;
+- offline/local reopen: **PASS**;
+- no crash/freeze: **PASS**.
+
+**Gate 6 PASSED. Proceed to Phase I / Gate 7.**
