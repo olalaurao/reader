@@ -680,5 +680,41 @@ Do **not** run `Full document rescan`. The first normal sync after installing 0.
 Pass report:
 `primeiro sync backfill=yes + errors0: sim/não / tag apareceu em Genres: sim/não / alteração de tag atualizou: sim/não / sem duplicar: sim/não / collections preservadas: sim/não / progresso-highlight-nota preservados: sim/não / restart ok: sim/não / no-op final ok: sim/não`
 
+### 0.1.12 physical tag result — FAIL isolated to Reader tag decoding
+
+User-reported result:
+- first metadata backfill sync: completed successfully;
+- tag add/change sync path: completed;
+- no duplicate: **PASS**;
+- progress/highlight/note preservation: **PASS**;
+- restart: **PASS**;
+- final no-op sync: **PASS**;
+- Bookshelf **Genres remained empty**: **FAIL**.
+
+Diagnosis:
+- real Reader Document LIST tag payloads are object/map records with a nested `name`;
+- 0.1.12 assumed an array of strings and therefore projected no actual tag names.
+
+### 0.1.13 targeted retest
+
+0.1.13 normalizes the real LIST shape and speeds the one-time repair:
+- projection marker is now `reader-tags-v2`;
+- repair query is server-filtered to `category=article`;
+- untagged articles do not get unnecessary metadata sidecar rewrites;
+- unchanged Collections are not rewritten.
+
+Retest:
+1. Replace only `koreader/plugins/readwisereader.koplugin/` with 0.1.13 and restart KOReader.
+2. Keep the distinctive Reader test tag on an already-managed article.
+3. Run **Sync now** once; do not run Full document rescan.
+4. Confirm `Reader tag metadata backfill: yes` and `Errors: 0`.
+5. Reopen/refresh Bookshelf -> Genres.
+6. Confirm the distinctive Reader tag is present and opens the same article.
+7. Change/remove the tag in Reader and run one more normal sync.
+8. Confirm the old genre disappears/new state appears without duplicate.
+
+Return only:
+`0.1.13 sync errors0: sim/não / tag apareceu em Genres: sim/não / mudança da tag refletiu: sim/não / sem duplicar: sim/não`
+
 Gate 4A-2 closes only after this targeted test passes.
 
