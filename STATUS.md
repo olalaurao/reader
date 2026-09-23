@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase N IMPLEMENTED — Gate 12 PHYSICAL VALIDATION PENDING on PW3 / KOReader 2026.07.1; build 0.1.28 hotfix**
+**Phase N IMPLEMENTED — Gate 12 PHYSICAL VALIDATION PENDING on PW3 / KOReader 2026.07.1; build 0.1.29 hotfix**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Current work is **Phase N / Gate 12 linked note update, conflict protection and opt-in verified deletion**, staged as build 0.1.28 after two physical note-update regressions were fixed. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Current work is **Phase N / Gate 12 linked note update, conflict protection and opt-in verified deletion**, staged as build 0.1.29 after three physical note-update regressions were diagnosed. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -1737,4 +1737,27 @@ Fixed in 0.1.28:
 - DELETE remains unchanged and still requires the exact per-annotation ownership marker;
 - run #422 on `209ef6504194f955dd424712474e5d7d90190d9d`: **SUCCESS**.
 
+Physical Gate 12 remains required.
+
+### Gate 12 attempt 3 — build 0.1.28 — FAIL / fixed in 0.1.29
+- current-document highlights scanned: 2;
+- highlights already linked: 2;
+- notes updated: 0;
+- note conflicts blocked: 2;
+- annotation mutations blocked safely: 0;
+- durable linked highlights accepted without marker: 2;
+- annotation remote errors: 0.
+
+Conclusion: identity resolution was fixed, but Reader v3 LIST `notes` produced false conflicts for both linked production highlights.
+
+0.1.29 fix:
+- resolve the exact Readwise v2 highlight by `external_id == Reader child id`;
+- persist the numeric v2 highlight id after deterministic resolution;
+- read the current remote note from v2 for three-way conflict detection;
+- PATCH that exact v2 highlight when only the local note changed;
+- verify returned v2 id/note before advancing the last-synced baseline;
+- Reader v3 remains the child id/parent/category identity check;
+- deletion behavior is unchanged and still strict.
+
+Code CI #432 on `1f6ee715feaa294984e04b3bb7139fd7836acff0`: **SUCCESS**.
 Physical Gate 12 remains required.
