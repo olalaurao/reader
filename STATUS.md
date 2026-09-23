@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase N IMPLEMENTED — Gate 12 PHYSICAL VALIDATION PENDING on PW3 / KOReader 2026.07.1; build 0.1.30 hotfix**
+**Phase N IMPLEMENTED — Gate 12 PHYSICAL VALIDATION PENDING on PW3 / KOReader 2026.07.1; build 0.1.31 hotfix**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Current work is **Phase N / Gate 12 linked note update, conflict protection and opt-in verified deletion**, staged as build 0.1.30 after four physical note-update regressions were diagnosed. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Current work is **Phase N / Gate 12 linked note update, conflict protection and opt-in verified deletion**, staged as build 0.1.31 after the fifth physical note-update issue exposed missing end-to-end Reader verification. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -1782,5 +1782,28 @@ Conclusion: identity and deterministic v2 mapping were correct; the remaining fa
 - preserve the exact local note as the update payload and persisted post-success baseline;
 - conflict detection remains conservative for substantive text differences;
 - CI #441 on `b53c40189d94200fdd0cc9677c797174aa778ccd`: **SUCCESS**.
+
+Physical Gate 12 remains open.
+
+### Gate 12 attempt 5 — build 0.1.30 — API success but Reader stale / fixed in 0.1.31
+- highlights created: 0;
+- notes updated: 1;
+- note conflicts blocked: 0;
+- durable linked highlights accepted without marker: 2;
+- Readwise v2 remote-note reads: 2;
+- Readwise v2 note updates: 1;
+- annotation remote errors: 0;
+- **Reader UI still showed the old note**.
+
+Conclusion: 0.1.30 advanced `last_synced_note` after a successful v2 PATCH response without proving propagation to the Reader v3 child. This made the summary claim success too early.
+
+0.1.31 fix:
+- poll the exact linked Reader v3 child after a v2 note PATCH before marking success;
+- if v2 has the desired note but Reader v3 is stale, issue a v3 repair PATCH to that same validated child;
+- verify the Reader child again after repair;
+- only after Reader visibility is proven does `last_synced_note` advance and `Notes updated` increment;
+- recover the 0.1.30 premature baseline state when local + baseline + v2 agree but Reader v3 is stale;
+- new diagnostics expose Reader verification reads, propagation misses, v3 repair PATCHes and completed repairs;
+- functional CI #449 and worker integration CI #450 passed.
 
 Physical Gate 12 remains open.
