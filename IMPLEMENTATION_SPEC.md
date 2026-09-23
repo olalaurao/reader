@@ -107,7 +107,7 @@ The plugin is **not** intended to reproduce the Reader UI. Reader is the capture
 
 - Update an already-created remote highlight note when the KOReader note changes.
 - Delete a remote highlight when a locally-created/synced annotation is intentionally deleted and the user explicitly enabled deletion propagation.
-- Sync highlight color when a reliable mapping exists.
+- Highlight color synchronization is intentionally out of V1: the target PW3 is monochrome and the current Reader workflow does not expose a useful multi-color requirement for this project.
 - Optional "sync only tag `koreader`".
 - Optional maximum download size.
 
@@ -228,7 +228,7 @@ Successful response contains a Reader-style string document ID. **Do not assume 
 PATCH /api/v3/update/<document_id>/
 ```
 
-Useful for document fields such as `location`. The docs explicitly say the `notes` update field does not add notes to highlights. Therefore do **not** assume this endpoint can update a highlight annotation.
+Useful for document fields such as `location`. Current Reader documentation explicitly permits `notes` and `tags` updates on highlight children. Gate 8 physically verified this on the target account. Production note updates should therefore prefer Reader v3 for the known Reader child ID.
 
 ### Bulk update
 
@@ -274,7 +274,7 @@ The v2 API has numeric highlight IDs and supports:
 
 Update supports fields including `text`, `note`, `location`, `url`, `color`.
 
-**Unknown until proven:** reliable mapping from the string ID returned by Reader v3 highlight creation to the numeric Readwise v2 highlight ID.
+**Gate 8 result:** the disposable physical spike established a deterministic Reader-child ↔ Readwise-v2 mapping path. Production code may use v2 only after that deterministic mapping is proven for the specific stored child; text/note heuristics are forbidden.
 
 Official docs:
 - https://readwise.io/api_deets
