@@ -77,6 +77,8 @@ function AnnotationDiagnosticsUI:scanCurrent()
         string.format(_("Changed: %d"), report.changed or 0),
         string.format(_("Unchanged: %d"), report.unchanged or 0),
         string.format(_("Deleted since prior scan: %d"), report.deleted or 0),
+        string.format(_("Degraded identities: %d"), report.degraded_identity or 0),
+        string.format(_("Identity collisions: %d"), report.identity_collisions or 0),
         string.format(_("Malformed skipped: %d"), report.malformed or 0),
     }
 
@@ -84,6 +86,7 @@ function AnnotationDiagnosticsUI:scanCurrent()
         lines[#lines + 1] = ""
         lines[#lines + 1] = _("Most recently modified highlight")
         lines[#lines + 1] = _("Local ID: ") .. report.sample.local_annotation_id
+        lines[#lines + 1] = _("Identity quality: ") .. clipped(report.sample.identity_quality, 40)
         lines[#lines + 1] = _("Locator fingerprint: ") .. clipped(report.sample.locator_fingerprint, 220)
         lines[#lines + 1] = _("Page/location: ") .. clipped(report.sample.page, 220)
         lines[#lines + 1] = _("Start: ") .. clipped(report.sample.pos0, 220)
