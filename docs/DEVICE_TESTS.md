@@ -1421,3 +1421,31 @@ What this physically proves:
 
 Next: proceed to **Gate 12B conflict test**. Do not test deletion until conflict handling passes.
 See `docs/ANNOTATION_SYNC_LESSONS.md` before modifying annotation logic again.
+
+
+### Gate 12B — conflict handling — PASS
+
+Physical result on target PW3 / KOReader v2026.07.1, build 0.1.31:
+- current-document highlights scanned: **1**;
+- highlights created: **0**;
+- highlights already linked: **1**;
+- notes updated: **0**;
+- note updates reconciled: **0**;
+- note conflicts blocked: **1**;
+- annotation mutations blocked safely: **0**;
+- local highlight deletions detected: **0**;
+- remote highlight deletions: **0**;
+- durable linked highlights accepted without marker: **1**;
+- Readwise v2 annotation pages scanned: **3**;
+- Readwise v2 mappings resolved: **1**;
+- Readwise v2 remote-note reads: **1**;
+- Readwise v2 note updates: **0**;
+- Reader note verification reads: **0**;
+- Reader v3 repair PATCHes: **0**;
+- annotation remote errors: **0**;
+- Reader remained `gate12 REMOTE conflict`;
+- Kindle remained `gate12 LOCAL conflict`.
+
+**Gate 12B PASS. No side was overwritten.**
+
+Next: Gate 12C — deletion propagation OFF. Do not enable remote deletion until the OFF run reports exactly one pending deletion.
