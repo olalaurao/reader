@@ -1088,3 +1088,51 @@ Observed:
 - no crash/freeze was observed.
 
 **Gate 9 PASSED. Proceed to Phase L / Gate 10 only after Phase K is merged to `main`.**
+
+
+## Phase L / Gate 10 — Reader highlight create + no duplicate
+
+Build: **0.1.25**
+
+This gate performs a real remote highlight creation. Use an already-managed Reader article and a new test highlight that you are comfortable keeping in Reader.
+
+Phase L intentionally discovers annotations only from the **currently-open managed Reader document** during `Sync now`; it does not sweep sidecars for the whole library in this gate build.
+
+### Test
+
+1. Install build 0.1.25 without replacing:
+   - `koreader/settings/readwisereader.lua`;
+   - `readwisereader.sqlite3`;
+   - downloaded Readwise documents;
+   - KOReader sidecars.
+2. Turn Wi-Fi on outside the plugin.
+3. Open an already-managed Reader article. Prefer one without old unsynced test highlights if convenient.
+4. Select a distinctive passage that occurs only once and create a highlight.
+5. Add this exact note:
+   `ver [[Foucault]]`
+   then on the next line:
+   `#pesquisar`
+6. Close the article and reopen it so the KOReader sidecar is flushed. Leave that same article open.
+7. Run **Readwise Reader -> Sync now**.
+8. On the sync summary, record:
+   - `Annotation sync`;
+   - `Highlights created`;
+   - `Highlight creates blocked safely`;
+   - `Reconciliation markers verified`.
+9. Refresh Reader on web/phone and confirm:
+   - the new highlight is under the **same original article**;
+   - the selected text is correct;
+   - the note is exactly `ver [[Foucault]]\n#pesquisar`.
+10. Without changing or adding highlights, run **Sync now** a second time while the same article is open.
+11. Confirm:
+   - second sync says `Highlights created: 0`;
+   - no create is blocked;
+   - Reader still shows only one copy of the tested highlight;
+   - KOReader does not crash/freeze.
+
+If the article already had other unsynced local highlights, the first sync may create more than one. That does not fail the gate by itself; identify the new `[[Foucault]]` test highlight and verify it specifically. The second unchanged sync must still create zero.
+
+Return:
+`doc certo: sim/não / texto certo: sim/não / nota exata: sim/não / primeiro sync created=<n> / primeiro blocked=<n> / marker verified=<n> / segundo sync created=0: sim/não / segundo blocked=0: sim/não / duplicata no Reader: sim/não / sem crash-freeze: sim/não`
+
+Gate 10 passes only if the tested highlight reaches the correct parent with the exact note, at least one marker is verified for the create path, no create is blocked in the normal case, and the second unchanged sync creates no duplicate.

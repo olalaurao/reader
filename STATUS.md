@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase K COMPLETE — Gate 9 PASSED on PW3 / KOReader 2026.07.1; build 0.1.24**
+**Phase L IMPLEMENTED — Gate 10 PHYSICAL VALIDATION PENDING on PW3 / KOReader 2026.07.1; build 0.1.25**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. **Phase K / Gate 9 exact Reader-visible text matching has now passed physically** on the target PW3 / KOReader v2026.07.1. The next step is to merge Phase K, then begin Phase L / Gate 10 remote create + note + duplicate-safe reconciliation. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Current work is **Phase L / Gate 10 Reader v3 highlight create + literal note + duplicate-safe reconciliation**, staged as build 0.1.25 for physical validation. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -603,32 +603,16 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 
 ## Current branch / commit
 
-- Branch: `phase-k/annotation-sync`
-- Current implementation/build HEAD before this STATUS-only closeout: `49cefdd565a22a1c0ed697b8ce954c921ae7c02a`
-- Integrated `main`: `9010238a5683f7f4b8f2de21a87b93ad1953e4ea` (PR #11 merge / Phase J + Gate 8 passed)
-- Phase K merge-main ancestry commit: `00d0548d31544316790d0f8622aea7b2737190f7`
-- Phase K matcher/diagnostic implementation: `d073ab250595c5391a00ad2c74d5d015813befb5`
-- Phase K diagnostic UI coverage: `2d093ccc0a28002d00eaffa6cfc4c41b0903879c`
-- Phase K Gate 9 build staging: `49cefdd565a22a1c0ed697b8ce954c921ae7c02a`
-- Historical Phase I `main`: `a7d0ca39ca1e7a1df1f775b9eb1ca121a572d802` (PR #10 merge / Gate 7 passed)
-- Phase F historical merge: `21dd64719ca248dd7706895fab1651751edf8844` (Gate 4 passed on KOReader 2025.04)
-- F1 settings/root ownership: `a57da9980d1b77a16bf2a0b8fbaa09327b1691d9`
-- F1/F2 incremental sync engine: `265405a479ab538ed4fbdde9223ca97c28aaad07`
-- canonical watermark overlap fixes/tests: `e2669755be705686a13977f0b99aa9ccf472b46c`, `e2d97fd8002fc26847243073457b91b70876df86`
-- path validation fixes/tests: `d5d219c42ddd08a3997095e5d69f099699d217a6`, `0a73e69e92f69b57250f0261f8f2d1dd553a7e5c`
-- F3 cancellable sync UI: `0fa4fa29cb160baedace4b978a6faab477c87af0`
-- menu/settings wiring: `029e0caea35fe5a86c8fe26c852b71696bf6ac4b`
-- Trapper parent/child safety refactor: `84b356c1c7757c56ea66624e117a63ad2b4c4a68`
-- Phase F.5 canonical planning: `13e7537cf97dba68b5119d1910348b1e188c28c9`
-- atomic parent watermark commit: `1fe9b5d2b4456405d282240e8171fc0abba4be4c`
-- corrected parent-failure test fixture: `6d4a8d5499f52c8f2bc2985e0707183fe1d288dc`
-- Run #66 on `84b356c...`: **SUCCESS**
-- Run #67 on `13e7537...`: **SUCCESS**
-- Run #68 failed only in the newly-edited `test_sync_ui.lua` fixture because the simulated metadata result was accidentally inserted into the Trapper stub; production code was not implicated.
-- Run #69 on `6d4a8d5...`: **SUCCESS** — Lua syntax, all unit tests, ZIP build/layout and artifact upload.
-- Run #70 on Gate 4 prep tip `5fb309774d8d4442b17251d582e475b21688a331`: **SUCCESS** — development checks, all Lua tests, package/layout and artifact upload.
-- Gate 4 CI artifact ID: `10723390104`; artifact digest: `sha256:fdbd74728a74c41d8649e4c3930fc843bb0acc0921910f54507c44e910d88344`.
-- Installable inner ZIP `readwisereader.koplugin.zip` verified with `unzip -t`; SHA-256: `ab055261fd54f48936e603f342310b5957ca000e717dca15e6e3fd44eca5afe9`.
+- Branch: `phase-l/highlight-create-gate10`
+- Base/integrated `main`: `e482dfb93ac882c20fdea946574835eb5a884766` (PR #12 merge / Phase K + Gate 9 passed)
+- Phase L duplicate-safe create core: `ecdfebc05d7100f7498a7cf2c763315e41db1c6e`
+- Phase L Sync-now current-document integration: `b8683bc8af3db6c505562aff818dbea3bdba0b53`
+- Phase L prior-attempt no-blind-retry hardening: `d81fccc13e0a70226f46e73cf08b0c13b2e33017`
+- Run #400 on create core: **SUCCESS**
+- Run #401 on Sync-now integration: **SUCCESS**
+- Historical Phase J main merge: `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`
+- Historical Phase I main merge: `a7d0ca39ca1e7a1df1f775b9eb1ca121a572d802`
+- Phase F historical merge: `21dd64719ca248dd7706895fab1651751edf8844`
 
 ## Target environment
 
@@ -638,7 +622,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Jailbreak/KUAL functional
 - KOReader historical Gate 0–4 baseline: `2025.04`
 - canonical physical V1 baseline from Gate 4A-1 onward: official KOReader `v2026.07.1`, `kindlepw2` package
-- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase K / Gate 9 exact Reader-visible text matching
+- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase L / Gate 10 highlight creation
 
 ## Phase A result
 
@@ -1448,7 +1432,8 @@ Current authoritative summary:
 - Gate 7: **PASSED** — KOReader sidecar annotation identity.
 - Gate 8: **PASSED** — Reader v3 ↔ Readwise v2 annotation interoperability.
 - Gate 9: **PASSED** — physical PW3 / KOReader v2026.07.1, build 0.1.24.
-- Gates 10–14: **NOT YET PASSED**.
+- Gate 10: **PENDING PHYSICAL TEST** — build 0.1.25.
+- Gates 11–14: **NOT YET PASSED**.
 
 Historical early-gate detail:
 - B1 off-device implementation: complete.
@@ -1514,31 +1499,42 @@ A pre-existing Phase K branch state had incorrectly grouped remote highlight cre
 
 ## Blockers
 
-No Gate 9 blocker remains. The four physical cases in build 0.1.24 passed on the target PW3 / KOReader v2026.07.1:
-- ordinary unique passage matched safely;
-- paragraph/line-boundary passage matched safely;
-- typographic quote/dash case matched safely;
-- repeated identical passage was rejected as ambiguous;
-- the diagnostic remained remotely read-only (`Remote writes: none`);
-- no crash/freeze was observed.
+Immediate blocker: **Gate 10 physical validation** of build 0.1.25 on the target PW3 / KOReader v2026.07.1.
 
-Next hard gate:
-- **Phase L / Gate 10** — Reader v3 create + literal note + correct-parent attachment + durable remote identity + duplicate-safe retry/reconciliation.
+Required observed proof:
+- a new unique KOReader highlight with literal note containing `[[Foucault]]` is created under the correct original Reader parent;
+- the Reader note is exact;
+- the first Sync now reports zero blocked creates;
+- the custom per-annotation create marker is observable through Reader LIST (`Reconciliation markers verified >= 1`);
+- a second unchanged Sync now reports `Highlights created: 0`;
+- Reader still has exactly one copy of the tested highlight;
+- no crash/freeze.
+
+Safety architecture now in force:
+- create queue row exists before POST;
+- confirmed Reader child ID is persisted immediately after a successful response;
+- stale/ambiguous/prior-attempt creates never return to blind `pending`;
+- reconciliation requires exact `parent_id` + unique custom Reader `source` marker;
+- zero/multiple reconciliation matches remain blocked with no new POST.
 
 Later hard gates remain:
-- durable outbound queue/retry semantics;
-- safe note conflicts/deletion policy;
-- content replacement vs existing KOReader positions/sidecars.
+- Gate 11 Obsidian official export end-to-end;
+- Gate 12 note update/conflict and opt-in deletion;
+- Gate 13 full offline queue/retry hardening;
+- Gate 14 finished/archive;
+- content replacement safety remains after the numbered V1 gates.
 
 ## Exact next steps
 
-1. Close Phase K documentation and merge `phase-k/annotation-sync` to `main`.
-2. Start Phase L only from the merged Gate 9 baseline.
-3. Review the quarantined 0.1.23 upload implementation against the current Gate 8/9 contracts; do not simply re-enable it unchanged.
-4. Implement Gate 10 create flow with Reader v3 parent linkage, literal note preservation, remote ID persistence only after confirmed creation, and timeout-after-create reconciliation before any retry.
-5. Add automated tests for duplicate-safe repeated sync and ambiguous POST outcomes.
-6. Produce a dedicated Phase L physical-test artifact and direct download link.
-7. Physical Gate 10 must verify a Kindle highlight with `[[Foucault]]` reaches the correct original Reader document and a second sync creates no duplicate.
+1. Finish CI/package build **0.1.25** from `phase-l/highlight-create-gate10`.
+2. Install only the new plugin build; preserve settings, SQLite DB, downloaded documents and KOReader sidecars.
+3. Open an already-managed Reader article and create one distinctive unique highlight with note `ver [[Foucault]]\n#pesquisar`.
+4. Close/reopen the article so KOReader flushes its sidecar; keep that article open.
+5. Run **Readwise Reader -> Sync now**.
+6. Verify Reader shows that highlight under the same original article with the note unchanged; record the annotation summary counts.
+7. Run **Sync now** again with no highlight changes and confirm `Highlights created: 0` and no duplicate in Reader.
+8. Return the compact Gate 10 result string from `docs/DEVICE_TESTS.md`.
+9. Do not proceed to Phase M / Gate 11 until this physical gate is recorded PASS.
 
 ## Existing architectural decisions still in force
 
@@ -1622,4 +1618,29 @@ Phase K:
 
 - Gate 8: **PASSED** physically and merged to `main`.
 - Gate 9: **PASSED physically** on the target PW3 / KOReader v2026.07.1. All four documented matching cases passed, every diagnostic remained remotely read-only, and no crash/freeze was observed.
-- Gate 10 and later: **NOT STARTED in gate terms**. Existing staged upload code is not evidence that Gate 10 is complete; it must be reviewed against the now-validated Gate 8/9 contracts before Phase L exposure.
+- Gate 10: **IMPLEMENTED / PENDING PHYSICAL TEST** in build 0.1.25. The old 0.1.23 action was not simply re-enabled; its create path was replaced with durable queueing and marker-based reconciliation.
+- Gate 11 and later: **NOT STARTED in gate terms**.
+
+
+## Phase L — Gate 10 highlight create + deduplication
+
+**Status: IMPLEMENTED / READY FOR PHYSICAL TEST — build 0.1.25; GATE 10 IS NOT YET PASSED**
+
+Implemented on `phase-l/highlight-create-gate10`:
+- Reader v3 parent-linked highlight creation from the currently-open managed KOReader document during normal **Sync now**;
+- literal note preservation, including `[[wikilinks]]` and multiline text;
+- stable queue identity `create_highlight:<local_annotation_id>`;
+- durable queue write before POST and durable Reader child ID link immediately after confirmed create;
+- stable unique per-annotation `saved_using` marker for ambiguous-outcome reconciliation;
+- stale or previously-attempted creates are blocked/reconciled and are never blindly POSTed again;
+- reconciliation adopts only one exact Reader child matching both parent and marker; zero/multiple matches remain blocked;
+- second sync skips already-linked annotations;
+- current-document-only sidecar discovery in this gate build to keep the PW3 responsive and avoid surprise bulk upload from the entire local library;
+- Sync summary exposes created/reconciled/already-linked/unmatched/blocked/marker-verified counts.
+
+Automated validation:
+- run #400 on `ecdfebc05d7100f7498a7cf2c763315e41db1c6e`: **SUCCESS**;
+- run #401 on `b8683bc8af3db6c505562aff818dbea3bdba0b53`: **SUCCESS**;
+- final 0.1.25 staging CI is pending at the time of this status update.
+
+Physical Gate 10 remains required before Phase M.
