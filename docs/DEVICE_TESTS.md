@@ -592,7 +592,7 @@ Gate 4 is closed. Do not replay all Gates 0–4 after the KOReader upgrade. Gate
 
 ## Gate 4A — KOReader v2026.07.1 + Bookshelf migration
 
-Status: **Gate 5 COMPLETE — Phase G PASSED; Phase H / Gate 6 next**
+Status: **Gate 5 COMPLETE; Phase H / Gate 6 build 0.1.20 pending physical PDF/EPUB validation**
 
 Canonical detailed runbook: `docs/KOREADER_UPGRADE.md`.
 
@@ -835,3 +835,47 @@ Recorded physical result:
 - exact sync image counters were not captured and are not required to close the gate because end-to-end rendering + failure tolerance were directly observed.
 
 **Gate 5 PASSED. Proceed to Phase H / Gate 6.**
+
+
+## Phase H / Gate 6 — original PDF + EPUB
+
+Build: **0.1.20**
+
+Purpose: prove original-format Reader PDF/EPUB materialization on the real PW3. Reader's current public LIST contract exposes `raw_source_url` only when requested; it is a direct S3 source link, may be empty for non-distributable documents and expires after one hour. Build 0.1.20 requests it immediately before materialization and never persists the signed URL.
+
+Safety implemented:
+- stream original bytes directly to a temp file;
+- 64 MiB maximum raw source size;
+- preserve at least 128 MiB free space before starting;
+- validate PDF/EPUB signatures before atomic rename;
+- clean incomplete temp files;
+- processed HTML fallback only for safe non-transient raw-source failures;
+- transient network/no-space failures remain retryable instead of silently changing format.
+
+### Targeted Gate 6 procedure
+
+Do **not** enable PDF/EPUB globally and do **not** run Full document rescan for this gate.
+
+1. Install 0.1.20 and restart KOReader.
+2. Open **Readwise Reader -> Test PDF / EPUB (Gate 6) -> Choose one PDF**.
+3. Select a real PDF you recognize from Reader.
+4. If the plugin reports that only an HTML fallback was available, choose a different PDF; that item does not satisfy the original-format gate.
+5. When the original PDF opens:
+   - confirm it behaves as a PDF (pages/zoom and normal KOReader PDF controls);
+   - read/change page;
+   - close and reopen it;
+   - confirm progress survives.
+6. Open **Test PDF / EPUB (Gate 6) -> Choose one EPUB**.
+7. Select a real EPUB. If an HTML-fallback message appears, choose another.
+8. For the original EPUB:
+   - confirm normal EPUB/reflow/font controls;
+   - read/change position;
+   - close/reopen;
+   - confirm progress survives.
+9. With both originals already installed, optionally turn Wi-Fi off and reopen them once to prove local/offline reading.
+10. Confirm KOReader remains responsive and Bookshelf/Readwise Reader still load.
+
+Return:
+`PDF abriu: sim/não / PDF original: sim/não / PDF reabriu+progresso: sim/não / EPUB abriu: sim/não / EPUB original+reflow: sim/não / EPUB reabriu+progresso: sim/não / offline ok: sim/não / sem crash: sim/não`
+
+Gate 6 passes only with at least one **original PDF** and one **original EPUB**. HTML fallback is valid product behavior but is not evidence for the original-format gate.
