@@ -1,4 +1,7 @@
 # Changelog
+- Phase I experimental 0.1.21 adds a read-only KOReader sidecar annotation adapter using `DocSettings`, deterministic SHA-256 local annotation IDs, literal note/text preservation, add/edit/delete detection and safe non-authoritative handling for missing files/sidecars.
+- Added **Scan current annotations (Gate 7)** so one already-managed open document can prove exact text/note/locator identity on-device without scanning the full library or writing anything remotely.
+
 - Phase H experimental 0.1.20 adds original Reader PDF/EPUB materialization through ephemeral `raw_source_url` links: bounded streaming to temp files, PDF/ZIP magic validation, atomic install, 64 MiB per-file cap, 128 MiB free-space reserve, original-format-first behavior and processed-HTML fallback only for safe non-transient raw-source failures.
 - Added PDF/EPUB document-type toggles (still off by default), raw-format outcome counters, and a targeted **Test PDF / EPUB (Gate 6)** picker so the physical gate can validate one real PDF and EPUB without triggering a whole-library raw-format backfill.
 
