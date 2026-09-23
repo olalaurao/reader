@@ -407,6 +407,26 @@ This **functionally passes G4.2 idempotency**, but the report also exposed an ef
 
 Gate 4 remains OPEN pending the clean 0.1.11 no-op retest, then location move, title rename, cancellation, and recovery.
 
+### G4.3 location-move retest — functional move observed, build verification still needed
+
+Latest on-device result:
+- `Mode: incremental`;
+- `Downloaded: 0`;
+- `Metadata updated: 1`;
+- `Reader location changes: 1`;
+- `Errors: 0`;
+- metadata write errors: 0;
+- Collection write errors: 0;
+- watermark advanced successfully.
+
+This is positive evidence that the Reader-side location change is detected and reconciled without a new download. However:
+- the summary still reports `Skipped (not materializable): 45`, which should be `0` on a true no-op/permanent-skip-suppressed 0.1.11 run unless those 45 records were genuinely returned as changed;
+- because the sync summary does not yet display the plugin version, the physical build in this screenshot cannot be proven from the UI alone;
+- G4.3 is not closed until the user confirms there is still only one local copy and the same path moved to the expected `Readwise: ...` Collection while unrelated user Collections stayed intact.
+
+If 0.1.11 was definitely installed for this run, investigate why the 45 permanent skips still re-entered the incremental pending set. If build certainty is low, repeat on a build whose summary exposes `Constants.VERSION`.
+
+
 ### G4.3 location-move attempt on pre-0.1.11 behavior
 
 A Reader-side location move was detected on-device:
