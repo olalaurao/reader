@@ -2277,11 +2277,15 @@ HTML fallback remains valid product behavior but does not substitute for the ori
 - unit coverage for rolling/PDF locator identity, note/text edits, locator changes, degraded IDs, add/edit/delete and unsafe missing-state cases;
 - targeted on-device current-document diagnostic avoids a full-library scan.
 
-### Gate 7 — physical validation pending
-- create one highlight and note on a managed article;
-- close/reopen so KOReader persists the sidecar;
-- scanner shows the exact selected text/note and non-empty locator evidence;
-- close/reopen again and confirm the same local annotation ID is produced.
+### Gate 7 — PASSED
+Physical PW3 validation on KOReader v2026.07.1 passed:
+- selected text and the note content actually entered on-device are read exactly from the sidecar;
+- locator evidence is populated and identity quality is strong;
+- close/reopen preserves the same local annotation ID;
+- a second scan recognizes the same annotation as unchanged;
+- no crash/freeze observed.
+
+The optional emoji fixture was not entered because the Kindle keyboard has no emoji input; this is not a persistence or identity failure.
 
 ## Phase J — annotation API spike
 
