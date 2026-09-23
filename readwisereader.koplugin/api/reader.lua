@@ -122,6 +122,8 @@ local function normalizeDocument(raw)
         summary = raw.summary,
         image_url = raw.image_url,
         parent_id = raw.parent_id,
+        highlight_offset = raw.highlight_offset,
+        highlight_location = raw.highlight_location,
         reading_progress = raw.reading_progress,
         first_opened_at = raw.first_opened_at,
         last_opened_at = raw.last_opened_at,
@@ -138,6 +140,10 @@ local function defaultJsonDecode(body)
     return JSON.decode(body, JSON.decode.simple)
 end
 
+local function defaultJsonEncode(value)
+    return require("json").encode(value)
+end
+
 local function defaultClock()
     return require("socket").gettime()
 end
@@ -152,6 +158,7 @@ function Reader:new(options)
         http = assert(options.http, "http is required"),
         config = assert(options.config, "config is required"),
         json_decode = options.json_decode,
+        json_encode = options.json_encode,
         clock = options.clock or defaultClock,
         sleep = options.sleep or defaultSleep,
         list_min_interval = options.list_min_interval or Constants.READER_LIST_MIN_INTERVAL_SECONDS,
@@ -182,6 +189,49 @@ function Reader:_decodeJson(body)
         }
     end
     return result
+end
+
+function Reader:_encodeJson(value)
+    local encode = self.json_encode or defaultJsonEncode
+    local ok, result = pcall(encode, value)
+    if not ok or type(result) ~= "string" then
+        return nil, {
+            kind = "encode",
+            retryable = false,
+            message = "Reader request payload could not be encoded.",
+        }
+    end
+    return result
+end
+
+function Reader:_jsonMutation(method, url, payload)
+    local token, token_err = self:_getToken()
+    if not token then return nil, token_err end
+
+    local body
+    if payload ~= nil then
+        local encode_err
+        body, encode_err = self:_encodeJson(payload)
+        if not body then return nil, encode_err end
+    end
+
+    local headers = {
+        ["Accept"] = "application/json",
+        ["Authorization"] = "Token " .. token,
+    }
+    if body ~= nil then
+        headers["Content-Type"] = "application/json"
+    end
+
+    local response, err = self.http:request{
+        method = method,
+        url = url,
+        headers = headers,
+        body = body,
+        timeout_class = "api",
+    }
+    if not response then return nil, err end
+    return response
 end
 
 function Reader:validateToken()
@@ -485,6 +535,124 @@ function Reader:diagnoseTag(name, options)
     }
 end
 
+function Reader:saveDocument(payload)
+    if type(payload) ~= "table" then
+        return nil, {
+            kind = "client",
+            retryable = false,
+            message = "Reader save payload is required.",
+        }
+    end
+    local response, err = self:_jsonMutation("POST", Constants.READER_SAVE_URL, payload)
+    if not response then return nil, err end
+
+    local decoded, decode_err = self:_decodeJson(response.body)
+    if not decoded then return nil, decode_err end
+    if type(decoded.id) ~= "string" or decoded.id == "" then
+        return nil, {
+            kind = "decode",
+            retryable = false,
+            message = "Reader save response did not contain a valid id.",
+        }
+    end
+    return {
+        id = decoded.id,
+        url = decoded.url,
+        status = response.status,
+    }
+end
+
+function Reader:createHighlight(parent_id, content, note, tags)
+    if type(parent_id) ~= "string" or parent_id == "" then
+        return nil, {
+            kind = "client",
+            retryable = false,
+            message = "Reader parent document id is required.",
+        }
+    end
+    if type(content) ~= "string" or content == "" then
+        return nil, {
+            kind = "client",
+            retryable = false,
+            message = "Reader highlight content is required.",
+        }
+    end
+
+    local payload = {
+        parent_id = parent_id,
+        content = content,
+        category = "highlight",
+        saved_using = "KOReader Readwise Reader",
+    }
+    if note ~= nil then payload.notes = note end
+    if type(tags) == "table" and #tags > 0 then payload.tags = tags end
+    return self:saveDocument(payload)
+end
+
+function Reader:updateDocument(reader_id, patch)
+    if type(reader_id) ~= "string" or reader_id == "" then
+        return nil, {
+            kind = "client",
+            retryable = false,
+            message = "Reader document id is required.",
+        }
+    end
+    if type(patch) ~= "table" then
+        return nil, {
+            kind = "client",
+            retryable = false,
+            message = "Reader update payload is required.",
+        }
+    end
+
+    local response, err = self:_jsonMutation(
+        "PATCH",
+        Constants.READER_UPDATE_URL_PREFIX .. percentEncode(reader_id) .. "/",
+        patch
+    )
+    if not response then return nil, err end
+
+    local decoded, decode_err = self:_decodeJson(response.body)
+    if not decoded then return nil, decode_err end
+    if type(decoded.id) ~= "string" or decoded.id == "" then
+        return nil, {
+            kind = "decode",
+            retryable = false,
+            message = "Reader update response did not contain a valid id.",
+        }
+    end
+    return {
+        id = decoded.id,
+        url = decoded.url,
+        status = response.status,
+    }
+end
+
+function Reader:deleteDocument(reader_id)
+    if type(reader_id) ~= "string" or reader_id == "" then
+        return nil, {
+            kind = "client",
+            retryable = false,
+            message = "Reader document id is required.",
+        }
+    end
+    local response, err = self:_jsonMutation(
+        "DELETE",
+        Constants.READER_DELETE_URL_PREFIX .. percentEncode(reader_id) .. "/",
+        nil
+    )
+    if not response then return nil, err end
+    if response.status ~= 204 then
+        return nil, {
+            kind = "unknown",
+            status = response.status,
+            retryable = false,
+            message = "Reader delete returned an unexpected success status.",
+        }
+    end
+    return true
+end
+
 function Reader:getDocument(reader_id, with_html_content, with_raw_source_url)
     if type(reader_id) ~= "string" or reader_id == "" then
         return nil, {
@@ -666,5 +834,6 @@ Reader._percentEncode = percentEncode
 Reader._buildListUrl = buildListUrl
 Reader._normalizeTags = normalizeTags
 Reader._normalizeDocument = normalizeDocument
+Reader._defaultJsonEncode = defaultJsonEncode
 
 return Reader
