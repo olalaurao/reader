@@ -448,7 +448,9 @@ Automated coverage includes:
 - targeted Gate 6 candidate fetch requesting both processed HTML and a fresh raw URL;
 - targeted Gate 6 UI: original raw opens normally, while HTML fallback still receives KOReader metadata/Collection projection but is explicitly rejected as original-format gate evidence.
 - run #294: **SUCCESS** — raw/fallback UI path coverage;
-- run #295 on `84741215...`: **SUCCESS** — full syntax, all unit tests, package/layout and artifact.
+- run #295 on `84741215...`: **SUCCESS** — full syntax, all unit tests, package/layout and artifact;
+- run #296 on `5852ac33...`: **SUCCESS** — final 0.1.20 documentation/build tip;
+- installable inner ZIP verified with `unzip -t`; SHA-256: `20fe677c52ea4eefba24c4fb4e98c09b286df04f2b0eaddd416f64e2de4fd23c`.
 
 Gate 6 is now blocked only on physical PW3 proof that one real original PDF and one real original EPUB open/read/reopen normally.
 
