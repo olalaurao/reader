@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase G / Gate 5 IN PROGRESS — G1 relative local asset spike build 0.1.17 pending physical validation**
+**Phase G / Gate 5 IN PROGRESS — G1 PASSED physically; G2 bounded local image cache implemented, production build pending final CI/device test**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -307,7 +307,41 @@ Expected device evidence:
 4. text after the missing image remains readable;
 5. close/reopen preserves normal document behavior.
 
-G2 remains blocked until this physical spike proves the relative-local-asset contract on the target PW3.
+Physical G1 result on the target PW3: **PASS**.
+- local relative SVG rendered;
+- text before/after remained readable;
+- intentionally missing relative image did not crash/freeze KOReader;
+- text after the missing image remained readable;
+- close/reopen worked normally.
+
+Therefore the relative-local-asset contract is accepted for G2.
+
+### G2 bounded production image cache — implementation in progress
+
+Chosen strategy:
+- keep article HTML small; never inline fetched images as data URIs;
+- store article assets in a deterministic hidden sibling directory under `Articles/`;
+- rewrite `<img src>` to document-relative local paths validated by G1;
+- strip `<picture>/<source>` alternate remote sources after localization so CRengine does not bypass the local asset;
+- replace failed/disabled/over-limit images with a small textual placeholder while preserving surrounding article text.
+
+Conservative PW3 caps:
+- max 2 MiB per image response;
+- max 8 MiB fetched/cached image budget per article;
+- max 20 image download attempts per article;
+- HTTP response sink aborts once the per-request body limit is crossed, so one unexpectedly huge image is not accumulated fully in RAM.
+
+Failure policy:
+- image failure is non-fatal to the document;
+- unsupported/broken/oversized images are counted and replaced with placeholders;
+- article HTML remains installable/readable;
+- successful asset files use the existing atomic installer;
+- newly-created assets are cleaned up if the parent HTML installation ultimately fails.
+
+Settings/reporting:
+- `Settings -> Documents -> Download article images` toggle added (default ON);
+- sync summary reports downloaded/reused/skipped/failed image counts and cached bytes;
+- existing already-local articles are not rewritten just to add images; remote content refresh remains Phase Q, so Gate 5 production validation must use a newly-materialized article.
 
 
 
