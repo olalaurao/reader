@@ -195,10 +195,12 @@ function Http:request(options)
     end
 
     if status >= 200 and status < 300 then
+        local body
+        if not custom_sink then body = table.concat(sink) end
         return {
             status = status,
             headers = headers,
-            body = custom_sink and nil or table.concat(sink),
+            body = body,
             bytes_received = received,
         }
     end
