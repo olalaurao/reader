@@ -214,13 +214,34 @@ Record after each stage:
 - v2 accepted the green color mutation: **yes**
 - **product decision:** color synchronization is not part of V1. Reader currently exposes no useful multi-color workflow for this project and the target PW3 display is monochrome. The green mutation remains only interoperability evidence from the disposable spike.
 
-## Architecture decision after Gate 8
+## Architecture decision after Gate 8, corrected by Gate 12 production evidence
 
-Gate 8 establishes the production contract:
+Gate 8 established the disposable interoperability primitives, but Gate 12 proved that production linked highlights require a cross-API note workflow rather than a simple "Reader v3 preferred for notes" rule.
+
+Canonical production contract:
 - use Reader v3 for highlight creation with `parent_id` and exact content;
 - persist the returned Reader child ID only after confirmed creation;
-- Reader v3 can update highlight notes/tags and is the preferred note-update path;
-- the Reader child can be mapped deterministically to its Readwise v2 numeric highlight when v2 interoperability is needed; never fall back to text/note heuristics;
-- Reader v3 deletion of the proven child propagates so the corresponding v2 highlight disappears; production deletion remains opt-in/default OFF;
+- for non-destructive note-update identity, require durable Reader child ID + same parent + `category=highlight`; `saved_using/source` is supplementary because production Reader LIST may omit/normalize it;
+- map the Reader child deterministically to Readwise v2 with `v2 highlight.external_id == Reader child id`; persist the numeric v2 ID; never fall back to text/note heuristics;
+- use the exact mapped Readwise v2 `note` as production remote truth for three-way conflict detection;
+- normalize only invisible newline/whitespace representation when comparing notes; preserve exact user payload text;
+- when only local changed, PATCH the exact mapped v2 highlight;
+- **do not treat v2 PATCH acknowledgement as end-to-end success**;
+- poll the exact Reader v3 child and require the expected note to be visible there before advancing `last_synced_note`;
+- if v2 already has the desired note but Reader v3 is stale, PATCH that same validated Reader child through v3 as a repair, then verify again;
+- only after Reader visibility is proven may durable sync state advance;
+- Reader v3 deletion of a proven child propagates so the corresponding v2 highlight disappears, but production deletion remains opt-in/default OFF and keeps stricter exact ownership-marker requirements;
 - do not implement highlight-color synchronization in V1;
 - preserve literal note text, including `[[wikilinks]]`, throughout the production sync path.
+
+Physical Gate 12A evidence on build 0.1.31:
+- 2 linked highlights scanned;
+- 1 note update + 1 reconciliation;
+- 0 conflicts, 0 mutation blocks, 0 remote errors;
+- 2 v2 remote-note reads and 1 v2 note update;
+- 6 Reader verification reads;
+- 1 propagation miss;
+- 2 Reader v3 repair PATCHes and 2 completed repairs;
+- user visually confirmed the final Reader note.
+
+See `docs/ANNOTATION_SYNC_LESSONS.md` for the full failure history and MUST/DO NOT rules. Future annotation work must consult that file before implementation.
