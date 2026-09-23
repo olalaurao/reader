@@ -101,7 +101,10 @@ return function()
                         author = "Author",
                         category = "article",
                         location = "new",
-                        tags = { "research", "deep work" },
+                        tags = {
+                            ["tag-key-2"] = { name = "deep work" },
+                            ["tag-key-1"] = { name = "research" },
+                        },
                         parent_id = nil,
                         updated_at = "2026-09-22T10:00:00Z",
                         saved_at = "2026-09-20T10:00:00Z",
@@ -129,8 +132,13 @@ return function()
         assert(#page.results == 2)
         assert(page.results[1].id == "doc-1")
         assert(page.results[1].title == "Título ç")
-        assert(page.results[1].tags[1] == "research")
-        assert(page.results[1].tags[2] == "deep work")
+        assert(page.results[1].tags[1] == "deep work")
+        assert(page.results[1].tags[2] == "research")
+        assert(Reader._normalizeTags({ "z", "a", "z" })[1] == "a")
+        assert(Reader._normalizeTags({
+            alpha = { name = "Alpha" },
+            beta = { name = "Beta" },
+        })[2] == "Beta")
         assert(page.results[2].parent_id == "doc-1")
         assert(page.next_page_cursor == "cursor/2 + next")
         assert(captured.method == "GET")
