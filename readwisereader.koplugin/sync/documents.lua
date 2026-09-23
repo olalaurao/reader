@@ -125,7 +125,14 @@ function DocumentsSync:_updateExistingMetadata(existing, document, seen_at, repo
             end
         end
         if moved then report.location_moved = report.location_moved + 1 end
-        self:_syncCollection(existing, document, report)
+        -- The one-time metadata projection backfill touches every managed
+        -- document. Rewriting an unchanged Collection for every one of those
+        -- files adds hundreds of unnecessary settings writes on a Kindle.
+        -- Preserve normal collection-repair behavior outside the backfill,
+        -- while still applying any real Reader-side location move we discover.
+        if moved or not force_metadata then
+            self:_syncCollection(existing, document, report)
+        end
         if remote_changed then
             -- Content replacement is intentionally deferred to Phase Q.
             report.content_refresh_deferred = report.content_refresh_deferred + 1
