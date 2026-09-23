@@ -9,6 +9,7 @@ function FirstArticle:new(options)
         reader = assert(options.reader, "reader is required"),
         repository = assert(options.repository, "repository is required"),
         html = assert(options.html, "html is required"),
+        images = options.images,
         filenames = assert(options.filenames, "filenames is required"),
         installer = assert(options.installer, "installer is required"),
         hasher = assert(options.hasher, "hasher is required"),
@@ -94,17 +95,34 @@ function FirstArticle:installDocument(document)
         }
     end
 
-    local rendered, render_err = self.html.build(document)
-    if not rendered then
-        return nil, render_err
-    end
-
     local filename = self.filenames.build(document.title, document.id, "html")
     local final_path = self.filenames.joinUnderRoot(
         self.download_root,
         "Articles",
         filename
     )
+
+    local render_document = document
+    local image_report
+    if self.images then
+        local article_dir = final_path:match("^(.*)/[^/]+$")
+        local asset_dir = self.filenames.assetDirectory(document.id)
+        local localized_html
+        localized_html, image_report = self.images:localize(
+            document,
+            article_dir .. "/" .. asset_dir,
+            asset_dir
+        )
+        render_document = {}
+        for key, value in pairs(document) do render_document[key] = value end
+        render_document.html_content = localized_html
+    end
+
+    local rendered, render_err = self.html.build(render_document)
+    if not rendered then
+        if self.images and image_report then self.images:cleanup(image_report.new_paths) end
+        return nil, render_err
+    end
 
     self.repository:upsertRemote(document, self.now())
 
@@ -134,6 +152,7 @@ function FirstArticle:installDocument(document)
     end
 
     if not installed then
+        if self.images and image_report then self.images:cleanup(image_report.new_paths) end
         self.repository:setLocalState(document.id, {
             is_local_present = false,
             last_sync_error = install_err and install_err.kind or "io",
@@ -163,6 +182,7 @@ function FirstArticle:installDocument(document)
         existing = false,
         durability_warning = installed.durability_warning,
         metadata_warning = metadata_ok and nil or metadata_err,
+        image_report = image_report,
     }
 end
 
