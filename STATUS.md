@@ -78,6 +78,25 @@ Immediate next action:
 - keep normal File Manager as startup;
 - Readwise Reader baseline from Gate 4A-1 remains valid unless the log shows cross-plugin corruption.
 
+Crash-log diagnosis from the failed Bookshelf session:
+- KOReader was on v2026.07.1;
+- both Bookshelf and Readwise Reader loaded; only the expected deprecated `_meta.lua name` warnings were emitted;
+- there is **no Bookshelf Lua traceback** before the hard freeze;
+- immediately after Bookshelf loaded/was opened, KOReader logged repeated FreeType failures for Bookshelf's bundled fonts:
+  - `RobotoCondensed-Regular.ttf`;
+  - `Inter-ExtraBold.ttf`;
+  - `Caveat-Regular.ttf`;
+- these filenames match Bookshelf v5.1.4's bundled/fresh-install default fonts and its startup font-install path;
+- therefore the strongest current lead is Bookshelf first-run bundled-font installation/registration or corrupted copied font files, not a Readwise Reader exception.
+
+Controlled recovery before retest:
+1. with KOReader closed, keep the Readwise documents/sidecars/settings/database intact;
+2. optionally move unrelated legacy books off-device (after backup) to reduce the library Bookshelf/CoverBrowser scans; do not assume Reader PDF/EPUB support exists yet;
+3. rebuild CoverBrowser metadata cache after the content cleanup by removing only `koreader/settings/bookinfo_cache.sqlite3` while KOReader is closed;
+4. ensure Bookshelf bundled TTFs are present and valid in Kindle's `/mnt/us/fonts/` before KOReader starts; if necessary overwrite them from `koreader/plugins/bookshelf.koplugin/fonts/`;
+5. restart KOReader once so the font scanner sees them before Bookshelf is opened;
+6. retry only Bookshelf Home -> Recent navigation first. If it still hard-freezes, stop and collect the new log before any further coexistence work.
+
 
 
 
