@@ -266,6 +266,7 @@ return function()
         local reader = {
             iterateDocuments = function(_, options, callback)
                 assert(options.updated_after == nil)
+                assert(options.category == "article")
                 assert(options.with_html_content == false)
                 metadata_calls = metadata_calls + 1
                 callback(doc("a", "new", "Alpha", "u1", nil, { "backfilled" }))
@@ -285,6 +286,42 @@ return function()
         assert(#installs == 0)
         assert(#collections == 0)
         assert(#metadata == 1 and metadata[1].tags[1] == "backfilled")
+        assert(updated_meta.values.metadata_projection_version == PROJECTION)
+    end
+
+    do
+        -- Untagged documents do not need a sidecar rewrite during a projection
+        -- repair. This keeps the one-time upgrade cheap on large libraries.
+        local repository = fakeRepository({
+            a = {
+                reader_id = "a", category = "article", location = "new",
+                title = "Alpha", remote_updated_at = "u1",
+                local_path = "/Readwise/a.html", is_local_present = true, is_managed = true,
+            },
+        })
+        local meta = fakeMeta({
+            document_watermark = "T001000",
+            document_query_after = "T000995",
+            document_filter_scope = "locations=later,new;categories=article",
+            metadata_projection_version = "reader-tags-v1",
+        })
+        local reader = {
+            iterateDocuments = function(_, options, callback)
+                assert(options.updated_after == nil)
+                assert(options.category == "article")
+                callback(doc("a", "new", "Alpha", "u1", nil, {}))
+                return { pages = 1, duplicates = 0 }
+            end,
+        }
+        local syncer, _, updated_meta, installs, collections, metadata = newSync{
+            reader = reader, repository = repository, meta = meta, now_values = { 1039, 1040 },
+        }
+        local report, err = syncer:sync{}
+        assert(err == nil)
+        assert(report.metadata_projection_backfill == true)
+        assert(#installs == 0)
+        assert(#collections == 0)
+        assert(#metadata == 0)
         assert(updated_meta.values.metadata_projection_version == PROJECTION)
     end
 
