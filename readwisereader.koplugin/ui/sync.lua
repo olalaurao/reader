@@ -107,6 +107,7 @@ local function summaryText(report)
         string.format(_("Local highlight deletions detected: %d"), report.local_deletions_detected or 0),
         string.format(_("Remote highlight deletions: %d"), report.remote_deletions or 0),
         string.format(_("Deletions retained remotely (propagation off): %d"), report.deletions_retained or 0),
+        string.format(_("Legacy linked highlights accepted safely: %d"), report.legacy_annotation_links_accepted or 0),
         string.format(_("Annotation remote errors: %d"), report.annotation_remote_errors or 0),
     }
 

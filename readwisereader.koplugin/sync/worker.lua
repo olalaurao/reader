@@ -151,6 +151,7 @@ function Worker:run(options)
         sync_report.remote_deletions = 0
         sync_report.deletions_retained = 0
         sync_report.annotation_remote_errors = 0
+        sync_report.legacy_annotation_links_accepted = 0
         sync_report.annotation_sync_status = "no_current_document"
 
         if type(options.current_path) == "string" and options.current_path ~= "" then
@@ -223,6 +224,8 @@ function Worker:run(options)
                             sync_report.annotation_remote_errors =
                                 sync_report.annotation_remote_errors
                                 + (mutation_report.remote_errors or 0)
+                            sync_report.legacy_annotation_links_accepted =
+                                mutation_report.legacy_identity_accepted or 0
                         end
                     end
                 end

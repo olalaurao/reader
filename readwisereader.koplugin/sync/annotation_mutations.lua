@@ -27,7 +27,8 @@ function Mutations:new(options)
     }, self)
 end
 
-function Mutations:_verifyChild(document, link)
+function Mutations:_verifyChild(document, link, options)
+    options = options or {}
     if type(link.reader_highlight_document_id) ~= "string"
         or link.reader_highlight_document_id == "" then
         return nil, err("remote_identity", "Linked annotation has no Reader child id.", false)
@@ -40,18 +41,31 @@ function Mutations:_verifyChild(document, link)
     )
     if not child then return nil, child_err end
 
-    local expected_source = AnnotationIdentity.markerFor(link.local_annotation_id)
     if child.id ~= link.reader_highlight_document_id
         or child.parent_id ~= document.reader_id
-        or child.category ~= "highlight"
-        or child.source ~= expected_source then
+        or child.category ~= "highlight" then
         return nil, err(
             "remote_identity",
-            "Reader child identity did not match the linked annotation; no mutation was attempted.",
+            "Reader child id/parent/category did not match the durable link; no mutation was attempted.",
             false
         )
     end
-    return child
+
+    local expected_source = AnnotationIdentity.markerFor(link.local_annotation_id)
+    if child.source == expected_source then
+        return child, nil, "exact"
+    end
+
+    if options.allow_legacy_source == true
+        and child.source == "KOReader Readwise Reader" then
+        return child, nil, "legacy"
+    end
+
+    return nil, err(
+        "remote_identity",
+        "Reader child ownership marker did not match the linked annotation; no mutation was attempted.",
+        false
+    )
 end
 
 function Mutations:_markSynced(candidate, link)
@@ -80,15 +94,26 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
         return
     end
 
-    local child, child_err = self:_verifyChild(document, link)
+    local child, child_err, identity_mode = self:_verifyChild(
+        document,
+        link,
+        { allow_legacy_source = true }
+    )
     if not child then
         self.annotations:setSyncState(
             candidate.local_annotation_id,
-            "local_changed",
+            child_err and child_err.kind == "remote_identity" and "blocked" or "local_changed",
             child_err and child_err.kind or "remote_lookup"
         )
-        report.remote_errors = report.remote_errors + 1
+        if child_err and child_err.kind == "remote_identity" then
+            report.blocked = report.blocked + 1
+        else
+            report.remote_errors = report.remote_errors + 1
+        end
         return
+    end
+    if identity_mode == "legacy" then
+        report.legacy_identity_accepted = report.legacy_identity_accepted + 1
     end
 
     local baseline = link.last_synced_note
@@ -146,7 +171,11 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
         return
     end
 
-    local verified, verify_err = self:_verifyChild(document, link)
+    local verified, verify_err, verify_identity_mode = self:_verifyChild(
+        document,
+        link,
+        { allow_legacy_source = true }
+    )
     if not verified then
         self.annotations:setSyncState(
             candidate.local_annotation_id,
@@ -155,6 +184,9 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
         )
         report.remote_errors = report.remote_errors + 1
         return
+    end
+    if verify_identity_mode == "legacy" then
+        report.legacy_identity_accepted = report.legacy_identity_accepted + 1
     end
     if verified.notes ~= local_note then
         self.annotations:setSyncState(
@@ -238,6 +270,7 @@ function Mutations:syncPath(local_path)
         deletions_remote = 0,
         deletions_already_remote = 0,
         remote_errors = 0,
+        legacy_identity_accepted = 0,
     }
     if not scan.authoritative then return report end
 

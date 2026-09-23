@@ -91,19 +91,19 @@ local function repos(state)
     return documents, annotations
 end
 
-local function child(note)
+local function child(note, source)
     return {
         id = "remote-1",
         parent_id = "doc-1",
         category = "highlight",
-        source = Identity.markerFor("ann-1"),
+        source = source or Identity.markerFor("ann-1"),
         notes = note,
     }
 end
 
-local function newMutator(state, local_note, remote_note, propagate)
+local function newMutator(state, local_note, remote_note, propagate, source)
     local documents, annotations = repos(state)
-    local remote = child(remote_note)
+    local remote = child(remote_note, source)
     local reader = {
         getDocument = function()
             return copy(remote)
@@ -147,6 +147,25 @@ local function updateCase()
     assert(state.updates == 1)
     assert(state.row.last_synced_note == "new [[Foucault]]")
     assert(state.row.sync_state == "synced")
+end
+
+local function legacyUpdateCase()
+    local state = baseState()
+    local mutator = newMutator(
+        state,
+        "legacy updated [[Foucault]]",
+        "old note",
+        false,
+        "KOReader Readwise Reader"
+    )
+    local report = assert(mutator:syncPath("/Readwise/a.html"))
+    assert(report.notes_updated == 1)
+    assert(report.conflicts == 0)
+    assert(report.blocked == 0)
+    assert(report.remote_errors == 0)
+    assert(report.legacy_identity_accepted >= 1)
+    assert(state.updates == 1)
+    assert(state.row.last_synced_note == "legacy updated [[Foucault]]")
 end
 
 local function reconcileCase()
@@ -197,6 +216,24 @@ local function deletionOnCase()
     assert(state.row.sync_state == "deleted_synced")
 end
 
+local function legacyMarkerStillBlocksDelete()
+    local state = baseState()
+    state.row.local_deleted_at = 123
+    state.row.sync_state = "local_deleted"
+    local mutator = newMutator(
+        state,
+        false,
+        "old note",
+        true,
+        "KOReader Readwise Reader"
+    )
+    local report = assert(mutator:syncPath("/Readwise/a.html"))
+    assert(report.blocked == 1)
+    assert(report.deletions_remote == 0)
+    assert(state.deletes == 0, "legacy generic ownership marker must not authorize DELETE")
+    assert(state.row.created_remote == true)
+end
+
 local function identityMismatchBlocksDelete()
     local state = baseState()
     state.row.local_deleted_at = 123
@@ -229,9 +266,11 @@ end
 
 return function()
     updateCase()
+    legacyUpdateCase()
     reconcileCase()
     conflictCase()
     deletionOffCase()
     deletionOnCase()
+    legacyMarkerStillBlocksDelete()
     identityMismatchBlocksDelete()
 end
