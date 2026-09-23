@@ -1356,3 +1356,29 @@ Do not create or edit another highlight.
    - no false conflict for the target;
    - Reader displays the edited note.
 6. Do not test deletion until this passes.
+
+### Gate 12 attempt 5 — build 0.1.30 — Reader remained stale / fixed in 0.1.31
+Observed:
+- Notes updated: 1;
+- v2 note updates: 1;
+- note conflicts: 0;
+- remote errors: 0;
+- Reader still displayed the old note.
+
+0.1.31 no longer accepts the v2 response as sufficient success. It verifies the exact Reader child, waits for propagation, and if necessary repairs that child with a v3 PATCH before persisting success.
+
+#### 0.1.31 retest
+Do not create or edit another highlight.
+1. Install 0.1.31.
+2. Use the same article and same local note.
+3. Close/reopen the article; leave it open.
+4. Run Sync now.
+5. Expected recovery path may show:
+   - `Readwise v2 note updates: 0` because v2 already has the desired value from 0.1.30;
+   - `Reader note verification reads` > 0;
+   - `Reader v3 repair PATCHes: 1` if Reader is still stale;
+   - `Reader note repairs completed: 1`;
+   - `Note updates reconciled: 1` rather than `Notes updated: 1` on this recovery run;
+   - `Annotation remote errors: 0`;
+   - Reader displays the new local note.
+6. Do not test conflict/delete until the Reader visibly shows the new note.
