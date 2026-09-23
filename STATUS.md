@@ -42,6 +42,17 @@ Conclusion:
 - KOReader 2025.04 remains the historical Gate 0–4 compatibility baseline only;
 - next blocker is **Gate 4A-2: Bookshelf v5.1.4 coexistence**, including Reader location Collections and Reader tags -> Bookshelf-compatible metadata.
 
+### Gate 4A-2 preparation
+
+- Gate 4A-1 documentation CI run #132: **SUCCESS**.
+- Pinned Bookshelf release: **v5.1.4**.
+- Official asset: `bookshelf.koplugin.zip`.
+- SHA-256: `f23a66dd1ea50e80ddc421f0c5b62b5a7ebe99da05e63be59bd5ae3d08537dc0`.
+- Install target on Kindle: `/mnt/us/koreader/plugins/bookshelf.koplugin/`.
+- KOReader built-in **Cover browser** must be enabled.
+- Keep normal File Manager as startup initially; do **not** enable `Start with -> Bookshelf` until coexistence passes.
+
+
 
 - freeze/back up the known-good 2025.04 state;
 - upgrade KOReader only to official `v2026.07.1` using the PW3 `kindlepw2` package;
