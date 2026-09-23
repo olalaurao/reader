@@ -465,6 +465,54 @@ Physical Gate 6 result on the target PW3 / KOReader 2026.07.1:
 
 Gate 6 is closed. **Phase H is complete and Phase I / Gate 7 (KOReader sidecar/annotation adapter) is now unblocked.**
 
+## Phase I — KOReader sidecar / annotation adapter
+
+### 0.1.21 implementation ready for Gate 7
+
+KOReader v2026.07.1 source contract revalidated before implementation:
+- `DocSettings:open(doc_path)` resolves the active sidecar location rather than requiring this plugin to hardcode `.sdr` paths;
+- a valid loaded sidecar exposes `source_candidate`;
+- `ReaderAnnotation:onReadSettings()` reads the canonical `annotations` setting;
+- `ReaderAnnotation:onSaveSettings()` writes the same `annotations` table;
+- current annotation records contain creation/update timestamps, highlight style/color, selected text, note, page/XPointer and start/end positions;
+- KOReader's own matching logic uses stable creation/location fields rather than mutable note/text values.
+
+Implemented:
+- new `koreader/annotations.lua` adapter reads sidecars through `DocSettings`;
+- only actual highlights (`drawer ~= nil`) are candidates; page bookmarks are ignored;
+- selected text and note are preserved literally, including newlines, UTF-8, Markdown and `[[wikilinks]]`;
+- strong local annotation identity follows the canonical contract:
+  `SHA256(reader_document_id + datetime + canonical_locator)`;
+- locator serialization is deterministic, sorts nested table keys and normalizes locale-dependent decimal separators for PDF coordinates;
+- mutable text, note, color, style, chapter, page labels and calculated page numbers are excluded from identity;
+- missing `datetime` uses a degraded first-seen identity; later text edits reuse the stored ID only when the locator has one unambiguous prior match;
+- identity collisions are detected and surfaced rather than silently merged;
+- local text/note edits are detected by SHA-256 hashes without changing a strong local ID;
+- local deletion is detected only from an authoritative, valid sidecar annotation table;
+- **missing document file, missing/invalid sidecar, or missing `annotations` key never implies deletion**;
+- managed ownership is resolved only by exact `documents.local_path` DB linkage, never by folder/title/filename inference;
+- storage now supports local-path document lookup, per-document annotation listing and local deletion tombstones;
+- a targeted **Scan current annotations (Gate 7)** action scans only the currently-open managed document, avoiding a whole-library sidecar walk;
+- the device diagnostic shows counts, stable local ID, identity quality, locator evidence, exact selected text and exact note for the most recently modified highlight;
+- no Reader/Readwise write endpoint is called in Phase I.
+
+Automated coverage:
+- note edit and text edit do not change strong identity;
+- locator change does change identity;
+- delete/recreate with a new creation timestamp gets a new identity;
+- PDF locator table key order is canonical;
+- page bookmarks are ignored;
+- malformed highlights are skipped safely;
+- no-sidecar / missing-annotations state is non-authoritative;
+- add/edit/delete detection and deletion tombstone behavior;
+- degraded identity survives later text edits through unambiguous locator reconciliation;
+- unrelated documents cannot be scanned as managed Reader documents;
+- missing local managed file never implies annotation deletion;
+- Gate 7 diagnostic preserves literal `[[Foucault]]`, hashtags, emoji and line breaks in its on-device evidence.
+
+Gate 7 now requires only a short physical test on one already-managed article: create a highlight + note, close/reopen, scan it, and verify the same local ID survives another reopen.
+
+
 
 
 
