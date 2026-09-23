@@ -47,6 +47,14 @@ All notable project changes are recorded here.
 - Added transactional final watermark commit only after parent post-processing succeeds.
 - Added post-processing/watermark failure tests, no-op second-sync/rename/location tests and rooted path-escape coverage.
 - Added Phase F.5 / Gate 4A: after Gate 4 on KOReader 2025.04, migrate deliberately to official KOReader v2026.07.1 (`kindlepw2`) and then validate Bookshelf v5.1.4 before Phase G.
+- Gate 4A-1 passed on the target PW3; KOReader v2026.07.1 is now the canonical physical baseline.
+- Gate 4A-2 base coexistence with Bookshelf v5.1.4 passed after a controlled cleanup/recovery retest; Readwise articles open from Bookshelf, progress survives, close returns cleanly, and consecutive syncs remain idempotent.
+- Reader location Collections were validated inside Bookshelf, including Reader-side moves and preservation of unrelated user Collections.
+- Experimental 0.1.12 projects Reader document tags into KOReader custom `keywords`, which Bookshelf consumes as genres.
+- Added a projection-version marker so existing managed articles get a one-time metadata-only Reader LIST backfill for tags without replaying the expensive HTML/content rescan.
+- Empty Reader tag sets explicitly clear KOReader custom keywords, preventing fallback to stale embedded genres.
+- Fixed 0.1.12 Reader-tag projection after device testing showed Bookshelf Genres empty: Reader Document LIST uses an object/map of tag records with nested `name` values, now normalized to canonical tag-name arrays.
+- Optimized the one-time tag projection repair by querying only `category=article` and rewriting metadata only for tagged documents, while preserving normal incremental sync semantics.
 
 ## [0.0.2] - 2026-09-22
 

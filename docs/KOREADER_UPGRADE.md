@@ -2,9 +2,9 @@
 
 > Research/plan date: 2026-09-22  
 > Device: Kindle Paperwhite 3 / 7th gen (G090KB), firmware 5.16.2.1.1  
-> Current KOReader baseline: v2025.04  
-> Planned post-Gate-4 baseline: official KOReader v2026.07.1  
-> Planned Bookshelf validation: v5.1.4
+> Historical Gate 0–4 baseline: v2025.04  
+> Canonical physical V1 baseline after Gate 4A-1: official KOReader v2026.07.1  
+> Gate 4A-2 Bookshelf validation: v5.1.4
 
 ## Decision: upgrade after Gate 4, before Phase G
 
@@ -78,11 +78,29 @@ Never expose the Readwise token in chat, Git, screenshots or logs.
 
 Install **official v2026.07.1 `kindlepw2`**.
 
+Pinned asset:
+- `koreader-kindlepw2-v2026.07.1.zip`
+- official release: https://github.com/koreader/koreader/releases/tag/v2026.07.1
+- SHA-256: `ea1f575c54492a2c679d128b7f3210fd7d6a87e5f5a1ff1f7a7fe2080ff68f86`
+
+For this existing KUAL installation, prefer KOReader's documented **Manual Update** path rather than deleting/replacing the entire KOReader directory:
+
+1. exit KOReader completely before entering USB storage mode;
+2. connect the Kindle by USB;
+3. copy the **ZIP itself** (`koreader-kindlepw2-v2026.07.1.zip`) to the Kindle USB root; do not unpack/delete the existing `koreader/` folder;
+4. safely eject/unplug;
+5. open KUAL -> KOReader -> Tools -> Update KOReader;
+6. let the updater finish and relaunch KOReader;
+7. verify the reported KOReader version is 2026.07.1 before Gate 4A-1.
+
+The current official Kindle wiki states that manual update preserves settings as long as the `koreader` folder is not deleted.
+
 Do not:
 - update Kindle firmware;
 - alter jailbreak/KUAL;
 - install Bookshelf yet;
-- delete KOReader settings or sidecars.
+- delete KOReader settings or sidecars;
+- enter USB mass-storage mode while KOReader is still running.
 
 ### C. Gate 4A-1 — Readwise Reader alone
 
@@ -103,9 +121,17 @@ Before installing/enabling Bookshelf, validate the exact Gate 4 Readwise Reader 
 
 If any item fails, stop here. Fix compatibility before Bookshelf is introduced.
 
-### D. Adopt the new baseline
+### D. Adopt the new baseline — DONE
 
-After Gate 4A-1 passes:
+Gate 4A-1 physically passed on the target PW3 / KOReader 2026.07.1.
+
+Canonical decision:
+- v2026.07.1 is now the physical V1 baseline;
+- all later KOReader-internal spikes use v2026.07.1 first;
+- v2025.04 remains only a historical compatibility baseline;
+- proceed to Bookshelf v5.1.4 / Gate 4A-2.
+
+Previously planned actions after Gate 4A-1:
 - update canonical target references to v2026.07.1 where they concern future work;
 - use KOReader v2026.07.1 source for all later internal-API spikes;
 - retain automated compatibility with 2025.04 where it remains cheap, but physical V1 acceptance moves to v2026.07.1.

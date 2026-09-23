@@ -101,6 +101,10 @@ return function()
                         author = "Author",
                         category = "article",
                         location = "new",
+                        tags = {
+                            ["tag-key-2"] = { name = "deep work" },
+                            ["tag-key-1"] = { name = "research" },
+                        },
                         parent_id = nil,
                         updated_at = "2026-09-22T10:00:00Z",
                         saved_at = "2026-09-20T10:00:00Z",
@@ -128,6 +132,13 @@ return function()
         assert(#page.results == 2)
         assert(page.results[1].id == "doc-1")
         assert(page.results[1].title == "Título ç")
+        assert(page.results[1].tags[1] == "deep work")
+        assert(page.results[1].tags[2] == "research")
+        assert(Reader._normalizeTags({ "z", "a", "z" })[1] == "a")
+        assert(Reader._normalizeTags({
+            alpha = { name = "Alpha" },
+            beta = { name = "Beta" },
+        })[2] == "Beta")
         assert(page.results[2].parent_id == "doc-1")
         assert(page.next_page_cursor == "cursor/2 + next")
         assert(captured.method == "GET")
@@ -283,6 +294,84 @@ return function()
         local document, err = reader:getDocument("missing", true, false)
         assert(document == nil)
         assert(err.kind == "not_found")
+    end
+
+
+    do
+        local calls = 0
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function(_, request)
+                    calls = calls + 1
+                    if request.url:find("/api/v3/tags/", 1, true) then
+                        return { status = 200, headers = {}, body = "tags" }
+                    end
+                    assert(request.url:find("tag=gate4a%-tag%-test"))
+                    return { status = 200, headers = {}, body = "docs" }
+                end,
+            },
+            json_decode = function(body)
+                if body == "tags" then
+                    return {
+                        results = {
+                            { key = "other", name = "Other" },
+                            { key = "gate4a-tag-test", name = "gate4a-tag-test" },
+                        },
+                        nextPageCursor = nil,
+                    }
+                end
+                return {
+                    results = {
+                        {
+                            id = "doc-1",
+                            category = "article",
+                            location = "new",
+                            parent_id = nil,
+                            tags = {
+                                ["gate4a-tag-test"] = { name = "gate4a-tag-test" },
+                            },
+                        },
+                    },
+                    nextPageCursor = nil,
+                }
+            end,
+            list_min_interval = 0,
+        }
+
+        local report, err = reader:diagnoseTag("gate4a-tag-test")
+        assert(err == nil)
+        assert(report.tag_found == true)
+        assert(report.tag_key == "gate4a-tag-test")
+        assert(report.document_pages == 1)
+        assert(#report.documents == 1)
+        assert(report.documents[1].id == "doc-1")
+        assert(report.documents[1].tags[1] == "gate4a-tag-test")
+        assert(calls == 2)
+    end
+
+    do
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function()
+                    return { status = 200, headers = {}, body = "tags" }
+                end,
+            },
+            json_decode = function()
+                return {
+                    results = {
+                        { key = "other", name = "Other" },
+                    },
+                    nextPageCursor = nil,
+                }
+            end,
+            list_min_interval = 0,
+        }
+        local report, err = reader:diagnoseTag("gate4a-tag-test")
+        assert(err == nil)
+        assert(report.tag_found == false)
+        assert(#report.documents == 0)
     end
 
 end

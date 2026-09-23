@@ -61,6 +61,10 @@ local function summaryText(report)
         string.format(_("Downloaded: %d"), report.downloaded or 0),
         string.format(_("Already local / unchanged: %d"), report.unchanged or 0),
         string.format(_("Metadata updated: %d"), report.metadata_updated or 0),
+        string.format(
+            _("Reader tag metadata backfill: %s"),
+            report.metadata_projection_backfill and _("yes") or _("no")
+        ),
         string.format(_("Reader location changes: %d"), report.location_moved or 0),
         string.format(_("Content refresh deferred safely: %d"), report.content_refresh_deferred or 0),
         string.format(_("Filtered out: %d"), report.filtered_out or 0),
@@ -209,13 +213,16 @@ Tap to cancel. Completed files are installed atomically; the incremental waterma
         -- so refresh it once before applying a large parent-side postprocess batch.
         -- Without this, stale collection state can turn harmless idempotent writes
         -- into per-item failures after a full materialization.
-        local collection_refresh_ok = pcall(self.collections.refresh, self.collections)
-        if not collection_refresh_ok then
-            report.errors = (report.errors or 0) + 1
+        if #(report.postprocess or {}) > 0 then
+            local collection_refresh_ok = pcall(self.collections.refresh, self.collections)
+            if not collection_refresh_ok then
+                report.errors = (report.errors or 0) + 1
+            end
         end
 
         report.postprocess_metadata_errors = 0
         report.postprocess_collection_errors = 0
+        local metadata_writes_succeeded = 0
         for _, item in ipairs(report.postprocess or {}) do
             if item.metadata then
                 local call_ok, metadata_ok = pcall(
@@ -227,6 +234,8 @@ Tap to cancel. Completed files are installed atomically; the incremental waterma
                 if not call_ok or not metadata_ok then
                     report.errors = (report.errors or 0) + 1
                     report.postprocess_metadata_errors = report.postprocess_metadata_errors + 1
+                else
+                    metadata_writes_succeeded = metadata_writes_succeeded + 1
                 end
             end
             if item.location then
@@ -243,11 +252,24 @@ Tap to cancel. Completed files are installed atomically; the incremental waterma
             end
         end
 
+        if metadata_writes_succeeded > 0
+            and type(self.koreader_documents.refreshExternalMetadataCaches) == "function" then
+            local cache_ok, refreshed = pcall(
+                self.koreader_documents.refreshExternalMetadataCaches,
+                self.koreader_documents
+            )
+            if not cache_ok or refreshed == false then
+                report.errors = (report.errors or 0) + 1
+                report.postprocess_metadata_errors = report.postprocess_metadata_errors + 1
+            end
+        end
+
         if (report.errors or 0) == 0 and report.proposed_watermark then
             local final_meta = {
                 document_watermark = report.proposed_watermark,
                 document_query_after = report.proposed_query_after,
                 document_filter_scope = report.proposed_filter_scope,
+                metadata_projection_version = report.proposed_metadata_projection_version,
                 last_successful_sync_at = report.completed_at,
             }
             if report.mode == "full" then
@@ -272,12 +294,14 @@ function SyncUI:showStatus()
     local watermark = self.sync_meta:get("document_watermark")
     local last_success = self.sync_meta:get("last_successful_sync_at")
     local last_full = self.sync_meta:get("last_full_scan_at")
+    local projection = self.sync_meta:get("metadata_projection_version")
     local lines = {
         _("Readwise document sync status"),
         "",
         string.format(_("Last successful sync: %s"), last_success or _("never")),
         string.format(_("Last full scan: %s"), last_full or _("never")),
         string.format(_("Incremental watermark: %s"), watermark or _("not set")),
+        string.format(_("Metadata projection: %s"), projection or _("not applied")),
     }
     UIManager:show(InfoMessage:new{
         text = table.concat(lines, "\n"),

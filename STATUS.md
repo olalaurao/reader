@@ -6,16 +6,292 @@
 
 ## Current milestone
 
-**Phase F — Gate 4 PASSED on target PW3 / KOReader 2025.04; Phase F ready to merge, then Gate 4A migration**
+**Phase F.5 COMPLETE — Gate 4A-1 and Gate 4A-2 PASSED on PW3 / KOReader 2026.07.1; Phase G images is next**
 
-Phase E was merged normally to `main` as `e5de4a75a9e8e43dd270194201626c80d0c15802`. Phase F `0.1.3` is implemented on `phase-f/document-sync-gate4`: configurable document ownership/filtering, full-first/incremental-later article sync, conservative watermarking, Reader-ID identity, metadata/location updates, Readwise collections, cancellable UI, summaries and explicit full rescan. The latest code checks pass off-device. **Do not begin Phase G before Gate 4 passes on KOReader 2025.04.**
+Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-After Gate 4 passes and Phase F is merged, the next step is the newly-planned **Phase F.5 / Gate 4A**: back up the device, upgrade KOReader to official `v2026.07.1` using the PW3 `kindlepw2` package, revalidate Readwise Reader alone, then install/test Bookshelf `v5.1.4`. Phase G remains blocked until both compatibility sub-gates pass.
+Current work is **Phase F.5 / Gate 4A**:
+
+### Gate 4A migration step — KOReader upgrade completed
+
+Physical result on target PW3:
+- backup completed before upgrade;
+- KOReader upgraded from 2025.04 to **2026.07.1** using the official `kindlepw2` package;
+- KOReader relaunched successfully after the update;
+- Kindle firmware/jailbreak/KUAL were not changed;
+- Bookshelf is not installed yet.
+
+### Gate 4A-1 — PASS
+
+Physical result on target PW3 / KOReader 2026.07.1:
+- Readwise Reader loads after the KOReader upgrade;
+- existing token remains usable and `Test connection` succeeds;
+- previously-downloaded Reader article opens normally;
+- reading progress is preserved;
+- existing highlight + note are preserved;
+- two consecutive `Sync now` runs complete with no errors and no duplicates;
+- `Full document rescan` cancels cleanly;
+- KOReader remains responsive after cancellation;
+- cancelled rescan does not advance the document watermark;
+- one Reader-side move/rename on an already-managed article syncs without duplicate/same ownership breakage;
+- KOReader restart succeeds and Readwise Reader continues to load/settings persist.
+
+Conclusion:
+- **Gate 4A-1 PASSED.**
+- official KOReader **v2026.07.1** is now the canonical physical V1 baseline for Phase G and later work;
+- KOReader 2025.04 remains the historical Gate 0–4 compatibility baseline only;
+- next blocker is **Gate 4A-2: Bookshelf v5.1.4 coexistence**, including Reader location Collections and Reader tags -> Bookshelf-compatible metadata.
+
+### Gate 4A-2 preparation
+
+- Gate 4A-1 documentation CI run #132: **SUCCESS**.
+- Pinned Bookshelf release: **v5.1.4**.
+- Official asset: `bookshelf.koplugin.zip`.
+- SHA-256: `f23a66dd1ea50e80ddc421f0c5b62b5a7ebe99da05e63be59bd5ae3d08537dc0`.
+- Install target on Kindle: `/mnt/us/koreader/plugins/bookshelf.koplugin/`.
+- KOReader built-in **Cover browser** must be enabled.
+- Keep normal File Manager as startup initially; do **not** enable `Start with -> Bookshelf` until coexistence passes.
+
+Physical Gate 4A-2 smoke result:
+- Bookshelf v5.1.4 installed from the official `bookshelf.koplugin.zip`;
+- Bookshelf tab appears in KOReader;
+- Readwise Reader still appears after Bookshelf installation;
+- plugin-load coexistence therefore passes the initial smoke check.
+
+Next: open Bookshelf manually, verify Readwise-managed documents/Collections/open-close/progress and run Readwise sync while Bookshelf is installed. Reader-tag metadata projection is not yet implemented in code and will be added after the base coexistence checks pass.
+
+
+### Gate 4A-2 attempt 1 — FAIL / hard UI freeze in Bookshelf
+
+Physical result on target PW3 / KOReader 2026.07.1 + Bookshelf v5.1.4:
+- Bookshelf opened successfully;
+- a Readwise-managed article was visible in Bookshelf;
+- while navigating Bookshelf tabs/shelves (Home/Recent), the UI hard-froze;
+- the Kindle stopped responding to normal input;
+- recovery required holding the power button until the Kindle rebooted.
+
+This is a **Gate 4A-2 failure**, not a cosmetic issue. Do not mark Bookshelf coexistence passed until the freeze is diagnosed and reproduced/fixed or safely attributed upstream.
+
+Immediate next action:
+- preserve/retrieve the latest `koreader/crash.log` before more Bookshelf activity can overwrite useful context;
+- do not enable `Start with -> Bookshelf`;
+- keep normal File Manager as startup;
+- Readwise Reader baseline from Gate 4A-1 remains valid unless the log shows cross-plugin corruption.
+
+Crash-log diagnosis from the failed Bookshelf session:
+- KOReader was on v2026.07.1;
+- both Bookshelf and Readwise Reader loaded; only the expected deprecated `_meta.lua name` warnings were emitted;
+- there is **no Bookshelf Lua traceback** before the hard freeze;
+- immediately after Bookshelf loaded/was opened, KOReader logged repeated FreeType failures for Bookshelf's bundled fonts:
+  - `RobotoCondensed-Regular.ttf`;
+  - `Inter-ExtraBold.ttf`;
+  - `Caveat-Regular.ttf`;
+- these filenames match Bookshelf v5.1.4's bundled/fresh-install default fonts and its startup font-install path;
+- therefore the strongest current lead is Bookshelf first-run bundled-font installation/registration or corrupted copied font files, not a Readwise Reader exception.
+
+Controlled recovery before retest:
+1. with KOReader closed, keep the Readwise documents/sidecars/settings/database intact;
+2. optionally move unrelated legacy books off-device (after backup) to reduce the library Bookshelf/CoverBrowser scans; do not assume Reader PDF/EPUB support exists yet;
+3. rebuild CoverBrowser metadata cache after the content cleanup by removing only `koreader/settings/bookinfo_cache.sqlite3` while KOReader is closed;
+4. ensure Bookshelf bundled TTFs are present and valid in Kindle's `/mnt/us/fonts/` before KOReader starts; if necessary overwrite them from `koreader/plugins/bookshelf.koplugin/fonts/`;
+5. restart KOReader once so the font scanner sees them before Bookshelf is opened;
+6. retry only Bookshelf Home -> Recent navigation first. If it still hard-freezes, stop and collect the new log before any further coexistence work.
+
+### Gate 4A-2 attempt 2 — recovery retest
+
+After a controlled Kindle/Documents cleanup and recovery of the required KUAL/Readwise content:
+- Bookshelf opens;
+- Home navigation works;
+- Series and Genres are noticeably slow on the PW3, but no longer hard-freeze;
+- the previous hard-freeze was **not reproduced** in this retest;
+- required KUAL launcher files and Readwise document content were restored successfully.
+
+Current interpretation:
+- Bookshelf is usable again, but Series/Genres performance remains a device/library-size concern;
+- keep `Start with -> Bookshelf` disabled until the remaining coexistence checks pass;
+- continue Gate 4A-2 with targeted functional checks only; do not stress-test large grouped shelves unnecessarily.
+
+
+### Gate 4A-2 base coexistence functional pass
+
+Physical result on target PW3 / KOReader 2026.07.1 + Bookshelf v5.1.4:
+- a Readwise-managed article opens successfully from Bookshelf;
+- existing reading progress is preserved;
+- closing the article returns to Bookshelf without crash;
+- Readwise Reader `Sync now` completes successfully with Bookshelf installed;
+- a second no-op sync completes without creating duplicates.
+
+Base Bookshelf/Readwise coexistence is therefore **PASS**. Remaining Gate 4A-2 blockers are:
+- validate Reader-location Collections inside Bookshelf and a Reader-side location move;
+- implement and validate Reader tags -> Bookshelf-compatible metadata;
+- final restart/persistence/no-op coexistence check.
+
+
+### Gate 4A-2 Collections move test — PASS
+
+Physical result:
+- managed Readwise Collections appear in Bookshelf;
+- Reader-side location move is reflected in the new managed Collection;
+- the document leaves the old managed Collection;
+- unrelated user Collection membership is preserved;
+- no duplicate local document or duplicate entry in the same Collection was created;
+- the same document appearing once in its managed Readwise Collection and once in the unrelated user Collection is expected multi-Collection membership, not duplication.
+
+### Gate 4A-2 Reader tags -> Bookshelf genres — 0.1.12 physical FAIL; 0.1.13 fix ready
+
+0.1.12 physical result:
+- all targeted coexistence checks passed except Bookshelf Genres;
+- Bookshelf Genres remained empty even after Reader tag add/change and successful sync;
+- no duplicate was created; progress/highlight/note, restart, Collections and no-op sync remained good.
+
+Root cause:
+- Reader Document LIST returns document `tags` in practice as an object/map of tag records whose values contain `name`, not as the array-of-strings shape assumed by 0.1.12;
+- 0.1.12 iterated tags with `ipairs`, so the object yielded zero tag names and wrote an empty `keywords` field;
+- the older upstream Readwise Reader plugin already has explicit handling for this real LIST response shape.
+
+Experimental build: **0.1.13**.
+
+Implemented:
+- Reader document `tags` are projected to KOReader custom metadata `keywords`;
+- values are newline-separated so Bookshelf consumes them as independent Genres;
+- Reader tag order is preserved, duplicates/empty values are removed, and embedded newlines inside a tag are normalized safely;
+- an empty Reader tag list explicitly writes `keywords = ""` so stale embedded genres do not reappear;
+- a projection-version marker (`reader-tags-v1`) triggers a **one-time metadata-only full Reader LIST backfill** for already-managed documents;
+- that backfill does **not** replay the expensive HTML/content materialization;
+- unchanged Collections are not rewritten during the one-time tag backfill, while real Reader-side location moves are still applied;
+- subsequent Reader tag changes use the normal incremental sync and keep the same Reader-ID/local path ownership.
+
+Automated validation:
+- Run #153 on `3d4a107...`: **SUCCESS** after fixing the Lua nil-valued ternary in the new metadata backfill;
+- Run #155 on `ec09d544...`: **SUCCESS** — syntax, unit tests, package/layout and artifact build, including tag-update/backfill and minimal-Collection-write coverage;
+- installable inner ZIP SHA-256: `3a283e2aaa7fa47d67880b191c9df0a1ea459343f2283d9abdfd183ae0386297`.
+
+0.1.13 fix + optimization:
+- normalize both Reader tag shapes at the API boundary:
+  - LIST object/map values with `{ name = ... }`;
+  - arrays of tag strings used by create/update contracts/tests;
+- bump projection marker to `reader-tags-v2` so affected existing documents repair automatically;
+- narrow the one-time projection repair to `category=article`, excluding highlight/note child records server-side;
+- during that repair, only tagged documents need a metadata sidecar rewrite; untagged documents and unchanged Collections are not rewritten;
+- the normal incremental sync path remains watermark-based;
+- normal incremental sync no longer stats every managed local file on every run; it trusts the durable `is_local_present` bit for unchanged rows and verifies the filesystem only for changed/repair-relevant documents;
+- no-op syncs skip the KOReader Collections refresh entirely when there is no postprocess work;
+- explicit Full document rescan remains the repair path that verifies all managed local paths on disk.
+
+Expected performance impact on this real library:
+- previous all-document metadata repair traversed the whole Reader corpus, historically ~25 LIST pages including child records;
+- v2 repair should traverse roughly the article subset (~843 top-level articles in the last full scan), about 9 LIST pages at limit 100, plus sidecar writes only for tagged articles;
+- at the documented 20 LIST requests/minute pacing, that removes most of the one-time wait but cannot eliminate the API rate-limit floor.
+
+Automated validation:
+- run #159: SUCCESS — actual Reader LIST tag-object fixture;
+- run #160: SUCCESS — narrowed projection repair implementation;
+- run #161: SUCCESS — optimized v2 tag-repair coverage;
+- run #163 on `b45a1dea...`: SUCCESS — tag repair build;
+- run #167: SUCCESS — normal sync filesystem-walk optimization;
+- run #168: SUCCESS — no-op Collections refresh optimization;
+- run #169: SUCCESS — unit coverage proving no-op incremental sync does not stat every managed file;
+- run #170 on `7fc5141b...`: SUCCESS — final 0.1.13 optimized build, syntax/tests/package/layout/artifact;
+- installable inner ZIP SHA-256: `da646cfe674a4734f8a8ee9cb178e4d519e28612f962afe1042aa45db6ce3a69`.
+
+Gate 4A-2 remains **OPEN only for a short 0.1.13 physical tag visibility check**. Do not run a manual full document rescan.
+
+0.1.13 physical retest — partial:
+- Bookshelf Genres is no longer empty; existing Reader document tags now appear, confirming the tag-object decoding/projection fix works on-device;
+- the distinctive temporary test tag did **not** appear;
+- user confirmed the missing test tag is a **document tag**, not a highlight tag;
+- therefore Gate 4A-2 still has one real tag-coherency bug to isolate.
+
+Targeted isolation added in experimental **0.1.14**:
+- uses Reader's public Tag LIST endpoint to resolve an exact document-tag name to its tag key;
+- uses Reader's tag-filtered Document LIST endpoint to ask the API directly which documents are associated with that tag;
+- cross-checks returned document IDs against the plugin's managed/local database state;
+- reports counts only (tag exists, matching documents, top-level/article matches, managed/local matches and categories), avoiding another whole-library rescan;
+- this distinguishes:
+  1. Reader API not exposing the UI-visible tag association;
+  2. Reader API exposing it but the plugin failing to project it.
+
+Automated validation:
+- runs #173–177 passed implementation/UI wiring;
+- run #179 on `27f3c05...`: **SUCCESS** — full syntax/unit/package/layout/artifact;
+- installable 0.1.14 inner ZIP SHA-256: `7f54925596654e0975dabffe2973c4664e7f0c0a4335ff925e8850675cf08323`.
+
+0.1.14 physical diagnostic result for document tag **`tag teste`**:
+- Tag exists in Reader Tag API: **yes**;
+- Documents returned for this tag: **1**;
+- Top-level documents: **1**;
+- Top-level articles: **1**;
+- Already managed by this plugin: **1**;
+- Managed + local: **1**;
+- Returned payloads containing this tag name: **1**;
+- Categories: `article=1`;
+- Tag API pages: **1**; document pages: **1**.
+
+This proves Reader's public API currently exposes the missing tag on the exact top-level article already owned locally by the plugin. The remaining fault is therefore between normal incremental change discovery and KOReader metadata postprocess, not Reader UI/tag classification and not Bookshelf genre parsing.
+
+0.1.15 adds one further targeted probe: for each matching managed document, query the same ID again using the plugin's current `document_query_after` watermark and report whether Reader returns it through `updatedAfter`, plus whether the stored remote revision already equals the current remote revision. This requires only one extra document request for this one-document test and avoids another library scan.
+
+0.1.15 physical diagnostic result for document tag **`tag teste`**:
+- incremental query watermark: `2026-09-23T03:25:29Z`;
+- visible through incremental `updatedAfter`: **1**;
+- stored revision already equals remote: **0**;
+- remote revision newer than stored: **1**.
+
+This proves a tag-only Reader change **is** surfaced by the exact incremental query used by the plugin and the plugin database has not already consumed that revision. Combined with the 0.1.14 proof, Reader change discovery is working correctly.
+
+Root cause isolated in Bookshelf v5.1.4 cache behavior:
+- Readwise Reader writes the changed custom `keywords` metadata and broadcasts KOReader `InvalidateMetadataCache` + `BookMetadataChanged`;
+- Bookshelf's `onBookMetadataChanged` invalidates its per-chip/group result caches via `invalidateBookCache()`, but deliberately keeps its **light metadata cache** warm;
+- Bookshelf Genres are grouped from that light metadata cache;
+- Bookshelf's own repository comments state that changes to metadata content such as genres require `invalidateLightMeta()`, otherwise chips can remain stale;
+- this exactly explains the device result: the one-time backfill/restart exposed the historical tags, while a later incremental tag edit wrote the sidecar but the already-warm Genres source remained stale.
+
+Experimental **0.1.16** fix:
+- after a parent-process sync successfully writes one or more KOReader metadata sidecars, call a single optional Bookshelf cache refresh;
+- only act if `lib/bookshelf_book_repository` is already loaded, so there is no hard Bookshelf dependency and no cost when Bookshelf is absent/not yet used;
+- invalidate `light metadata` once, then invalidate Bookshelf book/group result caches once;
+- do not repeat invalidation per article;
+- no-op syncs still perform no Bookshelf cache refresh.
+
+0.1.16 physical result:
+- existing Reader document tag `tag teste` appeared in Bookshelf Genres after one normal incremental sync;
+- the tag was then deleted in Reader;
+- one more normal incremental sync removed it from Bookshelf Genres;
+- no Full document rescan or extra KOReader restart was required for either direction;
+- the stale Bookshelf light-metadata cache fix therefore behaves as intended.
+
+### Gate 4A-2 — PASS
+
+Gate 4A-2 is closed on the target PW3 / KOReader 2026.07.1 + Bookshelf v5.1.4.
+
+Validated across the complete coexistence sequence:
+- both plugins load and survive restart;
+- Bookshelf opens Reader-managed documents and preserves progress/highlight/note state;
+- normal and no-op Readwise syncs remain idempotent;
+- Reader location changes update only plugin-managed Collections and preserve unrelated user Collections;
+- Reader document tags appear as Bookshelf Genres;
+- later tag add/remove changes propagate through a normal incremental sync;
+- no duplicate local document is created;
+- the initial Bookshelf hard-freeze did not reproduce after the controlled device/library/font recovery; Series/Genres can still be slow on the PW3, so this remains a performance note rather than a gate blocker.
+
+**Phase F.5 is complete. Phase G / Gate 5 (images) is now unblocked.**
+
+
+
+
+
+- freeze/back up the known-good 2025.04 state;
+- upgrade KOReader only to official `v2026.07.1` using the PW3 `kindlepw2` package;
+- run the shorter Gate 4A-1 compatibility regression for Readwise Reader;
+- only then install/test Bookshelf `v5.1.4` and validate Reader location Collections + Reader tags metadata;
+- Phase G remains blocked until Gate 4A-1 and Gate 4A-2 pass.
+
+The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Gate 4A-1 deliberately samples only the KOReader-internal contracts that could regress across the version jump.
 
 ## Current branch / commit
 
-- Branch: `phase-f/document-sync-gate4`
-- Base `main`: `e5de4a75a9e8e43dd270194201626c80d0c15802` (Phase E merge)
+- Branch: `phase-f5/koreader-2026-bookshelf-gate4a`
+- Base `main`: `21dd64719ca248dd7706895fab1651751edf8844` (Phase F merge / Gate 4 passed)
 - F1 settings/root ownership: `a57da9980d1b77a16bf2a0b8fbaa09327b1691d9`
 - F1/F2 incremental sync engine: `265405a479ab538ed4fbdde9223ca97c28aaad07`
 - canonical watermark overlap fixes/tests: `e2669755be705686a13977f0b99aa9ccf472b46c`, `e2d97fd8002fc26847243073457b91b70876df86`
@@ -40,9 +316,9 @@ After Gate 4 passes and Phase F is merged, the next step is the newly-planned **
 - Serial prefix: `G090KB`
 - Firmware: `5.16.2.1.1 (4097470002)`
 - Jailbreak/KUAL functional
-- KOReader for **Gate 4**: `2025.04`
-- planned post-Gate-4 target: official KOReader `v2026.07.1`, `kindlepw2` package
-- planned Bookshelf coexistence target: `v5.1.4`
+- KOReader historical Gate 0–4 baseline: `2025.04`
+- canonical physical V1 baseline from Gate 4A-1 onward: official KOReader `v2026.07.1`, `kindlepw2` package
+- next coexistence target: Bookshelf `v5.1.4`
 
 ## Phase A result
 

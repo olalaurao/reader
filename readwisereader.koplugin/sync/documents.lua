@@ -5,6 +5,7 @@ DocumentsSync.__index = DocumentsSync
 
 local DEFAULT_OVERLAP_SECONDS = 300
 local HTML_PAGE_LIMIT = 25
+local METADATA_PROJECTION_VERSION = "reader-tags-v2"
 local SUPPORTED_CATEGORIES = { article = true }
 local PERMANENT_MATERIALIZATION_ERRORS = {
     content = true,
@@ -89,10 +90,15 @@ function DocumentsSync:_isEligible(document, filters)
         and SUPPORTED_CATEGORIES[document.category] == true
 end
 
-function DocumentsSync:_hasLocal(existing)
+function DocumentsSync:_hasRecordedLocal(existing)
     return existing
+        and existing.is_local_present == true
         and type(existing.local_path) == "string"
         and existing.local_path ~= ""
+end
+
+function DocumentsSync:_hasLocal(existing)
+    return self:_hasRecordedLocal(existing)
         and self.file_exists(existing.local_path)
 end
 
@@ -106,14 +112,27 @@ function DocumentsSync:_syncCollection(existing, document, report)
     return true
 end
 
-function DocumentsSync:_updateExistingMetadata(existing, document, seen_at, report)
-    local changed = metadataChanged(existing, document)
+function DocumentsSync:_updateExistingMetadata(existing, document, seen_at, report, force_metadata, projection_backfill)
+    local changed = force_metadata == true or metadataChanged(existing, document)
     local moved = existing.location ~= document.location
     local remote_changed = existing.remote_updated_at ~= nil
         and existing.remote_updated_at ~= document.updated_at
     local current = self.repository:upsertRemote(document, seen_at)
 
-    if self:_hasLocal(existing) then
+    -- A projection backfill can touch hundreds of already-managed rows. On
+    -- slow e-ink storage, stat'ing every local file dominates an otherwise
+    -- metadata-only sync. Trust durable is_local_present for unchanged rows;
+    -- still verify the filesystem whenever we are about to write metadata,
+    -- move a Collection, or react to a new remote revision.
+    local verify_disk = not projection_backfill
+        or force_metadata == true
+        or moved
+        or remote_changed
+    local has_local = verify_disk
+        and self:_hasLocal(existing)
+        or self:_hasRecordedLocal(existing)
+
+    if has_local then
         if changed then
             local ok = self.koreader_documents:writeMetadata(existing.local_path, document)
             if not ok then
@@ -124,7 +143,14 @@ function DocumentsSync:_updateExistingMetadata(existing, document, seen_at, repo
             end
         end
         if moved then report.location_moved = report.location_moved + 1 end
-        self:_syncCollection(existing, document, report)
+        -- The one-time metadata projection backfill touches every managed
+        -- document. Rewriting an unchanged Collection for every one of those
+        -- files adds hundreds of unnecessary settings writes on a Kindle.
+        -- Preserve normal collection-repair behavior outside the backfill,
+        -- while still applying any real Reader-side location move we discover.
+        if moved or not projection_backfill then
+            self:_syncCollection(existing, document, report)
+        end
         if remote_changed then
             -- Content replacement is intentionally deferred to Phase Q.
             report.content_refresh_deferred = report.content_refresh_deferred + 1
@@ -169,9 +195,14 @@ function DocumentsSync:_install(document, report)
     return true
 end
 
-function DocumentsSync:_scanMetadata(watermark, filters, managed_by_id, pending_new, report, seen_at)
+function DocumentsSync:_scanMetadata(watermark, filters, managed_by_id, pending_new, report, seen_at, force_metadata)
     local scan, err = self.reader:iterateDocuments({
         updated_after = watermark,
+        -- Projection backfills only need currently-supported reading
+        -- documents. Filtering server-side excludes highlight/note child
+        -- records and cuts the one-time tag repair from the whole Reader
+        -- corpus to the article subset.
+        category = force_metadata and "article" or nil,
         limit = 100,
         with_html_content = false,
         with_raw_source_url = false,
@@ -184,9 +215,22 @@ function DocumentsSync:_scanMetadata(watermark, filters, managed_by_id, pending_
         report.metadata_seen = report.metadata_seen + 1
         local existing = managed_by_id[document.id]
         if existing then
-            local current = self:_updateExistingMetadata(existing, document, seen_at, report)
+            local force_document_metadata = force_metadata
+                and type(document.tags) == "table"
+                and #document.tags > 0
+            local current = self:_updateExistingMetadata(
+                existing,
+                document,
+                seen_at,
+                report,
+                force_document_metadata,
+                force_metadata
+            )
             managed_by_id[document.id] = current
-            if not self:_hasLocal(existing)
+            local has_local = force_metadata
+                and self:_hasRecordedLocal(existing)
+                or self:_hasLocal(existing)
+            if not has_local
                 and self:_isEligible(document, filters)
                 and shouldRetryMissing(existing, document) then
                 pending_new[document.id] = true
@@ -267,6 +311,7 @@ function DocumentsSync:sync(options)
     local previous_watermark = self.sync_meta:get("document_watermark")
     local previous_query_after = self.sync_meta:get("document_query_after")
     local previous_filter_scope = self.sync_meta:get("document_filter_scope")
+    local previous_metadata_projection = self.sync_meta:get("metadata_projection_version")
     local filters = self:_filters()
     local current_filter_scope = filterScope(filters)
     -- Incremental updatedAfter can only discover documents changed since the
@@ -278,9 +323,19 @@ function DocumentsSync:sync(options)
     local full_scan = options.full_rescan == true
         or previous_watermark == nil
         or filter_scope_changed
+    local metadata_projection_changed =
+        previous_metadata_projection ~= METADATA_PROJECTION_VERSION
     local query_watermark
     if not full_scan then
         query_watermark = previous_query_after or previous_watermark
+    end
+    -- A projection-version change needs a metadata-only backfill so already
+    -- downloaded documents receive newly-supported fields (currently Reader
+    -- tags -> KOReader keywords). Do not turn that into a full HTML/content
+    -- rescan: the metadata LIST already contains the required tag values.
+    local metadata_query_watermark = query_watermark
+    if metadata_projection_changed then
+        metadata_query_watermark = nil
     end
 
     local report = {
@@ -289,6 +344,8 @@ function DocumentsSync:sync(options)
         previous_watermark = previous_watermark,
         filter_scope = current_filter_scope,
         filter_scope_changed = filter_scope_changed,
+        metadata_projection_version = METADATA_PROJECTION_VERSION,
+        metadata_projection_backfill = metadata_projection_changed,
         metadata_pages = 0,
         content_pages = 0,
         metadata_seen = 0,
@@ -314,7 +371,13 @@ function DocumentsSync:sync(options)
     local managed_by_id, pending_new = {}, {}
     for _, existing in ipairs(self.repository:listManaged()) do
         managed_by_id[existing.reader_id] = existing
-        if not self:_hasLocal(existing)
+        -- Incremental syncs trust the durable local-presence bit and verify
+        -- only documents that actually changed. Full scans remain the explicit
+        -- repair path that checks every managed path on disk.
+        local has_local = full_scan
+            and self:_hasLocal(existing)
+            or self:_hasRecordedLocal(existing)
+        if not has_local
             and filters.locations[existing.location]
             and filters.categories[existing.category]
             and SUPPORTED_CATEGORIES[existing.category]
@@ -324,7 +387,13 @@ function DocumentsSync:sync(options)
     end
 
     local metadata_ok, metadata_err = self:_scanMetadata(
-        query_watermark, filters, managed_by_id, pending_new, report, started_epoch
+        metadata_query_watermark,
+        filters,
+        managed_by_id,
+        pending_new,
+        report,
+        started_epoch,
+        metadata_projection_changed
     )
     if not metadata_ok then return nil, metadata_err end
 
@@ -354,6 +423,7 @@ function DocumentsSync:sync(options)
         report.proposed_watermark = watermark
         report.proposed_query_after = query_after
         report.proposed_filter_scope = current_filter_scope
+        report.proposed_metadata_projection_version = METADATA_PROJECTION_VERSION
         report.watermark = watermark
         report.query_after = query_after
         report.watermark_advanced = previous_watermark ~= watermark
@@ -361,6 +431,7 @@ function DocumentsSync:sync(options)
             self.sync_meta:set("document_watermark", watermark)
             self.sync_meta:set("document_query_after", query_after)
             self.sync_meta:set("document_filter_scope", current_filter_scope)
+            self.sync_meta:set("metadata_projection_version", METADATA_PROJECTION_VERSION)
             self.sync_meta:set("last_successful_sync_at", completed_at)
             if full_scan then self.sync_meta:set("last_full_scan_at", completed_at) end
         end
@@ -371,6 +442,7 @@ end
 
 DocumentsSync.DEFAULT_OVERLAP_SECONDS = DEFAULT_OVERLAP_SECONDS
 DocumentsSync.HTML_PAGE_LIMIT = HTML_PAGE_LIMIT
+DocumentsSync.METADATA_PROJECTION_VERSION = METADATA_PROJECTION_VERSION
 DocumentsSync.SUPPORTED_CATEGORIES = SUPPORTED_CATEGORIES
 DocumentsSync._metadataChanged = metadataChanged
 DocumentsSync._filterScope = filterScope

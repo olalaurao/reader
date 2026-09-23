@@ -66,6 +66,34 @@ local function buildListUrl(options)
     return Constants.READER_LIST_URL .. "?" .. table.concat(parts, "&")
 end
 
+local function normalizeTags(raw_tags)
+    if type(raw_tags) ~= "table" then return {} end
+
+    local out, seen = {}, {}
+    local function add(value)
+        if type(value) ~= "string" then return end
+        local tag = value:match("^%s*(.-)%s*$")
+        if tag ~= "" and not seen[tag] then
+            seen[tag] = true
+            out[#out + 1] = tag
+        end
+    end
+
+    -- Reader's Document LIST currently returns tags as an object whose values
+    -- are tag records (with a `name` field), while create/update endpoints
+    -- accept arrays of strings. Accept both shapes at the API boundary so the
+    -- rest of the plugin always sees one canonical array of tag names.
+    for _, value in pairs(raw_tags) do
+        if type(value) == "string" then
+            add(value)
+        elseif type(value) == "table" then
+            add(value.name)
+        end
+    end
+    table.sort(out)
+    return out
+end
+
 local function normalizeDocument(raw)
     if type(raw) ~= "table" or type(raw.id) ~= "string" or raw.id == "" then
         return nil, {
@@ -84,7 +112,7 @@ local function normalizeDocument(raw)
         source = raw.source,
         category = raw.category,
         location = raw.location,
-        tags = raw.tags,
+        tags = normalizeTags(raw.tags),
         site_name = raw.site_name,
         word_count = raw.word_count,
         reading_time = raw.reading_time,
@@ -321,6 +349,142 @@ function Reader:listDocuments(options)
     }
 end
 
+function Reader:listTags(options)
+    options = options or {}
+    local token, token_err = self:_getToken()
+    if not token then return nil, token_err end
+
+    local allowed, limit_err = self:_waitForListSlot(options.is_cancelled)
+    if not allowed then return nil, limit_err end
+
+    local url = Constants.READER_TAG_LIST_URL
+    if options.page_cursor then
+        url = url .. "?pageCursor=" .. percentEncode(options.page_cursor)
+    end
+
+    local response, err = self.http:request{
+        method = "GET",
+        url = url,
+        headers = {
+            ["Accept"] = "application/json",
+            ["Authorization"] = "Token " .. token,
+        },
+        timeout_class = "api",
+    }
+    if not response then return nil, err end
+
+    local payload, decode_err = self:_decodeJson(response.body)
+    if not payload then return nil, decode_err end
+    if type(payload.results) ~= "table" then
+        return nil, {
+            kind = "decode",
+            retryable = false,
+            message = "Reader Tag LIST response did not contain a results array.",
+        }
+    end
+
+    local tags = {}
+    for _, raw in ipairs(payload.results) do
+        if type(raw) == "table"
+            and type(raw.key) == "string" and raw.key ~= ""
+            and type(raw.name) == "string" and raw.name ~= "" then
+            tags[#tags + 1] = { key = raw.key, name = raw.name }
+        end
+    end
+
+    local next_cursor = payload.nextPageCursor
+    if next_cursor ~= nil and (type(next_cursor) ~= "string" or next_cursor == "") then
+        return nil, {
+            kind = "decode",
+            retryable = false,
+            message = "Reader Tag LIST response contained an invalid next-page cursor.",
+        }
+    end
+
+    return {
+        results = tags,
+        next_page_cursor = next_cursor,
+    }
+end
+
+function Reader:findTagByName(name, options)
+    options = options or {}
+    if type(name) ~= "string" or name == "" then
+        return nil, {
+            kind = "client",
+            retryable = false,
+            message = "Tag name is required.",
+        }
+    end
+    local wanted = name:lower()
+    local cursor
+    local pages = 0
+    repeat
+        local page, err = self:listTags{
+            page_cursor = cursor,
+            is_cancelled = options.is_cancelled,
+        }
+        if not page then return nil, err end
+        pages = pages + 1
+        for _, tag in ipairs(page.results) do
+            if tag.name:lower() == wanted then
+                tag.pages = pages
+                return tag
+            end
+        end
+        cursor = page.next_page_cursor
+    until cursor == nil
+
+    return nil, {
+        kind = "not_found",
+        retryable = false,
+        message = "Reader document tag was not found.",
+        pages = pages,
+    }
+end
+
+function Reader:diagnoseTag(name, options)
+    options = options or {}
+    local tag, err = self:findTagByName(name, options)
+    if not tag then
+        return {
+            tag_found = false,
+            tag_name = name,
+            tag_pages = err and err.pages or 0,
+            documents = {},
+            document_pages = 0,
+        }
+    end
+
+    local documents = {}
+    local scan, scan_err = self:iterateDocuments({
+        tag = tag.key,
+        limit = 100,
+        with_html_content = false,
+        with_raw_source_url = false,
+        is_cancelled = options.is_cancelled,
+    }, function(document)
+        documents[#documents + 1] = {
+            id = document.id,
+            category = document.category,
+            location = document.location,
+            parent_id = document.parent_id,
+            tags = document.tags,
+            updated_at = document.updated_at,
+        }
+    end)
+    if not scan then return nil, scan_err end
+
+    return {
+        tag_found = true,
+        tag_name = tag.name,
+        tag_key = tag.key,
+        tag_pages = tag.pages or 0,
+        documents = documents,
+        document_pages = scan.pages or 0,
+    }
+end
+
 function Reader:getDocument(reader_id, with_html_content, with_raw_source_url)
     if type(reader_id) ~= "string" or reader_id == "" then
         return nil, {
@@ -500,6 +664,7 @@ end
 
 Reader._percentEncode = percentEncode
 Reader._buildListUrl = buildListUrl
+Reader._normalizeTags = normalizeTags
 Reader._normalizeDocument = normalizeDocument
 
 return Reader

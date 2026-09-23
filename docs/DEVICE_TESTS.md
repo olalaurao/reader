@@ -5,7 +5,8 @@ Target device for V1:
 - Kindle Paperwhite 3 / 7th generation
 - Serial prefix: `G090KB`
 - Kindle firmware: `5.16.2.1.1 (4097470002)`
-- KOReader: `2025.04`
+- KOReader historical Gates 0–4 baseline: `2025.04`
+- KOReader canonical V1 baseline from Gate 4A-1 onward: `2026.07.1`
 
 Do not mark a device gate complete until its result is recorded here and in `STATUS.md`.
 
@@ -591,7 +592,7 @@ Gate 4 is closed. Do not replay all Gates 0–4 after the KOReader upgrade. Gate
 
 ## Gate 4A — KOReader v2026.07.1 + Bookshelf migration
 
-Status: **UNBLOCKED — Gate 4 passed; execute after Phase F is merged**
+Status: **Gate 4A COMPLETE — Gate 4A-1 and Gate 4A-2 PASSED; Phase G / Gate 5 next**
 
 Canonical detailed runbook: `docs/KOREADER_UPGRADE.md`.
 
@@ -607,3 +608,121 @@ Order is mandatory:
 8. Only then may Phase G begin.
 
 Do not use `kindlehf` on the current firmware 5.16.2.1.1; KOReader documents that target for firmware >= 5.16.3. Do not update Kindle firmware/jailbreak for this project.
+
+### Gate 4A-1 recorded physical result — PASS
+
+Target: PW3 / KOReader 2026.07.1
+
+Validated:
+- KOReader starts normally after upgrade;
+- Readwise Reader loads and saved token remains usable;
+- `Test connection` succeeds;
+- existing Reader article opens;
+- reading progress, existing highlight and note survive the upgrade;
+- two consecutive normal syncs complete without errors or duplicates;
+- full-rescan cancellation works and leaves KOReader responsive;
+- cancelled rescan does not advance the watermark;
+- one Reader-side move/rename preserves Reader-ID ownership/no duplicate;
+- after KOReader restart the plugin still loads and settings persist.
+
+**Gate 4A-1 PASSED.** Proceed to Gate 4A-2 / Bookshelf v5.1.4.
+
+### Gate 4A-2 recorded physical results so far
+
+Target: PW3 / KOReader 2026.07.1 + Bookshelf v5.1.4.
+
+Attempt 1:
+- Bookshelf loaded and showed Readwise-managed content;
+- navigating Home/Recent hard-froze the UI and required a Kindle reboot;
+- crash log had no Bookshelf Lua traceback, but showed repeated failures loading Bookshelf bundled fonts.
+
+Recovery/retest:
+- after a controlled document/library cleanup, CoverBrowser cache rebuild and recovery of required KUAL/Readwise content, the hard freeze did not reproduce;
+- Home works; Series/Genres are slower on the PW3 but remain usable.
+
+Base coexistence: **PASS**
+- Readwise article opens from Bookshelf;
+- reading progress is preserved;
+- closing returns to Bookshelf without crash;
+- normal Readwise sync succeeds with Bookshelf installed;
+- second no-op sync creates no duplicate.
+
+Reader-location Collections: **PASS**
+- managed `Readwise: Inbox/Later/Shortlist/Feed/Archive` Collections appear in Bookshelf;
+- Reader-side location move enters the new managed Collection and leaves the old one;
+- unrelated user Collection membership remains intact;
+- no duplicate local document was created.
+
+### Gate 4A-2 tag projection retest — build 0.1.12
+
+Do **not** run `Full document rescan`. The first normal sync after installing 0.1.12 intentionally performs only a metadata LIST backfill for the new tag projection.
+
+1. In Reader, pick one already-managed article and give it a distinctive temporary tag, e.g. `gate4a-tag-test`.
+2. Install the 0.1.12 `readwisereader.koplugin` build and restart KOReader.
+3. Run **Readwise Reader -> Sync now** once.
+4. Expected sync report:
+   - `Errors: 0`;
+   - `Reader tag metadata backfill: yes`;
+   - no duplicate local document;
+   - no manual/full HTML content rescan is required.
+5. Refresh/reopen Bookshelf and confirm `gate4a-tag-test` appears under **Genres** and resolves to that same article.
+6. In Reader, rename/remove that tag (or replace it with `gate4a-tag-test-2`).
+7. Run a second normal **Sync now**.
+8. Expected:
+   - `Reader tag metadata backfill: no`;
+   - same local article/path;
+   - old tag/genre disappears and the new remote tag state is reflected;
+   - Readwise location Collection and unrelated local Collections remain correct.
+9. Open the article from Bookshelf and confirm progress/highlight/note still exist.
+10. Restart KOReader once; confirm Bookshelf and Readwise Reader both still load and the projected tag/genre persists.
+11. Run one final no-op sync and confirm no duplicate/error.
+
+Pass report:
+`primeiro sync backfill=yes + errors0: sim/não / tag apareceu em Genres: sim/não / alteração de tag atualizou: sim/não / sem duplicar: sim/não / collections preservadas: sim/não / progresso-highlight-nota preservados: sim/não / restart ok: sim/não / no-op final ok: sim/não`
+
+### 0.1.12 physical tag result — FAIL isolated to Reader tag decoding
+
+User-reported result:
+- first metadata backfill sync: completed successfully;
+- tag add/change sync path: completed;
+- no duplicate: **PASS**;
+- progress/highlight/note preservation: **PASS**;
+- restart: **PASS**;
+- final no-op sync: **PASS**;
+- Bookshelf **Genres remained empty**: **FAIL**.
+
+Diagnosis:
+- real Reader Document LIST tag payloads are object/map records with a nested `name`;
+- 0.1.12 assumed an array of strings and therefore projected no actual tag names.
+
+### 0.1.13 targeted retest
+
+0.1.13 normalizes the real LIST shape and speeds the one-time repair:
+- projection marker is now `reader-tags-v2`;
+- repair query is server-filtered to `category=article`;
+- untagged articles do not get unnecessary metadata sidecar rewrites;
+- unchanged Collections are not rewritten.
+
+Retest:
+1. Replace only `koreader/plugins/readwisereader.koplugin/` with 0.1.13 and restart KOReader.
+2. Keep the distinctive Reader test tag on an already-managed article.
+3. Run **Sync now** once; do not run Full document rescan.
+4. Confirm `Reader tag metadata backfill: yes` and `Errors: 0`.
+5. Reopen/refresh Bookshelf -> Genres.
+6. Confirm the distinctive Reader tag is present and opens the same article.
+7. Change/remove the tag in Reader and run one more normal sync.
+8. Confirm the old genre disappears/new state appears without duplicate.
+
+Return only:
+`0.1.13 sync errors0: sim/não / tag apareceu em Genres: sim/não / mudança da tag refletiu: sim/não / sem duplicar: sim/não`
+
+Gate 4A-2 final result: **PASS**.
+
+Final 0.1.16 tag/cache validation:
+- Reader document tag appeared in Bookshelf Genres after normal sync;
+- deleting the tag in Reader and syncing again removed it from Genres;
+- no Full document rescan was required;
+- no duplicate/settings/sidecar/progress regression observed.
+
+Proceed to Phase G / Gate 5.
+
