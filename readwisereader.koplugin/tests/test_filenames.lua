@@ -28,4 +28,8 @@ return function()
 
     local joined = Filenames.joinUnderRoot("/mnt/us/documents/Readwise/", "Articles", ascii)
     assert(joined == "/mnt/us/documents/Readwise/Articles/" .. ascii)
+    local asset_dir = Filenames.assetDirectory("reader-123")
+    assert(asset_dir:find("^%.rw%-assets%-"))
+    assert(not asset_dir:find("/", 1, true))
+    assert(asset_dir == Filenames.assetDirectory("reader-123"))
 end
