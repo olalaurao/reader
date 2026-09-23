@@ -125,6 +125,34 @@ return function()
         local socketutil = newSocketUtil()
         local http = Http:new{
             http = {
+                request = function(request)
+                    assert(request.sink("1234") == 1)
+                    local sink_ok = request.sink("5678")
+                    assert(sink_ok == nil)
+                    return nil, "response body exceeded configured limit", nil, nil
+                end,
+            },
+            ltn12 = fakeLtn12,
+            socketutil = socketutil,
+            logger = { dbg = function() end },
+        }
+
+        local response, err = http:request{
+            url = "https://example.com/large-image.jpg?signature=secret",
+            timeout_class = "download",
+            max_body_bytes = 6,
+        }
+        assert(response == nil)
+        assert(err.kind == "too_large")
+        assert(err.retryable == false)
+        assert(err.limit == 6)
+        assert(socketutil.reset_count == 1)
+    end
+
+    do
+        local socketutil = newSocketUtil()
+        local http = Http:new{
+            http = {
                 request = function()
                     error("boom")
                 end,
