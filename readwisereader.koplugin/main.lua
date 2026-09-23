@@ -19,6 +19,7 @@ local LibraryUI = require("ui/library")
 local SettingsUI = require("ui/settings")
 local SyncMeta = require("storage/sync_meta")
 local SyncUI = require("ui/sync")
+local ImageSpikeUI = require("ui/image_spike")
 local TagDiagnosticsUI = require("ui/tag_diagnostics")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
@@ -80,6 +81,11 @@ function ReadwiseReader:init()
     self.tag_diagnostics_ui = TagDiagnosticsUI:new{
         config = self.config,
     }
+    self.image_spike_ui = ImageSpikeUI:new{
+        config = self.config,
+        installer = Installer:new(),
+        koreader_documents = self.koreader_documents,
+    }
     self.ui.menu:registerToMainMenu(self)
 end
 
@@ -94,6 +100,7 @@ function ReadwiseReader:addToMainMenu(menu_items)
             self.article_ui:getMenuItem(),
             self.library_ui:getScanMenuItem(),
             self.tag_diagnostics_ui:getMenuItem(),
+            self.image_spike_ui:getMenuItem(),
             self.settings_ui:getSettingsMenu(),
         },
     }
