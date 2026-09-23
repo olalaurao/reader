@@ -6,16 +6,23 @@
 
 ## Current milestone
 
-**Phase F — Gate 4 PASSED on target PW3 / KOReader 2025.04; Phase F ready to merge, then Gate 4A migration**
+**Phase F.5 — Gate 4A migration in progress: KOReader v2026.07.1 regression, then Bookshelf v5.1.4 coexistence**
 
-Phase E was merged normally to `main` as `e5de4a75a9e8e43dd270194201626c80d0c15802`. Phase F `0.1.3` is implemented on `phase-f/document-sync-gate4`: configurable document ownership/filtering, full-first/incremental-later article sync, conservative watermarking, Reader-ID identity, metadata/location updates, Readwise collections, cancellable UI, summaries and explicit full rescan. The latest code checks pass off-device. **Do not begin Phase G before Gate 4 passes on KOReader 2025.04.**
+Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-After Gate 4 passes and Phase F is merged, the next step is the newly-planned **Phase F.5 / Gate 4A**: back up the device, upgrade KOReader to official `v2026.07.1` using the PW3 `kindlepw2` package, revalidate Readwise Reader alone, then install/test Bookshelf `v5.1.4`. Phase G remains blocked until both compatibility sub-gates pass.
+Current work is **Phase F.5 / Gate 4A**:
+- freeze/back up the known-good 2025.04 state;
+- upgrade KOReader only to official `v2026.07.1` using the PW3 `kindlepw2` package;
+- run the shorter Gate 4A-1 compatibility regression for Readwise Reader;
+- only then install/test Bookshelf `v5.1.4` and validate Reader location Collections + Reader tags metadata;
+- Phase G remains blocked until Gate 4A-1 and Gate 4A-2 pass.
+
+The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Gate 4A-1 deliberately samples only the KOReader-internal contracts that could regress across the version jump.
 
 ## Current branch / commit
 
-- Branch: `phase-f/document-sync-gate4`
-- Base `main`: `e5de4a75a9e8e43dd270194201626c80d0c15802` (Phase E merge)
+- Branch: `phase-f5/koreader-2026-bookshelf-gate4a`
+- Base `main`: `21dd64719ca248dd7706895fab1651751edf8844` (Phase F merge / Gate 4 passed)
 - F1 settings/root ownership: `a57da9980d1b77a16bf2a0b8fbaa09327b1691d9`
 - F1/F2 incremental sync engine: `265405a479ab538ed4fbdde9223ca97c28aaad07`
 - canonical watermark overlap fixes/tests: `e2669755be705686a13977f0b99aa9ccf472b46c`, `e2d97fd8002fc26847243073457b91b70876df86`
