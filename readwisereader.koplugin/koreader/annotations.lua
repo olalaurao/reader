@@ -63,9 +63,9 @@ end
 
 local function hashOptional(hasher, value)
     if value == nil then
-        return hasher.digest("\0nil")
+        return hasher.sha256("\0nil")
     end
-    return hasher.digest("\1" .. tostring(value))
+    return hasher.sha256("\1" .. tostring(value))
 end
 
 local function isHighlight(annotation)
@@ -88,15 +88,23 @@ function KOReaderAnnotations:identity(reader_document_id, annotation)
     assert(type(reader_document_id) == "string" and reader_document_id ~= "", "reader_document_id is required")
     assert(type(annotation) == "table", "annotation is required")
 
-    local locator_fingerprint = self.hasher.digest(canonical(locatorPayload(annotation)))
-    local local_annotation_id = "ko-" .. self.hasher.digest(
-        reader_document_id
+    local locator = canonical(locatorPayload(annotation))
+    local locator_fingerprint = self.hasher.sha256(locator)
+    local datetime = annotation.datetime
+    local quality = "strong"
+    local identity_payload
+    if type(datetime) == "string" and datetime ~= "" then
+        identity_payload = reader_document_id .. "\n" .. datetime .. "\n" .. locator
+    else
+        quality = "degraded"
+        identity_payload = reader_document_id
+            .. "\n<missing-datetime>\n"
+            .. locator
             .. "\n"
-            .. tostring(annotation.datetime or "")
-            .. "\n"
-            .. locator_fingerprint
-    )
-    return local_annotation_id, locator_fingerprint
+            .. hashOptional(self.hasher, annotation.text)
+    end
+    local local_annotation_id = "ko-" .. self.hasher.sha256(identity_payload)
+    return local_annotation_id, locator_fingerprint, quality
 end
 
 function KOReaderAnnotations:normalize(reader_document_id, annotation)
@@ -110,10 +118,11 @@ function KOReaderAnnotations:normalize(reader_document_id, annotation)
         return nil, "invalid_note"
     end
 
-    local local_annotation_id, locator_fingerprint = self:identity(reader_document_id, annotation)
+    local local_annotation_id, locator_fingerprint, identity_quality = self:identity(reader_document_id, annotation)
     return {
         local_annotation_id = local_annotation_id,
         locator_fingerprint = locator_fingerprint,
+        identity_quality = identity_quality,
         datetime = annotation.datetime,
         datetime_updated = annotation.datetime_updated,
         text = annotation.text,
