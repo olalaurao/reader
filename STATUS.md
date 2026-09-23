@@ -137,9 +137,19 @@ Physical result:
 - no duplicate local document or duplicate entry in the same Collection was created;
 - the same document appearing once in its managed Readwise Collection and once in the unrelated user Collection is expected multi-Collection membership, not duplication.
 
-### Gate 4A-2 Reader tags -> Bookshelf genres — implementation complete, physical validation next
+### Gate 4A-2 Reader tags -> Bookshelf genres — 0.1.12 physical FAIL; 0.1.13 fix ready
 
-Experimental build: **0.1.12**.
+0.1.12 physical result:
+- all targeted coexistence checks passed except Bookshelf Genres;
+- Bookshelf Genres remained empty even after Reader tag add/change and successful sync;
+- no duplicate was created; progress/highlight/note, restart, Collections and no-op sync remained good.
+
+Root cause:
+- Reader Document LIST returns document `tags` in practice as an object/map of tag records whose values contain `name`, not as the array-of-strings shape assumed by 0.1.12;
+- 0.1.12 iterated tags with `ipairs`, so the object yielded zero tag names and wrote an empty `keywords` field;
+- the older upstream Readwise Reader plugin already has explicit handling for this real LIST response shape.
+
+Experimental build: **0.1.13**.
 
 Implemented:
 - Reader document `tags` are projected to KOReader custom metadata `keywords`;
@@ -156,7 +166,28 @@ Automated validation:
 - Run #155 on `ec09d544...`: **SUCCESS** — syntax, unit tests, package/layout and artifact build, including tag-update/backfill and minimal-Collection-write coverage;
 - installable inner ZIP SHA-256: `3a283e2aaa7fa47d67880b191c9df0a1ea459343f2283d9abdfd183ae0386297`.
 
-Gate 4A-2 remains **OPEN only for the targeted 0.1.12 physical tag/restart validation**. Do not run a manual full document rescan for this test.
+0.1.13 fix + optimization:
+- normalize both Reader tag shapes at the API boundary:
+  - LIST object/map values with `{ name = ... }`;
+  - arrays of tag strings used by create/update contracts/tests;
+- bump projection marker to `reader-tags-v2` so affected existing documents repair automatically;
+- narrow the one-time projection repair to `category=article`, excluding highlight/note child records server-side;
+- during that repair, only tagged documents need a metadata sidecar rewrite; untagged documents and unchanged Collections are not rewritten;
+- the normal incremental sync path remains watermark-based and unchanged.
+
+Expected performance impact on this real library:
+- previous all-document metadata repair traversed the whole Reader corpus, historically ~25 LIST pages including child records;
+- v2 repair should traverse roughly the article subset (~843 top-level articles in the last full scan), about 9 LIST pages at limit 100, plus sidecar writes only for tagged articles;
+- at the documented 20 LIST requests/minute pacing, that removes most of the one-time wait but cannot eliminate the API rate-limit floor.
+
+Automated validation:
+- run #159: SUCCESS — actual Reader LIST tag-object fixture;
+- run #160: SUCCESS — narrowed projection repair implementation;
+- run #161: SUCCESS — optimized v2 tag-repair coverage;
+- run #163 on build tip `b45a1dea...`: SUCCESS — syntax, all unit tests, packaging/layout and artifact;
+- installable inner ZIP SHA-256: `bfe6edecb812602f473c2094e76f2d2afc14cf0037d3c7ee67c379ae393abe45`.
+
+Gate 4A-2 remains **OPEN only for a short 0.1.13 physical tag visibility check**. Do not run a manual full document rescan.
 
 
 
