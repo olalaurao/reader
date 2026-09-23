@@ -19,6 +19,7 @@ local tests = {
     "tests.test_koreader_documents",
     "tests.test_collections",
     "tests.test_document_sync",
+    "tests.test_worker",
     "tests.test_sync_ui",
     "tests.test_storage_db",
     "tests.test_storage_repositories",
