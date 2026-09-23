@@ -77,6 +77,57 @@ function FirstArticle:fetchDocument(reader_id)
     return document
 end
 
+function FirstArticle:listFormatCandidates(category, limit)
+    if category ~= "pdf" and category ~= "epub" then
+        return nil, {
+            kind = "content",
+            retryable = false,
+            message = "Unsupported raw format candidate category.",
+        }
+    end
+    local page, err = self.reader:listDocuments{
+        category = category,
+        limit = tonumber(limit) or 100,
+        with_html_content = false,
+        with_raw_source_url = false,
+    }
+    if not page then return nil, err end
+
+    local candidates = {}
+    for _, document in ipairs(page.results) do
+        if document.parent_id == nil and document.category == category then
+            candidates[#candidates + 1] = {
+                id = document.id,
+                title = document.title,
+                author = document.author,
+                location = document.location,
+                category = category,
+            }
+        end
+    end
+    return candidates
+end
+
+function FirstArticle:fetchFormatDocument(reader_id, category)
+    if category ~= "pdf" and category ~= "epub" then
+        return nil, {
+            kind = "content",
+            retryable = false,
+            message = "Unsupported raw format category.",
+        }
+    end
+    local document, err = self.reader:getDocument(reader_id, true, true)
+    if not document then return nil, err end
+    if document.parent_id ~= nil or document.category ~= category then
+        return nil, {
+            kind = "content",
+            retryable = false,
+            message = "Reader returned a different document category.",
+        }
+    end
+    return document
+end
+
 function FirstArticle:getExistingPath(reader_id)
     local existing = self.repository:getById(reader_id)
     if existing and existing.local_path and self.file_exists(existing.local_path) then
