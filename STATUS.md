@@ -10,7 +10,7 @@
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Current work is **Phase J / Gate 8**. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Current work is **Phase K / Gate 9 text matching next**, after integrating the completed Phase J / Gate 8 branch. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -584,7 +584,16 @@ Product decision from the physical run:
 
 ### Gate 8 — PASS
 
-Gate 8 is closed. **Phase J is complete and Phase K production annotation sync (text matching → create → durable remote identity → note updates/deduplication) is now unblocked.**
+Gate 8 is closed. **Phase J is complete and Phase K text matching is now unblocked.** The canonical gate order remains Phase K / Gate 9 (matching only) before Phase L / Gate 10 remote creation/deduplication.
+
+Phase J closeout in this continuation session:
+- branch: `phase-j/annotation-api-gate8`;
+- pre-closeout branch tip: `4a21b1fee3a28e95fbf81e343edee9b12a0a645d`;
+- canonical spec closeout commit: `3951c04732819ef99d415f173b27699013c97998`;
+- files changed in this closeout: `IMPLEMENTATION_SPEC.md`, `STATUS.md`;
+- no production mutation code changed after the physically validated 0.1.22 behavior;
+- latest code-bearing branch CI before the documentation closeout: run #375 on `4a21b1f...` — **SUCCESS**;
+- the documentation closeout CI must be green before merge.
 
 
 
@@ -605,6 +614,8 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 
 - Branch: `phase-j/annotation-api-gate8`
 - Base `main`: `a7d0ca39ca1e7a1df1f775b9eb1ca121a572d802` (PR #10 merge / Phase I + Gate 7 passed)
+- Phase J pre-closeout tip: `4a21b1fee3a28e95fbf81e343edee9b12a0a645d`
+- Phase J canonical-spec closeout: `3951c04732819ef99d415f173b27699013c97998`
 - Phase F historical merge: `21dd64719ca248dd7706895fab1651751edf8844` (Gate 4 passed on KOReader 2025.04)
 - F1 settings/root ownership: `a57da9980d1b77a16bf2a0b8fbaa09327b1691d9`
 - F1/F2 incremental sync engine: `265405a479ab538ed4fbdde9223ca97c28aaad07`
@@ -632,7 +643,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Jailbreak/KUAL functional
 - KOReader historical Gate 0–4 baseline: `2025.04`
 - canonical physical V1 baseline from Gate 4A-1 onward: official KOReader `v2026.07.1`, `kindlepw2` package
-- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase J / Gate 8 annotation API interoperability
+- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target after Phase J merge is Phase K / Gate 9 text matching
 
 ## Phase A result
 
@@ -1487,19 +1498,19 @@ No accidental implementation deviation is open.
 
 A deliberate roadmap/spec change was made on 2026-09-22 at the user's request: KOReader is no longer assumed to remain at 2025.04 through the whole V1. The canonical order now inserts **Phase F.5 / Gate 4A after Gate 4 and before Phase G**, migrating to official KOReader v2026.07.1 and then validating Bookshelf v5.1.4 coexistence. The reason is to establish a clean Phase F before/after compatibility baseline while avoiding implementing image/raw-format/sidecar internals twice. Full procedure is in `docs/KOREADER_UPGRADE.md`.
 
+Gate 8 produced a deliberate canonical API-contract correction on 2026-09-23: current Reader documentation plus physical account evidence prove that Reader v3 highlight children accept `notes`/`tags` updates, and the update is reflected in Reader. The spec now prefers Reader v3 for normal note updates instead of making Readwise v2 mandatory. The physical spike also established deterministic v3-child ↔ v2 highlight mapping when v2 is needed. Highlight color synchronization was removed from V1 because it adds no useful target-device workflow; the v2 green mutation remains spike evidence only.
+
 ## Blockers
 
-Immediate blocker: **Gate 8 physical/account interoperability validation** using only the disposable Reader document/highlight created by build 0.1.22.
+Immediate blocker after Phase J integration: **Phase K / Gate 9 exact-content matching on real managed Reader HTML**.
 
-We specifically still need observed proof of:
-- Reader v3 child create/LIST shape;
-- deterministic Reader child ID ↔ Readwise v2 numeric ID mapping;
-- current documented Reader v3 note/tag PATCH behavior;
-- Readwise v2 note/color PATCH propagation back to Reader;
-- cross-API delete behavior.
+Gate 9 must be closed before exercising Phase L remote highlight creation. Required proof:
+- ordinary unique selection matches;
+- a selection spanning a line/whitespace boundary recovers the exact Reader substring;
+- conservative curly/straight quote or dash equivalence recovers the exact Reader substring only when unique;
+- repeated identical text is reported as ambiguous and is not guessed.
 
 Later hard gates remain:
-- exact-content matching edge cases on real managed Reader HTML;
 - timeout-after-create reconciliation/deduplication;
 - durable outbound queue/retry semantics;
 - safe note conflicts/deletion policy;
@@ -1507,15 +1518,14 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Finish CI/package build **0.1.22**.
-2. Install the updated plugin without replacing settings/database/documents.
-3. Run **Readwise Reader -> Annotation API spike (Gate 8) -> 1. Create disposable highlight**.
-4. In Reader web/phone, verify only the temporary `KOReader Gate 8 disposable ...` document/highlight/note/tag appeared.
-5. Run step 2, record the mapping method and verify the Reader-visible v3-updated note.
-6. Run step 3 and verify the Reader-visible v2-updated note (and green color if exposed).
-7. Run step 4; verify the disposable document is gone from Reader. If any step is cancelled/fails, use the dedicated Gate 8 recovery cleanup rather than creating another spike blindly.
-8. Return only the requested yes/no/mapping fields; then update `docs/API_INTEROP.md` with observed sanitized behavior.
-9. Do not begin Phase K/L production highlight matching/upload until Gate 8 is closed.
+1. Merge the completed Phase J / Gate 8 branch only after its final documentation CI is green.
+2. Continue Phase K from the Gate 8 contract, but keep remote create/upload blocked until Gate 9 passes.
+3. Complete the conservative text matcher required by spec section 19, including HTML visible-text handling, whitespace/NBSP, punctuation variants, soft hyphen and ambiguity rejection.
+4. Add a **read-only Gate 9 diagnostic** that fetches the current managed Reader parent content and reports the match result without creating/updating/deleting any remote annotation.
+5. Add/expand unit coverage for ordinary text, line breaks, NBSP, curly quotes/dashes, soft hyphen, Unicode normalization, repeated text and no-match.
+6. Run syntax/unit/package CI.
+7. Stop at the Gate 9 physical test on the target PW3. Do not run the existing staged remote upload action until Gate 9 is recorded PASS.
+8. Only after Gate 9 passes proceed to Phase L / Gate 10 create + note + deduplication.
 
 ## Existing architectural decisions still in force
 
