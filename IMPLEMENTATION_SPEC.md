@@ -2444,7 +2444,7 @@ No new Kindle build was required. The user's real export configuration passed al
 Gate 8 physically proved on the target account/device that the linked Reader v3 highlight child accepted a note PATCH and reflected it in Reader. The current public Reader API page contains wording that is more restrictive for highlight-note updates, so **the physically observed Gate 8 contract remains the project contract and Gate 12 revalidates it in the production path**. Do not generalize beyond this tested linked-highlight workflow.
 
 ### N1 — note update + conflict detection
-Implemented in build 0.1.30 for the currently-open managed Reader document:
+Implemented in build 0.1.31 for the currently-open managed Reader document:
 - only annotations with a durable `reader_highlight_document_id` and `created_remote=true` are eligible;
 - the exact Reader child is fetched before mutation;
 - for **note update**, durable child id + original `parent_id` + `category=highlight` are the required identity; exact per-annotation or legacy plugin `source` markers are accepted as additional evidence when Reader returns them, but are not mandatory because physical Gate 12 testing showed Reader LIST can omit/change that marker on a correctly linked child;
@@ -2453,8 +2453,11 @@ Implemented in build 0.1.30 for the currently-open managed Reader document:
 - the production conflict read uses the deterministic Readwise v2 representation: exact `Reader child id == v2 external_id`; the resulting numeric v2 highlight id is persisted for future direct detail reads;
 - if the remote v2 note already equals the local value, the operation is reconciled without another PATCH;
 - if the remote v2 note diverged from `last_synced_note` while local also diverged, state becomes `conflict` and neither side is overwritten;
-- if only the local note changed, the exact mapped Readwise v2 highlight is PATCHed with the new note; the returned id/note must match before `last_synced_note` / hashes advance;
+- if only the local note changed, the exact mapped Readwise v2 highlight is PATCHed with the new note; the returned id/note must match, then the exact linked Reader v3 child is polled until it reflects the note;
+- if v2 already has the desired note but Reader v3 remains stale, a Reader v3 repair PATCH is issued to the already-validated child and verified;
+- `last_synced_note` / hashes advance and `Notes updated` increments only after Reader v3 visibility is proven;
 - a previously blocked/conflict state is re-evaluated on later Sync now when the local note still differs from the durable `last_synced_note` baseline, so a fixed identity/read path can recover without recreating the highlight;
+- the 0.1.30 premature-success state is also recoverable: when local + durable baseline + v2 agree but Reader v3 is stale, the Reader child is repaired without another v2 write;
 - a nil-note clear is currently blocked until highlight-note clearing is physically validated.
 
 ### N2 — optional delete propagation
