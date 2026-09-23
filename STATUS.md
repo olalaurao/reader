@@ -372,7 +372,16 @@ Important test constraint:
 - an article already materialized by 0.1.18 is intentionally considered local and is **not rewritten** by a later ordinary sync; this is the conservative content-refresh contract held until Phase Q;
 - therefore the 0.1.19 Gate 5 retest must use a **different newly-saved Reader article** that has never been downloaded to this Kindle.
 
-Build **0.1.19** pending final CI/artifact packaging.
+Automated validation for 0.1.19:
+- actual responsive `<picture><source srcset>` fixture: PASS;
+- direct `img srcset`: PASS;
+- lazy `data-src`: PASS;
+- density-only picture srcset keeps the proven `<img>` fallback instead of choosing an arbitrary 1x/2x source: PASS;
+- all existing image caps/failure tests remain green;
+- run #244 on `2c3cb8e...`: **SUCCESS** — syntax, unit tests, package/layout and artifact;
+- installable inner ZIP SHA-256: `11f8e3273d9b5a2e8fdc6152a373714f5b6dab5063a69a0e46614f8ce1dc6ca4`.
+
+Build **0.1.19** is ready for a **new-article** physical retest. Do not reuse the article already materialized without images by 0.1.18, because ordinary sync deliberately does not rewrite an existing local HTML document before Phase Q.
 
 
 
