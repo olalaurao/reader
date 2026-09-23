@@ -374,4 +374,77 @@ return function()
         assert(#report.documents == 0)
     end
 
+
+    do
+        local calls = {}
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "token" end },
+            http = {
+                request = function(_, request)
+                    calls[#calls + 1] = request
+                    if request.method == "DELETE" then
+                        return { status = 204, headers = {}, body = "" }
+                    end
+                    return { status = request.method == "POST" and 201 or 200, headers = {}, body = "ok" }
+                end,
+            },
+            json_encode = function(payload)
+                assert(type(payload) == "table")
+                if payload.parent_id then
+                    assert(payload.parent_id == "parent-1")
+                    assert(payload.content == "Exact passage")
+                    assert(payload.notes == "Note [[Foucault]]")
+                    assert(payload.tags[1] == "gate8")
+                    return "highlight-json"
+                end
+                assert(payload.notes == "updated note")
+                return "patch-json"
+            end,
+            json_decode = function()
+                return { id = "highlight-1", url = "https://read.readwise.io/read/highlight-1" }
+            end,
+            list_min_interval = 0,
+        }
+
+        local created, create_err = reader:createHighlight(
+            "parent-1",
+            "Exact passage",
+            "Note [[Foucault]]",
+            { "gate8" }
+        )
+        assert(create_err == nil)
+        assert(created.id == "highlight-1")
+        assert(calls[1].method == "POST")
+        assert(calls[1].url:find("/api/v3/save/", 1, true))
+        assert(calls[1].body == "highlight-json")
+        assert(calls[1].headers["Content-Type"] == "application/json")
+
+        local updated, update_err = reader:updateDocument("highlight/1", { notes = "updated note" })
+        assert(update_err == nil)
+        assert(updated.id == "highlight-1")
+        assert(calls[2].method == "PATCH")
+        assert(calls[2].url:find("/api/v3/update/highlight%2F1/", 1, true))
+        assert(calls[2].body == "patch-json")
+
+        local deleted, delete_err = reader:deleteDocument("highlight/1")
+        assert(delete_err == nil)
+        assert(deleted == true)
+        assert(calls[3].method == "DELETE")
+        assert(calls[3].url:find("/api/v3/delete/highlight%2F1/", 1, true))
+    end
+
+    do
+        local normalized = assert(Reader._normalizeDocument{
+            id = "highlight-1",
+            category = "highlight",
+            parent_id = "parent-1",
+            notes = "note",
+            highlight_offset = 42,
+            highlight_location = "dom-start,dom-end",
+        })
+        assert(normalized.highlight_offset == 42)
+        assert(normalized.highlight_location == "dom-start,dom-end")
+        assert(normalized.notes == "note")
+    end
+
 end
