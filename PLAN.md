@@ -597,16 +597,40 @@ Preferir mecanismo nativo e pouco invasivo:
 - Collections quando estáveis;
 - metadados sem alterar arquivos desnecessariamente.
 
-Possíveis Collections:
+### Reader como fonte de verdade da organização remota
+
+Para documentos gerenciados pelo plugin, a organização feita no **Readwise Reader** deve ser projetada no KOReader no próximo sync, sem trocar a identidade/local path do documento.
+
+Mapeamento canônico de `location`:
 
 ```text
-Readwise: Inbox
-Readwise: Later
-Readwise: Shortlist
-Readwise: Feed
+Reader new       -> KOReader Collection "Readwise: Inbox"
+Reader later     -> KOReader Collection "Readwise: Later"
+Reader shortlist -> KOReader Collection "Readwise: Shortlist"
+Reader feed      -> KOReader Collection "Readwise: Feed"
+Reader archive   -> KOReader Collection "Readwise: Archive"
 ```
 
-Não criar centenas de Collections automaticamente a partir de tags na V1.
+Regras:
+- ao mover um item no Reader, o próximo sync remove o arquivo apenas das outras **Collections gerenciadas pelo plugin** e o adiciona à Collection correspondente à nova location;
+- Collections criadas pelo usuário e não gerenciadas pelo plugin nunca devem ser removidas;
+- mover/renomear no Reader não pode criar um segundo arquivo local;
+- Reader ID continua sendo a identidade, independentemente de título/location;
+- título, autor, resumo/site e demais metadados Reader projetados devem atualizar os custom metadata do mesmo arquivo local.
+
+### Tags Reader -> metadata / Bookshelf
+
+Não criar centenas de Collections automaticamente a partir de tags.
+
+As tags do Reader devem ser projetadas para um campo de metadata compatível com KOReader/Bookshelf, preferencialmente `keywords`, preservando os valores úteis e sem transformar cada tag em Collection.
+
+Objetivo no Bookshelf após Gate 4A:
+- location visível/filtrável através das Collections `Readwise: ...`;
+- tags Reader visíveis/filtráveis através de metadata/keywords (Bookshelf pode tratá-las como genres/tags);
+- título/autor/progresso continuam vindo do mesmo documento local;
+- uma mudança posterior de location ou tags no Reader aparece no KOReader/Bookshelf depois do próximo sync.
+
+Isso é uma projeção Reader -> KOReader para organização. Não implica editar tags/locations no KOReader e escrevê-las de volta no Reader na V1.
 
 ---
 
