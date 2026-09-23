@@ -173,52 +173,54 @@ A separate recovery action can clean only the Gate 8 IDs stored by this spike af
 
 ## Physical observations
 
-Status: **PENDING Gate 8 device/account run**.
+Status: **PASS — physical Gate 8 completed on 2026-09-23**.
 
 Record after each stage:
 
 ### H1 — create
-- Reader v3 create returned child ID: pending
-- highlight visible under disposable Reader parent: pending
-- initial note visible exactly: pending
-- tag visible: pending
+- Reader v3 create returned a child ID: **yes**
+- highlight visible under disposable Reader parent: **yes**
+- initial note visible exactly: **yes**
+- tag visible: **yes**
 
 ### H2 — v3 LIST
-- child category/parent relation: pending
-- `notes` field shape: pending
-- `highlight_offset`: pending
-- `highlight_location`: pending
+- child category/parent relation: **confirmed**
+- `notes` field: **present and matched**
+- `highlight_offset` / `highlight_location`: **sufficient for the staged verification**
 
 ### H3 — v2 mapping
-- numeric v2 ID found: pending
-- deterministic mapping method: pending
-- whether `v2 external_id == Reader child id`: pending
-- parent Export mapping if needed: pending
+- numeric v2 ID found: **yes**
+- deterministic mapping: **yes**
+- the spike was allowed to continue only after the deterministic mapping guard passed; no parent+text+note heuristic was accepted
 
 ### H4 — note update
-- Reader v3 PATCH accepted: pending
-- Reader UI reflected v3 note update: pending
-- Readwise v2 PATCH accepted: pending
-- Reader v3 reflected v2 note update: pending
-- Reader UI reflected v2 note update: pending
+- Reader v3 PATCH accepted and verified: **yes**
+- Reader UI reflected the v3 note update: **yes**
+- Readwise v2 PATCH accepted: **yes**
+- v2 response note matched the requested value: **yes**
+- v2 response color reported green: **yes**
+- after refreshing Reader, the same Reader v3 child reflected the v2 note update: **yes**
 
 ### H5 — delete
-- Reader v3 DELETE returned success: pending
-- Reader v3 stopped listing child: pending
-- v2 behavior after v3 delete: pending
-- v2 DELETE required as fallback: pending
+- Reader v3 DELETE returned success: **yes**
+- Reader v3 stopped listing the child: **yes**
+- Readwise v2 no longer exposed it after the v3 delete: **yes**
+- v2 DELETE fallback required: **no**
+- disposable parent cleanup succeeded: **yes**
 
 ### H6 — tags/color
-- Reader tag on create visible: pending
-- Reader v3 tag update visible: pending
-- v2 green color update accepted/visible: pending
+- Reader tag on create visible: **yes**
+- Reader v3 tag update visible: **yes**
+- v2 accepted the green color mutation: **yes**
+- **product decision:** color synchronization is not part of V1. Reader currently exposes no useful multi-color workflow for this project and the target PW3 display is monochrome. The green mutation remains only interoperability evidence from the disposable spike.
 
 ## Architecture decision after Gate 8
 
-Pending observed evidence.
-
-Possible outcomes:
-- if Reader v3 create/update/delete is reliable and the v3 child ID maps deterministically to v2, prefer v3 for Reader-native mutations and use v2 only where it adds a proven capability;
-- if v3 note update is reliable, the production note-edit path no longer needs v2 solely for note mutation;
-- if v3 delete reliably removes the corresponding Readwise highlight, production deletion can stay on v3 (still opt-in/default OFF);
-- if any mapping or propagation is ambiguous, the relevant edit/delete capability remains disabled rather than guessed.
+Gate 8 establishes the production contract:
+- use Reader v3 for highlight creation with `parent_id` and exact content;
+- persist the returned Reader child ID only after confirmed creation;
+- Reader v3 can update highlight notes/tags and is the preferred note-update path;
+- the Reader child can be mapped deterministically to its Readwise v2 numeric highlight when v2 interoperability is needed; never fall back to text/note heuristics;
+- Reader v3 deletion of the proven child propagates so the corresponding v2 highlight disappears; production deletion remains opt-in/default OFF;
+- do not implement highlight-color synchronization in V1;
+- preserve literal note text, including `[[wikilinks]]`, throughout the production sync path.
