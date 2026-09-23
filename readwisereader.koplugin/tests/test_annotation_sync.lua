@@ -101,6 +101,7 @@ return function()
         annotations = annotations,
         adapter = adapter,
         now = function() return now end,
+        file_exists = function() return true end,
     }
 
     local first, first_err = syncer:scanPath("/Readwise/a.epub")
@@ -211,6 +212,7 @@ return function()
             annotations = degraded_repo,
             adapter = { scan = function() return degraded_scan end },
             now = function() return 400 end,
+            file_exists = function() return true end,
         }
         local initial = assert(degraded_sync:scanPath("/Readwise/a.epub"))
         assert(initial.new == 1)
