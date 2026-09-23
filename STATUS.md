@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase F.5 — Gate 4A migration in progress: KOReader v2026.07.1 regression, then Bookshelf v5.1.4 coexistence**
+**Phase F.5 — Gate 4A-1 PASSED on KOReader v2026.07.1; Gate 4A-2 Bookshelf v5.1.4 coexistence is next**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -21,20 +21,26 @@ Physical result on target PW3:
 - Kindle firmware/jailbreak/KUAL were not changed;
 - Bookshelf is not installed yet.
 
-Gate 4A-1 Readwise Reader compatibility regression is now **IN PROGRESS**.
+### Gate 4A-1 — PASS
 
-Partial physical Gate 4A-1 result on KOReader 2026.07.1:
-- Readwise Reader is reachable enough for `Test connection` and token authentication succeeds;
-- an existing previously-downloaded Reader article opens and its reading progress is preserved across the KOReader upgrade;
-- two consecutive `Sync now` runs completed with no errors and no duplicate document creation;
-- `Full document rescan` cancellation works;
-- KOReader remained responsive after cancellation;
-- the cancelled rescan did not advance the document watermark.
+Physical result on target PW3 / KOReader 2026.07.1:
+- Readwise Reader loads after the KOReader upgrade;
+- existing token remains usable and `Test connection` succeeds;
+- previously-downloaded Reader article opens normally;
+- reading progress is preserved;
+- existing highlight + note are preserved;
+- two consecutive `Sync now` runs complete with no errors and no duplicates;
+- `Full document rescan` cancels cleanly;
+- KOReader remains responsive after cancellation;
+- cancelled rescan does not advance the document watermark;
+- one Reader-side move/rename on an already-managed article syncs without duplicate/same ownership breakage;
+- KOReader restart succeeds and Readwise Reader continues to load/settings persist.
 
-Remaining Gate 4A-1 checks before PASS:
-- explicitly confirm an existing highlight + note still persist on a pre-upgrade article;
-- perform one Reader-side move or rename on an already-managed article and confirm no duplicate/same ownership;
-- restart KOReader once and confirm Readwise Reader still loads/settings persist.
+Conclusion:
+- **Gate 4A-1 PASSED.**
+- official KOReader **v2026.07.1** is now the canonical physical V1 baseline for Phase G and later work;
+- KOReader 2025.04 remains the historical Gate 0–4 compatibility baseline only;
+- next blocker is **Gate 4A-2: Bookshelf v5.1.4 coexistence**, including Reader location Collections and Reader tags -> Bookshelf-compatible metadata.
 
 
 - freeze/back up the known-good 2025.04 state;
@@ -73,9 +79,9 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Serial prefix: `G090KB`
 - Firmware: `5.16.2.1.1 (4097470002)`
 - Jailbreak/KUAL functional
-- KOReader for **Gate 4**: `2025.04`
-- planned post-Gate-4 target: official KOReader `v2026.07.1`, `kindlepw2` package
-- planned Bookshelf coexistence target: `v5.1.4`
+- KOReader historical Gate 0–4 baseline: `2025.04`
+- canonical physical V1 baseline from Gate 4A-1 onward: official KOReader `v2026.07.1`, `kindlepw2` package
+- next coexistence target: Bookshelf `v5.1.4`
 
 ## Phase A result
 
