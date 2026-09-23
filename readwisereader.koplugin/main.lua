@@ -12,6 +12,7 @@ local Html = require("content/html")
 local Images = require("content/images")
 local Http = require("api/http")
 local Installer = require("content/installer")
+local RawSource = require("content/raw_source")
 local KOReaderCollections = require("koreader/collections")
 local KOReaderDocuments = require("koreader/documents")
 local Reader = require("api/reader")
@@ -59,6 +60,13 @@ function ReadwiseReader:init()
             per_image_max = self.config:getMaxImageBytes(),
             total_max = self.config:getMaxArticleImageBytes(),
             max_images = self.config:getMaxImagesPerArticle(),
+        },
+        raw_source = RawSource:new{
+            http = self.http,
+            installer = installer,
+            download_root = self.config:getDownloadDirectory(),
+            max_bytes = self.config:getMaxRawSourceBytes(),
+            min_free_bytes = self.config:getMinRawSourceFreeBytes(),
         },
         filenames = Filenames,
         installer = installer,
