@@ -35,6 +35,7 @@ function Worker:run(options)
     local Installer = require("content/installer")
     local RawSource = require("content/raw_source")
     local Reader = require("api/reader")
+    local Readwise = require("api/readwise")
     local DocumentsSync = require("sync/documents")
     local AnnotationSync = require("sync/annotations")
     local AnnotationUpload = require("sync/annotation_upload")
@@ -57,6 +58,10 @@ function Worker:run(options)
         local sync_meta = SyncMeta:new{ db = db }
         local http = Http:new()
         local reader = Reader:new{
+            http = http,
+            config = config,
+        }
+        local readwise = Readwise:new{
             http = http,
             config = config,
         }
@@ -153,6 +158,10 @@ function Worker:run(options)
         sync_report.annotation_remote_errors = 0
         sync_report.legacy_annotation_links_accepted = 0
         sync_report.durable_link_without_marker_accepted = 0
+        sync_report.v2_annotation_pages_scanned = 0
+        sync_report.v2_annotation_mappings_resolved = 0
+        sync_report.v2_remote_note_reads = 0
+        sync_report.v2_note_updates = 0
         sync_report.annotation_sync_status = "no_current_document"
 
         if type(options.current_path) == "string" and options.current_path ~= "" then
@@ -201,6 +210,7 @@ function Worker:run(options)
                             annotations = annotations_repository,
                             adapter = adapter,
                             reader = reader,
+                            readwise = readwise,
                             propagate_deletions = config:getPropagateHighlightDeletions(),
                         }
                         local mutation_report, mutation_err = mutations:syncPath(options.current_path)
@@ -229,6 +239,14 @@ function Worker:run(options)
                                 mutation_report.legacy_identity_accepted or 0
                             sync_report.durable_link_without_marker_accepted =
                                 mutation_report.durable_link_identity_accepted or 0
+                            sync_report.v2_annotation_pages_scanned =
+                                mutation_report.v2_pages_scanned or 0
+                            sync_report.v2_annotation_mappings_resolved =
+                                mutation_report.v2_mappings_resolved or 0
+                            sync_report.v2_remote_note_reads =
+                                mutation_report.v2_remote_note_reads or 0
+                            sync_report.v2_note_updates =
+                                mutation_report.v2_note_updates or 0
                         end
                     end
                 end
