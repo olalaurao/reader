@@ -127,8 +127,12 @@ Validate:
 2. Readwise Reader remains reachable from KOReader menus.
 3. `Sync now` works while Bookshelf is installed.
 4. Newly downloaded Readwise documents appear after Bookshelf refresh/restart.
-5. Readwise location collections do not destroy unrelated user collections.
-6. Open a Readwise-managed article from Bookshelf; reading controls, position, highlight and note work.
+5. Reader location is represented through the plugin-managed `Readwise: Inbox/Later/Shortlist/Feed/Archive` Collections.
+6. Move one already-managed document in Reader and sync; Bookshelf/KOReader must reflect the new location Collection without creating a duplicate or losing unrelated user Collections.
+7. Reader tags are projected to KOReader custom metadata (`keywords`, or the exact Bookshelf-compatible equivalent validated on this baseline) and are visible/filterable in Bookshelf as tags/genres/keywords.
+8. Add/remove/change a Reader tag, sync, refresh Bookshelf if required, and verify the local metadata/Bookshelf representation changes on the same local document.
+9. Reader title/author metadata changes continue to update the same local document and remain visible in Bookshelf.
+10. Open a Readwise-managed article from Bookshelf; reading controls, position, highlight and note work.
 7. Close the article and return to the library without a crash.
 8. Run another no-op Readwise sync; no duplicates.
 9. Restart KOReader; both plugins still load and settings persist.
