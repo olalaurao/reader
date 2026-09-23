@@ -67,6 +67,9 @@ local function testDocuments()
     assertEqual(second.local_path, "/mnt/us/documents/Readwise/Articles/old.html", "remote metadata upsert must preserve local state")
     assertEqual(second.local_content_hash, "local-hash")
     assertEqual(second.raw_source_available, true)
+    local by_path = docs:getByLocalPath("/mnt/us/documents/Readwise/Articles/old.html")
+    assertEqual(by_path.reader_id, "doc-1")
+    assertEqual(docs:getByLocalPath("/mnt/us/documents/Readwise/Articles/missing.html"), nil)
 
     local conn = db:getConnection()
     local raw_url_count = tonumber(conn:rowexec([[
@@ -123,6 +126,26 @@ local function testAnnotations()
     assertEqual(edited.readwise_v2_highlight_id, 12345, "local scan must preserve v2 mapping")
     assertEqual(edited.last_text_hash, "text-2")
     assertEqual(edited.sync_state, "local_changed")
+
+    local listed = anns:listByDocument("doc-1")
+    assertEqual(#listed, 1)
+    assertEqual(listed[1].local_annotation_id, "ann-1")
+
+    local deleted = anns:markLocalDeleted("ann-1", 555)
+    assertEqual(deleted.local_deleted_at, 555)
+    assertEqual(deleted.sync_state, "local_deleted")
+
+    anns:upsertLocal({
+        local_annotation_id = "ann-1",
+        reader_document_id = "doc-1",
+        locator_fingerprint = "loc-a",
+        last_text_hash = "text-2",
+        last_note_hash = "note-2",
+        sync_state = "local_changed",
+    })
+    local restored = anns:getById("ann-1")
+    assertEqual(restored.local_deleted_at, nil, "seen annotation must clear local deletion tombstone")
+    assertEqual(restored.reader_highlight_document_id, "reader-highlight-1", "local rescan must preserve remote link")
 
     db:close()
 end

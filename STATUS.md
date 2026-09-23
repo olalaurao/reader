@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase H COMPLETE — Gate 6 PASSED on PW3 / KOReader 2026.07.1; Phase I sidecar/annotation adapter is next**
+**Phase I COMPLETE — Gate 7 PASSED on PW3 / KOReader 2026.07.1; Phase J annotation API interoperability spike is next**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Current work is **Phase H / Gate 6**. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Current work is **Phase I / Gate 7**. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -465,6 +465,68 @@ Physical Gate 6 result on the target PW3 / KOReader 2026.07.1:
 
 Gate 6 is closed. **Phase H is complete and Phase I / Gate 7 (KOReader sidecar/annotation adapter) is now unblocked.**
 
+## Phase I — KOReader sidecar / annotation adapter
+
+### 0.1.21 implementation ready for Gate 7
+
+KOReader v2026.07.1 source contract revalidated before implementation:
+- `DocSettings:open(doc_path)` resolves the active sidecar location rather than requiring this plugin to hardcode `.sdr` paths;
+- a valid loaded sidecar exposes `source_candidate`;
+- `ReaderAnnotation:onReadSettings()` reads the canonical `annotations` setting;
+- `ReaderAnnotation:onSaveSettings()` writes the same `annotations` table;
+- current annotation records contain creation/update timestamps, highlight style/color, selected text, note, page/XPointer and start/end positions;
+- KOReader's own matching logic uses stable creation/location fields rather than mutable note/text values.
+
+Implemented:
+- new `koreader/annotations.lua` adapter reads sidecars through `DocSettings`;
+- only actual highlights (`drawer ~= nil`) are candidates; page bookmarks are ignored;
+- selected text and note are preserved literally, including newlines, UTF-8, Markdown and `[[wikilinks]]`;
+- strong local annotation identity follows the canonical contract:
+  `SHA256(reader_document_id + datetime + canonical_locator)`;
+- locator serialization is deterministic, sorts nested table keys and normalizes locale-dependent decimal separators for PDF coordinates;
+- mutable text, note, color, style, chapter, page labels and calculated page numbers are excluded from identity;
+- missing `datetime` uses a degraded first-seen identity; later text edits reuse the stored ID only when the locator has one unambiguous prior match;
+- identity collisions are detected and surfaced rather than silently merged;
+- local text/note edits are detected by SHA-256 hashes without changing a strong local ID;
+- local deletion is detected only from an authoritative, valid sidecar annotation table;
+- **missing document file, missing/invalid sidecar, or missing `annotations` key never implies deletion**;
+- managed ownership is resolved only by exact `documents.local_path` DB linkage, never by folder/title/filename inference;
+- storage now supports local-path document lookup, per-document annotation listing and local deletion tombstones;
+- a targeted **Scan current annotations (Gate 7)** action scans only the currently-open managed document, avoiding a whole-library sidecar walk;
+- the device diagnostic shows counts, stable local ID, identity quality, locator evidence, exact selected text and exact note for the most recently modified highlight;
+- no Reader/Readwise write endpoint is called in Phase I.
+
+Automated coverage:
+- note edit and text edit do not change strong identity;
+- locator change does change identity;
+- delete/recreate with a new creation timestamp gets a new identity;
+- PDF locator table key order is canonical;
+- page bookmarks are ignored;
+- malformed highlights are skipped safely;
+- no-sidecar / missing-annotations state is non-authoritative;
+- add/edit/delete detection and deletion tombstone behavior;
+- degraded identity survives later text edits through unambiguous locator reconciliation;
+- unrelated documents cannot be scanned as managed Reader documents;
+- missing local managed file never implies annotation deletion;
+- Gate 7 diagnostic preserves literal `[[Foucault]]`, hashtags, emoji and line breaks in its on-device evidence;
+- run #339 on `c638f6cb...`: **SUCCESS** — full syntax, all unit tests, package/layout and artifact;
+- installable inner ZIP verified with `unzip -t`; SHA-256: `b609cf81ea4e3e621e9235d8c4e3156c429c9cbbd3e1d0ef9847639a0596262f`.
+
+Physical Gate 7 result on the target PW3 / KOReader 2026.07.1:
+- exact selected text was read from the KOReader sidecar: **PASS**;
+- the exact note content actually entered on the Kindle was preserved, including `[[Foucault]]`, blank line and `#pesquisar`: **PASS**;
+- the emoji from the suggested fixture was not entered because the Kindle keyboard does not provide emoji input; this is not a persistence failure and is not a Gate 7 blocker;
+- locator/page/start/end evidence was populated: **PASS**;
+- identity quality was strong: **PASS**;
+- the same Local ID survived close/reopen: **PASS**;
+- the second scan classified the same annotation as unchanged rather than new: **PASS**;
+- no crash/freeze: **PASS**.
+
+### Gate 7 — PASS
+
+Gate 7 is closed. **Phase I is complete and Phase J / Gate 8 (annotation API interoperability spike) is now unblocked.**
+
+
 
 
 
@@ -480,8 +542,8 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 
 ## Current branch / commit
 
-- Branch: `phase-h/raw-formats-gate6`
-- Base `main`: `f33bcd6210931b3d74bcb5a814e1cc9e3591fec2` (PR #8 merge / Phase G + Gate 5 passed)
+- Branch: `phase-i/sidecar-gate7`
+- Base `main`: `3995dbee0b6f3171793abab50cb541af10a48d5c` (PR #9 merge / Phase H + Gate 6 passed)
 - Phase F historical merge: `21dd64719ca248dd7706895fab1651751edf8844` (Gate 4 passed on KOReader 2025.04)
 - F1 settings/root ownership: `a57da9980d1b77a16bf2a0b8fbaa09327b1691d9`
 - F1/F2 incremental sync engine: `265405a479ab538ed4fbdde9223ca97c28aaad07`
@@ -509,7 +571,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Jailbreak/KUAL functional
 - KOReader historical Gate 0–4 baseline: `2025.04`
 - canonical physical V1 baseline from Gate 4A-1 onward: official KOReader `v2026.07.1`, `kindlepw2` package
-- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase H / Gate 6 raw PDF + EPUB
+- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase I / Gate 7 sidecar/annotation adapter
 
 ## Phase A result
 
@@ -1366,10 +1428,9 @@ A deliberate roadmap/spec change was made on 2026-09-22 at the user's request: K
 
 ## Blockers
 
-Immediate blocker: **Gate 6 physical validation on the target PW3** for one original Reader PDF and one original Reader EPUB.
+Immediate blocker: **Gate 7 physical validation on the target PW3** for one managed article highlight/note and stable sidecar identity after reopen.
 
 Later hard gates remain:
-- KOReader sidecar annotation extraction/identity;
 - Reader v3 ↔ Readwise v2 highlight ID mapping;
 - safe note-update path;
 - safe highlight-delete path;
@@ -1378,12 +1439,13 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Package/install build **0.1.20** after final CI.
-2. On the PW3, use **Readwise Reader -> Test PDF / EPUB (Gate 6) -> Choose one PDF** and select a real distributable PDF.
-3. Confirm it opens as a native PDF, reads normally, closes/reopens and preserves progress. If the plugin reports HTML fallback, choose a different PDF.
-4. Repeat with **Choose one EPUB** and confirm native EPUB reflow/font controls, close/reopen and progress. If it reports HTML fallback, choose a different EPUB.
-5. Prefer one offline reopen after both originals are local; no global PDF/EPUB sync filter or Full document rescan is required for this gate.
-6. If both originals pass, close Gate 6 / Phase H, merge to `main`, then begin Phase I sidecar/annotation adapter.
+1. Finish final CI/package for build **0.1.21**.
+2. Install only the updated `readwisereader.koplugin`; keep the existing database/settings/documents.
+3. On one already-managed article, create a short highlight and the distinctive Gate 7 note from `docs/DEVICE_TESTS.md`.
+4. Close/reopen the article and run **Scan current annotations (Gate 7)** from inside that article.
+5. Verify exact selected text/note, populated locator evidence and `Identity quality: strong`; record the Local ID.
+6. Close/reopen once more and rescan; the same Local ID must remain and the item should be unchanged.
+7. If Gate 7 passes, close/merge Phase I and begin **Phase J / Gate 8 annotation API interoperability spike**. No outbound annotation sync should be implemented before that spike proves the current Reader/Readwise ID/update/delete behavior.
 
 ## Existing architectural decisions still in force
 

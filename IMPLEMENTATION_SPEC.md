@@ -2226,7 +2226,7 @@ Physical PW3 validation on KOReader v2026.07.1 passed:
 
 Not every remote image is required to render in V1; graceful degradation is the accepted contract.
 
-## Phase H — raw formats — IMPLEMENTED, GATE 6 PENDING
+## Phase H — raw formats — COMPLETE
 
 ### H1 — implemented
 - fresh `raw_source_url` requested immediately before raw materialization;
@@ -2260,21 +2260,32 @@ Physical PW3 validation on KOReader v2026.07.1 passed:
 
 HTML fallback remains valid product behavior but does not substitute for the original-format proof above.
 
-## Phase I — sidecar/annotation adapter
+## Phase I — sidecar/annotation adapter — IMPLEMENTED, GATE 7 PENDING
 
-### I1
-- read managed document annotations via DocSettings;
-- stable local annotation ID;
-- detect add/edit/delete.
+### I1 — implemented
+- read the canonical KOReader `annotations` table through `DocSettings`;
+- stable SHA-256 local annotation identity based on Reader document ID + creation time + deterministic locator;
+- degraded datetime-less fallback reconciled by one unambiguous locator match;
+- literal selected text/note hashes for add/edit detection;
+- authoritative deletion detection with tombstones;
+- missing file/sidecar/parser state never treated as intentional deletion.
 
-### I2
-- never touch unrelated docs;
-- unit tests around identity.
+### I2 — implemented
+- ownership requires an exact managed `documents.local_path` row;
+- unrelated documents are rejected;
+- page bookmarks are ignored by the highlight adapter;
+- unit coverage for rolling/PDF locator identity, note/text edits, locator changes, degraded IDs, add/edit/delete and unsafe missing-state cases;
+- targeted on-device current-document diagnostic avoids a full-library scan.
 
-### Gate 7
-- create highlight and note on device;
-- scanner sees correct text/note/locator;
-- reopening document preserves identity.
+### Gate 7 — PASSED
+Physical PW3 validation on KOReader v2026.07.1 passed:
+- selected text and the note content actually entered on-device are read exactly from the sidecar;
+- locator evidence is populated and identity quality is strong;
+- close/reopen preserves the same local annotation ID;
+- a second scan recognizes the same annotation as unchanged;
+- no crash/freeze observed.
+
+The optional emoji fixture was not entered because the Kindle keyboard has no emoji input; this is not a persistence or identity failure.
 
 ## Phase J — annotation API spike
 

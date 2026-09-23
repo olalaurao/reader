@@ -101,6 +101,15 @@ function Documents:getById(reader_id)
     return rowToDocument(row)
 end
 
+function Documents:getByLocalPath(local_path)
+    if type(local_path) ~= "string" or local_path == "" then return nil end
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare("SELECT " .. SELECT_COLUMNS .. " FROM documents WHERE local_path = ?;")
+    local row = stmt:bind(local_path):step()
+    stmt:close()
+    return rowToDocument(row)
+end
+
 function Documents:setLocalState(reader_id, state)
     state = state or {}
     local conn = self.db:getConnection()

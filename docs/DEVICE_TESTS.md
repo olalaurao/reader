@@ -592,7 +592,7 @@ Gate 4 is closed. Do not replay all Gates 0–4 after the KOReader upgrade. Gate
 
 ## Gate 4A — KOReader v2026.07.1 + Bookshelf migration
 
-Status: **Gate 6 COMPLETE — Phase H PASSED; Phase I / Gate 7 next**
+Status: **Gate 7 COMPLETE — Phase I PASSED; Phase J / Gate 8 next**
 
 Canonical detailed runbook: `docs/KOREADER_UPGRADE.md`.
 
@@ -890,3 +890,50 @@ Recorded physical result:
 - no crash/freeze: **PASS**.
 
 **Gate 6 PASSED. Proceed to Phase I / Gate 7.**
+
+
+## Phase I / Gate 7 — KOReader sidecar annotation identity
+
+Build: **0.1.21**
+
+This is a short **local-only** test. It does not upload a highlight to Reader yet, does not need a Full document rescan and does not need a whole-library sidecar scan.
+
+1. Install 0.1.21 and restart KOReader.
+2. Open one **already-managed Readwise article** from Bookshelf/Readwise.
+3. Highlight a short piece of text.
+4. Add this distinctive note exactly:
+   `gate7 [[Foucault]]`
+
+   `#pesquisar 🧠`
+5. Close the article normally so KOReader saves its sidecar.
+6. Reopen that same article.
+7. While the article is open, use **Readwise Reader -> Scan current annotations (Gate 7)**.
+8. Confirm:
+   - `Highlights found` is at least 1;
+   - `With notes` is at least 1;
+   - the most recently modified highlight shows the exact selected text;
+   - the note still contains `gate7 [[Foucault]]`, the blank line, `#pesquisar` and 🧠;
+   - `Identity quality: strong`;
+   - Page/location, Start and End are not empty;
+   - copy/note the displayed `Local ID`.
+9. Close and reopen the article one more time without editing that highlight.
+10. Run **Scan current annotations (Gate 7)** again.
+11. Confirm the same highlight has the **same Local ID** and is now counted as unchanged rather than new.
+12. Confirm normal reading remains responsive. No network operation is required for the scan itself.
+
+Return:
+`texto exato: sim/não / nota exata: sim/não / locator preenchido: sim/não / identity strong: sim/não / mesmo Local ID após reopen: sim/não / segundo scan unchanged: sim/não / sem crash: sim/não`
+
+If the diagnostic says there is no valid sidecar, close/reopen the document once and retry. Do not run Full document rescan.
+
+Recorded physical result:
+- selected text exact: **PASS**;
+- note content entered on Kindle exact: **PASS**;
+- locator populated: **PASS**;
+- identity quality strong: **PASS**;
+- same Local ID after reopen: **PASS**;
+- second scan unchanged: **PASS**;
+- no crash/freeze: **PASS**.
+- The suggested 🧠 fixture character was not entered because the Kindle keyboard lacks emoji input; all typed note characters were preserved exactly, so this does not affect Gate 7.
+
+**Gate 7 PASSED. Proceed to Phase J / Gate 8.**
