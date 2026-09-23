@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase G / Gate 5 IN PROGRESS — G1 PASSED physically; G2 bounded local image cache implemented, production build pending final CI/device test**
+**Phase G COMPLETE — Gate 5 PASSED on PW3 / KOReader 2026.07.1; Phase H raw PDF/EPUB formats is next**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -390,6 +390,25 @@ Build **0.1.19** is ready for a **new-article** physical retest. Do not reuse th
 - user did not capture the sync summary counters, so exact candidate/download/skip counts are unavailable for this run.
 
 Do not delete/re-download this same local article merely to recover the report: normal sync intentionally treats it as already local before Phase Q. If counters are needed later, use a different newly-saved article.
+
+Final physical confirmation:
+- close/reopen succeeded;
+- the successfully localized image remained visible;
+- article text remained usable;
+- no freeze/crash was reported.
+
+### Gate 5 — PASS
+
+Gate 5 is closed on the target PW3 / KOReader 2026.07.1.
+
+Accepted production behavior:
+- at least one real Reader article image is localized end-to-end as an offline relative asset;
+- image failure is non-fatal and the text remains usable;
+- missing/unsupported/over-limit images may degrade to placeholders;
+- the PW3 remains responsive;
+- already-local documents are not rewritten just to add/fix images before Phase Q content-refresh safety work.
+
+**Phase G is complete. Phase H / Gate 6 (raw PDF + EPUB with fallback) is now unblocked.**
 
 
 
