@@ -1698,5 +1698,9 @@ Automated validation:
 - run #415: **SUCCESS** — mutation engine/state tests;
 - run #416: **SUCCESS** — Sync now/settings integration;
 - run #417: **SUCCESS** — destructive opt-in UI coverage.
+- run #418 on build `fe97378c76f92f2e4b5c79f0eb1c293d4f864965`: **SUCCESS** — development checks, full Lua suite, ZIP build/layout and artifact upload.
+- Gate 12 artifact ID: `10777011478`.
+- artifact name: `readwisereader-koplugin-fe97378c76f92f2e4b5c79f0eb1c293d4f864965`.
+- artifact digest: `sha256:8f20886e44b96fb46dbc03bd968f536fd9ece7de203d092d446abb797caebd1e`.
 
 Physical Gate 12 remains required.
