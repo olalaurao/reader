@@ -177,6 +177,8 @@ return function()
         assert(state.meta_writes.document_query_after == "2026-09-22T19:55:00Z")
         assert(state.shown[#state.shown].text:find("Downloaded: 2", 1, true))
         assert(state.shown[#state.shown].text:find("Highlights created: 0", 1, true))
+        assert(state.shown[#state.shown].text:find("Notes updated: 0", 1, true))
+        assert(state.shown[#state.shown].text:find("Remote highlight deletions: 0", 1, true))
     end)
 
     withStubbedSyncUI(function(SyncUI, state)

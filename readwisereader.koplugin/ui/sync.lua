@@ -100,6 +100,13 @@ local function summaryText(report)
         string.format(_("Highlights unmatched/ambiguous: %d"), report.highlights_unmatched or 0),
         string.format(_("Highlight creates blocked safely: %d"), report.highlight_creates_blocked or 0),
         string.format(_("Reconciliation markers verified: %d"), report.highlight_marker_verified or 0),
+        string.format(_("Notes updated: %d"), report.notes_updated or 0),
+        string.format(_("Note updates reconciled: %d"), report.notes_reconciled or 0),
+        string.format(_("Note conflicts blocked: %d"), report.note_conflicts or 0),
+        string.format(_("Annotation mutations blocked safely: %d"), report.annotation_mutations_blocked or 0),
+        string.format(_("Local highlight deletions detected: %d"), report.local_deletions_detected or 0),
+        string.format(_("Remote highlight deletions: %d"), report.remote_deletions or 0),
+        string.format(_("Deletions retained remotely (propagation off): %d"), report.deletions_retained or 0),
         string.format(_("Annotation remote errors: %d"), report.annotation_remote_errors or 0),
     }
 

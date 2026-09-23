@@ -38,6 +38,7 @@ function Worker:run(options)
     local DocumentsSync = require("sync/documents")
     local AnnotationSync = require("sync/annotations")
     local AnnotationUpload = require("sync/annotation_upload")
+    local AnnotationMutations = require("sync/annotation_mutations")
     local KOReaderAnnotations = require("koreader/annotations")
     local logger = require("logger")
     local util = require("util")
@@ -142,6 +143,13 @@ function Worker:run(options)
         sync_report.highlights_unmatched = 0
         sync_report.highlight_creates_blocked = 0
         sync_report.highlight_marker_verified = 0
+        sync_report.notes_updated = 0
+        sync_report.notes_reconciled = 0
+        sync_report.note_conflicts = 0
+        sync_report.annotation_mutations_blocked = 0
+        sync_report.local_deletions_detected = 0
+        sync_report.remote_deletions = 0
+        sync_report.deletions_retained = 0
         sync_report.annotation_remote_errors = 0
         sync_report.annotation_sync_status = "no_current_document"
 
@@ -185,6 +193,37 @@ function Worker:run(options)
                         sync_report.highlight_creates_blocked = upload_report.blocked or 0
                         sync_report.highlight_marker_verified = upload_report.marker_verified or 0
                         sync_report.annotation_remote_errors = upload_report.remote_errors or 0
+
+                        local mutations = AnnotationMutations:new{
+                            documents = repository,
+                            annotations = annotations_repository,
+                            adapter = adapter,
+                            reader = reader,
+                            propagate_deletions = config:getPropagateHighlightDeletions(),
+                        }
+                        local mutation_report, mutation_err = mutations:syncPath(options.current_path)
+                        if not mutation_report then
+                            sync_report.annotation_sync_status = "mutation_error"
+                            sync_report.annotation_error_kind = mutation_err
+                                and mutation_err.kind or "unknown"
+                            sync_report.annotation_remote_errors =
+                                sync_report.annotation_remote_errors + 1
+                        else
+                            sync_report.notes_updated = mutation_report.notes_updated or 0
+                            sync_report.notes_reconciled = mutation_report.notes_reconciled or 0
+                            sync_report.note_conflicts = mutation_report.conflicts or 0
+                            sync_report.annotation_mutations_blocked = mutation_report.blocked or 0
+                            sync_report.local_deletions_detected =
+                                mutation_report.deletions_detected or 0
+                            sync_report.remote_deletions =
+                                (mutation_report.deletions_remote or 0)
+                                + (mutation_report.deletions_already_remote or 0)
+                            sync_report.deletions_retained =
+                                mutation_report.deletions_retained or 0
+                            sync_report.annotation_remote_errors =
+                                sync_report.annotation_remote_errors
+                                + (mutation_report.remote_errors or 0)
+                        end
                     end
                 end
             else
