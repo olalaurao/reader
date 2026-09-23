@@ -26,10 +26,31 @@ function Installer:new(options)
     }, self)
 end
 
-local function ioError(stage, message)
+local function classifyOpenError(message)
+    local text = string.lower(tostring(message or ""))
+    if text:find("no space left", 1, true) or text:find("enospc", 1, true) then
+        return "no_space"
+    elseif text:find("file name too long", 1, true)
+        or text:find("filename too long", 1, true)
+        or text:find("enametoolong", 1, true) then
+        return "name_too_long"
+    elseif text:find("too many open files", 1, true) or text:find("emfile", 1, true) then
+        return "too_many_open_files"
+    elseif text:find("read-only file system", 1, true) or text:find("erofs", 1, true) then
+        return "read_only"
+    elseif text:find("permission denied", 1, true) or text:find("eacces", 1, true) then
+        return "permission"
+    elseif text:find("invalid argument", 1, true) or text:find("einval", 1, true) then
+        return "invalid_name"
+    end
+    return "other"
+end
+
+local function ioError(stage, message, detail)
     return {
         kind = "io",
         stage = stage,
+        detail = detail,
         retryable = true,
         message = message,
     }
@@ -68,7 +89,11 @@ function Installer:install(content, final_path)
 
     local file, open_err = self.deps.open_file(temp_path, "wb")
     if not file then
-        return nil, ioError("open", "Could not create temporary document: " .. tostring(open_err or "unknown error"))
+        return nil, ioError(
+            "open",
+            "Could not create temporary document.",
+            classifyOpenError(open_err)
+        )
     end
 
     local write_ok, write_err = file:write(content)
@@ -103,5 +128,7 @@ function Installer:install(content, final_path)
         durability_warning = durable and nil or tostring(durability_err or "directory fsync failed"),
     }
 end
+
+Installer._classifyOpenError = classifyOpenError
 
 return Installer
