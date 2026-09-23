@@ -799,3 +799,28 @@ Gate 5 pass report:
 
 Optional cap/failure check (only if the chosen article naturally triggers it):
 - a skipped/failed image with readable surrounding text is a PASS for failure tolerance; do not manufacture a giant file on the Kindle just to hit the cap.
+
+
+### Gate 5 retest — build 0.1.19
+
+0.1.18 device result: article downloaded, but article images did not. Root cause: Reader responsive/lazy image markup was not promoted into downloadable `img src` candidates.
+
+0.1.19 adds support for:
+- `picture/source srcset`;
+- direct `img srcset`;
+- `data-src`, `data-lazy-src`, `data-original`, `data-url`;
+- tiny/data-URI lazy placeholders with the real URL in a responsive/lazy attribute.
+
+Important: use a **different Reader article that has never been materialized on this Kindle**. The 0.1.18 test article is already considered local and normal sync will not rewrite its HTML before Phase Q.
+
+Retest:
+1. Install 0.1.19 and restart KOReader.
+2. Keep **Download article images** ON.
+3. Save a new image-heavy article into an enabled Reader location.
+4. Run normal Sync now.
+5. Record `Image candidates found`, `Responsive images promoted`, `Images downloaded`, `Images skipped...`, `Images unavailable...`, and `Errors`.
+6. Open the article and verify real images + usable text.
+7. Close/reopen; optionally turn Wi-Fi off before reopening to prove assets are local.
+
+Return:
+`image candidates >0: sim/não / images downloaded >0: sim/não / real images visible: sim/não / text usable: sim/não / no crash/freeze: sim/não / reopen/offline ok: sim/não / Errors=0: sim/não`
