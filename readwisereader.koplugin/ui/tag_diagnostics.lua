@@ -144,6 +144,14 @@ Tap to cancel. This uses Reader's Tag LIST and tag-filtered Document LIST only.]
                 categoriesText(report.categories))
             lines[#lines + 1] = string.format(_("Tag API pages: %d; document pages: %d"),
                 report.tag_pages or 0, report.document_pages or 0)
+            lines[#lines + 1] = string.format(_("Incremental query watermark: %s"),
+                report.query_after or _("not set"))
+            lines[#lines + 1] = string.format(_("Visible through incremental updatedAfter: %d"),
+                report.incremental_visible or 0)
+            lines[#lines + 1] = string.format(_("Stored revision already equals remote: %d"),
+                report.stored_revision_matches_remote or 0)
+            lines[#lines + 1] = string.format(_("Remote revision newer than stored: %d"),
+                report.remote_revision_newer_than_stored or 0)
         end
 
         UIManager:show(InfoMessage:new{ text = table.concat(lines, "\n") })
