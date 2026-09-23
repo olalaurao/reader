@@ -51,6 +51,10 @@ function Html.build(document)
     if type(document.author) == "string" and document.author ~= "" then
         head[#head + 1] = '<meta name="author" content="' .. escapeHtml(document.author) .. '">'
     end
+    head[#head + 1] = [[<style>
+img { max-width: 100%; height: auto; }
+.rw-image-placeholder { display: block; margin: 0.8em 0; padding: 0.5em; border: 1px solid #888; font-style: italic; }
+</style>]]
     head[#head + 1] = "</head>"
     head[#head + 1] = "<body>"
     head[#head + 1] = '<article data-readwise-reader="true">'
