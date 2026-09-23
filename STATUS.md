@@ -1535,3 +1535,30 @@ Later hard gates remain:
 - Never blindly retry highlight creation after an ambiguous timeout.
 
 Never rely on chat history alone for project state.
+
+
+## Phase K — Gate 9 staged production annotation upload
+
+**Status: READY FOR PHYSICAL TEST — build 0.1.23**
+
+Implemented on branch `phase-k/annotation-sync`:
+- conservative text matcher: unique exact match first, then unique whitespace-normalized match while returning the original Reader substring;
+- ambiguous or unmatched text is blocked rather than guessed;
+- one-at-a-time upload from the current managed KOReader document;
+- Reader v3 `parent_id` create using the Gate 8 contract;
+- literal note transport, including multiline Markdown / `[[wikilinks]]` / hashtags;
+- durable Reader child ID is persisted only after a confirmed create response;
+- a linked annotation is never POSTed again by this staged action, providing a direct physical dedup check;
+- POST failure does not blindly retry, avoiding duplicate creation after an ambiguous transport failure;
+- highlight color is absent from the production path by design.
+
+Physical Gate 9 test:
+1. open a Readwise-managed article on KOReader;
+2. create one new highlight with a distinctive passage that occurs only once; add note `ver [[Foucault]]\n#pesquisar` (or another literal note you can verify);
+3. close/reopen the document if needed so the sidecar is flushed;
+4. run **Readwise Reader -> Scan current annotations (Gate 7)** once so the new local link is recorded;
+5. run **Readwise Reader -> Upload one current highlight (Gate 9)**;
+6. expect `Gate 9 upload complete`, then refresh Reader and verify the highlight is attached to the correct article and the note is exact;
+7. run **Upload one current highlight (Gate 9)** again without creating another local highlight; expect **No unsynced highlight was found** and confirm Reader still has only one copy.
+
+Gate 9 passes only after create + literal note + same-parent attachment + second-run dedup are confirmed physically.
