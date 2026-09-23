@@ -231,7 +231,29 @@ This proves Reader's public API currently exposes the missing tag on the exact t
 
 0.1.15 adds one further targeted probe: for each matching managed document, query the same ID again using the plugin's current `document_query_after` watermark and report whether Reader returns it through `updatedAfter`, plus whether the stored remote revision already equals the current remote revision. This requires only one extra document request for this one-document test and avoids another library scan.
 
-Next physical action: install 0.1.15 and rerun **Check Reader document tag (Gate 4A)** for `tag teste`; do not delete or change that tag yet.
+0.1.15 physical diagnostic result for document tag **`tag teste`**:
+- incremental query watermark: `2026-09-23T03:25:29Z`;
+- visible through incremental `updatedAfter`: **1**;
+- stored revision already equals remote: **0**;
+- remote revision newer than stored: **1**.
+
+This proves a tag-only Reader change **is** surfaced by the exact incremental query used by the plugin and the plugin database has not already consumed that revision. Combined with the 0.1.14 proof, Reader change discovery is working correctly.
+
+Root cause isolated in Bookshelf v5.1.4 cache behavior:
+- Readwise Reader writes the changed custom `keywords` metadata and broadcasts KOReader `InvalidateMetadataCache` + `BookMetadataChanged`;
+- Bookshelf's `onBookMetadataChanged` invalidates its per-chip/group result caches via `invalidateBookCache()`, but deliberately keeps its **light metadata cache** warm;
+- Bookshelf Genres are grouped from that light metadata cache;
+- Bookshelf's own repository comments state that changes to metadata content such as genres require `invalidateLightMeta()`, otherwise chips can remain stale;
+- this exactly explains the device result: the one-time backfill/restart exposed the historical tags, while a later incremental tag edit wrote the sidecar but the already-warm Genres source remained stale.
+
+Experimental **0.1.16** fix:
+- after a parent-process sync successfully writes one or more KOReader metadata sidecars, call a single optional Bookshelf cache refresh;
+- only act if `lib/bookshelf_book_repository` is already loaded, so there is no hard Bookshelf dependency and no cost when Bookshelf is absent/not yet used;
+- invalidate `light metadata` once, then invalidate Bookshelf book/group result caches once;
+- do not repeat invalidation per article;
+- no-op syncs still perform no Bookshelf cache refresh.
+
+Next physical action: install 0.1.16, keep `tag teste` unchanged, run one normal **Sync now**, then open Bookshelf -> Genres. The tag should appear without a full rescan or KOReader restart. If it appears, change/remove the tag once in Reader, normal-sync again, and verify Genres updates in place.
 
 
 
