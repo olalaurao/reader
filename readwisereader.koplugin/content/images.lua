@@ -115,8 +115,16 @@ local function normalizeResponsivePictures(html)
         local chosen
         local alt = ""
         for source_tag in inner:gmatch("<[sS][oO][uU][rR][cC][eE][^>]*>") do
-            local candidate = srcsetCandidate(extractAttr(source_tag, "srcset"))
-                or extractAttr(source_tag, "src")
+            local raw_srcset = extractAttr(source_tag, "srcset")
+            -- Prefer responsive sources only when Reader gave explicit width
+            -- descriptors. Density-only srcsets (1x/2x) do not tell us which
+            -- file is appropriate for this PW3; in that case keep the <img>
+            -- fallback, matching the proven community plugin behavior.
+            local candidate
+            if raw_srcset and raw_srcset:find("%d+w") then
+                candidate = srcsetCandidate(raw_srcset)
+            end
+            candidate = candidate or extractAttr(source_tag, "src")
             if candidate then chosen = candidate end
         end
         if fallback_img then
