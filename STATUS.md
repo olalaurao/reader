@@ -564,6 +564,11 @@ Automated coverage:
 - partial parent-only state is recoverable;
 - all existing Phase A–I tests continue to pass through the latest successful Phase J runs.
 
+Automated/package validation:
+- run #371 on `3eeb7efb...`: **SUCCESS** — syntax, all unit tests, package/layout and artifact;
+- workflow artifact digest: `sha256:df8d7a86ab921345789aac79b578fc2aca926e4e8ad0c6430b7b7ecb18aa8d49`;
+- installable inner ZIP verified with `unzip -t`; SHA-256: `17e5ae9c060407becb1053684f557d3aeae04042c0e790b42b8b5c0518a4db6d`.
+
 Gate 8 remains **OPEN** until the four disposable steps are run on the real account and the observed shapes/propagation results are written into `docs/API_INTEROP.md`.
 
 
