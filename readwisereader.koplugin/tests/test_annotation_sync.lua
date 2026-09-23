@@ -186,4 +186,60 @@ return function()
     local report, err = syncer:scanPath("/Books/unrelated.epub")
     assert(report == nil)
     assert(err.kind == "not_managed")
+
+    do
+        local degraded_repo = annotationRepo()
+        local degraded_scan = {
+            authoritative = true,
+            status = "ok",
+            malformed = 0,
+            annotations = {
+                {
+                    local_annotation_id = "provisional-first",
+                    locator_fingerprint = "same-locator",
+                    identity_quality = "degraded",
+                    datetime = nil,
+                    text = "first text",
+                    note = nil,
+                    text_hash = "text-first",
+                    note_hash = "note-none",
+                },
+            },
+        }
+        local degraded_sync = AnnotationSync:new{
+            documents = documentRepo(),
+            annotations = degraded_repo,
+            adapter = { scan = function() return degraded_scan end },
+            now = function() return 400 end,
+        }
+        local initial = assert(degraded_sync:scanPath("/Readwise/a.epub"))
+        assert(initial.new == 1)
+        assert(initial.degraded_identity == 1)
+        assert(degraded_repo.rows["provisional-first"].local_created_at == nil)
+
+        degraded_scan = {
+            authoritative = true,
+            status = "ok",
+            malformed = 0,
+            annotations = {
+                {
+                    local_annotation_id = "provisional-after-text-edit",
+                    locator_fingerprint = "same-locator",
+                    identity_quality = "degraded",
+                    datetime = nil,
+                    text = "edited text",
+                    note = nil,
+                    text_hash = "text-edited",
+                    note_hash = "note-none",
+                },
+            },
+        }
+        local edited_degraded = assert(degraded_sync:scanPath("/Readwise/a.epub"))
+        assert(edited_degraded.new == 0)
+        assert(edited_degraded.changed == 1)
+        assert(degraded_repo.rows["provisional-first"] ~= nil)
+        assert(degraded_repo.rows["provisional-after-text-edit"] == nil,
+            "degraded identity must reuse the first-seen ID for one unambiguous locator")
+        assert(degraded_repo.rows["provisional-first"].last_text_hash == "text-edited")
+    end
 end
