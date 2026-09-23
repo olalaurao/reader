@@ -102,8 +102,9 @@ function Annotations:listByDocument(reader_document_id)
         ORDER BY local_annotation_id;
     ]])
     local result = {}
+    stmt:bind(reader_document_id)
     while true do
-        local row = stmt:bind(reader_document_id):step()
+        local row = stmt:step()
         if not row then break end
         result[#result + 1] = rowToLink(row)
     end
