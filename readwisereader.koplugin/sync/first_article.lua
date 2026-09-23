@@ -109,6 +109,30 @@ function FirstArticle:installDocument(document)
     self.repository:upsertRemote(document, self.now())
 
     local installed, install_err = self.installer:install(rendered, final_path)
+
+    -- Some Kindle/VFAT paths reject otherwise valid-looking Unicode/title
+    -- filenames with EINVAL. Reader ID is the ownership identity, so retry
+    -- only that specific filename/path failure with an ASCII-safe title while
+    -- preserving the real title in KOReader metadata.
+    if not installed
+        and install_err
+        and install_err.kind == "io"
+        and install_err.stage == "open"
+        and install_err.detail == "invalid_name" then
+        local fallback_filename = self.filenames.build(nil, document.id, "html")
+        local fallback_path = self.filenames.joinUnderRoot(
+            self.download_root,
+            "Articles",
+            fallback_filename
+        )
+        if fallback_path ~= final_path then
+            installed, install_err = self.installer:install(rendered, fallback_path)
+            if installed then
+                final_path = fallback_path
+            end
+        end
+    end
+
     if not installed then
         self.repository:setLocalState(document.id, {
             is_local_present = false,
