@@ -1255,13 +1255,17 @@ A V1 só está pronta quando, no **Kindle PW3 real**, conseguirmos repetir:
 14. `[[Foucault]]` funcionar como wikilink;
 15. executar Sync novamente;
 16. nenhuma duplicata ser criada;
-17. editar uma nota e sincronizar;
-18. simular falha de rede e recuperar;
-19. reiniciar o KOReader com fila pendente e recuperar;
-20. marcar documento finished;
-21. sincronizar;
-22. documento ir para Archive no Reader;
-23. arquivo local e sidecar continuarem íntegros.
+17. mover esse documento no Reader (Inbox/Later/Archive etc.) e sincronizar;
+18. a mesma cópia local mudar para a Collection `Readwise: ...` correspondente, sem perder Collections não gerenciadas pelo plugin;
+19. alterar uma tag no Reader e sincronizar;
+20. a tag atualizada aparecer nos metadados do mesmo documento e, com Bookshelf habilitado, ficar disponível como tag/genre/keyword sem criar uma Collection por tag;
+21. editar uma nota e sincronizar;
+22. simular falha de rede e recuperar;
+23. reiniciar o KOReader com fila pendente e recuperar;
+24. marcar documento finished;
+25. sincronizar;
+26. documento ir para Archive no Reader;
+27. arquivo local e sidecar continuarem íntegros.
 
 Além disso:
 - token não aparece em Git/log;
