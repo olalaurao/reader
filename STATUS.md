@@ -372,6 +372,22 @@ Interpretation:
 - other retryable I/O failures are not reclassified or hidden;
 - added regression coverage for the invalid-name fallback path.
 
+0.1.10 physical retest:
+- **PASS for full/backfill materialization recovery** on the target PW3 / KOReader 2025.04;
+- `Downloaded: 10`;
+- `Already local / unchanged: 788`;
+- `Skipped (not materializable): 45`;
+- `Retryable item errors: 0`;
+- `Retryable stages: none`;
+- `Errors: 0`;
+- metadata write errors: 0;
+- Collection write errors: 0;
+- watermark updated successfully;
+- storage available after sync: ~2552.8 MB.
+
+This closes the invalid-filename blocker and proves the full scan can complete cleanly across the current article library. Gate 4 remains OPEN for the remaining behavioral checks: true incremental no-change sync, location move without duplication, title rename without duplication, cancellation, and recovery.
+
+
 
 
 ## Phase F result — off-device complete, Gate 4 pending
