@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase N IN PROGRESS — Gate 12A NOTE UPDATE PASSED PHYSICALLY on PW3 / KOReader 2026.07.1; conflict + deletion subtests pending; build 0.1.31**
+**Phase N IN PROGRESS — Gate 12A NOTE UPDATE + 12B CONFLICT PASSED PHYSICALLY on PW3 / KOReader 2026.07.1; deletion subtests pending; build 0.1.31**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -1510,10 +1510,10 @@ Already passed physically:
 - linked local note edit reaches the exact Reader highlight;
 - Reader-visible final state is verified before success;
 - the production path recovered stale Reader state by combining Readwise v2 note truth/update with Reader v3 verification/repair;
-- no conflict/block/error was reported for the successful target.
+- no conflict/block/error was reported for the successful note-update target;
+- simultaneous local + Reader note edits produce a conflict and overwrite neither side.
 
 Still required:
-- simultaneous local + Reader note edits must produce a conflict and overwrite neither side;
 - deletion propagation must be OFF by default;
 - deleting one linked KOReader highlight while OFF must leave the Reader highlight intact;
 - the OFF sync must report exactly one pending deletion in the clean Gate 12 article before deletion is enabled;
@@ -1539,13 +1539,12 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Keep build **0.1.31** installed; note-update subtest A is now PASS.
-2. Run Gate 12B conflict test from `docs/DEVICE_TESTS.md`: create/sync one clean fixture, diverge local vs Reader note, then sync and prove neither side is overwritten.
-3. Only after conflict PASS, run Gate 12C with deletion propagation OFF.
-4. **Do not enable deletion if the OFF summary reports more than one local deletion detected/retained.**
-5. If exactly one target is pending, enable Settings → Highlights → Propagate highlight deletions, accept the destructive warning, sync, verify only that target disappears, then disable the setting again.
-6. Close Gate 12 only after conflict + OFF delete + deliberate ON delete all pass.
-7. Before any future annotation implementation, read `docs/ANNOTATION_SYNC_LESSONS.md`.
+1. Keep build **0.1.31** installed; note-update subtest A and conflict subtest B are PASS.
+2. Run Gate 12C with deletion propagation OFF on a clean linked fixture.
+3. **Do not enable deletion if the OFF summary reports more than one local deletion detected/retained.**
+4. If exactly one target is pending, proceed to Gate 12D: enable Settings → Highlights → Propagate highlight deletions, accept the destructive warning, sync, verify only that target disappears, then disable the setting again.
+5. Close Gate 12 only after OFF delete + deliberate ON delete both pass.
+6. Before any future annotation implementation, read `docs/ANNOTATION_SYNC_LESSONS.md`.
 
 ## Existing architectural decisions still in force
 
@@ -1858,3 +1857,32 @@ Canonical implementation lesson:
 - see `docs/ANNOTATION_SYNC_LESSONS.md` for the full reusable contract.
 
 Gate 12 as a whole remains open until conflict and deletion tests pass.
+
+
+### Gate 12B — conflict handling — PHYSICAL PASS
+
+Physical result on target PW3 / KOReader v2026.07.1, build 0.1.31:
+- current-document highlights scanned: **1**;
+- highlights created: **0**;
+- highlights already linked: **1**;
+- notes updated: **0**;
+- note updates reconciled: **0**;
+- note conflicts blocked: **1**;
+- annotation mutations blocked safely: **0**;
+- local highlight deletions detected: **0**;
+- remote highlight deletions: **0**;
+- deletions retained remotely: **0**;
+- durable linked highlights accepted without marker: **1**;
+- Readwise v2 annotation pages scanned: **3**;
+- Readwise v2 mappings resolved: **1**;
+- Readwise v2 remote-note reads: **1**;
+- Readwise v2 note updates: **0**;
+- Reader note verification reads: **0**;
+- Reader v3 repair PATCHes: **0**;
+- annotation remote errors: **0**;
+- user confirmed Reader retained `gate12 REMOTE conflict`;
+- user confirmed Kindle retained `gate12 LOCAL conflict`.
+
+**Gate 12B conflict handling: PASS.**
+
+This physically proves that the three-way conflict path blocks mutation before any remote note PATCH and preserves both divergent states.
