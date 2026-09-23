@@ -59,6 +59,8 @@ function AnnotationSync:scanPath(local_path)
         changed = 0,
         unchanged = 0,
         deleted = 0,
+        degraded_identity = 0,
+        identity_collisions = 0,
         sample = nil,
     }
 
@@ -67,19 +69,47 @@ function AnnotationSync:scanPath(local_path)
     end
 
     local existing_by_id = {}
+    local degraded_by_locator = {}
     for _, existing in ipairs(self.annotations:listByDocument(document.reader_id)) do
         existing_by_id[existing.local_annotation_id] = existing
+        if existing.local_created_at == nil then
+            local previous = degraded_by_locator[existing.locator_fingerprint]
+            if previous == nil then
+                degraded_by_locator[existing.locator_fingerprint] = existing
+            else
+                degraded_by_locator[existing.locator_fingerprint] = false
+            end
+        end
     end
 
     local seen = {}
     for _, item in ipairs(scan.annotations or {}) do
+        if item.identity_quality == "degraded" then
+            report.degraded_identity = report.degraded_identity + 1
+            local prior = degraded_by_locator[item.locator_fingerprint]
+            if type(prior) == "table" then
+                -- datetime-less KOReader annotations use the first-seen text
+                -- hash only for initial identity. Reuse the stored ID on later
+                -- text edits when the locator has one unambiguous match.
+                item.local_annotation_id = prior.local_annotation_id
+            end
+        end
+
+        local existing = existing_by_id[item.local_annotation_id]
+        if existing and existing.locator_fingerprint ~= item.locator_fingerprint then
+            report.identity_collisions = report.identity_collisions + 1
+            item.local_annotation_id = item.local_annotation_id
+                .. "-"
+                .. tostring(item.locator_fingerprint):sub(1, 12)
+            existing = existing_by_id[item.local_annotation_id]
+        end
+
         seen[item.local_annotation_id] = true
         report.highlights = report.highlights + 1
         if item.note ~= nil and item.note ~= "" then
             report.notes = report.notes + 1
         end
 
-        local existing = existing_by_id[item.local_annotation_id]
         local changed = existing and (
             hashChanged(existing, item) or existing.local_deleted_at ~= nil
         ) or false
@@ -108,6 +138,7 @@ function AnnotationSync:scanPath(local_path)
             report.sample = {
                 local_annotation_id = item.local_annotation_id,
                 locator_fingerprint = item.locator_fingerprint,
+                identity_quality = item.identity_quality,
                 datetime = item.datetime,
                 datetime_updated = item.datetime_updated,
                 text = item.text,
