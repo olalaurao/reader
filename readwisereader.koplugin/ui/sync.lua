@@ -213,9 +213,11 @@ Tap to cancel. Completed files are installed atomically; the incremental waterma
         -- so refresh it once before applying a large parent-side postprocess batch.
         -- Without this, stale collection state can turn harmless idempotent writes
         -- into per-item failures after a full materialization.
-        local collection_refresh_ok = pcall(self.collections.refresh, self.collections)
-        if not collection_refresh_ok then
-            report.errors = (report.errors or 0) + 1
+        if #(report.postprocess or {}) > 0 then
+            local collection_refresh_ok = pcall(self.collections.refresh, self.collections)
+            if not collection_refresh_ok then
+                report.errors = (report.errors or 0) + 1
+            end
         end
 
         report.postprocess_metadata_errors = 0
