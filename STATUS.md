@@ -23,6 +23,20 @@ Physical result on target PW3:
 
 Gate 4A-1 Readwise Reader compatibility regression is now **IN PROGRESS**.
 
+Partial physical Gate 4A-1 result on KOReader 2026.07.1:
+- Readwise Reader is reachable enough for `Test connection` and token authentication succeeds;
+- an existing previously-downloaded Reader article opens and its reading progress is preserved across the KOReader upgrade;
+- two consecutive `Sync now` runs completed with no errors and no duplicate document creation;
+- `Full document rescan` cancellation works;
+- KOReader remained responsive after cancellation;
+- the cancelled rescan did not advance the document watermark.
+
+Remaining Gate 4A-1 checks before PASS:
+- explicitly confirm an existing highlight + note still persist on a pre-upgrade article;
+- perform one Reader-side move or rename on an already-managed article and confirm no duplicate/same ownership;
+- restart KOReader once and confirm Readwise Reader still loads/settings persist.
+
+
 - freeze/back up the known-good 2025.04 state;
 - upgrade KOReader only to official `v2026.07.1` using the PW3 `kindlepw2` package;
 - run the shorter Gate 4A-1 compatibility regression for Readwise Reader;
