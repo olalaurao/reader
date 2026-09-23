@@ -3,12 +3,17 @@
 local Worker = {}
 
 local function copyMetadata(document)
+    local tags
+    if type(document.tags) == "table" then
+        tags = {}
+        for i, tag in ipairs(document.tags) do tags[i] = tag end
+    end
     return {
         title = document.title,
         author = document.author,
         summary = document.summary,
         site_name = document.site_name,
-        tags = document.tags,
+        tags = tags,
     }
 end
 
@@ -132,5 +137,7 @@ function Worker:run(options)
     end
     return report, err
 end
+
+Worker._copyMetadata = copyMetadata
 
 return Worker
