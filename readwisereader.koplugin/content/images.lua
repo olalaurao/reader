@@ -61,6 +61,75 @@ local function extractAlt(tag)
         or ""
 end
 
+local function extractAttr(tag, name)
+    local pattern_name = name:gsub(".", function(ch)
+        if ch:match("%a") then
+            return "[" .. ch:lower() .. ch:upper() .. "]"
+        end
+        return "%" .. ch
+    end)
+    return tag:match(pattern_name .. '%s*=%s*"([^"]*)"')
+        or tag:match(pattern_name .. "%s*=%s*'([^']*)'")
+        or tag:match(pattern_name .. "%s*=%s*([^%s>]+)")
+end
+
+local function srcsetCandidate(srcset)
+    if type(srcset) ~= "string" or srcset == "" then return nil end
+    local best_url, best_width, fallback
+    for part in srcset:gmatch("([^,]+)") do
+        local piece = part:match("^%s*(.-)%s*$")
+        local url, width = piece:match("^(%S+)%s+(%d+)w$")
+        if url then
+            width = tonumber(width) or 0
+            if width <= 1200 and width > (best_width or -1) then
+                best_url, best_width = url, width
+            end
+            if not fallback then fallback = url end
+        else
+            url = piece:match("^(%S+)")
+            if url and not fallback then fallback = url end
+        end
+    end
+    return best_url or fallback
+end
+
+local function bestImageSource(tag)
+    local src = extractSrc(tag)
+    local lazy = extractAttr(tag, "data-src")
+        or extractAttr(tag, "data-lazy-src")
+        or extractAttr(tag, "data-original")
+        or extractAttr(tag, "data-url")
+    local srcset = srcsetCandidate(extractAttr(tag, "srcset"))
+
+    -- Many Reader payloads keep a tiny/blank lazy placeholder in src and the
+    -- real image in data-src/srcset. Prefer the explicit lazy/responsive URL.
+    if lazy and lazy ~= "" then return lazy end
+    if srcset and srcset ~= "" then return srcset end
+    return src
+end
+
+local function normalizeResponsivePictures(html)
+    local promoted = 0
+    local out = html:gsub("<[pP][iI][cC][tT][uU][rR][eE][^>]*>(.-)</[pP][iI][cC][tT][uU][rR][eE]%s*>", function(inner)
+        local fallback_img = inner:match("<[iI][mM][gG][^>]*>")
+        local chosen
+        local alt = ""
+        for source_tag in inner:gmatch("<[sS][oO][uU][rR][cC][eE][^>]*>") do
+            local candidate = srcsetCandidate(extractAttr(source_tag, "srcset"))
+                or extractAttr(source_tag, "src")
+            if candidate then chosen = candidate end
+        end
+        if fallback_img then
+            alt = extractAlt(fallback_img)
+            chosen = chosen or bestImageSource(fallback_img)
+        end
+        if not chosen then return fallback_img or "" end
+        promoted = promoted + 1
+        return string.format('<img src="%s" alt="%s">', escapeAttr(chosen), escapeAttr(decodeAttr(alt)))
+    end)
+    return out, promoted
+end
+
 local function placeholder(tag, reason)
     local alt = decodeAttr(extractAlt(tag))
     if alt == "" then alt = "Image" end
@@ -105,9 +174,14 @@ function Images:localize(document, absolute_asset_dir, relative_asset_dir)
     local index = 0
     local attempts = 0
     local budget_used = 0
+    local responsive_promoted
+    html, responsive_promoted = normalizeResponsivePictures(html)
+    report.responsive_promoted = responsive_promoted or 0
+    report.candidates = 0
 
     local processed = html:gsub("<[iI][mM][gG][^>]*>", function(tag)
-        local raw_src = extractSrc(tag)
+        report.candidates = report.candidates + 1
+        local raw_src = bestImageSource(tag)
         if not raw_src or raw_src == "" then
             report.failed = report.failed + 1
             return placeholder(tag, "missing source")
@@ -203,6 +277,10 @@ end
 
 Images._detectExt = detectExt
 Images._extractSrc = extractSrc
+Images._extractAttr = extractAttr
+Images._srcsetCandidate = srcsetCandidate
+Images._bestImageSource = bestImageSource
+Images._normalizeResponsivePictures = normalizeResponsivePictures
 Images._defaultResolve = defaultResolve
 
 return Images
