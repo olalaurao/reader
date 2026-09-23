@@ -89,7 +89,7 @@ return function()
     do
         local fake = fakeDeps()
         fake.deps.open_file = function()
-            return nil, "simulated open failure"
+            return nil, "No space left on device"
         end
         local installer = Installer:new{ deps = fake.deps }
         local result, err = installer:install("new", "/root/Articles/doc.html")
@@ -97,5 +97,12 @@ return function()
         assert(err.kind == "io")
         assert(err.retryable == true)
         assert(err.stage == "open")
+        assert(err.detail == "no_space")
     end
+
+    assert(Installer._classifyOpenError("Too many open files") == "too_many_open_files")
+    assert(Installer._classifyOpenError("File name too long") == "name_too_long")
+    assert(Installer._classifyOpenError("Read-only file system") == "read_only")
+    assert(Installer._classifyOpenError("Permission denied") == "permission")
+    assert(Installer._classifyOpenError("something else") == "other")
 end
