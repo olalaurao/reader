@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase N IMPLEMENTED — Gate 12 PHYSICAL VALIDATION PENDING on PW3 / KOReader 2026.07.1; build 0.1.26**
+**Phase N IMPLEMENTED — Gate 12 PHYSICAL VALIDATION PENDING on PW3 / KOReader 2026.07.1; build 0.1.27 hotfix**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -1702,5 +1702,20 @@ Automated validation:
 - Gate 12 artifact ID: `10777011478`.
 - artifact name: `readwisereader-koplugin-fe97378c76f92f2e4b5c79f0eb1c293d4f864965`.
 - artifact digest: `sha256:8f20886e44b96fb46dbc03bd968f536fd9ece7de203d092d446abb797caebd1e`.
+
+Gate 12 physical attempt with build 0.1.26 exposed a real compatibility regression:
+- the current document scanned one linked highlight;
+- it was recognized as already linked;
+- note update stayed at 0;
+- mutation conflict/blocked counters stayed 0;
+- one annotation remote error was reported;
+- root cause: pre-Gate-10 linked highlights used the generic Reader source marker `KOReader Readwise Reader`, while 0.1.26 required only the newer per-annotation source marker.
+
+Fixed in 0.1.27:
+- note update accepts the legacy generic source only when durable Reader child ID + original parent ID + `category=highlight` all match;
+- exact per-annotation marker remains preferred;
+- remote DELETE does **not** accept the legacy generic marker;
+- remote identity mismatches are surfaced as safe blocks instead of generic remote errors;
+- run #420 on hotfix commit `5c22be3ebae3b95f67ba28fb5472011cb9f1cff8`: **SUCCESS**.
 
 Physical Gate 12 remains required.

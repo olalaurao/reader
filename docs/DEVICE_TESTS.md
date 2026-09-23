@@ -1264,3 +1264,15 @@ Return:
 `nota update Reader exata: sim/não / notes updated=<n> / conflito detectado=sim/não / Reader conflito preservou remoto: sim/não / Kindle conflito preservou local: sim/não / delete OFF detected=<n> retained=<n> remote_deleted=<n> / remoto permaneceu com OFF: sim/não / delete ON remote_deleted=<n> / só alvo foi apagado: sim/não / setting voltou OFF: sim/não / sem crash-freeze: sim/não`
 
 Gate 12 passes only after note update, no-overwrite conflict behavior, default-off deletion, and one explicitly verified linked delete all pass.
+
+
+### Gate 12 attempt 1 — build 0.1.26 — FAIL / fixed in 0.1.27
+Observed on the target PW3:
+- current-document highlights scanned: 1;
+- highlights already linked: 1;
+- notes updated: 0;
+- conflicts blocked: 0;
+- mutation blocks: 0;
+- annotation remote errors: 1.
+
+Root cause was compatibility with pre-Gate-10 linked Reader children using the generic plugin source marker. Build 0.1.27 adds safe legacy support for note updates only. **Do not continue Gate 12 on 0.1.26.**

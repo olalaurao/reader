@@ -2444,10 +2444,10 @@ No new Kindle build was required. The user's real export configuration passed al
 Gate 8 physically proved on the target account/device that the linked Reader v3 highlight child accepted a note PATCH and reflected it in Reader. The current public Reader API page contains wording that is more restrictive for highlight-note updates, so **the physically observed Gate 8 contract remains the project contract and Gate 12 revalidates it in the production path**. Do not generalize beyond this tested linked-highlight workflow.
 
 ### N1 — note update + conflict detection
-Implemented in build 0.1.26 for the currently-open managed Reader document:
+Implemented in build 0.1.27 for the currently-open managed Reader document:
 - only annotations with a durable `reader_highlight_document_id` and `created_remote=true` are eligible;
 - the exact Reader child is fetched before mutation;
-- child id, original `parent_id`, `category=highlight`, and the stable KOReader `source` marker must all match;
+- child id, original `parent_id`, and `category=highlight` must match; the newer exact KOReader per-annotation `source` marker is preferred, while pre-Gate-10 generic `KOReader Readwise Reader` ownership is accepted for **note update only** as a compatibility path;
 - local highlight text changes are blocked rather than mapped into a remote text mutation;
 - `last_synced_note` is the three-way merge baseline;
 - if only the local note changed, Reader v3 PATCH updates `notes`;
@@ -2462,7 +2462,7 @@ Implemented:
 - Settings → Highlights → **Propagate highlight deletions** exposes the option;
 - enabling requires an explicit warning/confirmation; disabling is immediate;
 - when OFF, authoritative sidecar deletion creates/keeps the local tombstone and Reader is untouched;
-- when ON, DELETE is allowed only for a durable linked Reader child passing the same exact id + parent + category + KOReader marker checks;
+- when ON, DELETE is allowed only for a durable linked Reader child passing exact id + parent + category + the newer exact per-annotation KOReader marker checks; the generic legacy marker is intentionally not sufficient for destructive deletion;
 - successful delete clears the durable remote IDs/created flag but preserves the local tombstone history;
 - an identity mismatch is blocked and never guessed;
 - a missing remote target can be reconciled as already deleted.
