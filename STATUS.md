@@ -383,6 +383,14 @@ Automated validation for 0.1.19:
 
 Build **0.1.19** is ready for a **new-article** physical retest. Do not reuse the article already materialized without images by 0.1.18, because ordinary sync deliberately does not rewrite an existing local HTML document before Phase Q.
 
+0.1.19 physical retest — partial PASS evidence:
+- a newly materialized image-heavy Reader article rendered at least one real inline image on the PW3;
+- therefore responsive/lazy candidate discovery, HTTP fetch, local asset install, relative-path rewrite and CRengine rendering all work end-to-end for at least one production image;
+- other article images did not all appear, which is acceptable for Gate 5 if the article text remains usable and KOReader stays stable, because Gate 5 explicitly requires graceful tolerance when some images fail;
+- user did not capture the sync summary counters, so exact candidate/download/skip counts are unavailable for this run.
+
+Do not delete/re-download this same local article merely to recover the report: normal sync intentionally treats it as already local before Phase Q. If counters are needed later, use a different newly-saved article.
+
 
 
 
