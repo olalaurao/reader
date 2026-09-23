@@ -62,7 +62,7 @@ local function newSync(options)
             getSyncLocations = function() return options.locations or { "new", "later" } end,
             getSyncCategories = function() return options.categories or { "article" } end,
         },
-        materializer = {
+        materializer = options.materializer or {
             installDocument = function(_, doc)
                 installs[#installs + 1] = doc.id
                 local path = "/Readwise/" .. doc.id .. ".html"
@@ -247,6 +247,38 @@ return function()
         assert(saw_incremental == false)
         assert(report.downloaded == 1 and installs[1] == "old")
         assert(updated_meta.values.document_filter_scope == "locations=archive,new;categories=article")
+    end
+
+    do
+        -- Permanent per-document content failures (such as Reader returning no
+        -- processed HTML) must not strand the whole-library watermark.
+        local reader = {
+            iterateDocuments = function(_, options, callback)
+                if options.with_html_content and options.location == "new" then
+                    callback(doc("empty", "new", "No body", "u1", nil))
+                elseif not options.with_html_content then
+                    callback(doc("empty", "new", "No body", "u1"))
+                end
+                return { pages = 1, duplicates = 0 }
+            end,
+        }
+        local repository = fakeRepository()
+        local materializer = {
+            installDocument = function(_, document)
+                repository:upsertRemote(document, 1000)
+                return nil, { kind = "content", retryable = false }
+            end,
+        }
+        local syncer, _, meta = newSync{
+            reader = reader, repository = repository, materializer = materializer,
+        }
+        local report, err = syncer:sync{}
+        assert(err == nil)
+        assert(report.errors == 0)
+        assert(report.nonretryable_skipped == 1)
+        assert(report.retryable_item_errors == 0)
+        assert(meta.values.document_watermark == "T001000")
+        assert(repository.rows.empty.last_sync_error == "content")
     end
 
     do
