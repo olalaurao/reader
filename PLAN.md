@@ -52,7 +52,7 @@ Desenvolver e validar primeiro para o aparelho real:
 
 A V1 continua presa ao mesmo PW3 real. Até o Gate 4, `2025.04` é a baseline conhecida. **Depois que o Gate 4 passar**, faremos uma migração controlada para `2026.07.1` antes de implementar imagens, formatos raw e sidecars/anotações.
 
-Gate 4A-1 e Gate 4A-2 passaram: KOReader `2026.07.1` é o alvo físico canônico e Bookshelf `v5.1.4` é uma coexistência validada para a V1. Phase G pode avançar sobre essa baseline.
+Gate 4A-1 e Gate 4A-2 passaram: KOReader `2026.07.1` é o alvo físico canônico e Bookshelf `v5.1.4` é uma coexistência validada para a V1. Phase G pode avançar sobre essa baseline. Gate 5 também passou fisicamente; Phase G está concluída e formatos raw de Phase H podem avançar.
 
 Com firmware 5.16.2.1.1, o target planejado é `kindlepw2`; `kindlehf` exige firmware >= 5.16.3. Não atualizar firmware/jailbreak para esta migração.
 
