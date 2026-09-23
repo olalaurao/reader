@@ -441,7 +441,7 @@ Gate 3 is closed: **PASSED on 2026-09-22**. Phase F may begin after Phase E is m
 
 ## Gate 4 — document sync engine
 
-Status: **PENDING — run on KOReader 2025.04 before the planned KOReader upgrade**
+Status: **PASSED — 2026-09-22/23 on target PW3 / KOReader 2025.04**
 
 Build target:
 - plugin version: `0.1.3`;
@@ -571,11 +571,27 @@ If any item is `não`, also send:
 
 **Do not update KOReader yet if Gate 4 fails.** Fix/retest Phase F on 2025.04 first.
 
+
+### Gate 4 recorded physical result
+
+- multiple-article/full-backfill sync: **PASS**;
+- second incremental sync / no duplicate: **PASS**;
+- Reader location move without duplicate: **PASS**;
+- moved document changed to the corresponding plugin-managed `Readwise: ...` Collection: **PASS**;
+- Reader title rename without duplicate: **PASS**;
+- reading progress preserved through rename: **PASS**;
+- cancellation: **PASS**;
+- KOReader remained responsive: **PASS**;
+- cancelled rescan did not advance watermark: **PASS**;
+- normal sync recovered afterward with `Errors: 0`: **PASS**.
+
+Gate 4 is closed. Do not replay all Gates 0–4 after the KOReader upgrade. Gate 4A-1 is a deliberately smaller regression suite that samples the KOReader-internal contracts most likely to change.
+
 ---
 
 ## Gate 4A — KOReader v2026.07.1 + Bookshelf migration
 
-Status: **BLOCKED until Gate 4 passes**
+Status: **UNBLOCKED — Gate 4 passed; execute after Phase F is merged**
 
 Canonical detailed runbook: `docs/KOREADER_UPGRADE.md`.
 
