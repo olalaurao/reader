@@ -135,7 +135,9 @@ function DocumentsSync:_install(document, report)
         report.errors = report.errors + 1
         report.retryable_item_errors = report.retryable_item_errors + 1
         local stage = err and err.stage or (err and err.kind) or "unknown"
-        report.retryable_error_stages[stage] = (report.retryable_error_stages[stage] or 0) + 1
+        local detail = err and err.detail
+        local bucket = detail and (stage .. "/" .. detail) or stage
+        report.retryable_error_stages[bucket] = (report.retryable_error_stages[bucket] or 0) + 1
         return false
     end
 
