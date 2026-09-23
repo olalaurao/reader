@@ -5,5 +5,5 @@ local _ = require("gettext")
 return {
     name = "readwisereader",
     fullname = _("Readwise Reader"),
-    description = _([[Synchronize Readwise Reader content with KOReader. Experimental 0.1.17 adds the Phase G relative-image asset spike.]]),
+    description = _([[Synchronize Readwise Reader content with KOReader. Experimental 0.1.18 adds bounded offline article images for Gate 5.]]),
 }
