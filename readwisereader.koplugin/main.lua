@@ -113,6 +113,9 @@ function ReadwiseReader:init()
         sync_meta = self.sync_meta,
         collections = self.koreader_collections,
         koreader_documents = self.koreader_documents,
+        get_current_path = function()
+            return self.ui and self.ui.document and self.ui.document.file or nil
+        end,
     }
     self.tag_diagnostics_ui = TagDiagnosticsUI:new{
         config = self.config,

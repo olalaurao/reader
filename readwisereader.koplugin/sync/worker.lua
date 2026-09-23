@@ -22,7 +22,9 @@ function Worker:run(options)
 
     local Config = require("config")
     local DB = require("storage/db")
+    local AnnotationsRepository = require("storage/annotations")
     local DocumentsRepository = require("storage/documents")
+    local QueueRepository = require("storage/queue")
     local SyncMeta = require("storage/sync_meta")
     local Filenames = require("content/filenames")
     local FirstArticle = require("sync/first_article")
@@ -34,6 +36,9 @@ function Worker:run(options)
     local RawSource = require("content/raw_source")
     local Reader = require("api/reader")
     local DocumentsSync = require("sync/documents")
+    local AnnotationSync = require("sync/annotations")
+    local AnnotationUpload = require("sync/annotation_upload")
+    local KOReaderAnnotations = require("koreader/annotations")
     local logger = require("logger")
     local util = require("util")
 
@@ -46,6 +51,8 @@ function Worker:run(options)
         -- atomic file installs and durable SQLite writes.
         db = DB:new()
         local repository = DocumentsRepository:new{ db = db }
+        local annotations_repository = AnnotationsRepository:new{ db = db }
+        local queue_repository = QueueRepository:new{ db = db }
         local sync_meta = SyncMeta:new{ db = db }
         local http = Http:new()
         local reader = Reader:new{
@@ -121,6 +128,68 @@ function Worker:run(options)
         }
         if not sync_report then
             return nil, sync_err
+        end
+
+        -- Phase L intentionally scans only the currently-open managed Reader
+        -- document. This keeps manual Sync now responsive on the PW3 and avoids
+        -- unexpectedly uploading historical local highlights from the whole
+        -- library. Durable queued creates are reconciled before any retry.
+        queue_repository:recoverStaleInFlight(os.time())
+        sync_report.annotation_scanned = 0
+        sync_report.highlights_created = 0
+        sync_report.highlights_reconciled = 0
+        sync_report.highlights_already_linked = 0
+        sync_report.highlights_unmatched = 0
+        sync_report.highlight_creates_blocked = 0
+        sync_report.highlight_marker_verified = 0
+        sync_report.annotation_remote_errors = 0
+        sync_report.annotation_sync_status = "no_current_document"
+
+        if type(options.current_path) == "string" and options.current_path ~= "" then
+            local current = repository:getByLocalPath(options.current_path)
+            if current and current.is_managed == true and current.is_local_present == true then
+                local adapter = KOReaderAnnotations:new{ hasher = Hash }
+                local scanner = AnnotationSync:new{
+                    documents = repository,
+                    annotations = annotations_repository,
+                    adapter = adapter,
+                }
+                local scan_report, annotation_scan_err = scanner:scanPath(options.current_path)
+                if not scan_report then
+                    sync_report.annotation_sync_status = "scan_error"
+                    sync_report.annotation_error_kind = annotation_scan_err
+                        and annotation_scan_err.kind or "unknown"
+                elseif not scan_report.authoritative then
+                    sync_report.annotation_sync_status = scan_report.status or "sidecar_not_authoritative"
+                else
+                    local uploader = AnnotationUpload:new{
+                        documents = repository,
+                        annotations = annotations_repository,
+                        queue = queue_repository,
+                        adapter = adapter,
+                        reader = reader,
+                        hasher = Hash,
+                    }
+                    local upload_report, upload_err = uploader:syncPath(options.current_path)
+                    if not upload_report then
+                        sync_report.annotation_sync_status = "upload_error"
+                        sync_report.annotation_error_kind = upload_err
+                            and upload_err.kind or "unknown"
+                    else
+                        sync_report.annotation_sync_status = upload_report.status or "ok"
+                        sync_report.annotation_scanned = upload_report.scanned or 0
+                        sync_report.highlights_created = upload_report.created or 0
+                        sync_report.highlights_reconciled = upload_report.reconciled or 0
+                        sync_report.highlights_already_linked = upload_report.already_linked or 0
+                        sync_report.highlights_unmatched = upload_report.unmatched or 0
+                        sync_report.highlight_creates_blocked = upload_report.blocked or 0
+                        sync_report.highlight_marker_verified = upload_report.marker_verified or 0
+                        sync_report.annotation_remote_errors = upload_report.remote_errors or 0
+                    end
+                end
+            else
+                sync_report.annotation_sync_status = "current_document_not_managed"
+            end
         end
 
         local paths = {}
