@@ -118,6 +118,50 @@ return function()
     end
 
     do
+        local captured = {}
+        local coordinator = newCoordinator{
+            reader = {
+                listDocuments = function(_, request)
+                    captured.list = request
+                    return {
+                        results = {
+                            { id = "p1", title = "PDF 1", category = "pdf", location = "later" },
+                            { id = "child", title = "Child", category = "pdf", parent_id = "p1" },
+                        },
+                    }
+                end,
+                getDocument = function(_, id, with_html, with_raw)
+                    captured.get = {
+                        id = id,
+                        with_html = with_html,
+                        with_raw = with_raw,
+                    }
+                    return {
+                        id = id,
+                        title = "PDF 1",
+                        category = "pdf",
+                        location = "later",
+                        raw_source_url = "https://signed.example/p1",
+                        html_content = "<p>fallback</p>",
+                    }
+                end,
+            },
+        }
+        local candidates, list_err = coordinator:listFormatCandidates("pdf", 10)
+        assert(list_err == nil)
+        assert(#candidates == 1 and candidates[1].id == "p1")
+        assert(captured.list.category == "pdf")
+        assert(captured.list.limit == 10)
+        assert(captured.list.with_raw_source_url == false)
+
+        local document, get_err = coordinator:fetchFormatDocument("p1", "pdf")
+        assert(get_err == nil)
+        assert(document.category == "pdf")
+        assert(captured.get.with_html == true)
+        assert(captured.get.with_raw == true)
+    end
+
+    do
         local coordinator, rows, states, installs, metadata = newCoordinator()
         local document, fetch_err = coordinator:fetchDocument("article-1")
         assert(fetch_err == nil)
