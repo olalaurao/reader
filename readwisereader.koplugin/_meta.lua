@@ -5,5 +5,5 @@ local _ = require("gettext")
 return {
     name = "readwisereader",
     fullname = _("Readwise Reader"),
-    description = _([[Synchronize Readwise Reader content with KOReader. Experimental 0.1.29 uses deterministic Readwise v2 mapping for remote-note conflict detection and note updates while keeping deletion strict.]]),
+    description = _([[Synchronize Readwise Reader content with KOReader. Experimental 0.1.30 normalizes invisible note whitespace for safe conflict comparison on top of deterministic Readwise v2 mapping.]]),
 }
