@@ -52,6 +52,15 @@ Conclusion:
 - KOReader built-in **Cover browser** must be enabled.
 - Keep normal File Manager as startup initially; do **not** enable `Start with -> Bookshelf` until coexistence passes.
 
+Physical Gate 4A-2 smoke result:
+- Bookshelf v5.1.4 installed from the official `bookshelf.koplugin.zip`;
+- Bookshelf tab appears in KOReader;
+- Readwise Reader still appears after Bookshelf installation;
+- plugin-load coexistence therefore passes the initial smoke check.
+
+Next: open Bookshelf manually, verify Readwise-managed documents/Collections/open-close/progress and run Readwise sync while Bookshelf is installed. Reader-tag metadata projection is not yet implemented in code and will be added after the base coexistence checks pass.
+
+
 
 
 - freeze/back up the known-good 2025.04 state;
