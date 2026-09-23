@@ -5,7 +5,8 @@ Target device for V1:
 - Kindle Paperwhite 3 / 7th generation
 - Serial prefix: `G090KB`
 - Kindle firmware: `5.16.2.1.1 (4097470002)`
-- KOReader: `2025.04`
+- KOReader historical Gates 0–4 baseline: `2025.04`
+- KOReader canonical V1 baseline from Gate 4A-1 onward: `2026.07.1`
 
 Do not mark a device gate complete until its result is recorded here and in `STATUS.md`.
 
@@ -591,7 +592,7 @@ Gate 4 is closed. Do not replay all Gates 0–4 after the KOReader upgrade. Gate
 
 ## Gate 4A — KOReader v2026.07.1 + Bookshelf migration
 
-Status: **UNBLOCKED — Gate 4 passed; execute after Phase F is merged**
+Status: **IN PROGRESS — Gate 4A-1 PASSED; Gate 4A-2 Bookshelf coexistence next**
 
 Canonical detailed runbook: `docs/KOREADER_UPGRADE.md`.
 
@@ -607,3 +608,21 @@ Order is mandatory:
 8. Only then may Phase G begin.
 
 Do not use `kindlehf` on the current firmware 5.16.2.1.1; KOReader documents that target for firmware >= 5.16.3. Do not update Kindle firmware/jailbreak for this project.
+
+### Gate 4A-1 recorded physical result — PASS
+
+Target: PW3 / KOReader 2026.07.1
+
+Validated:
+- KOReader starts normally after upgrade;
+- Readwise Reader loads and saved token remains usable;
+- `Test connection` succeeds;
+- existing Reader article opens;
+- reading progress, existing highlight and note survive the upgrade;
+- two consecutive normal syncs complete without errors or duplicates;
+- full-rescan cancellation works and leaves KOReader responsive;
+- cancelled rescan does not advance the watermark;
+- one Reader-side move/rename preserves Reader-ID ownership/no duplicate;
+- after KOReader restart the plugin still loads and settings persist.
+
+**Gate 4A-1 PASSED.** Proceed to Gate 4A-2 / Bookshelf v5.1.4.
