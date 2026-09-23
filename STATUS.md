@@ -429,6 +429,20 @@ Conclusion:
 - Gate 4 next step: **G4.4 Reader title rename** on an already-managed article, verifying metadata update on the same local path with no duplicate and preserved sidecar/progress/highlights.
 
 
+### G4.4 Reader title rename — PASS
+
+Physical result on the target device:
+- Reader title changed remotely;
+- sync updated the KOReader-visible title;
+- no duplicate local document was created;
+- reading progress was preserved;
+- the local document therefore remained attached to the existing Reader-ID-owned path rather than being rematerialized under the new title.
+
+Conclusion:
+- **G4.4 PASSED** for rename identity/metadata/progress preservation.
+- Gate 4 next step: **G4.5 cancellation + recovery**.
+
+
 ### G4.3 location-move attempt on pre-0.1.11 behavior
 
 A Reader-side location move was detected on-device:
