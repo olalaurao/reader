@@ -323,8 +323,9 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 
 ## Current branch / commit
 
-- Branch: `phase-f5/koreader-2026-bookshelf-gate4a`
-- Base `main`: `21dd64719ca248dd7706895fab1651751edf8844` (Phase F merge / Gate 4 passed)
+- Branch: `phase-g/images-gate5`
+- Base `main`: `268388dca4f115890a491d557fa81d08f325979e` (PR #7 merge / Phase F.5 + Gate 4A passed)
+- Phase F historical merge: `21dd64719ca248dd7706895fab1651751edf8844` (Gate 4 passed on KOReader 2025.04)
 - F1 settings/root ownership: `a57da9980d1b77a16bf2a0b8fbaa09327b1691d9`
 - F1/F2 incremental sync engine: `265405a479ab538ed4fbdde9223ca97c28aaad07`
 - canonical watermark overlap fixes/tests: `e2669755be705686a13977f0b99aa9ccf472b46c`, `e2d97fd8002fc26847243073457b91b70876df86`
@@ -351,7 +352,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Jailbreak/KUAL functional
 - KOReader historical Gate 0–4 baseline: `2025.04`
 - canonical physical V1 baseline from Gate 4A-1 onward: official KOReader `v2026.07.1`, `kindlepw2` package
-- next coexistence target: Bookshelf `v5.1.4`
+- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase G / Gate 5 images
 
 ## Phase A result
 
