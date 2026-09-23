@@ -13,6 +13,18 @@ local function isNotFound(value)
     return value and value.kind == "not_found"
 end
 
+local function comparableNote(value)
+    if value == nil then return "" end
+    value = tostring(value):gsub("\r\n", "\n"):gsub("\r", "\n")
+    local lines = {}
+    for line in (value .. "\n"):gmatch("(.-)\n") do
+        lines[#lines + 1] = line:gsub("[ \t]+$", "")
+    end
+    value = table.concat(lines, "\n")
+    value = value:gsub("^%s+", ""):gsub("%s+$", "")
+    return value
+end
+
 function Mutations:new(options)
     options = options or {}
     return setmetatable({
@@ -248,7 +260,7 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
     local baseline = link.last_synced_note
     local local_note = candidate.note
 
-    if local_note == baseline then
+    if comparableNote(local_note) == comparableNote(baseline) then
         self:_markSynced(candidate, link)
         report.notes_reconciled = report.notes_reconciled + 1
         return
@@ -276,13 +288,13 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
     end
 
     local remote_note = remote_v2.note
-    if remote_note == local_note then
+    if comparableNote(remote_note) == comparableNote(local_note) then
         self:_markSynced(candidate, link)
         report.notes_reconciled = report.notes_reconciled + 1
         return
     end
 
-    if remote_note ~= baseline then
+    if comparableNote(remote_note) ~= comparableNote(baseline) then
         self.annotations:setSyncState(
             candidate.local_annotation_id,
             "conflict",
@@ -439,3 +451,6 @@ end
 Mutations._isNotFound = isNotFound
 
 return Mutations
+
+
+Mutations._comparableNote = comparableNote
