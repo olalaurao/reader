@@ -11,6 +11,18 @@
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
 Current work is **Phase F.5 / Gate 4A**:
+
+### Gate 4A migration step — KOReader upgrade completed
+
+Physical result on target PW3:
+- backup completed before upgrade;
+- KOReader upgraded from 2025.04 to **2026.07.1** using the official `kindlepw2` package;
+- KOReader relaunched successfully after the update;
+- Kindle firmware/jailbreak/KUAL were not changed;
+- Bookshelf is not installed yet.
+
+Gate 4A-1 Readwise Reader compatibility regression is now **IN PROGRESS**.
+
 - freeze/back up the known-good 2025.04 state;
 - upgrade KOReader only to official `v2026.07.1` using the PW3 `kindlepw2` package;
 - run the shorter Gate 4A-1 compatibility regression for Readwise Reader;
