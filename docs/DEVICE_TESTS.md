@@ -749,3 +749,53 @@ Pass report:
 
 Stop condition:
 - if the local relative image does not render, do not implement G2 against that strategy; collect `crash.log` only if KOReader crashes/freezes.
+
+
+Physical result: **G1 PASS** on the target PW3.
+- local relative image rendered;
+- text around the image stayed readable;
+- intentionally missing image did not crash/freeze KOReader;
+- text after the missing asset stayed readable;
+- close/reopen worked.
+
+## Phase G / Gate 5 — G2 production image cache
+
+Build: **0.1.18**
+
+Implementation under test:
+- new Reader articles cache HTTP(S) images as local relative assets;
+- no fetched image is embedded as a data URI;
+- per-image response cap: 2 MiB;
+- per-article image network/cache budget: 8 MiB;
+- max image attempts per article: 20;
+- oversized, broken, unsupported, disabled, or over-budget images degrade to text placeholders;
+- `Settings -> Documents -> Download article images` defaults ON;
+- sync report exposes image downloaded/skipped/failed counts and bytes;
+- existing already-local documents are not rewritten solely to add images in this phase.
+
+### Gate 5 production test
+
+Use a **newly saved Reader article that is not already local on the Kindle**, preferably one with several inline images. This avoids triggering the Phase Q content-refresh problem on an existing document.
+
+1. Install 0.1.18 and restart KOReader.
+2. Confirm **Settings -> Documents -> Download article images** is checked.
+3. Save one image-heavy article to a currently enabled Reader location (Inbox or Later).
+4. Run normal **Sync now**. Do not run Full document rescan.
+5. In the sync summary, record:
+   - `Downloaded`;
+   - `Images downloaded`;
+   - `Images skipped by limits/settings`;
+   - `Images unavailable/unsupported`;
+   - `Image bytes cached`;
+   - `Errors`.
+6. Open the new article from Bookshelf.
+7. Confirm at least one real article image is visible and the surrounding text remains readable.
+8. Scroll through the entire article. If any image was skipped/failed, confirm the placeholder/text path is still readable and KOReader remains responsive.
+9. Close and reopen the article; confirm the images still render with Wi-Fi off if practical.
+10. Run a second normal sync without changing the article and confirm no duplicate/new download regression.
+
+Gate 5 pass report:
+`new article downloaded: sim/não / real images appeared: sim/não / text remained usable: sim/não / no freeze/crash through whole article: sim/não / close-reopen images ok: sim/não / second sync no duplicate: sim/não / sync Errors=0: sim/não`
+
+Optional cap/failure check (only if the chosen article naturally triggers it):
+- a skipped/failed image with readable surrounding text is a PASS for failure tolerance; do not manufacture a giant file on the Kindle just to hit the cap.
