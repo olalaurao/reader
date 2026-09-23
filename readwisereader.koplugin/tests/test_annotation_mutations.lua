@@ -29,6 +29,9 @@ local function baseState()
         deletes = 0,
         v2_updates = 0,
         v2_lists = 0,
+        v3_updates = 0,
+        reader_gets = 0,
+        auto_propagate_v2 = true,
     }
 end
 
@@ -117,10 +120,14 @@ local function newMutator(state, local_note, remote_note, propagate, source)
     }
     local reader = {
         getDocument = function()
+            state.reader_gets = state.reader_gets + 1
             return copy(remote)
         end,
-        updateDocument = function()
-            error("production note updates must not use Reader v3 PATCH")
+        updateDocument = function(_, id, patch)
+            assert(id == "remote-1")
+            state.v3_updates = state.v3_updates + 1
+            remote.notes = patch.notes
+            return { id = id }
         end,
         deleteDocument = function(_, id)
             assert(id == "remote-1")
@@ -146,6 +153,9 @@ local function newMutator(state, local_note, remote_note, propagate, source)
             assert(id == 77)
             state.v2_updates = state.v2_updates + 1
             v2.note = patch.note
+            if state.auto_propagate_v2 then
+                remote.notes = patch.note
+            end
             return copy(v2)
         end,
     }
@@ -164,6 +174,9 @@ local function newMutator(state, local_note, remote_note, propagate, source)
         reader = reader,
         readwise = readwise,
         propagate_deletions = propagate == true,
+        sleep = function() end,
+        reader_verify_attempts = 2,
+        reader_verify_delay = 0,
         file_exists = function() return true end,
     }
 end
@@ -248,6 +261,37 @@ local function normalizedRemoteEqualsLocalCase()
     assert(report.notes_reconciled == 1)
     assert(report.notes_updated == 0)
     assert(report.conflicts == 0)
+end
+
+local function propagationRepairCase()
+    local state = baseState()
+    state.auto_propagate_v2 = false
+    local mutator = newMutator(state, "new note", "old note", false)
+    local report = assert(mutator:syncPath("/Readwise/a.html"))
+    assert(report.notes_updated == 1)
+    assert(report.v2_note_updates == 1)
+    assert(report.reader_note_propagation_misses == 1)
+    assert(report.reader_v3_note_repairs == 1)
+    assert(report.reader_note_repairs == 1)
+    assert(state.v3_updates == 1)
+    assert(state.row.last_synced_note == "new note")
+end
+
+local function prematureBaselineRepairCase()
+    local state = baseState()
+    state.row.last_synced_note = "new note"
+    state.row.sync_state = "synced"
+    state.row.readwise_v2_highlight_id = 77
+    state.auto_propagate_v2 = false
+    local mutator = newMutator(state, "new note", "new note", false)
+    local report = assert(mutator:syncPath("/Readwise/a.html"))
+    assert(report.notes_updated == 0)
+    assert(report.notes_reconciled == 1)
+    assert(report.reader_note_repairs == 1)
+    assert(report.reader_v3_note_repairs == 1)
+    assert(state.v2_updates == 0)
+    assert(state.v3_updates == 1)
+    assert(state.row.sync_state == "synced")
 end
 
 local function conflictCase()
@@ -360,6 +404,8 @@ return function()
     reconcileCase()
     normalizedBaselineCase()
     normalizedRemoteEqualsLocalCase()
+    propagationRepairCase()
+    prematureBaselineRepairCase()
     conflictCase()
     deletionOffCase()
     deletionOnCase()
