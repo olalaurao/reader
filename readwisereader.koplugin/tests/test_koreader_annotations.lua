@@ -42,6 +42,7 @@ return function()
             chapter = "Chapter",
         }
         local first = assert(adapter:normalize("reader-1", base))
+        assert(first.identity_quality == "strong")
         assert(first.note == "Relacionar com [[Foucault]]\n\n#pesquisar 🧠")
         assert(first.text == "Selected text")
 
@@ -70,6 +71,12 @@ return function()
         local fourth = assert(adapter:normalize("reader-1", recreated))
         assert(fourth.local_annotation_id ~= first.local_annotation_id,
             "delete/recreate at same locator must remain distinguishable by creation time")
+
+        local no_datetime = {}
+        for key, value in pairs(base) do no_datetime[key] = value end
+        no_datetime.datetime = nil
+        local degraded = assert(adapter:normalize("reader-1", no_datetime))
+        assert(degraded.identity_quality == "degraded")
     end
 
     do
