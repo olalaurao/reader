@@ -127,6 +127,18 @@ Base Bookshelf/Readwise coexistence is therefore **PASS**. Remaining Gate 4A-2 b
 - final restart/persistence/no-op coexistence check.
 
 
+### Gate 4A-2 Collections move test — partial / duplicate classification pending
+
+Physical result:
+- managed Readwise Collections appear in Bookshelf;
+- Reader-side location move is reflected in the new managed Collection;
+- the document leaves the old managed Collection;
+- unrelated user Collection membership is preserved;
+- user reported `sem duplicar: não`.
+
+Do **not** classify this as an identity failure yet: the same document intentionally being visible once in the new managed Readwise Collection and once in the unrelated user Collection is expected. Need distinguish that from two entries for the same document in the same shelf/Collection or two distinct local files/paths before proceeding to tag projection.
+
+
 
 
 
