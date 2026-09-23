@@ -343,6 +343,17 @@ Settings/reporting:
 - sync summary reports downloaded/reused/skipped/failed image counts and cached bytes;
 - existing already-local articles are not rewritten just to add images; remote content refresh remains Phase Q, so Gate 5 production validation must use a newly-materialized article.
 
+Automated validation:
+- bounded HTTP response body test: PASS;
+- image URL dedupe, PNG/JPEG/SVG detection, local relative rewrite, `<picture>/<source>` stripping and graceful failed-image placeholder tests: PASS;
+- disabled-image and over-limit behavior tests: PASS;
+- deterministic hidden asset directory tests: PASS;
+- article materializer integration test: PASS;
+- run #234 on `f37143af...`: **SUCCESS** — syntax, all unit tests, packaging/layout and artifact;
+- installable inner ZIP SHA-256: `16f4447911cf817b0cd673649f102013febc77a45d8b0d9f291fc78735d69cf8`.
+
+Build **0.1.18** is ready for the Gate 5 production device test in `docs/DEVICE_TESTS.md`.
+
 
 
 
