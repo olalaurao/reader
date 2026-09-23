@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase H / Gate 6 IN PROGRESS — build 0.1.20 original PDF/EPUB + safe HTML fallback pending physical validation**
+**Phase H COMPLETE — Gate 6 PASSED on PW3 / KOReader 2026.07.1; Phase I sidecar/annotation adapter is next**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -452,7 +452,18 @@ Automated coverage includes:
 - run #296 on `5852ac33...`: **SUCCESS** — final 0.1.20 documentation/build tip;
 - installable inner ZIP verified with `unzip -t`; SHA-256: `20fe677c52ea4eefba24c4fb4e98c09b286df04f2b0eaddd416f64e2de4fd23c`.
 
-Gate 6 is now blocked only on physical PW3 proof that one real original PDF and one real original EPUB open/read/reopen normally.
+Physical Gate 6 result on the target PW3 / KOReader 2026.07.1:
+- one real Reader PDF downloaded/opened as the original PDF: **PASS**;
+- PDF close/reopen and reading progress preservation: **PASS**;
+- one real Reader EPUB downloaded/opened as the original EPUB: **PASS**;
+- EPUB reflow/font reading behavior: **PASS**;
+- EPUB close/reopen and reading progress preservation: **PASS**;
+- offline/local reopen: **PASS**;
+- no crash/freeze: **PASS**.
+
+### Gate 6 — PASS
+
+Gate 6 is closed. **Phase H is complete and Phase I / Gate 7 (KOReader sidecar/annotation adapter) is now unblocked.**
 
 
 
