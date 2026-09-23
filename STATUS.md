@@ -607,6 +607,8 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Base/integrated `main`: `5fa22b7726baa175b9149309f5480d8cce5cb39a` (PR #13 merge / Phase L + Gate 10 passed)
 - Phase L final branch closeout: `9655c9216468e2626ab9d845712cc8ff0bed5fea`
 - Phase L PR #13 CI run #406: **SUCCESS**
+- Phase M Gate 11 preparation: `48d4bfac6818151bb9b97ab4a8fd2a95dadae3ab`
+- Phase M preparation CI run #409: **SUCCESS** — development checks, full Lua suite, package/layout and artifact all passed; plugin code is unchanged from 0.1.25.
 - Current Phase M work is documentation/validation only; Kindle plugin remains build **0.1.25**.
 - Historical Phase K main merge: `e482dfb93ac882c20fdea946574835eb5a884766`
 - Historical Phase J main merge: `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`
@@ -1669,4 +1671,6 @@ Gate design:
 - require literal `[[Foucault]]` to remain normal Markdown and resolve as an Obsidian internal link;
 - document refresh/re-export only as recovery for already-exported/changed items, not as automatic update behavior.
 
+Preparation commit: `48d4bfac6818151bb9b97ab4a8fd2a95dadae3ab`.
+CI run #409: **SUCCESS**.
 Runbook: `docs/OBSIDIAN_GATE11.md`.
