@@ -216,7 +216,22 @@ Automated validation:
 - run #179 on `27f3c05...`: **SUCCESS** — full syntax/unit/package/layout/artifact;
 - installable 0.1.14 inner ZIP SHA-256: `7f54925596654e0975dabffe2973c4664e7f0c0a4335ff925e8850675cf08323`.
 
-Next physical action: install 0.1.14 and run **Check Reader document tag (Gate 4A)** for `gate4a-tag-test`; do not delete that tag yet.
+0.1.14 physical diagnostic result for document tag **`tag teste`**:
+- Tag exists in Reader Tag API: **yes**;
+- Documents returned for this tag: **1**;
+- Top-level documents: **1**;
+- Top-level articles: **1**;
+- Already managed by this plugin: **1**;
+- Managed + local: **1**;
+- Returned payloads containing this tag name: **1**;
+- Categories: `article=1`;
+- Tag API pages: **1**; document pages: **1**.
+
+This proves Reader's public API currently exposes the missing tag on the exact top-level article already owned locally by the plugin. The remaining fault is therefore between normal incremental change discovery and KOReader metadata postprocess, not Reader UI/tag classification and not Bookshelf genre parsing.
+
+0.1.15 adds one further targeted probe: for each matching managed document, query the same ID again using the plugin's current `document_query_after` watermark and report whether Reader returns it through `updatedAfter`, plus whether the stored remote revision already equals the current remote revision. This requires only one extra document request for this one-document test and avoids another library scan.
+
+Next physical action: install 0.1.15 and rerun **Check Reader document tag (Gate 4A)** for `tag teste`; do not delete or change that tag yet.
 
 
 
