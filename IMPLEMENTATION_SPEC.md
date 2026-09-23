@@ -304,7 +304,7 @@ Development through **Phase F / Gate 4** was pinned to `v2025.04` as the known b
 
 **Gate 4A-1 passed physically on the target PW3 after upgrading to official KOReader `v2026.07.1`.** Therefore `v2026.07.1` is now the canonical physical V1 target and every later KOReader-internal spike must use that tag first. KOReader `v2025.04` remains only the historical Gate 0–4 compatibility baseline.
 
-Gate 4A-2 still blocks Phase G until Bookshelf `v5.1.4` coexistence is validated.
+Gate 4A-2 passed physically on the target PW3 with Bookshelf `v5.1.4`; Phase G and later phases are now unblocked on the KOReader `v2026.07.1` baseline.
 
 References:
 - historical Gate 0–4 baseline: https://github.com/koreader/koreader/tree/v2025.04
@@ -2202,8 +2202,8 @@ Only after this passes does `v2026.07.1` become the physical V1 baseline.
 - verify Readwise Reader menu/sync, new documents, Readwise collections and open/close behavior while Bookshelf is installed;
 - only then optionally set `Start with -> Bookshelf`.
 
-### Gate 4A-2 — coexistence
-Both plugins must survive restart and a no-op sync without crash, duplicate document, settings loss, sidecar loss or deletion of unrelated user collections.
+### Gate 4A-2 — coexistence — PASSED
+Physical PW3 validation passed on KOReader `v2026.07.1` + Bookshelf `v5.1.4`: restart/no-op sync, Reader-managed documents, progress/highlight/note preservation, Reader location -> managed Collections, unrelated Collection preservation and Reader document tags -> Bookshelf Genres all passed. A stale Bookshelf light-metadata cache discovered during incremental tag updates was fixed by invalidating the optional Bookshelf light cache once after successful metadata writes.
 
 Full procedure and rollback: `docs/KOREADER_UPGRADE.md`.
 
