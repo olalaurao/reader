@@ -279,6 +279,53 @@ return function()
         assert(report.retryable_item_errors == 0)
         assert(meta.values.document_watermark == "T001000")
         assert(repository.rows.empty.last_sync_error == "content")
+
+        -- A no-change incremental pass must not refetch this permanent skip.
+        local no_change_reader = {
+            iterateDocuments = function(_, options)
+                assert(options.updated_after ~= nil)
+                return { pages = 1, duplicates = 0 }
+            end,
+            getDocument = function()
+                error("permanent skip must not be retried without a remote revision")
+            end,
+        }
+        local second_sync = newSync{
+            reader = no_change_reader,
+            repository = repository,
+            meta = meta,
+            now_values = { 1020, 1021 },
+        }
+        local second_report, second_err = second_sync:sync{}
+        assert(second_err == nil)
+        assert(second_report.mode == "incremental")
+        assert(second_report.nonretryable_skipped == 0)
+        assert(second_report.retryable_item_errors == 0)
+        assert(second_report.downloaded == 0)
+
+        -- A later remote revision is allowed to retry the previously skipped item.
+        local changed_reader = {
+            iterateDocuments = function(_, options, callback)
+                assert(options.updated_after ~= nil)
+                callback(doc("empty", "new", "Now has body", "u2"))
+                return { pages = 1, duplicates = 0 }
+            end,
+            getDocument = function(_, id)
+                assert(id == "empty")
+                return doc("empty", "new", "Now has body", "u2", "<p>Now readable</p>")
+            end,
+        }
+        local third_sync, _, _, third_installs = newSync{
+            reader = changed_reader,
+            repository = repository,
+            meta = meta,
+            now_values = { 1030, 1031 },
+        }
+        local third_report, third_err = third_sync:sync{}
+        assert(third_err == nil)
+        assert(third_report.mode == "incremental")
+        assert(third_report.downloaded == 1)
+        assert(third_installs[1] == "empty")
     end
 
     do
