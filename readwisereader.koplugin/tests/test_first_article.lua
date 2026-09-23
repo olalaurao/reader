@@ -53,12 +53,16 @@ local function newCoordinator(options)
                 return "<html>" .. document.html_content .. "</html>"
             end,
         },
+        images = options.images,
         filenames = options.filenames or {
             build = function(_, id)
                 return "article--rw-" .. id .. ".html"
             end,
             joinUnderRoot = function(root, subdir, filename)
                 return root .. "/" .. subdir .. "/" .. filename
+            end,
+            assetDirectory = function(id)
+                return ".rw-assets-" .. id
             end,
         },
         installer = options.installer or {
@@ -128,6 +132,46 @@ return function()
         assert(rows["article-1"].local_path == result.path)
         assert(#metadata == 1)
         assert(metadata[1].id == "article-1")
+    end
+
+    do
+        local localized_args
+        local coordinator, _, states, installs = newCoordinator{
+            images = {
+                localize = function(_, document, absolute_dir, relative_dir)
+                    localized_args = {
+                        absolute_dir = absolute_dir,
+                        relative_dir = relative_dir,
+                    }
+                    return '<p>before</p><img src="' .. relative_dir .. '/img-001.png"><p>after</p>', {
+                        downloaded = 1,
+                        reused = 0,
+                        failed = 0,
+                        skipped = 0,
+                        bytes = 123,
+                        new_paths = { absolute_dir .. "/img-001.png" },
+                    }
+                end,
+                cleanup = function()
+                    error("successful HTML install must not cleanup images")
+                end,
+            },
+        }
+        local result, err = coordinator:installDocument{
+            id = "with-images",
+            title = "Image article",
+            category = "article",
+            location = "new",
+            updated_at = "u1",
+            html_content = '<img src="https://example.com/image.png">',
+        }
+        assert(err == nil)
+        assert(result.image_report.downloaded == 1)
+        assert(localized_args.relative_dir == ".rw-assets-with-images")
+        assert(localized_args.absolute_dir == "/root/Readwise/Articles/.rw-assets-with-images")
+        assert(#installs == 1)
+        assert(installs[1].content:find('.rw%-assets%-with%-images/img%-001%.png'))
+        assert(states["with-images"].is_local_present == true)
     end
 
     do
