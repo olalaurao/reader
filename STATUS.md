@@ -508,7 +508,9 @@ Automated coverage:
 - degraded identity survives later text edits through unambiguous locator reconciliation;
 - unrelated documents cannot be scanned as managed Reader documents;
 - missing local managed file never implies annotation deletion;
-- Gate 7 diagnostic preserves literal `[[Foucault]]`, hashtags, emoji and line breaks in its on-device evidence.
+- Gate 7 diagnostic preserves literal `[[Foucault]]`, hashtags, emoji and line breaks in its on-device evidence;
+- run #339 on `c638f6cb...`: **SUCCESS** — full syntax, all unit tests, package/layout and artifact;
+- installable inner ZIP verified with `unzip -t`; SHA-256: `b609cf81ea4e3e621e9235d8c4e3156c429c9cbbd3e1d0ef9847639a0596262f`.
 
 Gate 7 now requires only a short physical test on one already-managed article: create a highlight + note, close/reopen, scan it, and verify the same local ID survives another reopen.
 
