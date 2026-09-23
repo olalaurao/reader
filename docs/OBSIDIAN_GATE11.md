@@ -89,3 +89,16 @@ This matters for Phase N:
 ## Result string
 
 `template exporta nota: sim/não / artigo certo: sim/não / highlight apareceu: sim/não / nota apareceu: sim/não / markdown tem [[Foucault]] literal: sim/não / #pesquisar preservado: sim/não / link funciona no Obsidian: sim/não`
+
+## Recorded result — 2026-09-23
+
+**PASS** using the user's real Readwise Official export configuration and real Obsidian vault.
+
+- template exported highlight notes;
+- correct article/highlight exported;
+- note appeared;
+- literal `[[Foucault]]` remained in Markdown;
+- `#pesquisar` remained intact;
+- Obsidian recognized the wikilink normally.
+
+The append-only limitation remains documented: later edits to already-exported highlights are not expected to rewrite the existing Obsidian block on ordinary sync.

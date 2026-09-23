@@ -1192,3 +1192,17 @@ Return:
 `template exporta nota: sim/não / artigo certo: sim/não / highlight apareceu: sim/não / nota apareceu: sim/não / markdown tem [[Foucault]] literal: sim/não / #pesquisar preservado: sim/não / link funciona no Obsidian: sim/não`
 
 Gate 11 passes only if the real active export configuration includes notes and the Gate 10 note reaches the correct Obsidian article with `[[Foucault]]` functioning as normal Obsidian wikilink.
+### Recorded user result — 2026-09-23
+
+**PASS** in the user's real Obsidian vault/configuration.
+
+Observed:
+- active template exports highlight notes: **yes**;
+- correct article: **yes**;
+- Gate 10 highlight appeared: **yes**;
+- note appeared: **yes**;
+- source Markdown contains literal `[[Foucault]]`: **yes**;
+- `#pesquisar` preserved: **yes**;
+- Obsidian wikilink behavior: **yes**.
+
+**Gate 11 PASSED. Phase N / Gate 12 is now unblocked after Phase M merge.**

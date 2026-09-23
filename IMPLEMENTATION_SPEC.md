@@ -2394,7 +2394,7 @@ Physical validation on the target PW3 / KOReader v2026.07.1 passed:
 
 Gate 10 is closed. Phase M / Gate 11 official Readwise → Obsidian export validation is now unblocked.
 
-## Phase M — Obsidian end-to-end — PREPARED, GATE 11 PENDING
+## Phase M — Obsidian end-to-end — COMPLETE, GATE 11 PASSED
 
 ### M1 — official export contract
 Current official Readwise documentation was revalidated on 2026-09-23.
@@ -2425,7 +2425,7 @@ Therefore:
 - Phase N / Gate 12 can prove Kindle note edits reach Reader, but automatic propagation of those edits into a previously-exported Obsidian block is outside the official export's current append-only behavior;
 - this limitation must be documented rather than hidden.
 
-### Gate 11 — user Obsidian validation pending
+### Gate 11 — PASSED
 Using the Gate 10 test highlight whose Reader note is exactly:
 
 `ver [[Foucault]]`
@@ -2437,7 +2437,7 @@ verify in the user's real Obsidian vault:
 - `#pesquisar` is preserved;
 - Obsidian recognizes `[[Foucault]]` as an internal wikilink under the user's real template/config.
 
-No new Kindle build is required. Do not proceed to Phase N / Gate 12 until this result is recorded.
+No new Kindle build was required. The user's real export configuration passed all criteria: correct article/highlight, note present, literal `[[Foucault]]`, preserved `#pesquisar`, and a functioning Obsidian internal wikilink. Gate 11 is closed and Phase N / Gate 12 is unblocked.
 
 ## Phase N — update/delete annotations
 
