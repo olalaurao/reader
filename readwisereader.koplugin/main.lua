@@ -1,9 +1,11 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
 local ArticleUI = require("ui/article")
+local AnnotationDiagnosticsUI = require("ui/annotation_diagnostics")
 local Config = require("config")
 local Constants = require("constants")
 local DB = require("storage/db")
+local AnnotationsRepository = require("storage/annotations")
 local DocumentsRepository = require("storage/documents")
 local Filenames = require("content/filenames")
 local FirstArticle = require("sync/first_article")
@@ -15,8 +17,10 @@ local Installer = require("content/installer")
 local RawSource = require("content/raw_source")
 local KOReaderCollections = require("koreader/collections")
 local KOReaderDocuments = require("koreader/documents")
+local KOReaderAnnotations = require("koreader/annotations")
 local Reader = require("api/reader")
 local Metadata = require("sync/metadata")
+local AnnotationSync = require("sync/annotations")
 local LibraryUI = require("ui/library")
 local SettingsUI = require("ui/settings")
 local SyncMeta = require("storage/sync_meta")
@@ -44,11 +48,22 @@ function ReadwiseReader:init()
     self.documents_repository = DocumentsRepository:new{
         db = self.db,
     }
+    self.annotations_repository = AnnotationsRepository:new{
+        db = self.db,
+    }
     self.sync_meta = SyncMeta:new{
         db = self.db,
     }
     self.koreader_documents = KOReaderDocuments:new()
+    self.koreader_annotations = KOReaderAnnotations:new{
+        hasher = Hash,
+    }
     self.koreader_collections = KOReaderCollections:new()
+    self.annotation_scanner = AnnotationSync:new{
+        documents = self.documents_repository,
+        annotations = self.annotations_repository,
+        adapter = self.koreader_annotations,
+    }
     local installer = Installer:new()
     self.first_article = FirstArticle:new{
         reader = self.reader_api,
@@ -110,6 +125,12 @@ function ReadwiseReader:init()
         koreader_documents = self.koreader_documents,
         collections = self.koreader_collections,
     }
+    self.annotation_diagnostics_ui = AnnotationDiagnosticsUI:new{
+        scanner = self.annotation_scanner,
+        get_current_path = function()
+            return self.ui and self.ui.document and self.ui.document.file or nil
+        end,
+    }
     self.ui.menu:registerToMainMenu(self)
 end
 
@@ -126,6 +147,7 @@ function ReadwiseReader:addToMainMenu(menu_items)
             self.tag_diagnostics_ui:getMenuItem(),
             self.image_spike_ui:getMenuItem(),
             self.raw_format_ui:getMenuItem(),
+            self.annotation_diagnostics_ui:getMenuItem(),
             self.settings_ui:getSettingsMenu(),
         },
     }
