@@ -2439,7 +2439,7 @@ verify in the user's real Obsidian vault:
 
 No new Kindle build was required. The user's real export configuration passed all criteria: correct article/highlight, note present, literal `[[Foucault]]`, preserved `#pesquisar`, and a functioning Obsidian internal wikilink. Gate 11 is closed and Phase N / Gate 12 is unblocked.
 
-## Phase N — update/delete annotations — IMPLEMENTED, GATE 12A NOTE UPDATE PASSED; 12B–12D PENDING
+## Phase N — update/delete annotations — IMPLEMENTED, GATE 12A NOTE UPDATE + 12B CONFLICT PASSED; 12C–12D PENDING
 
 Gate 8 physically proved on the target account/device that the linked Reader v3 highlight child accepted a note PATCH and reflected it in Reader. The current public Reader API page contains wording that is more restrictive for highlight-note updates, so **the physically observed Gate 8 contract remains the project contract and Gate 12 revalidates it in the production path**. Do not generalize beyond this tested linked-highlight workflow.
 
@@ -2491,7 +2491,7 @@ Automated tests cover:
 ### Gate 12 — partial physical pass
 On the target PW3 / KOReader v2026.07.1:
 1. **PASS on build 0.1.31:** linked Kindle note edit reaches Reader exactly, with Reader-visible end-to-end verification/repair before durable success;
-2. prove a simultaneous local+Reader note edit is reported as conflict and neither side is overwritten;
+2. **PASS on build 0.1.31:** simultaneous local+Reader note edit is reported as conflict and neither side is overwritten;
 3. with deletion propagation OFF, delete one linked KOReader test highlight and prove Reader keeps it;
 4. enable deletion only after the OFF sync reports exactly one pending local deletion for the clean test article;
 5. sync again and prove only that linked target is deleted remotely;
@@ -2499,7 +2499,9 @@ On the target PW3 / KOReader v2026.07.1:
 
 Physical note-update evidence on build 0.1.31: 2 linked highlights scanned; 1 note updated; 1 reconciled; 0 conflicts; 0 mutation blocks; 2 v2 remote-note reads; 1 v2 note update; 6 Reader verification reads; 1 propagation miss; 2 v3 repair PATCHes; 2 completed repairs; 0 remote errors; user visually confirmed the final Reader note.
 
-Gate 12 closes only after conflict and deletion observations also pass. Do not proceed to Phase O / Gate 13 first.
+Physical conflict evidence on build 0.1.31: one linked highlight scanned; 1 conflict blocked; 0 note updates; 0 v2 note updates; 0 mutation blocks; 0 remote errors; Reader preserved the remote edit and Kindle preserved the local edit.
+
+Gate 12 closes only after deletion OFF and deliberate deletion ON observations also pass. Do not proceed to Phase O / Gate 13 first.
 
 ## Phase O — offline queue hardening
 
