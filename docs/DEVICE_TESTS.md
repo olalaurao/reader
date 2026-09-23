@@ -1276,3 +1276,31 @@ Observed on the target PW3:
 - annotation remote errors: 1.
 
 Root cause was compatibility with pre-Gate-10 linked Reader children using the generic plugin source marker. Build 0.1.27 adds safe legacy support for note updates only. **Do not continue Gate 12 on 0.1.26.**
+
+### Gate 12 attempt 2 — build 0.1.27 — FAIL / fixed in 0.1.28
+Observed on the target PW3 after editing the note of an already-linked highlight:
+- current-document highlights scanned: 2;
+- highlights created: 0;
+- highlights already linked: 2;
+- notes updated: 0;
+- note conflicts blocked: 0;
+- annotation mutations blocked safely: 1;
+- annotation remote errors: 0;
+- Reader note did not change.
+
+The same newly-created linked child had previously reported zero verified reconciliation markers. Build 0.1.28 therefore treats durable Reader child ID + correct parent + highlight category as sufficient identity for **note update only**. Remote deletion remains strict and unchanged.
+
+#### 0.1.28 retest
+Do not create another highlight. Keep the edited local note as-is.
+1. Install 0.1.28.
+2. Open the same managed article.
+3. Close/reopen once so the sidecar is flushed, then leave the article open.
+4. Run **Readwise Reader → Sync now**.
+5. Expect:
+   - `Highlights created: 0`;
+   - `Notes updated: 1`;
+   - `Note conflicts blocked: 0`;
+   - `Annotation remote errors: 0`;
+   - `Durable linked highlights accepted without marker` may be greater than 0;
+   - the target note appears exactly in Reader.
+6. Do **not** test conflict or deletion until this update case passes.
