@@ -222,6 +222,7 @@ Tap to cancel. Completed files are installed atomically; the incremental waterma
 
         report.postprocess_metadata_errors = 0
         report.postprocess_collection_errors = 0
+        local metadata_writes_succeeded = 0
         for _, item in ipairs(report.postprocess or {}) do
             if item.metadata then
                 local call_ok, metadata_ok = pcall(
@@ -233,6 +234,8 @@ Tap to cancel. Completed files are installed atomically; the incremental waterma
                 if not call_ok or not metadata_ok then
                     report.errors = (report.errors or 0) + 1
                     report.postprocess_metadata_errors = report.postprocess_metadata_errors + 1
+                else
+                    metadata_writes_succeeded = metadata_writes_succeeded + 1
                 end
             end
             if item.location then
@@ -246,6 +249,18 @@ Tap to cancel. Completed files are installed atomically; the incremental waterma
                     report.errors = (report.errors or 0) + 1
                     report.postprocess_collection_errors = report.postprocess_collection_errors + 1
                 end
+            end
+        end
+
+        if metadata_writes_succeeded > 0
+            and type(self.koreader_documents.refreshExternalMetadataCaches) == "function" then
+            local cache_ok, refreshed = pcall(
+                self.koreader_documents.refreshExternalMetadataCaches,
+                self.koreader_documents
+            )
+            if not cache_ok or refreshed == false then
+                report.errors = (report.errors or 0) + 1
+                report.postprocess_metadata_errors = report.postprocess_metadata_errors + 1
             end
         end
 
