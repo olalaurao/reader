@@ -88,6 +88,57 @@ return function()
 
     do
         local fake = fakeDeps()
+        local installer = Installer:new{ deps = fake.deps }
+        local validated = false
+        local result, err = installer:installStream(
+            "/root/Books/doc.pdf",
+            function(sink)
+                assert(sink("%PDF-1.7\n") == 1)
+                assert(sink("body") == 1)
+                return { status = 200, headers = { ["Content-Type"] = "application/pdf" } }
+            end,
+            function(temp_path, bytes, response)
+                validated = true
+                assert(temp_path == "/root/Books/doc.pdf.tmp")
+                assert(bytes == #"%PDF-1.7\nbody")
+                assert(response.status == 200)
+                return true
+            end
+        )
+        assert(err == nil)
+        assert(result.path == "/root/Books/doc.pdf")
+        assert(result.bytes == #"%PDF-1.7\nbody")
+        assert(fake.files["/root/Books/doc.pdf"] == "%PDF-1.7\nbody")
+        assert(fake.files["/root/Books/doc.pdf.tmp"] == nil)
+        assert(validated == true)
+    end
+
+    do
+        local fake = fakeDeps()
+        local installer = Installer:new{ deps = fake.deps }
+        local result, err = installer:installStream(
+            "/root/Books/bad.pdf",
+            function(sink)
+                assert(sink("not a pdf") == 1)
+                return { status = 200 }
+            end,
+            function()
+                return nil, {
+                    kind = "content",
+                    stage = "validate",
+                    retryable = false,
+                    message = "bad format",
+                }
+            end
+        )
+        assert(result == nil)
+        assert(err.kind == "content")
+        assert(fake.files["/root/Books/bad.pdf"] == nil)
+        assert(fake.files["/root/Books/bad.pdf.tmp"] == nil)
+    end
+
+    do
+        local fake = fakeDeps()
         fake.deps.open_file = function()
             return nil, "No space left on device"
         end
