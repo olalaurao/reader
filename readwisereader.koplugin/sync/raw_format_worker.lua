@@ -123,10 +123,15 @@ function RawFormatWorker:run(reader_id, category)
         local existing = materializer:getExistingPath(reader_id)
         if existing then
             local row = repository:getById(reader_id)
+            local strategy = row and row.download_strategy or nil
             return {
                 path = existing,
                 existing = true,
                 location = row and row.location or nil,
+                local_format = row and row.local_format or nil,
+                download_strategy = strategy,
+                raw_source_used = strategy == "reader_raw_source",
+                raw_fallback_used = strategy == "reader_html_fallback",
             }
         end
 
@@ -147,6 +152,10 @@ function RawFormatWorker:run(reader_id, category)
             existing = installed.existing == true,
             raw_source_used = installed.raw_source_used == true,
             raw_fallback_used = installed.raw_fallback_used == true,
+            local_format = installed.raw_source_used and category or "html",
+            download_strategy = installed.raw_source_used
+                and "reader_raw_source"
+                or (installed.raw_fallback_used and "reader_html_fallback" or nil),
             raw_bytes = installed.raw_bytes,
             location = document.location,
             metadata = deferred_metadata,
