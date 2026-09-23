@@ -13,6 +13,7 @@ function TagDiagnostics:run(tag_name)
     local Config = require("config")
     local DB = require("storage/db")
     local DocumentsRepository = require("storage/documents")
+    local SyncMeta = require("storage/sync_meta")
     local Http = require("api/http")
     local Reader = require("api/reader")
 
@@ -21,6 +22,7 @@ function TagDiagnostics:run(tag_name)
     local ok, result, err = pcall(function()
         db = DB:new()
         local repository = DocumentsRepository:new{ db = db }
+        local sync_meta = SyncMeta:new{ db = db }
         local reader = Reader:new{
             http = Http:new(),
             config = config,
@@ -42,6 +44,10 @@ function TagDiagnostics:run(tag_name)
             managed_local_matches = 0,
             payload_has_tag = 0,
             categories = {},
+            query_after = sync_meta:get("document_query_after"),
+            incremental_visible = 0,
+            stored_revision_matches_remote = 0,
+            remote_revision_newer_than_stored = 0,
         }
 
         for _, document in ipairs(diagnostic.documents or {}) do
@@ -65,6 +71,31 @@ function TagDiagnostics:run(tag_name)
                     and type(existing.local_path) == "string"
                     and existing.local_path ~= "" then
                     summary.managed_local_matches = summary.managed_local_matches + 1
+                end
+                if document.updated_at ~= nil and existing.remote_updated_at == document.updated_at then
+                    summary.stored_revision_matches_remote = summary.stored_revision_matches_remote + 1
+                elseif document.updated_at ~= nil
+                    and existing.remote_updated_at ~= nil
+                    and document.updated_at > existing.remote_updated_at then
+                    summary.remote_revision_newer_than_stored =
+                        summary.remote_revision_newer_than_stored + 1
+                end
+
+                if summary.query_after then
+                    local page, page_err = reader:listDocuments{
+                        id = document.id,
+                        updated_after = summary.query_after,
+                        limit = 1,
+                        with_html_content = false,
+                        with_raw_source_url = false,
+                    }
+                    if not page then return nil, page_err end
+                    for _, incremental_doc in ipairs(page.results) do
+                        if incremental_doc.id == document.id then
+                            summary.incremental_visible = summary.incremental_visible + 1
+                            break
+                        end
+                    end
                 end
             end
         end
