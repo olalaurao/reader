@@ -47,6 +47,7 @@ return function()
         author = "Author",
         summary = "Summary",
         site_name = "Site",
+        tags = { "research", "deep work", "research", "line\nbreak", "  spaced  ", 42 },
     })
     assert(ok == true)
     assert(err == nil)
@@ -55,7 +56,11 @@ return function()
     assert(saved.doc_props.authors == "Author")
     assert(saved.doc_props.description == "Summary")
     assert(saved.doc_props.series == "Site")
+    assert(saved.doc_props.keywords == "research\ndeep work\nline break\nspaced")
     assert(saved.custom_props.title == "Title")
+    assert(saved.custom_props.keywords == saved.doc_props.keywords)
+    assert(Documents._tagsToKeywords({}) == "")
+    assert(Documents._tagsToKeywords(nil) == nil)
     assert(events[1].name == "InvalidateMetadataCache")
     assert(events[1].arg == "/root/article.html")
     assert(events[2].name == "BookMetadataChanged")
