@@ -171,17 +171,6 @@ Tap to cancel. Original raw source is preferred; a usable processed HTML fallbac
             return
         end
 
-        if result.raw_fallback_used then
-            UIManager:show(InfoMessage:new{
-                text = string.format(
-                    _("Reader did not provide a usable original %s for this item. A readable HTML fallback was installed instead. Choose a different %s to validate Gate 6 original-format support."),
-                    category:upper(),
-                    category:upper()
-                ),
-            })
-            return
-        end
-
         if result.metadata then
             pcall(
                 self.koreader_documents.writeMetadata,
@@ -197,6 +186,17 @@ Tap to cancel. Original raw source is preferred; a usable processed HTML fallbac
                 result.path,
                 result.location
             )
+        end
+
+        if result.raw_fallback_used then
+            UIManager:show(InfoMessage:new{
+                text = string.format(
+                    _("Reader did not provide a usable original %s for this item. A readable HTML fallback was installed instead. Choose a different %s to validate Gate 6 original-format support."),
+                    category:upper(),
+                    category:upper()
+                ),
+            })
+            return
         end
 
         UIManager:nextTick(function()
