@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase I COMPLETE — Gate 7 PASSED on PW3 / KOReader 2026.07.1; Phase J annotation API interoperability spike is next**
+**Phase J / Gate 8 IN PROGRESS — build 0.1.22 staged disposable annotation API interoperability spike pending physical/account validation**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Current work is **Phase I / Gate 7**. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Current work is **Phase J / Gate 8**. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -526,6 +526,47 @@ Physical Gate 7 result on the target PW3 / KOReader 2026.07.1:
 
 Gate 7 is closed. **Phase I is complete and Phase J / Gate 8 (annotation API interoperability spike) is now unblocked.**
 
+## Phase J — annotation API interoperability spike
+
+### 0.1.22 implementation ready for Gate 8
+
+Public API research refreshed on 2026-09-23 before writing mutation code:
+- Reader v3 highlight create remains `POST /api/v3/save/` with `parent_id` + exact `content`;
+- Reader LIST now explicitly documents highlight `notes`, `highlight_offset` and serialized DOM `highlight_location`;
+- **Reader UPDATE now explicitly documents that highlights accept `notes` and `tags`**, superseding the older project assumption that note updates required v2;
+- Reader v3 DELETE documents 204 for deleting a highlight child;
+- Readwise v2 Highlight LIST/DETAIL expose numeric ID + `external_id`;
+- Readwise Export documents Reader-backed user-book `external_id` and highlight `external_id`, giving a candidate deterministic bridge between Reader child IDs and v2 numeric highlight IDs;
+- Readwise v2 PATCH supports note/color and DELETE supports numeric highlight deletion.
+
+Canonical research/evidence ledger: `docs/API_INTEROP.md`.
+
+Implemented:
+- Reader v3 save/create-highlight/update/delete wrappers with JSON request validation;
+- Reader child normalization now includes `highlight_offset` and `highlight_location`;
+- new Readwise v2 wrapper for Highlight LIST/DETAIL/PATCH/DELETE plus Export probe;
+- staged Gate 8 state machine using only plugin-created disposable data;
+- **Step 1** creates a temporary Reader HTML article, waits until the exact test phrase is highlightable, creates one Reader v3 child highlight with note/tag, and records the IDs durably before any cancellable follow-up;
+- **Step 2** requires a deterministic v2 mapping (prefer `v2 highlight.external_id == Reader child id`; Export external IDs are a second deterministic path), then PATCHes note/tags through Reader v3 and verifies v3 LIST;
+- a parent+text+note-only v2 match is explicitly classified non-deterministic and blocks the spike rather than being accepted;
+- **Step 3** PATCHes the same proven numeric v2 highlight note + green color and polls Reader v3 to test cross-API propagation;
+- **Step 4** DELETEs through Reader v3, verifies v3 disappearance, allows several seconds for v2 propagation, uses v2 DELETE only if that exact proven disposable numeric ID still exists, then deletes the disposable parent;
+- separate recovery cleanup action only touches Gate 8 IDs durably stored by the spike;
+- cancellation after parent/highlight creation cannot strand an unknown remote object because each disposable ID is persisted immediately;
+- no existing Reader document/highlight is selected or mutated by Gate 8.
+
+Automated coverage:
+- Reader v3 mutation request methods, payloads and child locator fields;
+- Readwise v2 LIST/DETAIL/PATCH/DELETE/Export request shapes;
+- staged create → deterministic mapping → v3 update → v2 update → v3 delete/cleanup state machine;
+- ambiguous text/note-only mapping is blocked;
+- v2 cleanup fallback only targets a deterministic stored numeric ID;
+- partial parent-only state is recoverable;
+- all existing Phase A–I tests continue to pass through the latest successful Phase J runs.
+
+Gate 8 remains **OPEN** until the four disposable steps are run on the real account and the observed shapes/propagation results are written into `docs/API_INTEROP.md`.
+
+
 
 
 
@@ -542,8 +583,8 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 
 ## Current branch / commit
 
-- Branch: `phase-i/sidecar-gate7`
-- Base `main`: `3995dbee0b6f3171793abab50cb541af10a48d5c` (PR #9 merge / Phase H + Gate 6 passed)
+- Branch: `phase-j/annotation-api-gate8`
+- Base `main`: `a7d0ca39ca1e7a1df1f775b9eb1ca121a572d802` (PR #10 merge / Phase I + Gate 7 passed)
 - Phase F historical merge: `21dd64719ca248dd7706895fab1651751edf8844` (Gate 4 passed on KOReader 2025.04)
 - F1 settings/root ownership: `a57da9980d1b77a16bf2a0b8fbaa09327b1691d9`
 - F1/F2 incremental sync engine: `265405a479ab538ed4fbdde9223ca97c28aaad07`
@@ -571,7 +612,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Jailbreak/KUAL functional
 - KOReader historical Gate 0–4 baseline: `2025.04`
 - canonical physical V1 baseline from Gate 4A-1 onward: official KOReader `v2026.07.1`, `kindlepw2` package
-- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase I / Gate 7 sidecar/annotation adapter
+- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase J / Gate 8 annotation API interoperability
 
 ## Phase A result
 
@@ -1428,24 +1469,33 @@ A deliberate roadmap/spec change was made on 2026-09-22 at the user's request: K
 
 ## Blockers
 
-Immediate blocker: **Gate 7 physical validation on the target PW3** for one managed article highlight/note and stable sidecar identity after reopen.
+Immediate blocker: **Gate 8 physical/account interoperability validation** using only the disposable Reader document/highlight created by build 0.1.22.
+
+We specifically still need observed proof of:
+- Reader v3 child create/LIST shape;
+- deterministic Reader child ID ↔ Readwise v2 numeric ID mapping;
+- current documented Reader v3 note/tag PATCH behavior;
+- Readwise v2 note/color PATCH propagation back to Reader;
+- cross-API delete behavior.
 
 Later hard gates remain:
-- Reader v3 ↔ Readwise v2 highlight ID mapping;
-- safe note-update path;
-- safe highlight-delete path;
-- exact-content matching edge cases;
+- exact-content matching edge cases on real managed Reader HTML;
+- timeout-after-create reconciliation/deduplication;
+- durable outbound queue/retry semantics;
+- safe note conflicts/deletion policy;
 - content replacement vs existing KOReader positions/sidecars.
 
 ## Exact next steps
 
-1. Finish final CI/package for build **0.1.21**.
-2. Install only the updated `readwisereader.koplugin`; keep the existing database/settings/documents.
-3. On one already-managed article, create a short highlight and the distinctive Gate 7 note from `docs/DEVICE_TESTS.md`.
-4. Close/reopen the article and run **Scan current annotations (Gate 7)** from inside that article.
-5. Verify exact selected text/note, populated locator evidence and `Identity quality: strong`; record the Local ID.
-6. Close/reopen once more and rescan; the same Local ID must remain and the item should be unchanged.
-7. If Gate 7 passes, close/merge Phase I and begin **Phase J / Gate 8 annotation API interoperability spike**. No outbound annotation sync should be implemented before that spike proves the current Reader/Readwise ID/update/delete behavior.
+1. Finish CI/package build **0.1.22**.
+2. Install the updated plugin without replacing settings/database/documents.
+3. Run **Readwise Reader -> Annotation API spike (Gate 8) -> 1. Create disposable highlight**.
+4. In Reader web/phone, verify only the temporary `KOReader Gate 8 disposable ...` document/highlight/note/tag appeared.
+5. Run step 2, record the mapping method and verify the Reader-visible v3-updated note.
+6. Run step 3 and verify the Reader-visible v2-updated note (and green color if exposed).
+7. Run step 4; verify the disposable document is gone from Reader. If any step is cancelled/fails, use the dedicated Gate 8 recovery cleanup rather than creating another spike blindly.
+8. Return only the requested yes/no/mapping fields; then update `docs/API_INTEROP.md` with observed sanitized behavior.
+9. Do not begin Phase K/L production highlight matching/upload until Gate 8 is closed.
 
 ## Existing architectural decisions still in force
 
