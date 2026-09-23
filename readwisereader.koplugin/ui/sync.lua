@@ -11,6 +11,12 @@ local _ = require("gettext")
 local SyncUI = {}
 SyncUI.__index = SyncUI
 
+local function megabytes(bytes)
+    local value = tonumber(bytes)
+    if not value then return _("unknown") end
+    return string.format("%.1f MB", value / 1024 / 1024)
+end
+
 local function retryableStagesText(stages)
     local keys = {}
     for key, count in pairs(stages or {}) do
@@ -63,6 +69,7 @@ local function summaryText(report)
         string.format(_("Skipped (not materializable): %d"), report.nonretryable_skipped or 0),
         string.format(_("Retryable item errors: %d"), report.retryable_item_errors or 0),
         string.format(_("Retryable stages: %s"), retryableStagesText(report.retryable_error_stages)),
+        string.format(_("Storage available after sync: %s"), megabytes(report.storage_available_after)),
         string.format(_("Errors: %d"), report.errors or 0),
         string.format(_("Metadata write errors: %d"), report.postprocess_metadata_errors or 0),
         string.format(_("Collection write errors: %d"), report.postprocess_collection_errors or 0),
