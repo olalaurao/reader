@@ -22,6 +22,7 @@ local SettingsUI = require("ui/settings")
 local SyncMeta = require("storage/sync_meta")
 local SyncUI = require("ui/sync")
 local ImageSpikeUI = require("ui/image_spike")
+local RawFormatUI = require("ui/raw_format")
 local TagDiagnosticsUI = require("ui/tag_diagnostics")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
@@ -104,6 +105,11 @@ function ReadwiseReader:init()
         installer = Installer:new(),
         koreader_documents = self.koreader_documents,
     }
+    self.raw_format_ui = RawFormatUI:new{
+        config = self.config,
+        koreader_documents = self.koreader_documents,
+        collections = self.koreader_collections,
+    }
     self.ui.menu:registerToMainMenu(self)
 end
 
@@ -119,6 +125,7 @@ function ReadwiseReader:addToMainMenu(menu_items)
             self.library_ui:getScanMenuItem(),
             self.tag_diagnostics_ui:getMenuItem(),
             self.image_spike_ui:getMenuItem(),
+            self.raw_format_ui:getMenuItem(),
             self.settings_ui:getSettingsMenu(),
         },
     }
