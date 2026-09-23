@@ -247,6 +247,35 @@ return function()
     end
 
     do
+        local coordinator, _, states = newCoordinator{
+            raw_source = {
+                download = function()
+                    return nil, {
+                        kind = "raw_unavailable",
+                        retryable = false,
+                        message = "no raw",
+                    }
+                end,
+                isFallbackEligible = function() return true end,
+            },
+        }
+        local result, err = coordinator:installDocument{
+            id = "pdf-no-fallback",
+            title = "No fallback",
+            category = "pdf",
+            location = "new",
+            updated_at = "u4",
+            html_content = nil,
+        }
+        assert(result == nil)
+        assert(err.kind == "content")
+        assert(err.stage == "raw_fallback")
+        assert(err.retryable == false)
+        assert(states["pdf-no-fallback"].is_local_present == false)
+        assert(states["pdf-no-fallback"].last_sync_error == "content")
+    end
+
+    do
         local calls = {}
         local filenames = {
             build = function(title, id)
