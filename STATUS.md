@@ -608,9 +608,12 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Phase N mutation engine: `183c578dbf2b97b3a5d111d369f40e8cc3bff4d2`
 - Phase N Sync/settings integration: `9e8c532c9407041ecb8dd2babeabff1586476774`
 - Phase N destructive-toggle coverage: `4d081b346156f7dd09e4db6640181a9ee9518864`
-- Run #415 on mutation engine: **SUCCESS**
-- Run #416 on Sync/settings integration: **SUCCESS**
-- Run #417 on destructive-toggle coverage: **SUCCESS**
+- 0.1.31 end-to-end note verification/repair build: `77e7d7ca5c791b5324a3b2561eb3a4b274a966f0`
+- Run #457 on build 0.1.31: **SUCCESS**
+- Gate 12A artifact ID: `10780487761`
+- artifact digest: `sha256:53041ae091550714584e4572f7bb069bef2870ca24a591361ea784ed7945be2e`
+- Annotation engineering memory: `docs/ANNOTATION_SYNC_LESSONS.md`, introduced at `80f42810cccfbfdfb7d2535e6e86156a0c0bfd0e`
+- Gate 12A physical PASS recorded in STATUS/spec/API interop/device runbook on 2026-09-23
 - Historical Phase M main merge: `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`
 - Historical Phase L main merge: `5fa22b7726baa175b9149309f5480d8cce5cb39a`
 
