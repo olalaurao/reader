@@ -2444,16 +2444,16 @@ No new Kindle build was required. The user's real export configuration passed al
 Gate 8 physically proved on the target account/device that the linked Reader v3 highlight child accepted a note PATCH and reflected it in Reader. The current public Reader API page contains wording that is more restrictive for highlight-note updates, so **the physically observed Gate 8 contract remains the project contract and Gate 12 revalidates it in the production path**. Do not generalize beyond this tested linked-highlight workflow.
 
 ### N1 — note update + conflict detection
-Implemented in build 0.1.28 for the currently-open managed Reader document:
+Implemented in build 0.1.29 for the currently-open managed Reader document:
 - only annotations with a durable `reader_highlight_document_id` and `created_remote=true` are eligible;
 - the exact Reader child is fetched before mutation;
 - for **note update**, durable child id + original `parent_id` + `category=highlight` are the required identity; exact per-annotation or legacy plugin `source` markers are accepted as additional evidence when Reader returns them, but are not mandatory because physical Gate 12 testing showed Reader LIST can omit/change that marker on a correctly linked child;
 - local highlight text changes are blocked rather than mapped into a remote text mutation;
 - `last_synced_note` is the three-way merge baseline;
-- if only the local note changed, Reader v3 PATCH updates `notes`;
-- success is verified with a second GET before updating `last_synced_note` / hashes;
-- if the remote already equals the local value, the operation is reconciled without another PATCH;
-- if local and remote both diverged from `last_synced_note`, state becomes `conflict` and neither side is overwritten;
+- the production conflict read uses the deterministic Readwise v2 representation: exact `Reader child id == v2 external_id`; the resulting numeric v2 highlight id is persisted for future direct detail reads;
+- if the remote v2 note already equals the local value, the operation is reconciled without another PATCH;
+- if the remote v2 note diverged from `last_synced_note` while local also diverged, state becomes `conflict` and neither side is overwritten;
+- if only the local note changed, the exact mapped Readwise v2 highlight is PATCHed with the new note; the returned id/note must match before `last_synced_note` / hashes advance;
 - a previously blocked/conflict state is re-evaluated on later Sync now when the local note still differs from the durable `last_synced_note` baseline, so a fixed identity/read path can recover without recreating the highlight;
 - a nil-note clear is currently blocked until highlight-note clearing is physically validated.
 
@@ -2471,7 +2471,8 @@ Implemented:
 The current-document scope from Phase L remains in force for Gate 12 to keep destructive operations bounded on the PW3. Phase O owns broader queue/backlog retry hardening.
 
 Automated tests cover:
-- normal note update and post-PATCH verification;
+- deterministic Reader-child → Readwise-v2 external-id mapping for note mutation;
+- normal note update through the exact mapped v2 highlight and response verification;
 - response-loss reconciliation when Reader already has the local note;
 - simultaneous local+remote note conflict with no overwrite;
 - delete propagation OFF;
