@@ -1206,3 +1206,61 @@ Observed:
 - Obsidian wikilink behavior: **yes**.
 
 **Gate 11 PASSED. Phase N / Gate 12 is now unblocked after Phase M merge.**
+
+## Phase N / Gate 12 — note update, conflict, deletion OFF → ON
+
+Build: **0.1.26**
+
+Use a clean already-managed Reader article if possible. Keep the article open whenever you run **Sync now**. This build still limits annotation mutations to the currently-open managed document.
+
+### A. Note update
+1. Create/sync a fresh unique test highlight if the article does not already have a clean linked one.
+2. On KOReader, edit that linked highlight note to exactly:
+   `gate12 kindle [[Foucault]]`
+   then on the next line:
+   `#nota-update`
+3. Close/reopen the article to flush the sidecar; leave it open.
+4. Run **Readwise Reader → Sync now**.
+5. Expect:
+   - `Notes updated: 1` (or at least 1 if another intentional linked note changed);
+   - `Note conflicts blocked: 0`;
+   - `Annotation mutations blocked safely: 0`.
+6. Refresh Reader and verify the exact same linked highlight now has exactly that multiline note.
+
+### B. Conflict must not overwrite either side
+1. Create and sync a **second** fresh test highlight in the same clean article with baseline note `gate12 conflict base`.
+2. After it is linked, edit its KOReader note to `gate12 LOCAL conflict` but **do not sync yet**.
+3. In Reader web/phone, edit that same second highlight note to `gate12 REMOTE conflict`.
+4. Back on KOReader, close/reopen the article and run **Sync now**.
+5. Expect:
+   - `Note conflicts blocked: 1` for this controlled case;
+   - no PATCH overwrites the Reader value.
+6. Verify Reader still says `gate12 REMOTE conflict` and KOReader still says `gate12 LOCAL conflict`.
+
+### C. Delete with propagation OFF
+1. Confirm **Settings → Highlights → Propagate highlight deletions** is unchecked.
+2. Delete the first Gate 12 linked highlight locally in KOReader (not the conflict fixture).
+3. Close/reopen; keep the article open; run **Sync now**.
+4. Expect:
+   - `Local highlight deletions detected: 1`;
+   - `Deletions retained remotely (propagation off): 1`;
+   - `Remote highlight deletions: 0`.
+5. Refresh Reader: the deleted-local test highlight must still exist remotely.
+6. **Safety stop:** if either detected or retained is greater than 1, do not enable deletion; report the counts so the old tombstones can be inspected first.
+
+### D. Deliberately enable deletion
+Only continue if step C reported exactly one pending deletion.
+1. Open **Settings → Highlights → Propagate highlight deletions**.
+2. Select it and accept the destructive-action confirmation.
+3. Return to the same article and run **Sync now**.
+4. Expect `Remote highlight deletions: 1` and zero mutation block/error for that target.
+5. Refresh Reader:
+   - the first deleted-local test highlight is gone;
+   - the second conflict-test highlight is still present.
+6. Immediately return to Settings and turn **Propagate highlight deletions OFF** again.
+7. Confirm no crash/freeze.
+
+Return:
+`nota update Reader exata: sim/não / notes updated=<n> / conflito detectado=sim/não / Reader conflito preservou remoto: sim/não / Kindle conflito preservou local: sim/não / delete OFF detected=<n> retained=<n> remote_deleted=<n> / remoto permaneceu com OFF: sim/não / delete ON remote_deleted=<n> / só alvo foi apagado: sim/não / setting voltou OFF: sim/não / sem crash-freeze: sim/não`
+
+Gate 12 passes only after note update, no-overwrite conflict behavior, default-off deletion, and one explicitly verified linked delete all pass.

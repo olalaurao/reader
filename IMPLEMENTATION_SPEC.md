@@ -2439,24 +2439,57 @@ verify in the user's real Obsidian vault:
 
 No new Kindle build was required. The user's real export configuration passed all criteria: correct article/highlight, note present, literal `[[Foucault]]`, preserved `#pesquisar`, and a functioning Obsidian internal wikilink. Gate 11 is closed and Phase N / Gate 12 is unblocked.
 
-## Phase N — update/delete annotations
+## Phase N — update/delete annotations — IMPLEMENTED, GATE 12 PENDING
 
-Only if Gate 8 proved reliable.
+Gate 8 physically proved on the target account/device that the linked Reader v3 highlight child accepted a note PATCH and reflected it in Reader. The current public Reader API page contains wording that is more restrictive for highlight-note updates, so **the physically observed Gate 8 contract remains the project contract and Gate 12 revalidates it in the production path**. Do not generalize beyond this tested linked-highlight workflow.
 
-### N1
-- note update;
-- conflict detection.
+### N1 — note update + conflict detection
+Implemented in build 0.1.26 for the currently-open managed Reader document:
+- only annotations with a durable `reader_highlight_document_id` and `created_remote=true` are eligible;
+- the exact Reader child is fetched before mutation;
+- child id, original `parent_id`, `category=highlight`, and the stable KOReader `source` marker must all match;
+- local highlight text changes are blocked rather than mapped into a remote text mutation;
+- `last_synced_note` is the three-way merge baseline;
+- if only the local note changed, Reader v3 PATCH updates `notes`;
+- success is verified with a second GET before updating `last_synced_note` / hashes;
+- if the remote already equals the local value, the operation is reconciled without another PATCH;
+- if local and remote both diverged from `last_synced_note`, state becomes `conflict` and neither side is overwritten;
+- a nil-note clear is currently blocked until highlight-note clearing is physically validated.
 
-### N2
-- optional delete propagation, default off;
-- tombstones.
+### N2 — optional delete propagation
+Implemented:
+- configuration key `propagate_highlight_deletions` defaults to **false**;
+- Settings → Highlights → **Propagate highlight deletions** exposes the option;
+- enabling requires an explicit warning/confirmation; disabling is immediate;
+- when OFF, authoritative sidecar deletion creates/keeps the local tombstone and Reader is untouched;
+- when ON, DELETE is allowed only for a durable linked Reader child passing the same exact id + parent + category + KOReader marker checks;
+- successful delete clears the durable remote IDs/created flag but preserves the local tombstone history;
+- an identity mismatch is blocked and never guessed;
+- a missing remote target can be reconciled as already deleted.
 
-### Gate 12
-- edit note on Kindle → Reader changes;
-- local delete with propagation off → remote remains;
-- with propagation deliberately on → only linked target deleted.
+The current-document scope from Phase L remains in force for Gate 12 to keep destructive operations bounded on the PW3. Phase O owns broader queue/backlog retry hardening.
 
-If interoperability cannot satisfy this safely, document limitation and do not fake it.
+Automated tests cover:
+- normal note update and post-PATCH verification;
+- response-loss reconciliation when Reader already has the local note;
+- simultaneous local+remote note conflict with no overwrite;
+- delete propagation OFF;
+- verified delete propagation ON;
+- identity mismatch blocking;
+- default-off config persistence;
+- explicit confirmation before enabling deletion;
+- existing storage state transitions and Sync summary counters.
+
+### Gate 12 — physical validation pending
+On the target PW3 / KOReader v2026.07.1:
+1. prove a linked Kindle note edit reaches Reader exactly;
+2. prove a simultaneous local+Reader note edit is reported as conflict and neither side is overwritten;
+3. with deletion propagation OFF, delete one linked KOReader test highlight and prove Reader keeps it;
+4. enable deletion only after the OFF sync reports exactly one pending local deletion for the clean test article;
+5. sync again and prove only that linked target is deleted remotely;
+6. disable deletion propagation again after the test.
+
+Gate 12 closes only after those observations pass. Do not proceed to Phase O / Gate 13 first.
 
 ## Phase O — offline queue hardening
 

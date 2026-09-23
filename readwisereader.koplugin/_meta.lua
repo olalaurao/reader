@@ -5,5 +5,5 @@ local _ = require("gettext")
 return {
     name = "readwisereader",
     fullname = _("Readwise Reader"),
-    description = _([[Synchronize Readwise Reader content with KOReader. Experimental 0.1.25 adds duplicate-safe Reader highlight creation for Gate 10.]]),
+    description = _([[Synchronize Readwise Reader content with KOReader. Experimental 0.1.26 adds linked note updates, conflict blocking and opt-in verified highlight deletion for Gate 12.]]),
 }
