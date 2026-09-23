@@ -392,19 +392,28 @@ function ApiInterop:deleteAndCleanup()
     end
 
     if state.v2_id then
-        self.sleep(2)
-        local v2, v2_err = self.readwise:getHighlight(state.v2_id)
-        if v2 == nil and isNotFound(v2_err) then
-            report.v2_missing_after_v3_delete = true
-        elseif v2 then
-            report.v2_still_visible_after_v3_delete = true
-            report.v2_detail_is_deleted = v2.is_deleted == true
-            local v2_deleted, v2_delete_err = self.readwise:deleteHighlight(state.v2_id)
-            report.v2_delete_used = true
-            report.v2_delete_success = v2_deleted == true
-            report.v2_delete_error = v2_delete_err and v2_delete_err.kind or nil
-        else
-            report.v2_probe_error = v2_err and v2_err.kind or "unknown"
+        local last_v2
+        local last_v2_err
+        for attempt = 1, 4 do
+            if attempt > 1 then self.sleep(2) end
+            last_v2, last_v2_err = self.readwise:getHighlight(state.v2_id)
+            if last_v2 == nil and isNotFound(last_v2_err) then
+                report.v2_missing_after_v3_delete = true
+                break
+            end
+        end
+
+        if not report.v2_missing_after_v3_delete then
+            if last_v2 then
+                report.v2_still_visible_after_v3_delete = true
+                report.v2_detail_is_deleted = last_v2.is_deleted == true
+                local v2_deleted, v2_delete_err = self.readwise:deleteHighlight(state.v2_id)
+                report.v2_delete_used = true
+                report.v2_delete_success = v2_deleted == true
+                report.v2_delete_error = v2_delete_err and v2_delete_err.kind or nil
+            else
+                report.v2_probe_error = last_v2_err and last_v2_err.kind or "unknown"
+            end
         end
     end
 
