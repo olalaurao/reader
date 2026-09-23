@@ -138,6 +138,20 @@ return function()
         assert(raw:isFallbackEligible(err) == true)
     end
 
+    do
+        local raw = RawSource:new{
+            http = {},
+            installer = {},
+            download_root = "/root",
+            max_bytes = 1024,
+            disk_usage = function() return { available = 1000 } end,
+        }
+        assert(raw:isFallbackEligible({ kind = "too_large" }) == true)
+        assert(raw:isFallbackEligible({ kind = "raw_invalid" }) == true)
+        assert(raw:isFallbackEligible({ kind = "client", retryable = false }) == true)
+        assert(raw:isFallbackEligible({ kind = "timeout", retryable = true }) == false)
+    end
+
     assert(RawSource._validateMagic("pdf", "%PDF-1.4") == true)
     assert(RawSource._validateMagic("epub", "PK\003\004abc") == true)
     assert(RawSource._validateMagic("pdf", "PK\003\004abc") == false)
