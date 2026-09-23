@@ -592,7 +592,7 @@ Gate 4 is closed. Do not replay all Gates 0–4 after the KOReader upgrade. Gate
 
 ## Gate 4A — KOReader v2026.07.1 + Bookshelf migration
 
-Status: **Gate 7 COMPLETE — Phase I PASSED; Phase J / Gate 8 next**
+Status: **Gate 7 COMPLETE; Phase J / Gate 8 build 0.1.22 pending disposable API interoperability validation**
 
 Canonical detailed runbook: `docs/KOREADER_UPGRADE.md`.
 
@@ -937,3 +937,81 @@ Recorded physical result:
 - The suggested 🧠 fixture character was not entered because the Kindle keyboard lacks emoji input; all typed note characters were preserved exactly, so this does not affect Gate 7.
 
 **Gate 7 PASSED. Proceed to Phase J / Gate 8.**
+
+
+## Phase J / Gate 8 — Reader v3 ↔ Readwise v2 annotation interoperability
+
+Build: **0.1.22**
+
+This gate intentionally changes **only disposable test data created by the plugin**. It does not select an existing article/highlight. The menu actions require confirmation before remote writes/deletes.
+
+Keep Wi-Fi on for these four steps. Do not run normal Full document rescan.
+
+### Step 1 — create disposable Reader highlight
+
+1. Open **Readwise Reader -> Annotation API spike (Gate 8) -> 1. Create disposable highlight**.
+2. Confirm the warning.
+3. Wait for **Gate 8 · Step 1 complete**.
+4. Record:
+   - v3 child category is highlight;
+   - v3 parent link matches;
+   - initial note matches;
+   - highlight tag matches;
+   - highlight offset present;
+   - highlight DOM location present.
+5. On Reader web/phone, refresh the library and find the temporary document whose title starts with **KOReader Gate 8 disposable**.
+6. Open it and confirm exactly one test highlight exists with note:
+   `gate8 initial [[Foucault]]`
+   and tag:
+   `koreader-gate8`.
+
+If step 1 errors/cancels after remote creation, use **Recovery: clean disposable Gate 8 data**. Do not press step 1 repeatedly.
+
+### Step 2 — prove ID mapping + Reader v3 note update
+
+1. On Kindle, run **2. Probe mapping + v3 note update**.
+2. This may take ~15–25 seconds because it deliberately waits for the v2 representation rather than hammering the API.
+3. Record:
+   - Mapping method;
+   - `v2 external_id = Reader child id`;
+   - v2 text matches;
+   - v3 parent still matches;
+   - v3 note update verified;
+   - v3 tag update verified.
+4. Refresh the same disposable document in Reader.
+5. Confirm its highlight note is now exactly:
+   `gate8 updated through Reader v3 [[Foucault]]`.
+6. Confirm the highlight has the added tag `gate8-v3-updated` if Reader exposes it immediately.
+
+A mapping method based only on text/note is a **Gate 8 failure**. We require deterministic external-ID evidence.
+
+### Step 3 — mutate the exact same highlight through Readwise v2
+
+1. Run **3. Update note/color through v2**.
+2. Record:
+   - v2 note response matches;
+   - v2 color response is green;
+   - Reader v3 saw v2 note update.
+3. Refresh Reader.
+4. Confirm the same highlight's note is now exactly:
+   `gate8 updated through Readwise v2 [[Foucault]]`.
+5. If Reader exposes highlight colors, confirm it is green.
+
+### Step 4 — Reader v3 delete + cross-API cleanup
+
+1. Run **4. Delete + cleanup**.
+2. Record:
+   - Reader v3 DELETE succeeded;
+   - Reader v3 no longer lists highlight;
+   - Readwise v2 no longer exposes it after v3 delete;
+   - whether v2 still exposed it initially;
+   - whether v2 DELETE was needed for cleanup;
+   - temporary parent cleanup succeeded.
+3. Refresh Reader and confirm the **KOReader Gate 8 disposable** document is gone.
+
+If cleanup reports any failure, run **Recovery: clean disposable Gate 8 data** once and report its result. Do not manually delete unrelated Reader data.
+
+Return:
+`step1 all yes: sim/não / Reader initial visible: sim/não / mapping method: <texto> / external_id=child: sim/não / v3 note update Reader: sim/não / v2 note update→v3: sim/não / v2 note visible Reader: sim/não / green: sim/não/não aparece cor / v3 delete: sim/não / v3 sumiu: sim/não / v2 sumiu após v3 delete: sim/não / v2 delete necessário: sim/não / parent cleanup: sim/não / doc temporário sumiu: sim/não`
+
+Gate 8 remains open until these observed results are written to `docs/API_INTEROP.md`.
