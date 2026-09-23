@@ -395,6 +395,7 @@ return function()
                     assert(payload.content == "Exact passage")
                     assert(payload.notes == "Note [[Foucault]]")
                     assert(payload.tags[1] == "gate8")
+                    assert(payload.saved_using == "KOReader Readwise Reader:ann-1")
                     return "highlight-json"
                 end
                 assert(payload.notes == "updated note")
@@ -410,7 +411,8 @@ return function()
             "parent-1",
             "Exact passage",
             "Note [[Foucault]]",
-            { "gate8" }
+            { "gate8" },
+            "KOReader Readwise Reader:ann-1"
         )
         assert(create_err == nil)
         assert(created.id == "highlight-1")

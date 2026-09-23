@@ -74,6 +74,33 @@ function Queue:enqueue(item)
     return self:getByKey(item.idempotency_key)
 end
 
+-- Refresh a never-attempted create with the latest literal local note/text.
+-- Once an attempt has started, its durable payload is immutable: changing it
+-- would make timeout reconciliation ambiguous.
+function Queue:prepare(item)
+    local existing = self:enqueue(item)
+    if existing.status == "pending" and existing.attempts == 0 then
+        local conn = self.db:getConnection()
+        local stmt = conn:prepare([[
+            UPDATE queue SET
+                payload_json = ?,
+                payload_hash = ?,
+                updated_at = ?
+            WHERE idempotency_key = ?
+              AND status = 'pending'
+              AND attempts = 0;
+        ]])
+        stmt:bind(
+            item.payload_json,
+            item.payload_hash,
+            item.updated_at or item.created_at,
+            item.idempotency_key
+        ):step()
+        stmt:close()
+    end
+    return self:getByKey(item.idempotency_key)
+end
+
 function Queue:getByKey(idempotency_key)
     local conn = self.db:getConnection()
     local stmt = conn:prepare([[
@@ -90,16 +117,53 @@ function Queue:getByKey(idempotency_key)
     return rowToItem(row)
 end
 
-function Queue:recoverStaleInFlight(updated_at)
+function Queue:markInFlight(idempotency_key, attempted_at)
     local conn = self.db:getConnection()
     local stmt = conn:prepare([[
-        UPDATE queue
-        SET status = 'pending',
+        UPDATE queue SET
+            status = 'in_flight',
+            attempts = attempts + 1,
+            last_attempt_at = ?,
+            last_error_kind = NULL,
+            last_error_message = NULL,
             updated_at = ?
-        WHERE status = 'in_flight';
+        WHERE idempotency_key = ?
+          AND status = 'pending';
     ]])
-    stmt:bind(updated_at):step()
+    stmt:bind(attempted_at, attempted_at, idempotency_key):step()
     stmt:close()
+    return self:getByKey(idempotency_key)
+end
+
+function Queue:markSucceeded(idempotency_key, remote_id, updated_at)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        UPDATE queue SET
+            status = 'succeeded',
+            reader_highlight_document_id = COALESCE(?, reader_highlight_document_id),
+            last_error_kind = NULL,
+            last_error_message = NULL,
+            updated_at = ?
+        WHERE idempotency_key = ?;
+    ]])
+    stmt:bind(remote_id, updated_at, idempotency_key):step()
+    stmt:close()
+    return self:getByKey(idempotency_key)
+end
+
+function Queue:markBlocked(idempotency_key, error_kind, error_message, updated_at)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        UPDATE queue SET
+            status = 'blocked',
+            last_error_kind = ?,
+            last_error_message = ?,
+            updated_at = ?
+        WHERE idempotency_key = ?;
+    ]])
+    stmt:bind(error_kind, error_message, updated_at, idempotency_key):step()
+    stmt:close()
+    return self:getByKey(idempotency_key)
 end
 
 function Queue:countByStatus(status)
@@ -108,6 +172,35 @@ function Queue:countByStatus(status)
     local row = stmt:bind(status):step()
     stmt:close()
     return row and (tonumber(row[1]) or 0) or 0
+end
+
+-- A stale create may have reached Reader even if the child process died before
+-- persisting the response. Never turn that operation back into a blind retry.
+-- Other operation types retain the older generic pending recovery semantics.
+function Queue:recoverStaleInFlight(updated_at)
+    local conn = self.db:getConnection()
+
+    local creates = conn:prepare([[
+        UPDATE queue SET
+            status = 'blocked',
+            last_error_kind = 'stale_create_in_flight',
+            last_error_message = 'Create outcome is unknown; reconcile before retry.',
+            updated_at = ?
+        WHERE status = 'in_flight'
+          AND operation = 'create_highlight';
+    ]])
+    creates:bind(updated_at):step()
+    creates:close()
+
+    local others = conn:prepare([[
+        UPDATE queue SET
+            status = 'pending',
+            updated_at = ?
+        WHERE status = 'in_flight'
+          AND operation <> 'create_highlight';
+    ]])
+    others:bind(updated_at):step()
+    others:close()
 end
 
 Queue._rowToItem = rowToItem

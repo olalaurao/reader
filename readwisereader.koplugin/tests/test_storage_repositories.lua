@@ -176,12 +176,62 @@ local function testQueue()
     assertEqual(duplicate.payload_hash, "hash-1", "duplicate enqueue must not mutate original payload")
     assertEqual(queue:countByStatus("pending"), 1)
 
-    local conn = db:getConnection()
-    conn:exec("UPDATE queue SET status='in_flight' WHERE id=" .. tostring(first.id) .. ";")
-    assertEqual(queue:countByStatus("in_flight"), 1)
+    local prepared = queue:prepare({
+        idempotency_key = "create_highlight:ann-1",
+        operation = "create_highlight",
+        entity_type = "annotation",
+        local_annotation_id = "ann-1",
+        reader_document_id = "doc-1",
+        payload_json = "{\"v\":1}",
+        payload_hash = "create-hash-1",
+        created_at = 20,
+    })
+    assertEqual(prepared.status, "pending")
+    prepared = queue:prepare({
+        idempotency_key = "create_highlight:ann-1",
+        operation = "create_highlight",
+        entity_type = "annotation",
+        local_annotation_id = "ann-1",
+        reader_document_id = "doc-1",
+        payload_json = "{\"v\":2}",
+        payload_hash = "create-hash-2",
+        created_at = 21,
+        updated_at = 21,
+    })
+    assertEqual(prepared.payload_hash, "create-hash-2", "never-attempted payload may refresh")
+
+    local in_flight = queue:markInFlight("create_highlight:ann-1", 22)
+    assertEqual(in_flight.status, "in_flight")
+    assertEqual(in_flight.attempts, 1)
     queue:recoverStaleInFlight(30)
-    assertEqual(queue:countByStatus("in_flight"), 0)
-    assertEqual(queue:countByStatus("pending"), 1)
+    local stale = queue:getByKey("create_highlight:ann-1")
+    assertEqual(stale.status, "blocked", "stale create must never become a blind retry")
+    assertEqual(stale.last_error_kind, "stale_create_in_flight")
+
+    local generic = queue:enqueue({
+        idempotency_key = "archive:doc-2",
+        operation = "archive_document",
+        entity_type = "document",
+        reader_document_id = "doc-2",
+        payload_json = "{}",
+        payload_hash = "hash-generic",
+        created_at = 40,
+    })
+    conn = db:getConnection()
+    conn:exec("UPDATE queue SET status='in_flight' WHERE id=" .. tostring(generic.id) .. ";")
+    queue:recoverStaleInFlight(41)
+    assertEqual(queue:getByKey("archive:doc-2").status, "pending")
+
+    local blocked = queue:markBlocked(
+        "create_highlight:ann-1",
+        "create_timeout",
+        "unknown outcome",
+        50
+    )
+    assertEqual(blocked.status, "blocked")
+    local succeeded = queue:markSucceeded("create_highlight:ann-1", "remote-1", 60)
+    assertEqual(succeeded.status, "succeeded")
+    assertEqual(succeeded.reader_highlight_document_id, "remote-1")
 
     db:close()
 end
