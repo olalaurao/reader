@@ -66,6 +66,34 @@ local function buildListUrl(options)
     return Constants.READER_LIST_URL .. "?" .. table.concat(parts, "&")
 end
 
+local function normalizeTags(raw_tags)
+    if type(raw_tags) ~= "table" then return {} end
+
+    local out, seen = {}, {}
+    local function add(value)
+        if type(value) ~= "string" then return end
+        local tag = value:match("^%s*(.-)%s*$")
+        if tag ~= "" and not seen[tag] then
+            seen[tag] = true
+            out[#out + 1] = tag
+        end
+    end
+
+    -- Reader's Document LIST currently returns tags as an object whose values
+    -- are tag records (with a `name` field), while create/update endpoints
+    -- accept arrays of strings. Accept both shapes at the API boundary so the
+    -- rest of the plugin always sees one canonical array of tag names.
+    for _, value in pairs(raw_tags) do
+        if type(value) == "string" then
+            add(value)
+        elseif type(value) == "table" then
+            add(value.name)
+        end
+    end
+    table.sort(out)
+    return out
+end
+
 local function normalizeDocument(raw)
     if type(raw) ~= "table" or type(raw.id) ~= "string" or raw.id == "" then
         return nil, {
@@ -84,7 +112,7 @@ local function normalizeDocument(raw)
         source = raw.source,
         category = raw.category,
         location = raw.location,
-        tags = raw.tags,
+        tags = normalizeTags(raw.tags),
         site_name = raw.site_name,
         word_count = raw.word_count,
         reading_time = raw.reading_time,
@@ -500,6 +528,7 @@ end
 
 Reader._percentEncode = percentEncode
 Reader._buildListUrl = buildListUrl
+Reader._normalizeTags = normalizeTags
 Reader._normalizeDocument = normalizeDocument
 
 return Reader
