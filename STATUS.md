@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase L IMPLEMENTED — Gate 10 PHYSICAL VALIDATION PENDING on PW3 / KOReader 2026.07.1; build 0.1.25**
+**Phase L COMPLETE — Gate 10 PASSED on PW3 / KOReader 2026.07.1; build 0.1.25**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Current work is **Phase L / Gate 10 Reader v3 highlight create + literal note + duplicate-safe reconciliation**, staged as build 0.1.25 for physical validation. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. **Phase L / Gate 10 has now passed physically** on build 0.1.25: correct original Reader parent, exact highlight text/note, marker verification, second-sync zero create, no duplicate and no crash/freeze. Next is Phase M / Gate 11 Obsidian end-to-end validation. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -1433,7 +1433,7 @@ Current authoritative summary:
 - Gate 7: **PASSED** — KOReader sidecar annotation identity.
 - Gate 8: **PASSED** — Reader v3 ↔ Readwise v2 annotation interoperability.
 - Gate 9: **PASSED** — physical PW3 / KOReader v2026.07.1, build 0.1.24.
-- Gate 10: **PENDING PHYSICAL TEST** — build 0.1.25.
+- Gate 10: **PASSED** — physical PW3 / KOReader v2026.07.1, build 0.1.25.
 - Gates 11–14: **NOT YET PASSED**.
 
 Historical early-gate detail:
@@ -1500,42 +1500,33 @@ A pre-existing Phase K branch state had incorrectly grouped remote highlight cre
 
 ## Blockers
 
-Immediate blocker: **Gate 10 physical validation** of build 0.1.25 on the target PW3 / KOReader v2026.07.1.
+No Gate 10 blocker remains. Physical validation on build 0.1.25 passed on the target PW3 / KOReader v2026.07.1:
+- the new KOReader highlight was created under the correct original Reader document;
+- selected text matched correctly;
+- the multiline note containing `[[Foucault]]` and `#pesquisar` arrived exactly;
+- the first normal sync had no blocked create;
+- the per-annotation reconciliation marker was observed through Reader LIST;
+- the second unchanged sync created zero new highlights;
+- Reader retained only one copy of the tested highlight;
+- no crash/freeze was observed.
 
-Required observed proof:
-- a new unique KOReader highlight with literal note containing `[[Foucault]]` is created under the correct original Reader parent;
-- the Reader note is exact;
-- the first Sync now reports zero blocked creates;
-- the custom per-annotation create marker is observable through Reader LIST (`Reconciliation markers verified >= 1`);
-- a second unchanged Sync now reports `Highlights created: 0`;
-- Reader still has exactly one copy of the tested highlight;
-- no crash/freeze.
-
-Safety architecture now in force:
-- create queue row exists before POST;
-- confirmed Reader child ID is persisted immediately after a successful response;
-- stale/ambiguous/prior-attempt creates never return to blind `pending`;
-- reconciliation requires exact `parent_id` + unique custom Reader `source` marker;
-- zero/multiple reconciliation matches remain blocked with no new POST.
+Next hard gate:
+- **Phase M / Gate 11** — official Readwise → Obsidian export with the real user template/config, proving the literal `[[Foucault]]` note survives as an Obsidian wikilink.
 
 Later hard gates remain:
-- Gate 11 Obsidian official export end-to-end;
 - Gate 12 note update/conflict and opt-in deletion;
 - Gate 13 full offline queue/retry hardening;
 - Gate 14 finished/archive;
-- content replacement safety remains after the numbered V1 gates.
+- Gate 15 content refresh safety.
 
 ## Exact next steps
 
-1. Finish CI/package build **0.1.25** from `phase-l/highlight-create-gate10`.
-2. Install only the new plugin build; preserve settings, SQLite DB, downloaded documents and KOReader sidecars.
-3. Open an already-managed Reader article and create one distinctive unique highlight with note `ver [[Foucault]]\n#pesquisar`.
-4. Close/reopen the article so KOReader flushes its sidecar; keep that article open.
-5. Run **Readwise Reader -> Sync now**.
-6. Verify Reader shows that highlight under the same original article with the note unchanged; record the annotation summary counts.
-7. Run **Sync now** again with no highlight changes and confirm `Highlights created: 0` and no duplicate in Reader.
-8. Return the compact Gate 10 result string from `docs/DEVICE_TESTS.md`.
-9. Do not proceed to Phase M / Gate 11 until this physical gate is recorded PASS.
+1. Close Phase L documentation and merge `phase-l/highlight-create-gate10` to `main`.
+2. Start Phase M only from the merged Gate 10 baseline.
+3. Revalidate the current official Readwise → Obsidian export behavior and setup before prescribing a physical test.
+4. Document the exact end-to-end Gate 11 procedure using the user's real template/config; do not change the plugin merely to compensate for export-template behavior unless evidence shows the Kindle→Reader payload is wrong.
+5. Verify the Gate 10 test note reaches the exported Obsidian markdown unchanged enough that `[[Foucault]]` is a normal wikilink.
+6. Record any append-only/update limitation of the official export clearly.
 
 ## Existing architectural decisions still in force
 
@@ -1625,7 +1616,7 @@ Phase K:
 
 ## Phase L — Gate 10 highlight create + deduplication
 
-**Status: IMPLEMENTED / READY FOR PHYSICAL TEST — build 0.1.25; GATE 10 IS NOT YET PASSED**
+**Status: COMPLETE — build 0.1.25; GATE 10 PASSED PHYSICALLY on PW3 / KOReader v2026.07.1**
 
 Implemented on `phase-l/highlight-create-gate10`:
 - Reader v3 parent-linked highlight creation from the currently-open managed KOReader document during normal **Sync now**;
@@ -1648,4 +1639,4 @@ Automated validation:
 - artifact name: `readwisereader-koplugin-1a6f16011deae9c177b6ddcd40e875070a1e0b9a`;
 - artifact digest: `sha256:175b2d2d5748f3b466fe37bdd61c54daa2f6d3f23f6dcb20a02088cf6282a734`.
 
-Physical Gate 10 remains required before Phase M.
+Physical Gate 10 **PASSED** on 2026-09-23. Phase M / Gate 11 is now unblocked.

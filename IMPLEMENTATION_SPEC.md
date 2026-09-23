@@ -2351,7 +2351,7 @@ Physical validation on the target PW3 / KOReader v2026.07.1 passed all documente
 
 Gate 9 is closed. Phase L / Gate 10 remote creation is now unblocked, but must still satisfy timeout reconciliation and deduplication before physical validation.
 
-## Phase L — create highlights — IMPLEMENTED, GATE 10 PENDING
+## Phase L — create highlights — COMPLETE, GATE 10 PASSED
 
 ### L1 — production create path
 Implemented in build 0.1.25:
@@ -2381,17 +2381,18 @@ Implemented:
 
 Automated tests cover confirmed create + literal note, second-sync deduplication, timeout followed by marker reconciliation, attempted-pending recovery without retry, no-match blocking, ambiguous text with no queue/write, queue stale-create recovery, and current-path propagation through Sync now.
 
-### Gate 10 — physical validation pending
-On the target PW3 / KOReader v2026.07.1:
-- create a unique highlight with note `ver [[Foucault]]\n#pesquisar` in an already-managed Reader article;
-- close/reopen the article so the sidecar is flushed;
-- run **Sync now** while that article is open;
-- verify the highlight is attached to the correct original Reader document and the note is exact;
-- verify the sync summary reports no blocked create and at least one reconciliation marker verified for the newly-created highlight;
-- run **Sync now** again without changing the highlight;
-- verify the second run creates zero new highlights and Reader still contains only one copy.
+### Gate 10 — PASSED
+Physical validation on the target PW3 / KOReader v2026.07.1 passed:
+- a unique KOReader highlight was created under the correct original Reader document;
+- selected text matched correctly;
+- the literal multiline note containing `[[Foucault]]` and `#pesquisar` arrived exactly;
+- the normal create path reported no blocked create;
+- the per-annotation marker was visible through Reader LIST;
+- a second unchanged Sync now created zero new highlights;
+- Reader retained only one copy;
+- no crash/freeze was observed.
 
-Gate 10 closes only after those observations are recorded. Do not proceed to Phase M / Gate 11 before Gate 10 passes physically.
+Gate 10 is closed. Phase M / Gate 11 official Readwise → Obsidian export validation is now unblocked.
 
 ## Phase M — Obsidian end-to-end
 

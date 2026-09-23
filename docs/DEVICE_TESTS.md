@@ -1136,3 +1136,19 @@ Return:
 `doc certo: sim/não / texto certo: sim/não / nota exata: sim/não / primeiro sync created=<n> / primeiro blocked=<n> / marker verified=<n> / segundo sync created=0: sim/não / segundo blocked=0: sim/não / duplicata no Reader: sim/não / sem crash-freeze: sim/não`
 
 Gate 10 passes only if the tested highlight reaches the correct parent with the exact note, at least one marker is verified for the create path, no create is blocked in the normal case, and the second unchanged sync creates no duplicate.
+### Recorded physical result — 2026-09-23
+
+**PASS** on the target Kindle PW3 / KOReader v2026.07.1.
+
+Observed:
+- correct original Reader document: **PASS**;
+- selected text: **PASS**;
+- exact multiline note with `[[Foucault]]` + `#pesquisar`: **PASS**;
+- first sync blocked creates: **0 / PASS**;
+- create marker verification: **PASS**;
+- second unchanged sync created zero highlights: **PASS**;
+- second sync blocked creates: **0 / PASS**;
+- duplicate in Reader: **none / PASS**;
+- no crash/freeze: **PASS**.
+
+**Gate 10 PASSED. Proceed to Phase M / Gate 11 only after Phase L is merged to `main`.**
