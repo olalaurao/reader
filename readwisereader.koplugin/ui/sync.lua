@@ -116,7 +116,7 @@ end
 
 function SyncUI:getSyncMenuItem()
     return {
-        text = _("Sync now (Gate 4)"),
+        text = _("Sync now"),
         keep_menu_open = true,
         callback = function()
             self:syncNow(false)
@@ -180,7 +180,7 @@ function SyncUI:confirmAndRun(full_rescan)
 
 Existing managed files will not be blindly overwritten. This may take a while.]])
     else
-        text = _([[This is the first document sync. It will download every supported article matching the current Documents filters.
+        text = _([[This is the first document sync. It will download every supported document matching the current Documents filters.
 
 Review Settings → Documents first if you want a smaller initial sync.
 
