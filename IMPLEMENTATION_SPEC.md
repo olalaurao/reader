@@ -3,7 +3,7 @@
 > **Canonical execution spec**  
 > **Repository:** `olalaurao/reader`  
 > **Target V1 device:** Kindle Paperwhite 3 / 7th gen (PW3), firmware 5.16.2.1.1, KUAL. KOReader `v2025.04` is the validated baseline through Gate 4; planned migration target is official `v2026.07.1` at Gate 4A.  
-> **Last verified:** 2026-09-22  
+> **Last verified:** 2026-09-23  
 > **Companion roadmap:** `PLAN.md`  
 > **Progress ledger:** `STATUS.md`
 >
@@ -1416,13 +1416,14 @@ Conflict check:
   - do not overwrite.
 
 Otherwise:
-- PATCH v2 `note`;
-- verify 200;
-- update hashes/state.
+- PATCH Reader v3 `notes` on the confirmed Reader highlight child ID;
+- verify success and re-read the same child when practical;
+- update hashes/state only after confirmed remote success.
 
-If update support cannot be made reliable:
-- V1 will support note-at-creation;
-- UI will clearly report later local edits as unsynced;
+Gate 8 physically proved that Reader v3 highlight note updates are supported and propagate correctly. Readwise v2 is therefore **not mandatory for normal note edits**. Use the deterministic Reader-child ↔ v2 mapping only when a later feature specifically needs a v2-only capability.
+
+If update support later proves unreliable for a specific record:
+- keep the local edit intact and report it as unsynced/blocked;
 - do **not** implement delete-and-recreate silently, because that can duplicate Obsidian exports and reorder highlights.
 
 ---
@@ -2290,9 +2291,9 @@ Physical PW3 validation on KOReader v2026.07.1 passed:
 
 The optional emoji fixture was not entered because the Kindle keyboard has no emoji input; this is not a persistence or identity failure.
 
-## Phase J — annotation API spike — IMPLEMENTED, GATE 8 PENDING
+## Phase J — annotation API spike — COMPLETE
 
-Execute H1–H6 from section 21 against disposable Reader data only.
+H1–H6 from section 21 were executed against plugin-created disposable Reader data only.
 
 Implementation:
 - Reader v3 create/update/delete wrappers;
@@ -2303,19 +2304,20 @@ Implementation:
 - no existing user document/highlight is mutated by the spike.
 
 ### Deliverable
-- `docs/API_INTEROP.md` exists and contains current documented contracts plus pending/observed sanitized shapes.
+- `docs/API_INTEROP.md` records the dated sanitized request/response shapes and physical observations.
 
-### Gate 8 — physical/account validation pending
-We must know from the user's real account:
-- exact v3 create behavior and child fields;
-- returned Reader highlight ID semantics;
-- whether v2 `external_id` provides a deterministic mapping to the v3 child;
-- whether documented v3 highlight note PATCH propagates reliably;
-- whether v2 note PATCH propagates back to Reader;
-- safe delete behavior across v3/v2;
-- tag/color behavior if easy.
+### Gate 8 — PASSED
+Physical validation on the target PW3 / KOReader v2026.07.1 established:
+- Reader v3 create returns a child ID and attaches the highlight/note/tag to the intended disposable parent;
+- v3 LIST exposes the expected parent/category/note and locator evidence;
+- the Reader highlight child maps deterministically to a numeric Readwise v2 highlight ID; text/note heuristics are not accepted;
+- Reader v3 PATCH of highlight `notes`/`tags` succeeds and is reflected in Reader;
+- Readwise v2 PATCH of the deterministically mapped highlight succeeds and its note change propagates back to the same Reader child;
+- Reader v3 DELETE removes the child and the corresponding v2 highlight disappears without needing a v2 delete fallback;
+- disposable parent cleanup succeeds;
+- color mutation worked as interoperability evidence, but highlight-color synchronization is deliberately out of V1.
 
-No production edit/delete implementation may proceed beyond this gate based on documentation alone.
+Gate 8 is closed. Phase K text matching is unblocked; edit/delete production behavior must still obey the safety/conflict rules in later phases.
 
 ## Phase K — text matching
 
