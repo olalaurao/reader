@@ -2319,22 +2319,35 @@ Physical validation on the target PW3 / KOReader v2026.07.1 established:
 
 Gate 8 is closed. Phase K text matching is unblocked; edit/delete production behavior must still obey the safety/conflict rules in later phases.
 
-## Phase K — text matching
+## Phase K — text matching — IMPLEMENTED, GATE 9 PENDING
 
 ### K1
-- fetch exact parent HTML;
-- visible text normalization;
-- exact substring recovery.
+Implemented:
+- fetch the exact managed Reader parent with `withHtmlContent=true`;
+- extract Reader-visible text without treating markup, comments, script or style content as selectable text;
+- decode the common/numeric entities needed by Reader content;
+- recover the exact Reader-visible substring rather than returning the normalized search string;
+- staged matching in this order: literal exact → Unicode NFC → whitespace/NBSP + soft-hyphen normalization → conservative straight/curly quote and dash equivalence;
+- use KOReader's bundled `ffi/utf8proc` NFC implementation on-device, with a small Latin fallback only for off-device test environments where that KOReader module is absent.
 
 ### K2
-- ambiguous/no-match handling.
+Implemented:
+- every stage requires a unique candidate;
+- repeated exact or normalized candidates return `ambiguous` and are never guessed;
+- no-match returns `unmatched`;
+- the Gate 9 UI is read-only and reports the newest local highlight's local text, match mode/result and recovered Reader-visible text;
+- the diagnostic opens its own DB/API dependencies in the subprocess worker and never creates, updates or deletes a remote annotation.
 
-### Gate 9
-Test:
-- ordinary article;
-- line-break selection;
-- curly quotes;
-- repeated sentence.
+The pre-existing staged Phase L upload code from 0.1.23 remains in the branch for later work but its menu entry is deliberately disabled until Gate 9 passes. It is not part of Gate 9 and must not be exercised as a substitute for this gate.
+
+### Gate 9 — physical validation pending
+On the target PW3 / KOReader v2026.07.1, validate:
+- ordinary unique selection → matched;
+- selection spanning a paragraph/line-break boundary → matched through whitespace normalization and recovered Reader-visible text is correct;
+- curly/straight quote or common dash variant → matched only through conservative punctuation equivalence when needed;
+- repeated identical passage → reported ambiguous, with no remote write.
+
+Gate 9 closes only after these cases are observed on real managed Reader HTML. Do not proceed to Phase L / Gate 10 remote creation until Gate 9 is recorded PASS.
 
 ## Phase L — create highlights
 
