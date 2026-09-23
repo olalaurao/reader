@@ -2444,16 +2444,17 @@ No new Kindle build was required. The user's real export configuration passed al
 Gate 8 physically proved on the target account/device that the linked Reader v3 highlight child accepted a note PATCH and reflected it in Reader. The current public Reader API page contains wording that is more restrictive for highlight-note updates, so **the physically observed Gate 8 contract remains the project contract and Gate 12 revalidates it in the production path**. Do not generalize beyond this tested linked-highlight workflow.
 
 ### N1 — note update + conflict detection
-Implemented in build 0.1.27 for the currently-open managed Reader document:
+Implemented in build 0.1.28 for the currently-open managed Reader document:
 - only annotations with a durable `reader_highlight_document_id` and `created_remote=true` are eligible;
 - the exact Reader child is fetched before mutation;
-- child id, original `parent_id`, and `category=highlight` must match; the newer exact KOReader per-annotation `source` marker is preferred, while pre-Gate-10 generic `KOReader Readwise Reader` ownership is accepted for **note update only** as a compatibility path;
+- for **note update**, durable child id + original `parent_id` + `category=highlight` are the required identity; exact per-annotation or legacy plugin `source` markers are accepted as additional evidence when Reader returns them, but are not mandatory because physical Gate 12 testing showed Reader LIST can omit/change that marker on a correctly linked child;
 - local highlight text changes are blocked rather than mapped into a remote text mutation;
 - `last_synced_note` is the three-way merge baseline;
 - if only the local note changed, Reader v3 PATCH updates `notes`;
 - success is verified with a second GET before updating `last_synced_note` / hashes;
 - if the remote already equals the local value, the operation is reconciled without another PATCH;
 - if local and remote both diverged from `last_synced_note`, state becomes `conflict` and neither side is overwritten;
+- a previously blocked/conflict state is re-evaluated on later Sync now when the local note still differs from the durable `last_synced_note` baseline, so a fixed identity/read path can recover without recreating the highlight;
 - a nil-note clear is currently blocked until highlight-note clearing is physically validated.
 
 ### N2 — optional delete propagation
