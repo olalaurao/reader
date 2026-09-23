@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase F.5 — Gate 4A-1 PASSED on KOReader v2026.07.1; Gate 4A-2 Bookshelf v5.1.4 coexistence is next**
+**Phase F.5 — Gate 4A-1 PASSED; Gate 4A-2 base coexistence + Collections PASSED; Reader-tag metadata projection 0.1.12 pending physical validation**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -127,16 +127,36 @@ Base Bookshelf/Readwise coexistence is therefore **PASS**. Remaining Gate 4A-2 b
 - final restart/persistence/no-op coexistence check.
 
 
-### Gate 4A-2 Collections move test — partial / duplicate classification pending
+### Gate 4A-2 Collections move test — PASS
 
 Physical result:
 - managed Readwise Collections appear in Bookshelf;
 - Reader-side location move is reflected in the new managed Collection;
 - the document leaves the old managed Collection;
 - unrelated user Collection membership is preserved;
-- user reported `sem duplicar: não`.
+- no duplicate local document or duplicate entry in the same Collection was created;
+- the same document appearing once in its managed Readwise Collection and once in the unrelated user Collection is expected multi-Collection membership, not duplication.
 
-Do **not** classify this as an identity failure yet: the same document intentionally being visible once in the new managed Readwise Collection and once in the unrelated user Collection is expected. Need distinguish that from two entries for the same document in the same shelf/Collection or two distinct local files/paths before proceeding to tag projection.
+### Gate 4A-2 Reader tags -> Bookshelf genres — implementation complete, physical validation next
+
+Experimental build: **0.1.12**.
+
+Implemented:
+- Reader document `tags` are projected to KOReader custom metadata `keywords`;
+- values are newline-separated so Bookshelf consumes them as independent Genres;
+- Reader tag order is preserved, duplicates/empty values are removed, and embedded newlines inside a tag are normalized safely;
+- an empty Reader tag list explicitly writes `keywords = ""` so stale embedded genres do not reappear;
+- a projection-version marker (`reader-tags-v1`) triggers a **one-time metadata-only full Reader LIST backfill** for already-managed documents;
+- that backfill does **not** replay the expensive HTML/content materialization;
+- unchanged Collections are not rewritten during the one-time tag backfill, while real Reader-side location moves are still applied;
+- subsequent Reader tag changes use the normal incremental sync and keep the same Reader-ID/local path ownership.
+
+Automated validation:
+- Run #153 on `3d4a107...`: **SUCCESS** after fixing the Lua nil-valued ternary in the new metadata backfill;
+- Run #155 on `ec09d544...`: **SUCCESS** — syntax, unit tests, package/layout and artifact build, including tag-update/backfill and minimal-Collection-write coverage;
+- installable inner ZIP SHA-256: `3a283e2aaa7fa47d67880b191c9df0a1ea459343f2283d9abdfd183ae0386297`.
+
+Gate 4A-2 remains **OPEN only for the targeted 0.1.12 physical tag/restart validation**. Do not run a manual full document rescan for this test.
 
 
 
