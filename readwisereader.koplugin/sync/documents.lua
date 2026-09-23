@@ -90,10 +90,15 @@ function DocumentsSync:_isEligible(document, filters)
         and SUPPORTED_CATEGORIES[document.category] == true
 end
 
-function DocumentsSync:_hasLocal(existing)
+function DocumentsSync:_hasRecordedLocal(existing)
     return existing
+        and existing.is_local_present == true
         and type(existing.local_path) == "string"
         and existing.local_path ~= ""
+end
+
+function DocumentsSync:_hasLocal(existing)
+    return self:_hasRecordedLocal(existing)
         and self.file_exists(existing.local_path)
 end
 
@@ -114,7 +119,20 @@ function DocumentsSync:_updateExistingMetadata(existing, document, seen_at, repo
         and existing.remote_updated_at ~= document.updated_at
     local current = self.repository:upsertRemote(document, seen_at)
 
-    if self:_hasLocal(existing) then
+    -- A projection backfill can touch hundreds of already-managed rows. On
+    -- slow e-ink storage, stat'ing every local file dominates an otherwise
+    -- metadata-only sync. Trust durable is_local_present for unchanged rows;
+    -- still verify the filesystem whenever we are about to write metadata,
+    -- move a Collection, or react to a new remote revision.
+    local verify_disk = not projection_backfill
+        or force_metadata == true
+        or moved
+        or remote_changed
+    local has_local = verify_disk
+        and self:_hasLocal(existing)
+        or self:_hasRecordedLocal(existing)
+
+    if has_local then
         if changed then
             local ok = self.koreader_documents:writeMetadata(existing.local_path, document)
             if not ok then
@@ -209,7 +227,10 @@ function DocumentsSync:_scanMetadata(watermark, filters, managed_by_id, pending_
                 force_metadata
             )
             managed_by_id[document.id] = current
-            if not self:_hasLocal(existing)
+            local has_local = force_metadata
+                and self:_hasRecordedLocal(existing)
+                or self:_hasLocal(existing)
+            if not has_local
                 and self:_isEligible(document, filters)
                 and shouldRetryMissing(existing, document) then
                 pending_new[document.id] = true
@@ -350,7 +371,13 @@ function DocumentsSync:sync(options)
     local managed_by_id, pending_new = {}, {}
     for _, existing in ipairs(self.repository:listManaged()) do
         managed_by_id[existing.reader_id] = existing
-        if not self:_hasLocal(existing)
+        -- Incremental syncs trust the durable local-presence bit and verify
+        -- only documents that actually changed. Full scans remain the explicit
+        -- repair path that checks every managed path on disk.
+        local has_local = full_scan
+            and self:_hasLocal(existing)
+            or self:_hasRecordedLocal(existing)
+        if not has_local
             and filters.locations[existing.location]
             and filters.categories[existing.category]
             and SUPPORTED_CATEGORIES[existing.category]
