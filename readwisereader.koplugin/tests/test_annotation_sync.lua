@@ -189,6 +189,18 @@ return function()
     assert(err.kind == "not_managed")
 
     do
+        local missing_file_sync = AnnotationSync:new{
+            documents = documentRepo(),
+            annotations = annotationRepo(),
+            adapter = { scan = function() error("missing local file must not scan sidecar") end },
+            file_exists = function() return false end,
+        }
+        local missing_report, missing_err = missing_file_sync:scanPath("/Readwise/a.epub")
+        assert(missing_report == nil)
+        assert(missing_err.kind == "local_missing")
+    end
+
+    do
         local degraded_repo = annotationRepo()
         local degraded_scan = {
             authoritative = true,
