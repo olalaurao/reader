@@ -608,6 +608,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Phase L duplicate-safe create core: `ecdfebc05d7100f7498a7cf2c763315e41db1c6e`
 - Phase L Sync-now current-document integration: `b8683bc8af3db6c505562aff818dbea3bdba0b53`
 - Phase L prior-attempt no-blind-retry hardening: `d81fccc13e0a70226f46e73cf08b0c13b2e33017`
+- Phase L 0.1.25 physical-test staging: `1a6f16011deae9c177b6ddcd40e875070a1e0b9a`
 - Run #400 on create core: **SUCCESS**
 - Run #401 on Sync-now integration: **SUCCESS**
 - Historical Phase J main merge: `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`
@@ -1641,6 +1642,10 @@ Implemented on `phase-l/highlight-create-gate10`:
 Automated validation:
 - run #400 on `ecdfebc05d7100f7498a7cf2c763315e41db1c6e`: **SUCCESS**;
 - run #401 on `b8683bc8af3db6c505562aff818dbea3bdba0b53`: **SUCCESS**;
-- final 0.1.25 staging CI is pending at the time of this status update.
+- run #402 on `d81fccc13e0a70226f46e73cf08b0c13b2e33017`: **SUCCESS**;
+- run #403 on build `1a6f16011deae9c177b6ddcd40e875070a1e0b9a`: **SUCCESS** — development checks, full Lua suite, ZIP build/layout and artifact upload;
+- Gate 10 artifact ID: `10774724925`;
+- artifact name: `readwisereader-koplugin-1a6f16011deae9c177b6ddcd40e875070a1e0b9a`;
+- artifact digest: `sha256:175b2d2d5748f3b466fe37bdd61c54daa2f6d3f23f6dcb20a02088cf6282a734`.
 
 Physical Gate 10 remains required before Phase M.
