@@ -1331,3 +1331,28 @@ Build 0.1.29 uses deterministic Readwise v2 `external_id` mapping for the remote
    - no false conflict for that target;
    - Reader shows the edited note.
 6. Do not test deletion until note update passes.
+
+### Gate 12 attempt 4 — build 0.1.29 — FAIL / fixed in 0.1.30
+Observed:
+- v2 mappings resolved: 2;
+- v2 remote-note reads: 2;
+- v2 note updates: 0;
+- note conflicts blocked: 2;
+- remote errors: 0.
+
+This proves mapping/API reads are correct; build 0.1.30 changes only note equality comparison to tolerate invisible newline/whitespace normalization.
+
+#### 0.1.30 retest
+Do not create or edit another highlight.
+1. Install 0.1.30.
+2. Use the same article and same local edited note.
+3. Close/reopen the article; leave it open.
+4. Run Sync now.
+5. Expected for the target:
+   - Highlights created: 0;
+   - v2 remote-note reads >= 1;
+   - v2 note updates >= 1 if the remote still contains the old baseline;
+   - Notes updated >= 1;
+   - no false conflict for the target;
+   - Reader displays the edited note.
+6. Do not test deletion until this passes.
