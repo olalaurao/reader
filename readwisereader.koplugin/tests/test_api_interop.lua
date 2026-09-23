@@ -252,4 +252,37 @@ return function()
         assert(v2_deleted == true)
         assert(parent_deleted == true)
     end
+
+    do
+        local meta = newMeta()
+        meta:setMany{
+            [ApiInterop.KEYS.stage] = "parent_created",
+            [ApiInterop.KEYS.started_at] = "2026-09-23T15:00:00Z",
+            [ApiInterop.KEYS.parent_id] = "parent-only",
+        }
+        local deleted_parent
+        local interop = ApiInterop:new{
+            reader = {
+                deleteDocument = function(_, id)
+                    deleted_parent = id
+                    return true
+                end,
+            },
+            readwise = {
+                deleteHighlight = function()
+                    error("no v2 highlight exists for parent-only recovery")
+                end,
+            },
+            meta = meta,
+            sleep = function() end,
+        }
+        local report = assert(interop:cleanup())
+        assert(report.parent_cleanup == true)
+        assert(report.highlight_cleanup == true)
+        assert(report.v2_cleanup == true)
+        assert(report.cleared == true)
+        assert(deleted_parent == "parent-only")
+        assert(meta:get(ApiInterop.KEYS.parent_id) == nil)
+    end
+
 end
