@@ -199,8 +199,24 @@ Gate 4A-2 remains **OPEN only for a short 0.1.13 physical tag visibility check**
 0.1.13 physical retest — partial:
 - Bookshelf Genres is no longer empty; existing Reader document tags now appear, confirming the tag-object decoding/projection fix works on-device;
 - the distinctive temporary test tag did **not** appear;
-- before treating this as another plugin failure, verify the test tag was applied as a **document tag** (Reader list/document metadata), not as a highlight tag. Reader distinguishes document tags from highlight tags, and Gate 4A-2 intentionally projects document tags only;
-- if it is confirmed to be a document tag on the same already-managed article and still does not appear after normal sync, capture that case as the remaining Gate 4A-2 bug.
+- user confirmed the missing test tag is a **document tag**, not a highlight tag;
+- therefore Gate 4A-2 still has one real tag-coherency bug to isolate.
+
+Targeted isolation added in experimental **0.1.14**:
+- uses Reader's public Tag LIST endpoint to resolve an exact document-tag name to its tag key;
+- uses Reader's tag-filtered Document LIST endpoint to ask the API directly which documents are associated with that tag;
+- cross-checks returned document IDs against the plugin's managed/local database state;
+- reports counts only (tag exists, matching documents, top-level/article matches, managed/local matches and categories), avoiding another whole-library rescan;
+- this distinguishes:
+  1. Reader API not exposing the UI-visible tag association;
+  2. Reader API exposing it but the plugin failing to project it.
+
+Automated validation:
+- runs #173–177 passed implementation/UI wiring;
+- run #179 on `27f3c05...`: **SUCCESS** — full syntax/unit/package/layout/artifact;
+- installable 0.1.14 inner ZIP SHA-256: `7f54925596654e0975dabffe2973c4664e7f0c0a4335ff925e8850675cf08323`.
+
+Next physical action: install 0.1.14 and run **Check Reader document tag (Gate 4A)** for `gate4a-tag-test`; do not delete that tag yet.
 
 
 
