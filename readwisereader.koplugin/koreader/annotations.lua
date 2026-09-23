@@ -14,7 +14,10 @@ local function canonical(value, seen)
     elseif kind == "boolean" then
         return value and "b1" or "b0"
     elseif kind == "number" then
-        return "d" .. string.format("%.17g", value)
+        -- %g follows the process locale on some libc builds. Normalize the
+        -- decimal separator so the same PDF coordinates hash identically.
+        local encoded = string.format("%.17g", value):gsub(",", ".")
+        return "d" .. encoded
     elseif kind == "string" then
         return "s" .. tostring(#value) .. ":" .. value
     elseif kind ~= "table" then
