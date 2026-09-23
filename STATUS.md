@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase N IMPLEMENTED — Gate 12 PHYSICAL VALIDATION PENDING on PW3 / KOReader 2026.07.1; build 0.1.27 hotfix**
+**Phase N IMPLEMENTED — Gate 12 PHYSICAL VALIDATION PENDING on PW3 / KOReader 2026.07.1; build 0.1.28 hotfix**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Current work is **Phase N / Gate 12 linked note update, conflict protection and opt-in verified deletion**, staged as build 0.1.26 for physical validation. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Current work is **Phase N / Gate 12 linked note update, conflict protection and opt-in verified deletion**, staged as build 0.1.28 after two physical note-update regressions were fixed. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -1717,5 +1717,24 @@ Fixed in 0.1.27:
 - remote DELETE does **not** accept the legacy generic marker;
 - remote identity mismatches are surfaced as safe blocks instead of generic remote errors;
 - run #420 on hotfix commit `5c22be3ebae3b95f67ba28fb5472011cb9f1cff8`: **SUCCESS**.
+
+Gate 12 attempt 2 with build 0.1.27 still blocked the note update:
+- 2 current-document highlights scanned;
+- 2 already linked;
+- 0 highlights created;
+- 0 notes updated;
+- 0 note conflicts;
+- 1 annotation mutation blocked safely;
+- 0 annotation remote errors;
+- Reader note remained unchanged.
+
+The same newly-created linked child had previously reported `Reconciliation markers verified: 0`, proving the Reader `source` marker is not reliable enough to be a mandatory identity component for non-destructive note updates.
+
+Fixed in 0.1.28:
+- note update requires the durable Reader child ID + original parent ID + `category=highlight`;
+- exact/legacy source markers remain useful evidence when present, but are no longer mandatory for note PATCH;
+- previously blocked/conflict items are re-evaluated while the local note still differs from `last_synced_note`, allowing recovery without recreating the highlight;
+- DELETE remains unchanged and still requires the exact per-annotation ownership marker;
+- run #422 on `209ef6504194f955dd424712474e5d7d90190d9d`: **SUCCESS**.
 
 Physical Gate 12 remains required.
