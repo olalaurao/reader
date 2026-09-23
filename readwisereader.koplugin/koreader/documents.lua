@@ -86,6 +86,29 @@ function Documents:invalidateMetadata(filepath)
     return true
 end
 
+function Documents:refreshExternalMetadataCaches()
+    -- Bookshelf v5.1.4 deliberately keeps its light-metadata cache warm when
+    -- handling KOReader's BookMetadataChanged event. That is normally useful,
+    -- but it means externally-written custom keywords can remain invisible in
+    -- the Genres shelf even though the sidecar itself is already correct.
+    --
+    -- Do not introduce a hard Bookshelf dependency: only invalidate its cache
+    -- when the repository module is already loaded in this KOReader process.
+    -- If Bookshelf has not been opened yet, there is no stale light cache to
+    -- clear and its first open will build from the fresh custom metadata.
+    local repo = package.loaded["lib/bookshelf_book_repository"]
+    if type(repo) ~= "table" then return true end
+
+    local ok = true
+    if type(repo.invalidateLightMeta) == "function" then
+        ok = pcall(repo.invalidateLightMeta) and ok
+    end
+    if type(repo.invalidateBookCache) == "function" then
+        ok = pcall(repo.invalidateBookCache, "ReadwiseReader metadata sync") and ok
+    end
+    return ok
+end
+
 function Documents:openDocument(filepath)
     self.deps.UIManager:broadcastEvent(self.deps.Event:new("SetupShowReader"))
     self.deps.ReaderUI:showReader(filepath)
