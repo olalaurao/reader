@@ -60,6 +60,16 @@ The plugin is **not** intended to reproduce the Reader UI. Reader is the capture
 - Continue reading downloaded files offline.
 - Preserve local KOReader sidecars and reading progress.
 - Handle Reader location/category changes without duplicating local documents.
+- Project Reader organization changes onto the same KOReader-managed file:
+  - `new` -> `Readwise: Inbox`;
+  - `later` -> `Readwise: Later`;
+  - `shortlist` -> `Readwise: Shortlist`;
+  - `feed` -> `Readwise: Feed`;
+  - `archive` -> `Readwise: Archive`.
+- Preserve unrelated user Collections while moving a managed file between plugin-managed Reader-location Collections.
+- Project Reader metadata updates (at minimum title, author, summary/site and tags) into KOReader custom metadata without changing Reader-ID ownership or creating a second local file.
+- Store Reader tags in a KOReader/Bookshelf-compatible metadata field, preferably `keywords`; do not create one Collection per tag.
+- After a Reader-side location/tag/metadata change, the next successful sync must make the corresponding KOReader/Bookshelf representation reflect the new remote state.
 - Archive Reader documents when the corresponding local document is marked finished, if enabled.
 - Never delete a local file merely because a remote item is archived unless a future explicit deletion policy is enabled.
 
@@ -615,6 +625,28 @@ All direct KOReader-specific operations live under `koreader/`:
 - file-manager refresh/invalidation.
 
 This keeps API/sync logic testable off-device.
+
+### Reader organization projection contract
+
+The KOReader adapter layer owns the projection from Reader organization fields into local KOReader state.
+
+For every Reader-managed document with a stable local path:
+
+- Reader `location` maps to exactly one plugin-managed `Readwise: ...` Collection;
+- a location move removes the path only from other plugin-managed Reader-location Collections, never from unrelated user Collections;
+- Reader `title`, `author`, `summary` and `site_name` update custom metadata on the same path;
+- Reader `tags` map to custom metadata `keywords` (or the exact equivalent validated against the adopted KOReader/Bookshelf baseline);
+- tags do not become Collections by default;
+- Reader ID, not filename/title/location, remains the ownership identity.
+
+Incremental behavior is mandatory: if Reader changes any projected organization field, `updatedAfter` must surface the record and the next successful sync must reconcile the KOReader projection. Reconciliation must be idempotent.
+
+Bookshelf is a consumer of the KOReader projection, not a second source of truth. After Gate 4A-2, its cards/filters/shelves should be able to expose:
+- Reader location via the managed Collections;
+- Reader tags via keywords/genres/tags metadata;
+- title/author/progress from the same local document.
+
+Do not implement reverse synchronization of Bookshelf/KOReader tag or Collection edits back to Reader in V1 unless separately specified and gated.
 
 ## 5.8 Sync coordinator
 
