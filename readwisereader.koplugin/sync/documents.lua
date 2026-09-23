@@ -190,6 +190,8 @@ function DocumentsSync:_install(document, report)
     end
     local images = result.image_report
     if images then
+        report.image_candidates = report.image_candidates + (images.candidates or 0)
+        report.image_responsive_promoted = report.image_responsive_promoted + (images.responsive_promoted or 0)
         report.images_downloaded = report.images_downloaded + (images.downloaded or 0)
         report.images_reused = report.images_reused + (images.reused or 0)
         report.images_failed = report.images_failed + (images.failed or 0)
@@ -361,6 +363,8 @@ function DocumentsSync:sync(options)
         duplicates_ignored = 0,
         downloaded = 0,
         unchanged = 0,
+        image_candidates = 0,
+        image_responsive_promoted = 0,
         images_downloaded = 0,
         images_reused = 0,
         images_failed = 0,
