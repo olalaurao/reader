@@ -329,6 +329,38 @@ Root cause:
 
 Gate 4 remains **OPEN** pending the 0.1.4 physical retest.
 
+## Physical Gate 4 result — recovery attempts 2–4 / OPEN
+
+Date: 2026-09-22  
+Builds: `0.1.5`, `0.1.6`, `0.1.7`  
+Result: **OPEN — filter/backfill recovered; 10 persistent retryable materialization failures still block the watermark.**
+
+Observed on the target PW3 / KOReader 2025.04:
+- enabling all five documented Reader locations with `article` successfully backfilled the library;
+- the full scan saw ~1330 top-level documents and materialized **788 articles**;
+- a repeat full scan reused all **788** local files without creating duplicates;
+- metadata post-processing errors: **0**;
+- Collection post-processing errors: **0**;
+- the original 55 item failures were split by 0.1.7 into:
+  - **45 permanent/non-retryable skips** (safe to record without blocking the global watermark);
+  - **10 retryable item errors**;
+- two consecutive 0.1.7 runs reproduced the same **10 retryable errors**, so the watermark correctly remained uncommitted and mode remained `full`.
+
+Interpretation:
+- the filter-scope/backfill bug is fixed;
+- idempotent reuse of the 788 successfully materialized files is working;
+- the remaining blocker is inside per-document materialization, before parent metadata/Collection work;
+- permanent per-document content failures no longer strand the entire library;
+- the 10 remaining failures need their safe I/O stage identified before changing retry semantics.
+
+0.1.8 diagnostic work:
+- installer retryable I/O errors now carry a non-sensitive stage label: `path`, `mkdir`, `open`, `write`, `flush`, `size`, or `rename`;
+- sync aggregates stage counts without exposing Reader IDs, titles, paths, or raw OS error text;
+- summary adds `Retryable stages: ...`;
+- regression tests cover stage classification and aggregation;
+- Gate 4 remains **OPEN** until those 10 failures are diagnosed/fixed and a subsequent no-change sync is truly incremental.
+
+
 ## Phase F result — off-device complete, Gate 4 pending
 
 ### F1 — document ownership and filters
