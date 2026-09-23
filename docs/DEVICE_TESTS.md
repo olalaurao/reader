@@ -592,7 +592,7 @@ Gate 4 is closed. Do not replay all Gates 0–4 after the KOReader upgrade. Gate
 
 ## Gate 4A — KOReader v2026.07.1 + Bookshelf migration
 
-Status: **Gate 6 COMPLETE; Phase I / Gate 7 build 0.1.21 pending physical annotation identity validation**
+Status: **Gate 7 COMPLETE — Phase I PASSED; Phase J / Gate 8 next**
 
 Canonical detailed runbook: `docs/KOREADER_UPGRADE.md`.
 
@@ -925,3 +925,15 @@ Return:
 `texto exato: sim/não / nota exata: sim/não / locator preenchido: sim/não / identity strong: sim/não / mesmo Local ID após reopen: sim/não / segundo scan unchanged: sim/não / sem crash: sim/não`
 
 If the diagnostic says there is no valid sidecar, close/reopen the document once and retry. Do not run Full document rescan.
+
+Recorded physical result:
+- selected text exact: **PASS**;
+- note content entered on Kindle exact: **PASS**;
+- locator populated: **PASS**;
+- identity quality strong: **PASS**;
+- same Local ID after reopen: **PASS**;
+- second scan unchanged: **PASS**;
+- no crash/freeze: **PASS**.
+- The suggested 🧠 fixture character was not entered because the Kindle keyboard lacks emoji input; all typed note characters were preserved exactly, so this does not affect Gate 7.
+
+**Gate 7 PASSED. Proceed to Phase J / Gate 8.**
