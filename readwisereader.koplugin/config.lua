@@ -97,6 +97,29 @@ function Config:_setListSetting(key, values)
     self.settings:flush()
 end
 
+function Config:getDownloadImages()
+    local value = self.settings:readSetting("download_images")
+    if value == nil then return Constants.DEFAULT_DOWNLOAD_IMAGES end
+    return value == true
+end
+
+function Config:setDownloadImages(enabled)
+    self.settings:saveSetting("download_images", enabled == true)
+    self.settings:flush()
+end
+
+function Config:getMaxImageBytes()
+    return Constants.MAX_IMAGE_BYTES
+end
+
+function Config:getMaxArticleImageBytes()
+    return Constants.MAX_ARTICLE_IMAGE_BYTES
+end
+
+function Config:getMaxImagesPerArticle()
+    return Constants.MAX_IMAGES_PER_ARTICLE
+end
+
 function Config:getSyncLocations()
     return self:_getListSetting("sync_locations", Constants.DEFAULT_SYNC_LOCATIONS)
 end

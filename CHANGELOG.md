@@ -1,4 +1,7 @@
 # Changelog
+- Phase G started with experimental 0.1.17: added an on-device CRengine spike for document-relative local image assets plus an intentionally missing asset to validate graceful failure on the PW3 before production image downloading is implemented.
+- Experimental 0.1.18 implements bounded offline article image caching with relative local assets, a 2 MiB per-image cap, 8 MiB per-article image budget, 20-attempt limit, duplicate URL reuse within an article, and non-fatal placeholders for unavailable/unsupported/over-limit images.
+- Added a `Download article images` document setting (default on), image outcome counters in sync summaries, and a bounded HTTP sink so oversized image responses are aborted before being fully accumulated in memory.
 
 All notable project changes are recorded here.
 

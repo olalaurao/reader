@@ -592,7 +592,7 @@ Gate 4 is closed. Do not replay all Gates 0–4 after the KOReader upgrade. Gate
 
 ## Gate 4A — KOReader v2026.07.1 + Bookshelf migration
 
-Status: **Gate 4A COMPLETE — Gate 4A-1 and Gate 4A-2 PASSED; Phase G / Gate 5 next**
+Status: **Gate 5 COMPLETE — Phase G PASSED; Phase H / Gate 6 next**
 
 Canonical detailed runbook: `docs/KOREADER_UPGRADE.md`.
 
@@ -726,3 +726,112 @@ Final 0.1.16 tag/cache validation:
 
 Proceed to Phase G / Gate 5.
 
+
+
+## Phase G / Gate 5 — G1 relative local asset spike
+
+Build: **0.1.17**
+
+Purpose: validate the exact CRengine contract before production image downloads are implemented.
+
+Procedure:
+1. Install build 0.1.17 and restart KOReader.
+2. Open **Readwise Reader -> Image asset spike (Gate 5)**.
+3. The diagnostic HTML should open automatically.
+4. Confirm a bordered/crossed image labelled **GATE 5** is visibly rendered between the first two text boxes.
+5. Continue past the intentionally missing image reference.
+6. Confirm **TEXT AFTER MISSING IMAGE** is still visible/readable.
+7. Confirm KOReader remains responsive; close the document normally.
+8. Reopen the same diagnostic action once and confirm it opens again without duplicate diagnostic files or crash.
+
+Pass report:
+`local GATE 5 image appeared: sim/não / text after image readable: sim/não / missing image did not crash: sim/não / text after missing image readable: sim/não / close-reopen ok: sim/não`
+
+Stop condition:
+- if the local relative image does not render, do not implement G2 against that strategy; collect `crash.log` only if KOReader crashes/freezes.
+
+
+Physical result: **G1 PASS** on the target PW3.
+- local relative image rendered;
+- text around the image stayed readable;
+- intentionally missing image did not crash/freeze KOReader;
+- text after the missing asset stayed readable;
+- close/reopen worked.
+
+## Phase G / Gate 5 — G2 production image cache
+
+Build: **0.1.18**
+
+Implementation under test:
+- new Reader articles cache HTTP(S) images as local relative assets;
+- no fetched image is embedded as a data URI;
+- per-image response cap: 2 MiB;
+- per-article image network/cache budget: 8 MiB;
+- max image attempts per article: 20;
+- oversized, broken, unsupported, disabled, or over-budget images degrade to text placeholders;
+- `Settings -> Documents -> Download article images` defaults ON;
+- sync report exposes image downloaded/skipped/failed counts and bytes;
+- existing already-local documents are not rewritten solely to add images in this phase.
+
+### Gate 5 production test
+
+Use a **newly saved Reader article that is not already local on the Kindle**, preferably one with several inline images. This avoids triggering the Phase Q content-refresh problem on an existing document.
+
+1. Install 0.1.18 and restart KOReader.
+2. Confirm **Settings -> Documents -> Download article images** is checked.
+3. Save one image-heavy article to a currently enabled Reader location (Inbox or Later).
+4. Run normal **Sync now**. Do not run Full document rescan.
+5. In the sync summary, record:
+   - `Downloaded`;
+   - `Images downloaded`;
+   - `Images skipped by limits/settings`;
+   - `Images unavailable/unsupported`;
+   - `Image bytes cached`;
+   - `Errors`.
+6. Open the new article from Bookshelf.
+7. Confirm at least one real article image is visible and the surrounding text remains readable.
+8. Scroll through the entire article. If any image was skipped/failed, confirm the placeholder/text path is still readable and KOReader remains responsive.
+9. Close and reopen the article; confirm the images still render with Wi-Fi off if practical.
+10. Run a second normal sync without changing the article and confirm no duplicate/new download regression.
+
+Gate 5 pass report:
+`new article downloaded: sim/não / real images appeared: sim/não / text remained usable: sim/não / no freeze/crash through whole article: sim/não / close-reopen images ok: sim/não / second sync no duplicate: sim/não / sync Errors=0: sim/não`
+
+Optional cap/failure check (only if the chosen article naturally triggers it):
+- a skipped/failed image with readable surrounding text is a PASS for failure tolerance; do not manufacture a giant file on the Kindle just to hit the cap.
+
+
+### Gate 5 retest — build 0.1.19
+
+0.1.18 device result: article downloaded, but article images did not. Root cause: Reader responsive/lazy image markup was not promoted into downloadable `img src` candidates.
+
+0.1.19 adds support for:
+- `picture/source srcset`;
+- direct `img srcset`;
+- `data-src`, `data-lazy-src`, `data-original`, `data-url`;
+- tiny/data-URI lazy placeholders with the real URL in a responsive/lazy attribute.
+
+Important: use a **different Reader article that has never been materialized on this Kindle**. The 0.1.18 test article is already considered local and normal sync will not rewrite its HTML before Phase Q.
+
+Retest:
+1. Install 0.1.19 and restart KOReader.
+2. Keep **Download article images** ON.
+3. Save a new image-heavy article into an enabled Reader location.
+4. Run normal Sync now.
+5. Record `Image candidates found`, `Responsive images promoted`, `Images downloaded`, `Images skipped...`, `Images unavailable...`, and `Errors`.
+6. Open the article and verify real images + usable text.
+7. Close/reopen; optionally turn Wi-Fi off before reopening to prove assets are local.
+
+Return:
+`image candidates >0: sim/não / images downloaded >0: sim/não / real images visible: sim/não / text usable: sim/não / no crash/freeze: sim/não / reopen/offline ok: sim/não / Errors=0: sim/não`
+
+
+Recorded physical result:
+- at least one real article image rendered: **PASS**;
+- surrounding article text remained usable: **PASS**;
+- KOReader remained responsive: **PASS**;
+- close/reopen preserved the localized image: **PASS**;
+- not every remote image rendered, accepted under Gate 5's explicit graceful-failure criterion;
+- exact sync image counters were not captured and are not required to close the gate because end-to-end rendering + failure tolerance were directly observed.
+
+**Gate 5 PASSED. Proceed to Phase H / Gate 6.**

@@ -9,6 +9,7 @@ local Filenames = require("content/filenames")
 local FirstArticle = require("sync/first_article")
 local Hash = require("content/hash")
 local Html = require("content/html")
+local Images = require("content/images")
 local Http = require("api/http")
 local Installer = require("content/installer")
 local KOReaderCollections = require("koreader/collections")
@@ -19,6 +20,7 @@ local LibraryUI = require("ui/library")
 local SettingsUI = require("ui/settings")
 local SyncMeta = require("storage/sync_meta")
 local SyncUI = require("ui/sync")
+local ImageSpikeUI = require("ui/image_spike")
 local TagDiagnosticsUI = require("ui/tag_diagnostics")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
@@ -45,12 +47,21 @@ function ReadwiseReader:init()
     }
     self.koreader_documents = KOReaderDocuments:new()
     self.koreader_collections = KOReaderCollections:new()
+    local installer = Installer:new()
     self.first_article = FirstArticle:new{
         reader = self.reader_api,
         repository = self.documents_repository,
         html = Html,
+        images = Images:new{
+            http = self.http,
+            installer = installer,
+            enabled = self.config:getDownloadImages(),
+            per_image_max = self.config:getMaxImageBytes(),
+            total_max = self.config:getMaxArticleImageBytes(),
+            max_images = self.config:getMaxImagesPerArticle(),
+        },
         filenames = Filenames,
-        installer = Installer:new(),
+        installer = installer,
         hasher = Hash,
         koreader_documents = self.koreader_documents,
         download_root = self.config:getDownloadDirectory(),
@@ -80,6 +91,11 @@ function ReadwiseReader:init()
     self.tag_diagnostics_ui = TagDiagnosticsUI:new{
         config = self.config,
     }
+    self.image_spike_ui = ImageSpikeUI:new{
+        config = self.config,
+        installer = Installer:new(),
+        koreader_documents = self.koreader_documents,
+    }
     self.ui.menu:registerToMainMenu(self)
 end
 
@@ -94,6 +110,7 @@ function ReadwiseReader:addToMainMenu(menu_items)
             self.article_ui:getMenuItem(),
             self.library_ui:getScanMenuItem(),
             self.tag_diagnostics_ui:getMenuItem(),
+            self.image_spike_ui:getMenuItem(),
             self.settings_ui:getSettingsMenu(),
         },
     }

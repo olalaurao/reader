@@ -124,6 +124,17 @@ function SettingsUI:getSettingsMenu()
                         },
                     },
                     {
+                        text = _("Download article images"),
+                        checked_func = function()
+                            return self.config:getDownloadImages()
+                        end,
+                        callback = function()
+                            self.config:setDownloadImages(
+                                not self.config:getDownloadImages()
+                            )
+                        end,
+                    },
+                    {
                         text = _("Types"),
                         sub_item_table = {
                             {

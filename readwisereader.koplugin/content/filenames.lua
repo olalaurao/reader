@@ -98,6 +98,14 @@ function Filenames.build(title, reader_id, extension, max_bytes)
     return safe_title .. suffix
 end
 
+function Filenames.assetDirectory(reader_id)
+    assert(type(reader_id) == "string" and reader_id ~= "", "reader_id is required")
+    -- Hidden so file browsers/library scanners do not treat downloaded article
+    -- images as standalone books. The HTML sits in the same Articles directory,
+    -- so CRengine can resolve this one-component relative path.
+    return ".rw-assets-" .. idLabel(reader_id)
+end
+
 function Filenames.joinUnderRoot(root, subdirectory, filename)
     assert(type(root) == "string" and root ~= "", "root is required")
     assert(type(subdirectory) == "string" and subdirectory ~= "", "subdirectory is required")

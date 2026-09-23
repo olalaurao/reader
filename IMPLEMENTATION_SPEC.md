@@ -2217,9 +2217,14 @@ Full procedure and rollback: `docs/KOREADER_UPGRADE.md`.
 - caps;
 - failure tolerance.
 
-### Gate 5
-- image-heavy article does not destabilize PW3;
-- text remains usable when some images fail.
+### Gate 5 — PASSED
+Physical PW3 validation on KOReader v2026.07.1 passed:
+- document-relative local image assets render;
+- a real Reader article image downloads, persists locally and renders after reopen;
+- failed/missing images do not destabilize KOReader;
+- surrounding text remains usable when some images fail.
+
+Not every remote image is required to render in V1; graceful degradation is the accepted contract.
 
 ## Phase H — raw formats
 

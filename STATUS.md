@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase F.5 COMPLETE — Gate 4A-1 and Gate 4A-2 PASSED on PW3 / KOReader 2026.07.1; Phase G images is next**
+**Phase G COMPLETE — Gate 5 PASSED on PW3 / KOReader 2026.07.1; Phase H raw PDF/EPUB formats is next**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -276,6 +276,140 @@ Validated across the complete coexistence sequence:
 
 **Phase F.5 is complete. Phase G / Gate 5 (images) is now unblocked.**
 
+## Phase G — images
+
+### G1 relative local asset spike — build 0.1.17 ready
+
+Canonical baseline:
+- Kindle PW3;
+- KOReader v2026.07.1;
+- Bookshelf v5.1.4 may remain installed.
+
+Research before implementation:
+- KOReader v2026.07.1's own QuickStart generator comments that **crengine will not accept full image paths** and rewrites image references to relative paths before opening generated HTML;
+- this supports testing document-relative local assets as the preferred alternative to putting large image payloads inside the HTML;
+- the older community Readwise Reader plugin instead inlined downloaded images as data URIs and explicitly warned that image-heavy HTML could destabilize memory-constrained ereaders;
+- therefore G1 deliberately validates adjacent relative assets first before selecting the production image strategy.
+
+0.1.17 adds a diagnostic-only menu action:
+- **Readwise Reader -> Image asset spike (Gate 5)**;
+- installs a tiny diagnostic HTML under `<download_root>/Diagnostics/`;
+- installs one local SVG under `Diagnostics/gate5-assets/`;
+- HTML references it only as `gate5-assets/gate5-test.svg` (no absolute Kindle path);
+- also references one intentionally missing relative asset;
+- opens the diagnostic HTML directly through the existing KOReader document adapter;
+- does not change normal Reader sync or download behavior.
+
+Expected device evidence:
+1. the local `GATE 5` image renders;
+2. text before and after it remains readable;
+3. the intentionally missing image does not crash/freeze KOReader;
+4. text after the missing image remains readable;
+5. close/reopen preserves normal document behavior.
+
+Physical G1 result on the target PW3: **PASS**.
+- local relative SVG rendered;
+- text before/after remained readable;
+- intentionally missing relative image did not crash/freeze KOReader;
+- text after the missing image remained readable;
+- close/reopen worked normally.
+
+Therefore the relative-local-asset contract is accepted for G2.
+
+### G2 bounded production image cache — implementation in progress
+
+Chosen strategy:
+- keep article HTML small; never inline fetched images as data URIs;
+- store article assets in a deterministic hidden sibling directory under `Articles/`;
+- rewrite `<img src>` to document-relative local paths validated by G1;
+- strip `<picture>/<source>` alternate remote sources after localization so CRengine does not bypass the local asset;
+- replace failed/disabled/over-limit images with a small textual placeholder while preserving surrounding article text.
+
+Conservative PW3 caps:
+- max 2 MiB per image response;
+- max 8 MiB fetched/cached image budget per article;
+- max 20 image download attempts per article;
+- HTTP response sink aborts once the per-request body limit is crossed, so one unexpectedly huge image is not accumulated fully in RAM.
+
+Failure policy:
+- image failure is non-fatal to the document;
+- unsupported/broken/oversized images are counted and replaced with placeholders;
+- article HTML remains installable/readable;
+- successful asset files use the existing atomic installer;
+- newly-created assets are cleaned up if the parent HTML installation ultimately fails.
+
+Settings/reporting:
+- `Settings -> Documents -> Download article images` toggle added (default ON);
+- sync summary reports downloaded/reused/skipped/failed image counts and cached bytes;
+- existing already-local articles are not rewritten just to add images; remote content refresh remains Phase Q, so Gate 5 production validation must use a newly-materialized article.
+
+Automated validation:
+- bounded HTTP response body test: PASS;
+- image URL dedupe, PNG/JPEG/SVG detection, local relative rewrite, `<picture>/<source>` stripping and graceful failed-image placeholder tests: PASS;
+- disabled-image and over-limit behavior tests: PASS;
+- deterministic hidden asset directory tests: PASS;
+- article materializer integration test: PASS;
+- run #234 on `f37143af...`: **SUCCESS** — syntax, all unit tests, packaging/layout and artifact;
+- installable inner ZIP SHA-256: `16f4447911cf817b0cd673649f102013febc77a45d8b0d9f291fc78735d69cf8`.
+
+0.1.18 physical result: **FAIL — article images did not download/render**.
+
+Root cause found by comparing the production parser with the archived community Reader plugin and the Reader HTML shapes it handles:
+- 0.1.18 only treated a literal `<img src="...">` as an image candidate;
+- Reader commonly emits responsive images through `<picture><source srcset="...">` and lazy-image attributes such as `data-src` / `srcset`;
+- 0.1.18 then stripped `<source>` elements after processing, so a responsive picture could end up with **zero downloadable candidates**;
+- this is consistent with the device symptom: article materialization succeeded but image download did not happen.
+
+0.1.19 fix:
+- normalize `<picture>/<source srcset>` into one concrete `<img>` before localization;
+- choose a <=1200px responsive candidate when available;
+- support direct `img srcset`, `data-src`, `data-lazy-src`, `data-original` and `data-url`;
+- prefer lazy/responsive URLs over tiny data-URI placeholders;
+- keep the existing relative-local-asset, size caps, timeout/failure placeholders and atomic install strategy;
+- sync report now shows **Image candidates found** and **Responsive images promoted** to make this failure class visible.
+
+Important test constraint:
+- an article already materialized by 0.1.18 is intentionally considered local and is **not rewritten** by a later ordinary sync; this is the conservative content-refresh contract held until Phase Q;
+- therefore the 0.1.19 Gate 5 retest must use a **different newly-saved Reader article** that has never been downloaded to this Kindle.
+
+Automated validation for 0.1.19:
+- actual responsive `<picture><source srcset>` fixture: PASS;
+- direct `img srcset`: PASS;
+- lazy `data-src`: PASS;
+- density-only picture srcset keeps the proven `<img>` fallback instead of choosing an arbitrary 1x/2x source: PASS;
+- all existing image caps/failure tests remain green;
+- run #244 on `2c3cb8e...`: **SUCCESS** — syntax, unit tests, package/layout and artifact;
+- installable inner ZIP SHA-256: `11f8e3273d9b5a2e8fdc6152a373714f5b6dab5063a69a0e46614f8ce1dc6ca4`.
+
+Build **0.1.19** is ready for a **new-article** physical retest. Do not reuse the article already materialized without images by 0.1.18, because ordinary sync deliberately does not rewrite an existing local HTML document before Phase Q.
+
+0.1.19 physical retest — partial PASS evidence:
+- a newly materialized image-heavy Reader article rendered at least one real inline image on the PW3;
+- therefore responsive/lazy candidate discovery, HTTP fetch, local asset install, relative-path rewrite and CRengine rendering all work end-to-end for at least one production image;
+- other article images did not all appear, which is acceptable for Gate 5 if the article text remains usable and KOReader stays stable, because Gate 5 explicitly requires graceful tolerance when some images fail;
+- user did not capture the sync summary counters, so exact candidate/download/skip counts are unavailable for this run.
+
+Do not delete/re-download this same local article merely to recover the report: normal sync intentionally treats it as already local before Phase Q. If counters are needed later, use a different newly-saved article.
+
+Final physical confirmation:
+- close/reopen succeeded;
+- the successfully localized image remained visible;
+- article text remained usable;
+- no freeze/crash was reported.
+
+### Gate 5 — PASS
+
+Gate 5 is closed on the target PW3 / KOReader 2026.07.1.
+
+Accepted production behavior:
+- at least one real Reader article image is localized end-to-end as an offline relative asset;
+- image failure is non-fatal and the text remains usable;
+- missing/unsupported/over-limit images may degrade to placeholders;
+- the PW3 remains responsive;
+- already-local documents are not rewritten just to add/fix images before Phase Q content-refresh safety work.
+
+**Phase G is complete. Phase H / Gate 6 (raw PDF + EPUB with fallback) is now unblocked.**
+
 
 
 
@@ -290,8 +424,9 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 
 ## Current branch / commit
 
-- Branch: `phase-f5/koreader-2026-bookshelf-gate4a`
-- Base `main`: `21dd64719ca248dd7706895fab1651751edf8844` (Phase F merge / Gate 4 passed)
+- Branch: `phase-g/images-gate5`
+- Base `main`: `268388dca4f115890a491d557fa81d08f325979e` (PR #7 merge / Phase F.5 + Gate 4A passed)
+- Phase F historical merge: `21dd64719ca248dd7706895fab1651751edf8844` (Gate 4 passed on KOReader 2025.04)
 - F1 settings/root ownership: `a57da9980d1b77a16bf2a0b8fbaa09327b1691d9`
 - F1/F2 incremental sync engine: `265405a479ab538ed4fbdde9223ca97c28aaad07`
 - canonical watermark overlap fixes/tests: `e2669755be705686a13977f0b99aa9ccf472b46c`, `e2d97fd8002fc26847243073457b91b70876df86`
@@ -318,7 +453,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Jailbreak/KUAL functional
 - KOReader historical Gate 0–4 baseline: `2025.04`
 - canonical physical V1 baseline from Gate 4A-1 onward: official KOReader `v2026.07.1`, `kindlepw2` package
-- next coexistence target: Bookshelf `v5.1.4`
+- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase G / Gate 5 images
 
 ## Phase A result
 

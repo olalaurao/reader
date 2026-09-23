@@ -101,12 +101,33 @@ function Http:request(options)
     local method = options.method or "GET"
     local url = assert(options.url, "url is required")
     local sink = {}
+    local max_body_bytes = tonumber(options.max_body_bytes)
+    if max_body_bytes and max_body_bytes <= 0 then max_body_bytes = nil end
+    local received = 0
+    local body_too_large = false
+
+    local response_sink
+    if max_body_bytes then
+        response_sink = function(chunk)
+            if chunk ~= nil then
+                received = received + #chunk
+                if received > max_body_bytes then
+                    body_too_large = true
+                    return nil, "response body exceeded configured limit"
+                end
+                sink[#sink + 1] = chunk
+            end
+            return 1
+        end
+    else
+        response_sink = self.socketutil.table_sink(sink)
+    end
 
     local request = {
         method = method,
         url = url,
         headers = options.headers or {},
-        sink = self.socketutil.table_sink(sink),
+        sink = response_sink,
     }
 
     if options.body ~= nil then
@@ -131,6 +152,15 @@ function Http:request(options)
 
     local call = { pcall(self.http.request, request) }
     self.socketutil:reset_timeout()
+
+    if body_too_large then
+        return nil, {
+            kind = "too_large",
+            retryable = false,
+            message = "The response body exceeded the configured size limit.",
+            limit = max_body_bytes,
+        }
+    end
 
     if not call[1] then
         return nil, {
