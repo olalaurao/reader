@@ -8,6 +8,7 @@ local function copyMetadata(document)
         author = document.author,
         summary = document.summary,
         site_name = document.site_name,
+        tags = document.tags,
     }
 end
 
