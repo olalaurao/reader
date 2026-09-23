@@ -44,15 +44,15 @@ Desenvolver e validar primeiro para o aparelho real:
 - firmware Kindle: `5.16.2.1.1 (4097470002)`
 - jailbreak funcional
 - KUAL funcional
-- KOReader atual / baseline validada: `2025.04`
-- migração planejada imediatamente depois do Gate 4: KOReader oficial `2026.07.1`, pacote `kindlepw2`
-- Bookshelf planejado depois da regressão do novo KOReader: `v5.1.4`
+- KOReader histórico dos Gates 0–4: `2025.04`
+- KOReader baseline física canônica da V1 após Gate 4A-1: oficial `2026.07.1`, pacote `kindlepw2`
+- Bookshelf em validação de coexistência no Gate 4A-2: `v5.1.4`
 
 ### Regra de compatibilidade
 
 A V1 continua presa ao mesmo PW3 real. Até o Gate 4, `2025.04` é a baseline conhecida. **Depois que o Gate 4 passar**, faremos uma migração controlada para `2026.07.1` antes de implementar imagens, formatos raw e sidecars/anotações.
 
-O novo KOReader só vira o alvo físico canônico depois de um gate de regressão do Readwise Reader. Bookshelf entra somente depois desse primeiro gate, para separar regressão de versão de conflito entre plugins.
+O Gate 4A-1 passou: KOReader `2026.07.1` já é o alvo físico canônico. Bookshelf entra agora no Gate 4A-2, separado da regressão de versão para isolar conflitos entre plugins.
 
 Com firmware 5.16.2.1.1, o target planejado é `kindlepw2`; `kindlehf` exige firmware >= 5.16.3. Não atualizar firmware/jailbreak para esta migração.
 
