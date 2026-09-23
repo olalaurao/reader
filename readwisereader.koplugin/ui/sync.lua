@@ -11,6 +11,20 @@ local _ = require("gettext")
 local SyncUI = {}
 SyncUI.__index = SyncUI
 
+local function retryableStagesText(stages)
+    local keys = {}
+    for key, count in pairs(stages or {}) do
+        if tonumber(count) and count > 0 then keys[#keys + 1] = key end
+    end
+    table.sort(keys)
+    if #keys == 0 then return _("none") end
+    local parts = {}
+    for _, key in ipairs(keys) do
+        parts[#parts + 1] = string.format("%s=%d", key, stages[key])
+    end
+    return table.concat(parts, ",")
+end
+
 local function errorText(err)
     if not err then
         return _("Document sync failed safely.")
@@ -48,6 +62,7 @@ local function summaryText(report)
         string.format(_("Active filters: %s"), report.filter_scope or _("unknown")),
         string.format(_("Skipped (not materializable): %d"), report.nonretryable_skipped or 0),
         string.format(_("Retryable item errors: %d"), report.retryable_item_errors or 0),
+        string.format(_("Retryable stages: %s"), retryableStagesText(report.retryable_error_stages)),
         string.format(_("Errors: %d"), report.errors or 0),
         string.format(_("Metadata write errors: %d"), report.postprocess_metadata_errors or 0),
         string.format(_("Collection write errors: %d"), report.postprocess_collection_errors or 0),
