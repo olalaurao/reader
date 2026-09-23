@@ -8,6 +8,7 @@ local tests = {
     "tests.test_config",
     "tests.test_http",
     "tests.test_reader",
+    "tests.test_readwise",
     "tests.test_reader_pagination",
     "tests.test_raw_source",
     "tests.test_raw_format_ui",
