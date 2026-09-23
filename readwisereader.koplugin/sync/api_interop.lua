@@ -67,6 +67,7 @@ end
 function ApiInterop:_requireState(min_stage)
     local state = self:_state()
     local rank = {
+        parent_created = 0.5,
         created = 1,
         v3_updated = 2,
         v2_updated = 3,
@@ -146,9 +147,18 @@ function ApiInterop:create()
     }
     if not parent then return nil, parent_err end
 
+    -- Persist the disposable parent immediately so the recovery action still
+    -- knows exactly what to clean if the user cancels while Reader is parsing.
+    self.meta:setMany{
+        [KEYS.stage] = "parent_created",
+        [KEYS.started_at] = started_at,
+        [KEYS.parent_id] = parent.id,
+    }
+
     local ready, ready_err = self:_waitParentReady(parent.id, 5)
     if not ready then
-        self:_cleanupParent(parent.id)
+        local cleaned = self:_cleanupParent(parent.id)
+        if cleaned then self:clearState() end
         return nil, ready_err
     end
 
@@ -159,10 +169,13 @@ function ApiInterop:create()
         { TAG }
     )
     if not highlight then
-        self:_cleanupParent(parent.id)
+        local cleaned = self:_cleanupParent(parent.id)
+        if cleaned then self:clearState() end
         return nil, highlight_err
     end
 
+    -- Store the child ID before any follow-up read so cancellation/failure
+    -- can never strand an unknown disposable highlight.
     self.meta:setMany{
         [KEYS.stage] = "created",
         [KEYS.started_at] = started_at,
