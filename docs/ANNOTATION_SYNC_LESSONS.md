@@ -172,3 +172,18 @@ Conclusion: the production note-update pipeline must be **v2 conflict/update + v
 ## 9. Apply these lessons beyond this plugin
 
 Any future KOReader ↔ Readwise integration (including Quartzo/Obsidian-related annotation workflows) should start from these invariants rather than re-deriving API behavior from documentation alone. Gate 8 disposable spikes are useful, but production behavior must still be verified against real linked documents because Reader v3 and Readwise v2 can differ in propagation timing and representation.
+
+
+## 10. Physical conflict handling evidence
+
+Gate 12B on build 0.1.31 physically proved the intended three-way conflict behavior:
+- local note diverged from the durable baseline;
+- exact mapped Readwise v2 remote note also diverged to a different value;
+- the plugin reported exactly one conflict;
+- no v2 note PATCH ran;
+- no Reader repair PATCH ran;
+- Reader preserved the remote value;
+- KOReader preserved the local value;
+- no remote error occurred.
+
+Future work must preserve this invariant: **a true local+remote divergence blocks mutation and preserves both sides; never convert this path to last-writer-wins.**
