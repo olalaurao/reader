@@ -91,6 +91,16 @@ local function summaryText(report)
         string.format(_("Metadata pages: %d"), report.metadata_pages or 0),
         string.format(_("Content pages: %d"), report.content_pages or 0),
         string.format(_("Duplicate API records ignored: %d"), report.duplicates_ignored or 0),
+        "",
+        string.format(_("Annotation sync: %s"), report.annotation_sync_status or _("not run")),
+        string.format(_("Current-document highlights scanned: %d"), report.annotation_scanned or 0),
+        string.format(_("Highlights created: %d"), report.highlights_created or 0),
+        string.format(_("Highlights reconciled safely: %d"), report.highlights_reconciled or 0),
+        string.format(_("Highlights already linked: %d"), report.highlights_already_linked or 0),
+        string.format(_("Highlights unmatched/ambiguous: %d"), report.highlights_unmatched or 0),
+        string.format(_("Highlight creates blocked safely: %d"), report.highlight_creates_blocked or 0),
+        string.format(_("Reconciliation markers verified: %d"), report.highlight_marker_verified or 0),
+        string.format(_("Annotation remote errors: %d"), report.annotation_remote_errors or 0),
     }
 
     if report.errors and report.errors > 0 then
@@ -110,6 +120,7 @@ function SyncUI:new(options)
         sync_meta = assert(options.sync_meta, "sync_meta is required"),
         collections = assert(options.collections, "collections is required"),
         koreader_documents = assert(options.koreader_documents, "koreader_documents is required"),
+        get_current_path = options.get_current_path or function() return nil end,
         worker = options.worker or Worker,
     }, self)
 end
@@ -196,10 +207,12 @@ Continue?]])
 end
 
 function SyncUI:_run(full_rescan)
+    local current_path = self.get_current_path()
     Trapper:wrap(function()
         local completed, report, err = Trapper:dismissableRunInSubprocess(function()
             return self.worker:run{
                 full_rescan = full_rescan == true,
+                current_path = current_path,
             }
         end, _([[Syncing Reader documents…
 

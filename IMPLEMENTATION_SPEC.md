@@ -2351,25 +2351,48 @@ Physical validation on the target PW3 / KOReader v2026.07.1 passed all documente
 
 Gate 9 is closed. Phase L / Gate 10 remote creation is now unblocked, but must still satisfy timeout reconciliation and deduplication before physical validation.
 
-## Phase L — create highlights
+## Phase L — create highlights — COMPLETE, GATE 10 PASSED
 
-### L1
-- queue create;
-- Reader v3 parent-linked highlight;
-- note at create;
-- persist Reader child ID.
+### L1 — production create path
+Implemented in build 0.1.25:
+- normal **Sync now** receives the currently-open KOReader document path before entering the subprocess;
+- only the currently-open managed Reader document is scanned for annotations in this gate build, avoiding a full sidecar sweep across the PW3 library;
+- the canonical KOReader sidecar scan updates durable annotation links before any upload attempt;
+- Gate 9's unique Reader-visible text matcher supplies the exact parent passage;
+- a durable `create_highlight:<local_annotation_id>` queue item is written before the POST;
+- Reader v3 creates the highlight with the original Reader document as `parent_id`;
+- note text is transported literally, including multiline Markdown and `[[wikilinks]]`;
+- the returned Reader child ID is persisted immediately after a confirmed create response;
+- a second sync skips any annotation that already has a durable remote child link.
 
-### L2
-- reconcile timeout-after-create;
-- dedupe retries.
+The current-document-only discovery scope is a controlled Phase L/Gate 10 staging surface, not a reduction of the V1 product scope. Broader offline/backlog queue discovery and retry hardening remain Phase O work.
 
-### Gate 10
-On PW3:
-- highlight + `[[Foucault]]`;
-- sync;
-- correct original Reader document;
-- sync again;
-- no duplicate.
+### L2 — ambiguous-create reconciliation
+Implemented:
+- every create carries a stable unique `saved_using = "KOReader Readwise Reader:<local_annotation_id>"` marker;
+- Reader's documented LIST `source` field is used as the reconciliation representation of that marker;
+- stale `create_highlight` items left `in_flight` by a crash become `blocked`, never `pending`;
+- any create item with a prior attempt is reconciled before any further write;
+- reconciliation scans Reader highlight documents and accepts only an exact unique match on both `parent_id` and the per-annotation source marker;
+- zero matches stays blocked and performs no POST;
+- multiple matches stays blocked and guesses nothing;
+- one exact match adopts that Reader child ID and marks the queue succeeded without creating another highlight;
+- successful creates perform a verification GET so the Gate 10 physical run can prove that the custom marker is observable as the Reader child's `source`.
+
+Automated tests cover confirmed create + literal note, second-sync deduplication, timeout followed by marker reconciliation, attempted-pending recovery without retry, no-match blocking, ambiguous text with no queue/write, queue stale-create recovery, and current-path propagation through Sync now.
+
+### Gate 10 — PASSED
+Physical validation on the target PW3 / KOReader v2026.07.1 passed:
+- a unique KOReader highlight was created under the correct original Reader document;
+- selected text matched correctly;
+- the literal multiline note containing `[[Foucault]]` and `#pesquisar` arrived exactly;
+- the normal create path reported no blocked create;
+- the per-annotation marker was visible through Reader LIST;
+- a second unchanged Sync now created zero new highlights;
+- Reader retained only one copy;
+- no crash/freeze was observed.
+
+Gate 10 is closed. Phase M / Gate 11 official Readwise → Obsidian export validation is now unblocked.
 
 ## Phase M — Obsidian end-to-end
 

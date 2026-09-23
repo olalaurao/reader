@@ -562,7 +562,7 @@ function Reader:saveDocument(payload)
     }
 end
 
-function Reader:createHighlight(parent_id, content, note, tags)
+function Reader:createHighlight(parent_id, content, note, tags, saved_using)
     if type(parent_id) ~= "string" or parent_id == "" then
         return nil, {
             kind = "client",
@@ -582,7 +582,7 @@ function Reader:createHighlight(parent_id, content, note, tags)
         parent_id = parent_id,
         content = content,
         category = "highlight",
-        saved_using = "KOReader Readwise Reader",
+        saved_using = saved_using or "KOReader Readwise Reader",
     }
     if note ~= nil then payload.notes = note end
     if type(tags) == "table" and #tags > 0 then payload.tags = tags end

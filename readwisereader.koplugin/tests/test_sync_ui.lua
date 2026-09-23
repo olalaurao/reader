@@ -126,6 +126,9 @@ local function newUI(SyncUI, state, watermark, report, ui_options)
                 return ui_options.metadata_cache_ok ~= false
             end,
         },
+        get_current_path = function()
+            return ui_options.current_path or "/Readwise/current.html"
+        end,
         worker = {
             run = function(_, options)
                 state.worker_calls[#state.worker_calls + 1] = options
@@ -166,12 +169,14 @@ return function()
         assert(state.subprocess_calls == 1)
         assert(#state.worker_calls == 1)
         assert(state.worker_calls[1].full_rescan == false)
+        assert(state.worker_calls[1].current_path == "/Readwise/current.html")
         assert(#state.metadata_writes == 1)
         assert(state.metadata_consumer_refreshes == 1)
         assert(#state.collection_writes == 1)
         assert(state.meta_writes.document_watermark == "2026-09-22T20:00:00Z")
         assert(state.meta_writes.document_query_after == "2026-09-22T19:55:00Z")
         assert(state.shown[#state.shown].text:find("Downloaded: 2", 1, true))
+        assert(state.shown[#state.shown].text:find("Highlights created: 0", 1, true))
     end)
 
     withStubbedSyncUI(function(SyncUI, state)
