@@ -261,15 +261,24 @@ function FirstArticle:installDocument(document)
         local raw_result, raw_err = self:_installRaw(document)
         if raw_result then return raw_result end
 
-        if self.raw_source and self.raw_source:isFallbackEligible(raw_err)
-            and type(document.html_content) == "string"
-            and not document.html_content:match("^%s*$") then
-            local fallback, fallback_err = self:_installHtml(document, "reader_html_fallback")
-            if fallback then
-                fallback.raw_warning = raw_err
-                return fallback
+        if self.raw_source and self.raw_source:isFallbackEligible(raw_err) then
+            if type(document.html_content) == "string"
+                and not document.html_content:match("^%s*$") then
+                local fallback, fallback_err = self:_installHtml(document, "reader_html_fallback")
+                if fallback then
+                    fallback.raw_warning = raw_err
+                    return fallback
+                end
+                raw_err = fallback_err or raw_err
+            else
+                raw_err = {
+                    kind = "content",
+                    stage = "raw_fallback",
+                    detail = raw_err and raw_err.kind or "raw_unavailable",
+                    retryable = false,
+                    message = "Reader raw source was unavailable and no processed HTML fallback was provided.",
+                }
             end
-            raw_err = fallback_err or raw_err
         end
 
         self.repository:setLocalState(document.id, {
