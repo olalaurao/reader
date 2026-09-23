@@ -14,6 +14,7 @@ local tests = {
     "tests.test_article_ui",
     "tests.test_filenames",
     "tests.test_html",
+    "tests.test_image_spike",
     "tests.test_installer",
     "tests.test_first_article",
     "tests.test_koreader_documents",
