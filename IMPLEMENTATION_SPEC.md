@@ -300,15 +300,15 @@ Official docs:
 
 # 3. Target KOReader facts — staged baseline
 
-Development through **Phase F / Gate 4** remains pinned to `v2025.04`, because Gates 0–3 were physically validated there and Phase F needs a known before/after baseline.
+Development through **Phase F / Gate 4** was pinned to `v2025.04` as the known before/after baseline.
 
-Immediately after Gate 4, the project executes **Phase F.5 / Gate 4A**: migrate the same PW3 to the official KOReader `v2026.07.1` release, revalidate this plugin before adding another variable, and only then install/test Bookshelf `v5.1.4`. Phase G and later phases are blocked until Gate 4A passes.
+**Gate 4A-1 passed physically on the target PW3 after upgrading to official KOReader `v2026.07.1`.** Therefore `v2026.07.1` is now the canonical physical V1 target and every later KOReader-internal spike must use that tag first. KOReader `v2025.04` remains only the historical Gate 0–4 compatibility baseline.
 
-After Gate 4A-1 passes, `v2026.07.1` becomes the physical V1 target and every later KOReader-internal spike must use that tag first.
+Gate 4A-2 still blocks Phase G until Bookshelf `v5.1.4` coexistence is validated.
 
 References:
-- current validated baseline: https://github.com/koreader/koreader/tree/v2025.04
-- planned target: https://github.com/koreader/koreader/tree/v2026.07.1
+- historical Gate 0–4 baseline: https://github.com/koreader/koreader/tree/v2025.04
+- canonical V1 baseline: https://github.com/koreader/koreader/tree/v2026.07.1
 - migration/rollback runbook: `docs/KOREADER_UPGRADE.md`
 
 ## 3.1 Plugin bootstrap
