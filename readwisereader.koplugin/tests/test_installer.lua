@@ -62,6 +62,19 @@ local function fakeDeps(existing)
             end,
         },
     }
+    do
+        local fake = fakeDeps()
+        fake.deps.open_file = function()
+            return nil, "simulated open failure"
+        end
+        local installer = Installer:new{ deps = fake.deps }
+        local result, err = installer:install("new", "/root/Articles/doc.html")
+        assert(result == nil)
+        assert(err.kind == "io")
+        assert(err.retryable == true)
+        assert(err.stage == "open")
+    end
+
 end
 
 return function()
