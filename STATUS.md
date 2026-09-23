@@ -173,7 +173,10 @@ Automated validation:
 - bump projection marker to `reader-tags-v2` so affected existing documents repair automatically;
 - narrow the one-time projection repair to `category=article`, excluding highlight/note child records server-side;
 - during that repair, only tagged documents need a metadata sidecar rewrite; untagged documents and unchanged Collections are not rewritten;
-- the normal incremental sync path remains watermark-based and unchanged.
+- the normal incremental sync path remains watermark-based;
+- normal incremental sync no longer stats every managed local file on every run; it trusts the durable `is_local_present` bit for unchanged rows and verifies the filesystem only for changed/repair-relevant documents;
+- no-op syncs skip the KOReader Collections refresh entirely when there is no postprocess work;
+- explicit Full document rescan remains the repair path that verifies all managed local paths on disk.
 
 Expected performance impact on this real library:
 - previous all-document metadata repair traversed the whole Reader corpus, historically ~25 LIST pages including child records;
@@ -184,8 +187,12 @@ Automated validation:
 - run #159: SUCCESS — actual Reader LIST tag-object fixture;
 - run #160: SUCCESS — narrowed projection repair implementation;
 - run #161: SUCCESS — optimized v2 tag-repair coverage;
-- run #163 on build tip `b45a1dea...`: SUCCESS — syntax, all unit tests, packaging/layout and artifact;
-- installable inner ZIP SHA-256: `bfe6edecb812602f473c2094e76f2d2afc14cf0037d3c7ee67c379ae393abe45`.
+- run #163 on `b45a1dea...`: SUCCESS — tag repair build;
+- run #167: SUCCESS — normal sync filesystem-walk optimization;
+- run #168: SUCCESS — no-op Collections refresh optimization;
+- run #169: SUCCESS — unit coverage proving no-op incremental sync does not stat every managed file;
+- run #170 on `7fc5141b...`: SUCCESS — final 0.1.13 optimized build, syntax/tests/package/layout/artifact;
+- installable inner ZIP SHA-256: `da646cfe674a4734f8a8ee9cb178e4d519e28612f962afe1042aa45db6ce3a69`.
 
 Gate 4A-2 remains **OPEN only for a short 0.1.13 physical tag visibility check**. Do not run a manual full document rescan.
 
