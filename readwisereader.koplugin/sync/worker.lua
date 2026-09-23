@@ -31,6 +31,7 @@ function Worker:run(options)
     local Images = require("content/images")
     local Http = require("api/http")
     local Installer = require("content/installer")
+    local RawSource = require("content/raw_source")
     local Reader = require("api/reader")
     local DocumentsSync = require("sync/documents")
     local logger = require("logger")
@@ -85,11 +86,19 @@ function Worker:run(options)
             total_max = config:getMaxArticleImageBytes(),
             max_images = config:getMaxImagesPerArticle(),
         }
+        local raw_source = RawSource:new{
+            http = http,
+            installer = installer,
+            download_root = config:getDownloadDirectory(),
+            max_bytes = config:getMaxRawSourceBytes(),
+            min_free_bytes = config:getMinRawSourceFreeBytes(),
+        }
         local materializer = FirstArticle:new{
             reader = reader,
             repository = repository,
             html = Html,
             images = image_localizer,
+            raw_source = raw_source,
             filenames = Filenames,
             installer = installer,
             hasher = Hash,
