@@ -1152,3 +1152,43 @@ Observed:
 - no crash/freeze: **PASS**.
 
 **Gate 10 PASSED. Proceed to Phase M / Gate 11 only after Phase L is merged to `main`.**
+
+
+## Phase M / Gate 11 — official Readwise → Obsidian wikilink
+
+Kindle plugin build: **0.1.25** (no new Kindle install required)
+
+Use the exact highlight created during Gate 10. Its Reader note has already been physically verified as:
+
+`ver [[Foucault]]`
+`#pesquisar`
+
+This gate tests only the downstream official Readwise export into the user's real Obsidian configuration.
+
+### Before syncing
+1. In Obsidian, confirm the **Readwise Official** community plugin is installed and enabled. If it is already configured, keep the existing configuration unchanged for the first test.
+2. Open the Readwise Obsidian export preferences and inspect the active **Highlight** template.
+3. Confirm whether it contains `highlight_note`.
+   - The documented official default does.
+   - If your custom template intentionally omits notes, stop and report `template exporta nota: não`; do not silently change it just to force the gate to pass.
+
+### Test
+1. In Reader, locate the Gate 10 article/highlight and confirm the note still contains `ver [[Foucault]]` and `#pesquisar`.
+2. In Obsidian, run **Readwise Official: Sync your data now** from the Command Palette. If automatic sync already exported the highlight, do not duplicate/reset it; inspect the existing export instead.
+3. Open the exported file for that same article.
+4. Verify the Gate 10 selected highlight appears in the correct article file.
+5. Inspect the Markdown source and confirm:
+   - the note text is present;
+   - `[[Foucault]]` is literally present, not escaped and not inside a code span/block;
+   - `#pesquisar` is preserved.
+6. Click/open the rendered `[[Foucault]]` link in Obsidian.
+   - PASS means Obsidian treats it as a normal internal link (opening the existing `Foucault` note if present, or behaving as an unresolved internal link if that note does not exist).
+7. Do not edit the Reader note yet; update behavior belongs to Gate 12 and the official Obsidian export is append-only for already-exported highlights.
+
+### Important official limitation
+New highlights are appended to exported Obsidian pages, but later edits to an already-exported highlight/note do not automatically rewrite that old block. A deliberate refresh/re-export is needed for historical edits. This is an official export limitation, not a KOReader sync failure.
+
+Return:
+`template exporta nota: sim/não / artigo certo: sim/não / highlight apareceu: sim/não / nota apareceu: sim/não / markdown tem [[Foucault]] literal: sim/não / #pesquisar preservado: sim/não / link funciona no Obsidian: sim/não`
+
+Gate 11 passes only if the real active export configuration includes notes and the Gate 10 note reaches the correct Obsidian article with `[[Foucault]]` functioning as normal Obsidian wikilink.
