@@ -95,7 +95,7 @@ local function newSync(options)
         end,
         format_time = function(epoch) return string.format("T%06d", epoch) end,
         overlap_seconds = 5,
-        file_exists = function(path)
+        file_exists = options.file_exists or function(path)
             for _, row in pairs(repository.rows) do
                 if row.local_path == path and row.is_local_present then return true end
             end
@@ -161,8 +161,16 @@ return function()
             end,
             getDocument = function() error("no pending document expected") end,
         }
+        local file_stats = 0
         local syncer, _, _, installs = newSync{
-            reader = reader, repository = repository, meta = meta, now_values = { 1020, 1021 },
+            reader = reader,
+            repository = repository,
+            meta = meta,
+            now_values = { 1020, 1021 },
+            file_exists = function()
+                file_stats = file_stats + 1
+                return true
+            end,
         }
         local report, err = syncer:sync{}
         assert(err == nil)
@@ -170,6 +178,7 @@ return function()
         assert(report.downloaded == 0 and #installs == 0)
         assert(meta.values.document_watermark == "T001020")
         assert(meta.values.document_query_after == "T001015")
+        assert(file_stats == 0, "no-op incremental sync must not stat every managed file")
     end
 
     do
