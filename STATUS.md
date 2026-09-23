@@ -10,7 +10,7 @@
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Current work is **Phase H / Gate 6**. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Current work is **Phase I / Gate 7**. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -480,8 +480,8 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 
 ## Current branch / commit
 
-- Branch: `phase-h/raw-formats-gate6`
-- Base `main`: `f33bcd6210931b3d74bcb5a814e1cc9e3591fec2` (PR #8 merge / Phase G + Gate 5 passed)
+- Branch: `phase-i/sidecar-gate7`
+- Base `main`: `3995dbee0b6f3171793abab50cb541af10a48d5c` (PR #9 merge / Phase H + Gate 6 passed)
 - Phase F historical merge: `21dd64719ca248dd7706895fab1651751edf8844` (Gate 4 passed on KOReader 2025.04)
 - F1 settings/root ownership: `a57da9980d1b77a16bf2a0b8fbaa09327b1691d9`
 - F1/F2 incremental sync engine: `265405a479ab538ed4fbdde9223ca97c28aaad07`
@@ -509,7 +509,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Jailbreak/KUAL functional
 - KOReader historical Gate 0–4 baseline: `2025.04`
 - canonical physical V1 baseline from Gate 4A-1 onward: official KOReader `v2026.07.1`, `kindlepw2` package
-- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase H / Gate 6 raw PDF + EPUB
+- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase I / Gate 7 sidecar/annotation adapter
 
 ## Phase A result
 
