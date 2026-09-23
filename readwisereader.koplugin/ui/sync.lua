@@ -60,6 +60,8 @@ local function summaryText(report)
         string.format(_("Mode: %s"), mode),
         string.format(_("Downloaded: %d"), report.downloaded or 0),
         string.format(_("Already local / unchanged: %d"), report.unchanged or 0),
+        string.format(_("Image candidates found: %d"), report.image_candidates or 0),
+        string.format(_("Responsive images promoted: %d"), report.image_responsive_promoted or 0),
         string.format(_("Images downloaded: %d"), report.images_downloaded or 0),
         string.format(_("Images reused: %d"), report.images_reused or 0),
         string.format(_("Images skipped by limits/settings: %d"), report.images_skipped or 0),
