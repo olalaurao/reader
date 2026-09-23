@@ -84,6 +84,10 @@ function AnnotationDiagnosticsUI:scanCurrent()
         lines[#lines + 1] = ""
         lines[#lines + 1] = _("Most recently modified highlight")
         lines[#lines + 1] = _("Local ID: ") .. report.sample.local_annotation_id
+        lines[#lines + 1] = _("Locator fingerprint: ") .. report.sample.locator_fingerprint
+        lines[#lines + 1] = _("Page/location: ") .. clipped(report.sample.page, 220)
+        lines[#lines + 1] = _("Start: ") .. clipped(report.sample.pos0, 220)
+        lines[#lines + 1] = _("End: ") .. clipped(report.sample.pos1, 220)
         lines[#lines + 1] = _("Selected text:")
         lines[#lines + 1] = clipped(report.sample.text)
         lines[#lines + 1] = ""
