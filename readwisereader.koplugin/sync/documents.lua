@@ -6,6 +6,22 @@ DocumentsSync.__index = DocumentsSync
 local DEFAULT_OVERLAP_SECONDS = 300
 local HTML_PAGE_LIMIT = 25
 local SUPPORTED_CATEGORIES = { article = true }
+local PERMANENT_MATERIALIZATION_ERRORS = {
+    content = true,
+    exists = true,
+}
+
+local function shouldRetryMissing(existing, remote_document)
+    if not existing then return true end
+    if not PERMANENT_MATERIALIZATION_ERRORS[existing.last_sync_error] then
+        return true
+    end
+    -- Permanent failures are tied to the remote revision that produced them.
+    -- Do not retry them on every no-op incremental sync. A later Reader
+    -- revision is allowed to retry because its content/path may now differ.
+    return remote_document ~= nil
+        and existing.remote_updated_at ~= remote_document.updated_at
+end
 
 local function asSet(values)
     local set = {}
@@ -170,7 +186,9 @@ function DocumentsSync:_scanMetadata(watermark, filters, managed_by_id, pending_
         if existing then
             local current = self:_updateExistingMetadata(existing, document, seen_at, report)
             managed_by_id[document.id] = current
-            if not self:_hasLocal(existing) and self:_isEligible(document, filters) then
+            if not self:_hasLocal(existing)
+                and self:_isEligible(document, filters)
+                and shouldRetryMissing(existing, document) then
                 pending_new[document.id] = true
             end
         elseif self:_isEligible(document, filters) then
@@ -299,7 +317,8 @@ function DocumentsSync:sync(options)
         if not self:_hasLocal(existing)
             and filters.locations[existing.location]
             and filters.categories[existing.category]
-            and SUPPORTED_CATEGORIES[existing.category] then
+            and SUPPORTED_CATEGORIES[existing.category]
+            and shouldRetryMissing(existing, nil) then
             pending_new[existing.reader_id] = true
         end
     end
@@ -355,5 +374,6 @@ DocumentsSync.HTML_PAGE_LIMIT = HTML_PAGE_LIMIT
 DocumentsSync.SUPPORTED_CATEGORIES = SUPPORTED_CATEGORIES
 DocumentsSync._metadataChanged = metadataChanged
 DocumentsSync._filterScope = filterScope
+DocumentsSync._shouldRetryMissing = shouldRetryMissing
 
 return DocumentsSync
