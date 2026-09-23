@@ -401,7 +401,7 @@ function DocumentsSync:sync(options)
             and filters.categories[existing.category]
             and SUPPORTED_CATEGORIES[existing.category]
             and shouldRetryMissing(existing, nil) then
-            pending_new[existing.reader_id] = true
+            pending_new[existing.reader_id] = existing.category
         end
     end
 
