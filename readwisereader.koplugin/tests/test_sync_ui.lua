@@ -169,6 +169,32 @@ return function()
     end)
 
     withStubbedSyncUI(function(SyncUI, state)
+        local ui = newUI(SyncUI, state, "watermark", {
+            mode = "incremental",
+            downloaded = 0,
+            unchanged = 0,
+            metadata_updated = 0,
+            location_moved = 0,
+            content_refresh_deferred = 0,
+            filtered_out = 0,
+            errors = 0,
+            metadata_pages = 1,
+            content_pages = 0,
+            duplicates_ignored = 0,
+            proposed_watermark = "2026-09-22T20:00:00Z",
+            proposed_query_after = "2026-09-22T19:55:00Z",
+            proposed_filter_scope = "locations=later,new;categories=article",
+            proposed_metadata_projection_version = "reader-tags-v2",
+            completed_at = "2026-09-22T20:01:00Z",
+            postprocess = {},
+        })
+        ui:syncNow(false)
+        assert(state.refresh_calls == 0, "no-op sync must not refresh Collections")
+        assert(#state.metadata_writes == 0)
+        assert(#state.collection_writes == 0)
+    end)
+
+    withStubbedSyncUI(function(SyncUI, state)
         local ui = newUI(SyncUI, state, nil)
         ui:syncNow(false)
         assert(state.wrap_calls == 0)
