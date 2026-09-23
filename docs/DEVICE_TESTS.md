@@ -1304,3 +1304,30 @@ Do not create another highlight. Keep the edited local note as-is.
    - `Durable linked highlights accepted without marker` may be greater than 0;
    - the target note appears exactly in Reader.
 6. Do **not** test conflict or deletion until this update case passes.
+
+### Gate 12 attempt 3 — build 0.1.28 — FAIL / fixed in 0.1.29
+Observed:
+- scanned: 2;
+- already linked: 2;
+- notes updated: 0;
+- note conflicts blocked: 2;
+- mutation blocks: 0;
+- durable linked highlights accepted without marker: 2;
+- remote errors: 0.
+
+Build 0.1.29 uses deterministic Readwise v2 `external_id` mapping for the remote note/conflict source and for the note PATCH. Do not create another highlight.
+
+#### 0.1.29 retest
+1. Install 0.1.29.
+2. Keep the same local edited note(s) and the same article.
+3. Close/reopen the article and leave it open.
+4. Run Sync now.
+5. Expected for the edited target:
+   - `Highlights created: 0`;
+   - `Readwise v2 mappings resolved` at least 1 on first resolution (or 0 if already persisted from a prior 0.1.29 run);
+   - `Readwise v2 remote-note reads` at least 1;
+   - `Readwise v2 note updates` at least 1 when the remote still equals the stored baseline;
+   - `Notes updated` at least 1;
+   - no false conflict for that target;
+   - Reader shows the edited note.
+6. Do not test deletion until note update passes.
