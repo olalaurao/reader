@@ -61,6 +61,14 @@ function Mutations:_verifyChild(document, link, options)
         return child, nil, "legacy"
     end
 
+    if options.allow_durable_link_without_source == true then
+        -- Reader LIST has not returned saved_using/source consistently for
+        -- production highlight children. For non-destructive note updates the
+        -- durable child ID + original parent + highlight category are already
+        -- an unambiguous identity. DELETE deliberately does not use this path.
+        return child, nil, "durable_link"
+    end
+
     return nil, err(
         "remote_identity",
         "Reader child ownership marker did not match the linked annotation; no mutation was attempted.",
@@ -97,7 +105,10 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
     local child, child_err, identity_mode = self:_verifyChild(
         document,
         link,
-        { allow_legacy_source = true }
+        {
+            allow_legacy_source = true,
+            allow_durable_link_without_source = true,
+        }
     )
     if not child then
         self.annotations:setSyncState(
@@ -114,6 +125,8 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
     end
     if identity_mode == "legacy" then
         report.legacy_identity_accepted = report.legacy_identity_accepted + 1
+    elseif identity_mode == "durable_link" then
+        report.durable_link_identity_accepted = report.durable_link_identity_accepted + 1
     end
 
     local baseline = link.last_synced_note
@@ -174,7 +187,10 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
     local verified, verify_err, verify_identity_mode = self:_verifyChild(
         document,
         link,
-        { allow_legacy_source = true }
+        {
+            allow_legacy_source = true,
+            allow_durable_link_without_source = true,
+        }
     )
     if not verified then
         self.annotations:setSyncState(
@@ -187,6 +203,8 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
     end
     if verify_identity_mode == "legacy" then
         report.legacy_identity_accepted = report.legacy_identity_accepted + 1
+    elseif verify_identity_mode == "durable_link" then
+        report.durable_link_identity_accepted = report.durable_link_identity_accepted + 1
     end
     if verified.notes ~= local_note then
         self.annotations:setSyncState(
@@ -271,6 +289,7 @@ function Mutations:syncPath(local_path)
         deletions_already_remote = 0,
         remote_errors = 0,
         legacy_identity_accepted = 0,
+        durable_link_identity_accepted = 0,
     }
     if not scan.authoritative then return report end
 
@@ -280,9 +299,14 @@ function Mutations:syncPath(local_path)
         local link = self.annotations:getById(candidate.local_annotation_id)
         if link
             and link.created_remote == true
-            and link.local_deleted_at == nil
-            and link.sync_state == "local_changed" then
-            self:_syncChangedNote(document, candidate, link, report)
+            and link.local_deleted_at == nil then
+            local note_differs_from_baseline = candidate.note ~= link.last_synced_note
+            local should_retry_note = link.sync_state == "local_changed"
+                or link.sync_state == "blocked"
+                or link.sync_state == "conflict"
+            if note_differs_from_baseline and should_retry_note then
+                self:_syncChangedNote(document, candidate, link, report)
+            end
         end
     end
 

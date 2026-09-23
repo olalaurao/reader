@@ -168,6 +168,27 @@ local function legacyUpdateCase()
     assert(state.row.last_synced_note == "legacy updated [[Foucault]]")
 end
 
+local function missingMarkerUpdateCase()
+    local state = baseState()
+    state.row.sync_state = "blocked"
+    state.row.last_sync_error = "remote_identity"
+    local mutator = newMutator(
+        state,
+        "retry after missing marker",
+        "old note",
+        false,
+        "reader"
+    )
+    local report = assert(mutator:syncPath("/Readwise/a.html"))
+    assert(report.notes_updated == 1)
+    assert(report.blocked == 0)
+    assert(report.remote_errors == 0)
+    assert(report.durable_link_identity_accepted >= 1)
+    assert(state.updates == 1)
+    assert(state.row.sync_state == "synced")
+    assert(state.row.last_synced_note == "retry after missing marker")
+end
+
 local function reconcileCase()
     local state = baseState()
     local mutator = newMutator(state, "new note", "new note", false)
@@ -214,6 +235,23 @@ local function deletionOnCase()
     assert(state.row.created_remote == false)
     assert(state.row.reader_highlight_document_id == nil)
     assert(state.row.sync_state == "deleted_synced")
+end
+
+local function missingMarkerStillBlocksDelete()
+    local state = baseState()
+    state.row.local_deleted_at = 123
+    state.row.sync_state = "local_deleted"
+    local mutator = newMutator(
+        state,
+        false,
+        "old note",
+        true,
+        "reader"
+    )
+    local report = assert(mutator:syncPath("/Readwise/a.html"))
+    assert(report.blocked == 1)
+    assert(report.deletions_remote == 0)
+    assert(state.deletes == 0, "durable link without exact marker must not authorize DELETE")
 end
 
 local function legacyMarkerStillBlocksDelete()
@@ -267,10 +305,12 @@ end
 return function()
     updateCase()
     legacyUpdateCase()
+    missingMarkerUpdateCase()
     reconcileCase()
     conflictCase()
     deletionOffCase()
     deletionOnCase()
+    missingMarkerStillBlocksDelete()
     legacyMarkerStillBlocksDelete()
     identityMismatchBlocksDelete()
 end
