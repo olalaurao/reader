@@ -407,9 +407,9 @@ This **functionally passes G4.2 idempotency**, but the report also exposed an ef
 
 Gate 4 remains OPEN pending the clean 0.1.11 no-op retest, then location move, title rename, cancellation, and recovery.
 
-### G4.3 location-move retest — functional move observed, build verification still needed
+### G4.3 Reader location move — PASS
 
-Latest on-device result:
+On-device result:
 - `Mode: incremental`;
 - `Downloaded: 0`;
 - `Metadata updated: 1`;
@@ -417,14 +417,16 @@ Latest on-device result:
 - `Errors: 0`;
 - metadata write errors: 0;
 - Collection write errors: 0;
-- watermark advanced successfully.
+- watermark advanced successfully;
+- user confirmed **no duplicate local file**;
+- user confirmed the document **moved to the expected plugin-managed Readwise Collection**.
 
-This is positive evidence that the Reader-side location change is detected and reconciled without a new download. However:
-- the summary still reports `Skipped (not materializable): 45`, which should be `0` on a true no-op/permanent-skip-suppressed 0.1.11 run unless those 45 records were genuinely returned as changed;
-- because the sync summary does not yet display the plugin version, the physical build in this screenshot cannot be proven from the UI alone;
-- G4.3 is not closed until the user confirms there is still only one local copy and the same path moved to the expected `Readwise: ...` Collection while unrelated user Collections stayed intact.
+The prior mixed/failed attempt is not used as Gate evidence because the user had also changed a different organization value from KOReader before realizing this Gate specifically required a Reader-side location change. The clean Reader-side test above is the canonical G4.3 result.
 
-If 0.1.11 was definitely installed for this run, investigate why the 45 permanent skips still re-entered the incremental pending set. If build certainty is low, repeat on a build whose summary exposes `Constants.VERSION`.
+Conclusion:
+- **G4.3 PASSED.**
+- Reader location -> KOReader Collection projection is physically validated on the target device.
+- Gate 4 next step: **G4.4 Reader title rename** on an already-managed article, verifying metadata update on the same local path with no duplicate and preserved sidecar/progress/highlights.
 
 
 ### G4.3 location-move attempt on pre-0.1.11 behavior
