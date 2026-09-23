@@ -1,6 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
 local DocumentsSync = require("sync/documents")
+local PROJECTION = DocumentsSync.METADATA_PROJECTION_VERSION
 
 local function copy(value)
     local out = {}
@@ -80,7 +81,11 @@ local function newSync(options)
         },
         koreader_documents = {
             writeMetadata = function(_, path, doc)
-                metadata_calls[#metadata_calls + 1] = { path = path, title = doc.title }
+                metadata_calls[#metadata_calls + 1] = {
+                    path = path,
+                    title = doc.title,
+                    tags = doc.tags,
+                }
                 return true
             end,
         },
@@ -100,10 +105,10 @@ local function newSync(options)
     return syncer, repository, meta, installs, collection_calls, metadata_calls
 end
 
-local function doc(id, location, title, updated, html)
+local function doc(id, location, title, updated, html, tags)
     return {
         id = id, category = "article", location = location,
-        title = title, updated_at = updated, html_content = html,
+        title = title, updated_at = updated, html_content = html, tags = tags,
     }
 end
 
@@ -132,6 +137,7 @@ return function()
         assert(meta.values.document_watermark == "T001000")
         assert(meta.values.document_query_after == "T000995")
         assert(meta.values.document_filter_scope == "locations=later,new;categories=article")
+        assert(meta.values.metadata_projection_version == PROJECTION)
     end
 
     do
@@ -146,6 +152,7 @@ return function()
             document_watermark = "T001000",
             document_query_after = "T000995",
             document_filter_scope = "locations=later,new;categories=article",
+            metadata_projection_version = PROJECTION,
         })
         local reader = {
             iterateDocuments = function(_, options)
@@ -177,6 +184,7 @@ return function()
             document_watermark = "T001000",
             document_query_after = "T000995",
             document_filter_scope = "locations=later,new;categories=article",
+            metadata_projection_version = PROJECTION,
         })
         local reader = {
             iterateDocuments = function(_, _, callback)
@@ -198,6 +206,85 @@ return function()
         assert(report.metadata_updated == 1)
         assert(report.content_refresh_deferred == 1)
         assert(#collections >= 1 and #metadata == 1)
+    end
+
+    do
+        -- A Reader tag-only remote revision must rewrite KOReader metadata
+        -- without changing file ownership or materializing a second file.
+        local repository = fakeRepository({
+            a = {
+                reader_id = "a", category = "article", location = "new",
+                title = "Alpha", remote_updated_at = "u1",
+                local_path = "/Readwise/a.html", is_local_present = true, is_managed = true,
+            },
+        })
+        local meta = fakeMeta({
+            document_watermark = "T001000",
+            document_query_after = "T000995",
+            document_filter_scope = "locations=later,new;categories=article",
+            metadata_projection_version = PROJECTION,
+        })
+        local reader = {
+            iterateDocuments = function(_, options, callback)
+                assert(options.updated_after == "T000995")
+                callback(doc("a", "new", "Alpha", "u2", nil, { "research", "later" }))
+                return { pages = 1, duplicates = 0 }
+            end,
+            getDocument = function() error("existing tag update must not be re-downloaded") end,
+        }
+        local syncer, repo, _, installs, _, metadata = newSync{
+            reader = reader, repository = repository, meta = meta, now_values = { 1035, 1036 },
+        }
+        local report, err = syncer:sync{}
+        assert(err == nil)
+        assert(#installs == 0)
+        assert(repo.rows.a.local_path == "/Readwise/a.html")
+        assert(report.metadata_updated == 1)
+        assert(report.location_moved == 0)
+        assert(#metadata == 1)
+        assert(metadata[1].tags[1] == "research")
+        assert(metadata[1].tags[2] == "later")
+    end
+
+    do
+        -- Installing the tag projection on a device that already has a
+        -- watermark must do one metadata-only full LIST traversal. It must not
+        -- replay the expensive HTML/content backfill just to populate tags.
+        local repository = fakeRepository({
+            a = {
+                reader_id = "a", category = "article", location = "new",
+                title = "Alpha", remote_updated_at = "u1",
+                local_path = "/Readwise/a.html", is_local_present = true, is_managed = true,
+            },
+        })
+        local meta = fakeMeta({
+            document_watermark = "T001000",
+            document_query_after = "T000995",
+            document_filter_scope = "locations=later,new;categories=article",
+        })
+        local metadata_calls = 0
+        local reader = {
+            iterateDocuments = function(_, options, callback)
+                assert(options.updated_after == nil)
+                assert(options.with_html_content == false)
+                metadata_calls = metadata_calls + 1
+                callback(doc("a", "new", "Alpha", "u1", nil, { "backfilled" }))
+                return { pages = 1, duplicates = 0 }
+            end,
+            getDocument = function() error("metadata projection backfill must not fetch content") end,
+        }
+        local syncer, _, updated_meta, installs, _, metadata = newSync{
+            reader = reader, repository = repository, meta = meta, now_values = { 1037, 1038 },
+        }
+        local report, err = syncer:sync{}
+        assert(err == nil)
+        assert(report.mode == "incremental")
+        assert(report.metadata_projection_backfill == true)
+        assert(report.content_pages == 0)
+        assert(metadata_calls == 1)
+        assert(#installs == 0)
+        assert(#metadata == 1 and metadata[1].tags[1] == "backfilled")
+        assert(updated_meta.values.metadata_projection_version == PROJECTION)
     end
 
 
@@ -223,6 +310,7 @@ return function()
             document_watermark = "T001000",
             document_query_after = "T000995",
             document_filter_scope = "locations=new;categories=article",
+            metadata_projection_version = PROJECTION,
         })
         local saw_incremental = false
         local reader = {
@@ -362,6 +450,7 @@ return function()
             document_watermark = "T001000",
             document_query_after = "T000995",
             document_filter_scope = "locations=later,new;categories=article",
+            metadata_projection_version = PROJECTION,
         })
         local syncer = newSync{
             meta = meta,
