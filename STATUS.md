@@ -387,6 +387,26 @@ Interpretation:
 
 This closes the invalid-filename blocker and proves the full scan can complete cleanly across the current article library. Gate 4 remains OPEN for the remaining behavioral checks: true incremental no-change sync, location move without duplication, title rename without duplication, cancellation, and recovery.
 
+0.1.10 no-change incremental retest:
+- `Mode: incremental`;
+- `Downloaded: 0`;
+- `Errors: 0`;
+- metadata pages: 1;
+- content pages: 0;
+- no duplicate download was observed;
+- watermark advanced successfully.
+
+This **functionally passes G4.2 idempotency**, but the report also exposed an efficiency bug: the 45 permanent `content` skips were retried on every incremental run even when Reader returned no changed metadata. That behavior does not duplicate files or corrupt state, but it defeats the intended "process only changes" incremental model.
+
+0.1.11 fix:
+- permanent missing-local failures (`content` / `exists`) are no longer pre-seeded into every incremental materialization pass;
+- they stay dormant while their Reader revision is unchanged;
+- if `updatedAfter` later surfaces a changed remote revision, the item becomes eligible for retry again;
+- retryable failures such as I/O remain retryable on later syncs;
+- regression tests cover both no-change suppression and retry-after-remote-change.
+
+Gate 4 remains OPEN pending the clean 0.1.11 no-op retest, then location move, title rename, cancellation, and recovery.
+
 
 
 
