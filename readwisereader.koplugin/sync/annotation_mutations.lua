@@ -20,6 +20,10 @@ function Mutations:new(options)
         annotations = assert(options.annotations, "annotations repository is required"),
         adapter = assert(options.adapter, "annotation adapter is required"),
         reader = assert(options.reader, "Reader API is required"),
+        readwise = options.readwise,
+        v2_by_external_id = {},
+        v2_duplicate_external_id = {},
+        v2_scan_complete = false,
         propagate_deletions = options.propagate_deletions == true,
         file_exists = options.file_exists or function(path)
             return require("libs/libkoreader-lfs").attributes(path, "mode") == "file"
@@ -74,6 +78,118 @@ function Mutations:_verifyChild(document, link, options)
         "Reader child ownership marker did not match the linked annotation; no mutation was attempted.",
         false
     )
+end
+
+function Mutations:_loadV2Index(report)
+    if self.v2_scan_complete then return true end
+    if not self.readwise then
+        return nil, err(
+            "v2_unavailable",
+            "Readwise v2 client is required for safe note conflict detection.",
+            false
+        )
+    end
+
+    local page_number = 1
+    while true do
+        local page, page_err = self.readwise:listHighlights{
+            page_size = 1000,
+            page = page_number,
+        }
+        if not page then return nil, page_err end
+        report.v2_pages_scanned = report.v2_pages_scanned + 1
+
+        for _, highlight in ipairs(page.results or {}) do
+            local external_id = highlight.external_id
+            if type(external_id) == "string" and external_id ~= "" then
+                local prior = self.v2_by_external_id[external_id]
+                if prior and prior.id ~= highlight.id then
+                    self.v2_duplicate_external_id[external_id] = true
+                else
+                    self.v2_by_external_id[external_id] = highlight
+                end
+            end
+        end
+
+        local count = tonumber(page.count) or #(page.results or {})
+        if #(page.results or {}) == 0 or page_number * 1000 >= count then
+            break
+        end
+        page_number = page_number + 1
+        if page_number > 1000 then
+            return nil, err(
+                "v2_pagination",
+                "Readwise v2 highlight pagination exceeded the safety bound.",
+                false
+            )
+        end
+    end
+
+    self.v2_scan_complete = true
+    return true
+end
+
+function Mutations:_getV2Highlight(link, report)
+    if not self.readwise then
+        return nil, err(
+            "v2_unavailable",
+            "Readwise v2 client is required for safe note conflict detection.",
+            false
+        )
+    end
+
+    local external_id = link.reader_highlight_document_id
+    if self.v2_duplicate_external_id[external_id] then
+        return nil, err(
+            "v2_mapping_ambiguous",
+            "Multiple Readwise v2 highlights share the Reader child external_id.",
+            false
+        )
+    end
+
+    if link.readwise_v2_highlight_id then
+        local detail, detail_err = self.readwise:getHighlight(link.readwise_v2_highlight_id)
+        if detail then
+            report.v2_remote_note_reads = report.v2_remote_note_reads + 1
+            if detail.external_id ~= external_id then
+                return nil, err(
+                    "remote_identity",
+                    "Stored Readwise v2 highlight id no longer maps to the linked Reader child.",
+                    false
+                )
+            end
+            self.v2_by_external_id[external_id] = detail
+            return detail
+        end
+        if detail_err and not isNotFound(detail_err) then
+            return nil, detail_err
+        end
+        self.annotations:setReadwiseV2Id(link.local_annotation_id, nil)
+    end
+
+    local loaded, load_err = self:_loadV2Index(report)
+    if not loaded then return nil, load_err end
+    if self.v2_duplicate_external_id[external_id] then
+        return nil, err(
+            "v2_mapping_ambiguous",
+            "Multiple Readwise v2 highlights share the Reader child external_id.",
+            false
+        )
+    end
+
+    local highlight = self.v2_by_external_id[external_id]
+    if not highlight then
+        return nil, err(
+            "v2_mapping",
+            "No deterministic Readwise v2 highlight matched the Reader child external_id.",
+            false
+        )
+    end
+
+    self.annotations:setReadwiseV2Id(link.local_annotation_id, highlight.id)
+    report.v2_mappings_resolved = report.v2_mappings_resolved + 1
+    report.v2_remote_note_reads = report.v2_remote_note_reads + 1
+    return highlight
 end
 
 function Mutations:_markSynced(candidate, link)
@@ -131,18 +247,36 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
 
     local baseline = link.last_synced_note
     local local_note = candidate.note
-    local remote_note = child.notes
 
     if local_note == baseline then
-        -- The scanner can flag a locator-only change. No remote mutation is
-        -- required when text/note semantics are unchanged.
         self:_markSynced(candidate, link)
         report.notes_reconciled = report.notes_reconciled + 1
         return
     end
 
+    local remote_v2, v2_err = self:_getV2Highlight(link, report)
+    if not remote_v2 then
+        local safe_block = v2_err and (
+            v2_err.kind == "v2_mapping"
+            or v2_err.kind == "v2_mapping_ambiguous"
+            or v2_err.kind == "remote_identity"
+            or v2_err.kind == "v2_unavailable"
+        )
+        self.annotations:setSyncState(
+            candidate.local_annotation_id,
+            safe_block and "blocked" or "local_changed",
+            v2_err and v2_err.kind or "v2_remote_note"
+        )
+        if safe_block then
+            report.blocked = report.blocked + 1
+        else
+            report.remote_errors = report.remote_errors + 1
+        end
+        return
+    end
+
+    local remote_note = remote_v2.note
     if remote_note == local_note then
-        -- Covers timeout/response-loss after a previous PATCH.
         self:_markSynced(candidate, link)
         report.notes_reconciled = report.notes_reconciled + 1
         return
@@ -159,8 +293,6 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
     end
 
     if local_note == nil then
-        -- Clearing a highlight note through Reader v3 has not been physically
-        -- validated for this project. Preserve both sides instead of guessing.
         self.annotations:setSyncState(
             candidate.local_annotation_id,
             "blocked",
@@ -170,9 +302,9 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
         return
     end
 
-    local updated, update_err = self.reader:updateDocument(
-        link.reader_highlight_document_id,
-        { notes = local_note }
+    local updated, update_err = self.readwise:updateHighlight(
+        remote_v2.id,
+        { note = local_note }
     )
     if not updated then
         self.annotations:setSyncState(
@@ -183,41 +315,20 @@ function Mutations:_syncChangedNote(document, candidate, link, report)
         report.remote_errors = report.remote_errors + 1
         return
     end
-
-    local verified, verify_err, verify_identity_mode = self:_verifyChild(
-        document,
-        link,
-        {
-            allow_legacy_source = true,
-            allow_durable_link_without_source = true,
-        }
-    )
-    if not verified then
+    if updated.id ~= remote_v2.id or updated.note ~= local_note then
         self.annotations:setSyncState(
             candidate.local_annotation_id,
             "local_changed",
-            verify_err and verify_err.kind or "note_verify"
-        )
-        report.remote_errors = report.remote_errors + 1
-        return
-    end
-    if verify_identity_mode == "legacy" then
-        report.legacy_identity_accepted = report.legacy_identity_accepted + 1
-    elseif verify_identity_mode == "durable_link" then
-        report.durable_link_identity_accepted = report.durable_link_identity_accepted + 1
-    end
-    if verified.notes ~= local_note then
-        self.annotations:setSyncState(
-            candidate.local_annotation_id,
-            "local_changed",
-            "note_verify_mismatch"
+            "v2_note_update_verify"
         )
         report.remote_errors = report.remote_errors + 1
         return
     end
 
+    self.annotations:setReadwiseV2Id(candidate.local_annotation_id, updated.id)
     self:_markSynced(candidate, link)
     report.notes_updated = report.notes_updated + 1
+    report.v2_note_updates = report.v2_note_updates + 1
 end
 
 function Mutations:_syncDeletion(document, link, report)
@@ -290,6 +401,10 @@ function Mutations:syncPath(local_path)
         remote_errors = 0,
         legacy_identity_accepted = 0,
         durable_link_identity_accepted = 0,
+        v2_pages_scanned = 0,
+        v2_mappings_resolved = 0,
+        v2_remote_note_reads = 0,
+        v2_note_updates = 0,
     }
     if not scan.authoritative then return report end
 
