@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase H COMPLETE — Gate 6 PASSED on PW3 / KOReader 2026.07.1; Phase I sidecar/annotation adapter is next**
+**Phase I COMPLETE — Gate 7 PASSED on PW3 / KOReader 2026.07.1; Phase J annotation API interoperability spike is next**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -512,7 +512,19 @@ Automated coverage:
 - run #339 on `c638f6cb...`: **SUCCESS** — full syntax, all unit tests, package/layout and artifact;
 - installable inner ZIP verified with `unzip -t`; SHA-256: `b609cf81ea4e3e621e9235d8c4e3156c429c9cbbd3e1d0ef9847639a0596262f`.
 
-Gate 7 now requires only a short physical test on one already-managed article: create a highlight + note, close/reopen, scan it, and verify the same local ID survives another reopen.
+Physical Gate 7 result on the target PW3 / KOReader 2026.07.1:
+- exact selected text was read from the KOReader sidecar: **PASS**;
+- the exact note content actually entered on the Kindle was preserved, including `[[Foucault]]`, blank line and `#pesquisar`: **PASS**;
+- the emoji from the suggested fixture was not entered because the Kindle keyboard does not provide emoji input; this is not a persistence failure and is not a Gate 7 blocker;
+- locator/page/start/end evidence was populated: **PASS**;
+- identity quality was strong: **PASS**;
+- the same Local ID survived close/reopen: **PASS**;
+- the second scan classified the same annotation as unchanged rather than new: **PASS**;
+- no crash/freeze: **PASS**.
+
+### Gate 7 — PASS
+
+Gate 7 is closed. **Phase I is complete and Phase J / Gate 8 (annotation API interoperability spike) is now unblocked.**
 
 
 
