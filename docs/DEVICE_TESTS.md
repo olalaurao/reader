@@ -1382,3 +1382,42 @@ Do not create or edit another highlight.
    - `Annotation remote errors: 0`;
    - Reader displays the new local note.
 6. Do not test conflict/delete until the Reader visibly shows the new note.
+
+
+### Gate 12 attempt 6 — build 0.1.31 — NOTE UPDATE PASS
+
+Physical result on target PW3 / KOReader v2026.07.1:
+
+- current-document highlights scanned: **2**;
+- highlights created: **0**;
+- highlights already linked: **2**;
+- notes updated: **1**;
+- note updates reconciled: **1**;
+- note conflicts blocked: **0**;
+- annotation mutations blocked safely: **0**;
+- local highlight deletions detected: **0**;
+- remote highlight deletions: **0**;
+- deletions retained remotely: **0**;
+- legacy linked highlights accepted safely: **0**;
+- durable linked highlights accepted without marker: **8**;
+- Readwise v2 annotation pages scanned: **0**;
+- Readwise v2 mappings resolved: **0**;
+- Readwise v2 remote-note reads: **2**;
+- Readwise v2 note updates: **1**;
+- Reader note verification reads: **6**;
+- Reader propagation misses: **1**;
+- Reader v3 repair PATCHes: **2**;
+- Reader note repairs completed: **2**;
+- annotation remote errors: **0**;
+- the user refreshed/checked Reader and visually confirmed the edited note is correct.
+
+**Gate 12A / note update: PASS.**
+
+What this physically proves:
+- a successful v2 note PATCH alone is not sufficient;
+- the production path must verify the exact linked Reader v3 child;
+- if Reader is stale after v2, a v3 repair PATCH to that same validated child can restore convergence;
+- durable sync baseline must advance only after Reader visibility is proven.
+
+Next: proceed to **Gate 12B conflict test**. Do not test deletion until conflict handling passes.
+See `docs/ANNOTATION_SYNC_LESSONS.md` before modifying annotation logic again.
