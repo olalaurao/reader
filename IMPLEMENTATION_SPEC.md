@@ -2226,7 +2226,7 @@ Physical PW3 validation on KOReader v2026.07.1 passed:
 
 Not every remote image is required to render in V1; graceful degradation is the accepted contract.
 
-## Phase H — raw formats — IMPLEMENTED, GATE 6 PENDING
+## Phase H — raw formats — COMPLETE
 
 ### H1 — implemented
 - fresh `raw_source_url` requested immediately before raw materialization;
