@@ -188,6 +188,13 @@ function DocumentsSync:_install(document, report)
     else
         report.downloaded = report.downloaded + 1
     end
+    if result.raw_source_used then
+        report.raw_sources_downloaded = report.raw_sources_downloaded + 1
+        report.raw_source_bytes = report.raw_source_bytes + (result.raw_bytes or 0)
+    elseif result.raw_fallback_used then
+        report.raw_html_fallbacks = report.raw_html_fallbacks + 1
+    end
+
     local images = result.image_report
     if images then
         report.image_candidates = report.image_candidates + (images.candidates or 0)
@@ -372,6 +379,9 @@ function DocumentsSync:sync(options)
         images_failed = 0,
         images_skipped = 0,
         image_bytes = 0,
+        raw_sources_downloaded = 0,
+        raw_html_fallbacks = 0,
+        raw_source_bytes = 0,
         metadata_updated = 0,
         metadata_invalidate_paths = {},
         location_moved = 0,
