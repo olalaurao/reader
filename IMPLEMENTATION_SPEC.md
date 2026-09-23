@@ -2251,10 +2251,14 @@ Reader's documented `raw_source_url` contract is treated as ephemeral: direct S3
 - retryable network/storage failures do not silently switch format;
 - if neither raw source nor usable HTML exists, record a stable per-document content skip.
 
-### Gate 6 — physical validation pending
-- one real original PDF opens/reads/reopens on PW3 with progress preserved;
-- one real original EPUB opens/reads/reopens on PW3 with reflow/progress preserved;
-- HTML fallback does not count as original-format gate evidence.
+### Gate 6 — PASSED
+Physical PW3 validation on KOReader v2026.07.1 passed:
+- one real original Reader PDF opens, reads and reopens with progress preserved;
+- one real original Reader EPUB opens, reflows and reopens with progress preserved;
+- both remain usable as local/offline documents;
+- no crash/freeze was observed.
+
+HTML fallback remains valid product behavior but does not substitute for the original-format proof above.
 
 ## Phase I — sidecar/annotation adapter
 
