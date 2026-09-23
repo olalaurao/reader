@@ -1,6 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
 local TextMatch = require("sync/text_match")
+local AnnotationIdentity = require("sync/annotation_identity")
 
 local Upload = {}
 Upload.__index = Upload
@@ -13,13 +14,8 @@ local function err(kind, message, retryable)
     return { kind = kind, message = message, retryable = retryable == true }
 end
 
-local function markerFor(local_annotation_id)
-    return "KOReader Readwise Reader:" .. tostring(local_annotation_id)
-end
-
-local function queueKey(local_annotation_id)
-    return "create_highlight:" .. tostring(local_annotation_id)
-end
+local markerFor = AnnotationIdentity.markerFor
+local queueKey = AnnotationIdentity.createQueueKey
 
 function Upload:new(options)
     options = options or {}

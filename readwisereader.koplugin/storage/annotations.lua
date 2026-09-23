@@ -153,6 +153,35 @@ function Annotations:setReaderRemoteLink(local_annotation_id, reader_highlight_d
     stmt:close()
 end
 
+function Annotations:setSyncState(local_annotation_id, sync_state, last_sync_error)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        UPDATE annotation_links
+        SET sync_state = ?,
+            last_sync_error = ?
+        WHERE local_annotation_id = ?;
+    ]])
+    stmt:bind(sync_state, last_sync_error, local_annotation_id):step()
+    stmt:close()
+    return self:getById(local_annotation_id)
+end
+
+function Annotations:markRemoteDeleted(local_annotation_id)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        UPDATE annotation_links SET
+            reader_highlight_document_id = NULL,
+            readwise_v2_highlight_id = NULL,
+            created_remote = 0,
+            sync_state = 'deleted_synced',
+            last_sync_error = NULL
+        WHERE local_annotation_id = ?;
+    ]])
+    stmt:bind(local_annotation_id):step()
+    stmt:close()
+    return self:getById(local_annotation_id)
+end
+
 function Annotations:setReadwiseV2Id(local_annotation_id, readwise_v2_highlight_id)
     local conn = self.db:getConnection()
     local stmt = conn:prepare([[
