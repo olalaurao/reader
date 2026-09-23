@@ -24,6 +24,9 @@ function AnnotationSync:new(options)
         annotations = assert(options.annotations, "annotations repository is required"),
         adapter = assert(options.adapter, "annotation adapter is required"),
         now = options.now or os.time,
+        file_exists = options.file_exists or function(path)
+            return require("libs/libkoreader-lfs").attributes(path, "mode") == "file"
+        end,
     }, self)
 end
 
@@ -41,6 +44,13 @@ function AnnotationSync:scanPath(local_path)
             kind = "not_local",
             retryable = false,
             message = "The managed Reader document is not recorded as local.",
+        }
+    end
+    if not self.file_exists(document.local_path) then
+        return nil, {
+            kind = "local_missing",
+            retryable = false,
+            message = "The managed Reader file is missing; annotation deletion was not inferred.",
         }
     end
 
