@@ -2226,25 +2226,39 @@ Physical PW3 validation on KOReader v2026.07.1 passed:
 
 Not every remote image is required to render in V1; graceful degradation is the accepted contract.
 
-## Phase H — raw formats
+## Phase H — raw formats — IMPLEMENTED, GATE 6 PENDING
 
-### H1
-- raw_source download abstraction;
-- temp/atomic;
-- source expiry handling;
-- max size/free-space.
+### H1 — implemented
+- fresh `raw_source_url` requested immediately before raw materialization;
+- signed URL is never persisted and query parameters are redacted from HTTP logs;
+- bounded HTTP streaming directly to temp file;
+- fsync + validation + atomic rename;
+- 64 MiB raw-source cap;
+- 128 MiB minimum free-space reserve before starting.
 
-### H2
-- PDF.
+Reader's documented `raw_source_url` contract is treated as ephemeral: direct S3 link, empty for non-distributable documents, valid for one hour.
 
-### H3
-- EPUB.
+### H2 — implemented
+- PDF original preferred when a valid distributable raw source exists;
+- PDF magic validation before install.
 
-### H4
-- fallback HTML.
+### H3 — implemented
+- EPUB original preferred when a valid distributable raw source exists;
+- ZIP magic validation before install.
 
-### Gate 6
-- real PDF and EPUB open/read/reopen on PW3.
+### H4 — implemented
+- processed HTML fallback only after a non-transient raw-source failure for which fallback is safe;
+- retryable network/storage failures do not silently switch format;
+- if neither raw source nor usable HTML exists, record a stable per-document content skip.
+
+### Gate 6 — PASSED
+Physical PW3 validation on KOReader v2026.07.1 passed:
+- one real original Reader PDF opens, reads and reopens with progress preserved;
+- one real original Reader EPUB opens, reflows and reopens with progress preserved;
+- both remain usable as local/offline documents;
+- no crash/freeze was observed.
+
+HTML fallback remains valid product behavior but does not substitute for the original-format proof above.
 
 ## Phase I — sidecar/annotation adapter
 

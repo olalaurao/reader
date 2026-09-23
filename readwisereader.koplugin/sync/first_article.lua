@@ -10,6 +10,7 @@ function FirstArticle:new(options)
         repository = assert(options.repository, "repository is required"),
         html = assert(options.html, "html is required"),
         images = options.images,
+        raw_source = options.raw_source,
         filenames = assert(options.filenames, "filenames is required"),
         installer = assert(options.installer, "installer is required"),
         hasher = assert(options.hasher, "hasher is required"),
@@ -76,6 +77,57 @@ function FirstArticle:fetchDocument(reader_id)
     return document
 end
 
+function FirstArticle:listFormatCandidates(category, limit)
+    if category ~= "pdf" and category ~= "epub" then
+        return nil, {
+            kind = "content",
+            retryable = false,
+            message = "Unsupported raw format candidate category.",
+        }
+    end
+    local page, err = self.reader:listDocuments{
+        category = category,
+        limit = tonumber(limit) or 100,
+        with_html_content = false,
+        with_raw_source_url = false,
+    }
+    if not page then return nil, err end
+
+    local candidates = {}
+    for _, document in ipairs(page.results) do
+        if document.parent_id == nil and document.category == category then
+            candidates[#candidates + 1] = {
+                id = document.id,
+                title = document.title,
+                author = document.author,
+                location = document.location,
+                category = category,
+            }
+        end
+    end
+    return candidates
+end
+
+function FirstArticle:fetchFormatDocument(reader_id, category)
+    if category ~= "pdf" and category ~= "epub" then
+        return nil, {
+            kind = "content",
+            retryable = false,
+            message = "Unsupported raw format category.",
+        }
+    end
+    local document, err = self.reader:getDocument(reader_id, true, true)
+    if not document then return nil, err end
+    if document.parent_id ~= nil or document.category ~= category then
+        return nil, {
+            kind = "content",
+            retryable = false,
+            message = "Reader returned a different document category.",
+        }
+    end
+    return document
+end
+
 function FirstArticle:getExistingPath(reader_id)
     local existing = self.repository:getById(reader_id)
     if existing and existing.local_path and self.file_exists(existing.local_path) then
@@ -83,25 +135,67 @@ function FirstArticle:getExistingPath(reader_id)
     end
 end
 
-function FirstArticle:installDocument(document)
-    assert(type(document) == "table", "document is required")
-    assert(type(document.id) == "string" and document.id ~= "", "document.id is required")
+local RAW_CATEGORIES = { pdf = true, epub = true }
 
-    local existing_path = self:getExistingPath(document.id)
-    if existing_path then
-        return {
-            path = existing_path,
-            existing = true,
+local function folderFor(document)
+    if document.category == "pdf" then return "PDFs" end
+    if document.category == "epub" then return "EPUBs" end
+    return "Articles"
+end
+
+function FirstArticle:_finalPath(document, extension)
+    local filename = self.filenames.build(document.title, document.id, extension)
+    return self.filenames.joinUnderRoot(
+        self.download_root,
+        folderFor(document),
+        filename
+    )
+end
+
+function FirstArticle:_fallbackPath(document, extension)
+    local filename = self.filenames.build(nil, document.id, extension)
+    return self.filenames.joinUnderRoot(
+        self.download_root,
+        folderFor(document),
+        filename
+    )
+end
+
+function FirstArticle:_recordLocal(document, state)
+    self.repository:setLocalState(document.id, {
+        local_path = state.path,
+        local_format = state.format,
+        download_strategy = state.strategy,
+        local_content_hash = state.content_hash,
+        remote_content_fingerprint = state.remote_fingerprint,
+        is_local_present = true,
+        last_materialized_at = self.now(),
+        last_sync_error = nil,
+    })
+
+    local metadata_ok, metadata_err = self.koreader_documents:writeMetadata(state.path, document)
+    return {
+        path = state.path,
+        existing = false,
+        durability_warning = state.durability_warning,
+        metadata_warning = metadata_ok and nil or metadata_err,
+        image_report = state.image_report,
+        raw_source_used = state.strategy == "reader_raw_source",
+        raw_fallback_used = state.strategy == "reader_html_fallback",
+        raw_bytes = state.raw_bytes,
+    }
+end
+
+function FirstArticle:_installHtml(document, strategy)
+    if type(document.html_content) ~= "string" or document.html_content:match("^%s*$") then
+        return nil, {
+            kind = "content",
+            retryable = false,
+            message = "Reader did not provide usable processed HTML content for this document.",
         }
     end
 
-    local filename = self.filenames.build(document.title, document.id, "html")
-    local final_path = self.filenames.joinUnderRoot(
-        self.download_root,
-        "Articles",
-        filename
-    )
-
+    local final_path = self:_finalPath(document, "html")
     local render_document = document
     local image_report
     if self.images then
@@ -124,66 +218,134 @@ function FirstArticle:installDocument(document)
         return nil, render_err
     end
 
-    self.repository:upsertRemote(document, self.now())
-
     local installed, install_err = self.installer:install(rendered, final_path)
-
-    -- Some Kindle/VFAT paths reject otherwise valid-looking Unicode/title
-    -- filenames with EINVAL. Reader ID is the ownership identity, so retry
-    -- only that specific filename/path failure with an ASCII-safe title while
-    -- preserving the real title in KOReader metadata.
     if not installed
         and install_err
         and install_err.kind == "io"
         and install_err.stage == "open"
         and install_err.detail == "invalid_name" then
-        local fallback_filename = self.filenames.build(nil, document.id, "html")
-        local fallback_path = self.filenames.joinUnderRoot(
-            self.download_root,
-            "Articles",
-            fallback_filename
-        )
+        local fallback_path = self:_fallbackPath(document, "html")
         if fallback_path ~= final_path then
             installed, install_err = self.installer:install(rendered, fallback_path)
-            if installed then
-                final_path = fallback_path
-            end
+            if installed then final_path = fallback_path end
         end
     end
 
     if not installed then
         if self.images and image_report then self.images:cleanup(image_report.new_paths) end
-        self.repository:setLocalState(document.id, {
-            is_local_present = false,
-            last_sync_error = install_err and install_err.kind or "io",
-        })
         return nil, install_err
     end
 
     local content_hash = self.hasher.digest(rendered)
     local fingerprint_input = tostring(document.updated_at or "") .. "\n" .. content_hash
-    local remote_fingerprint = self.hasher.digest(fingerprint_input)
-    local materialized_at = self.now()
-
-    self.repository:setLocalState(document.id, {
-        local_path = final_path,
-        local_format = "html",
-        download_strategy = "reader_html",
-        local_content_hash = content_hash,
-        remote_content_fingerprint = remote_fingerprint,
-        is_local_present = true,
-        last_materialized_at = materialized_at,
-        last_sync_error = nil,
-    })
-
-    local metadata_ok, metadata_err = self.koreader_documents:writeMetadata(final_path, document)
-    return {
+    return self:_recordLocal(document, {
         path = final_path,
-        existing = false,
+        format = "html",
+        strategy = strategy or "reader_html",
+        content_hash = content_hash,
+        remote_fingerprint = self.hasher.digest(fingerprint_input),
         durability_warning = installed.durability_warning,
-        metadata_warning = metadata_ok and nil or metadata_err,
         image_report = image_report,
-    }
+    })
 end
 
+function FirstArticle:_installRaw(document)
+    if not self.raw_source then
+        return nil, {
+            kind = "raw_unavailable",
+            retryable = false,
+            message = "Raw source downloader is not configured.",
+        }
+    end
+
+    local extension = document.category
+    local final_path = self:_finalPath(document, extension)
+    local installed, install_err = self.raw_source:download(document, final_path)
+
+    if not installed
+        and install_err
+        and install_err.kind == "io"
+        and install_err.stage == "open"
+        and install_err.detail == "invalid_name" then
+        local fallback_path = self:_fallbackPath(document, extension)
+        if fallback_path ~= final_path then
+            installed, install_err = self.raw_source:download(document, fallback_path)
+            if installed then final_path = fallback_path end
+        end
+    end
+
+    if not installed then return nil, install_err end
+
+    local remote_fingerprint = self.hasher.digest(
+        tostring(document.updated_at or "")
+            .. "\nraw:"
+            .. tostring(document.category)
+            .. ":"
+            .. tostring(installed.bytes or 0)
+    )
+    return self:_recordLocal(document, {
+        path = final_path,
+        format = installed.format,
+        strategy = installed.download_strategy,
+        content_hash = nil,
+        remote_fingerprint = remote_fingerprint,
+        durability_warning = installed.durability_warning,
+        raw_bytes = installed.bytes,
+    })
+end
+
+function FirstArticle:installDocument(document)
+    assert(type(document) == "table", "document is required")
+    assert(type(document.id) == "string" and document.id ~= "", "document.id is required")
+
+    local existing_path = self:getExistingPath(document.id)
+    if existing_path then
+        return {
+            path = existing_path,
+            existing = true,
+        }
+    end
+
+    self.repository:upsertRemote(document, self.now())
+
+    if RAW_CATEGORIES[document.category] then
+        local raw_result, raw_err = self:_installRaw(document)
+        if raw_result then return raw_result end
+
+        if self.raw_source and self.raw_source:isFallbackEligible(raw_err) then
+            if type(document.html_content) == "string"
+                and not document.html_content:match("^%s*$") then
+                local fallback, fallback_err = self:_installHtml(document, "reader_html_fallback")
+                if fallback then
+                    fallback.raw_warning = raw_err
+                    return fallback
+                end
+                raw_err = fallback_err or raw_err
+            else
+                raw_err = {
+                    kind = "content",
+                    stage = "raw_fallback",
+                    detail = raw_err and raw_err.kind or "raw_unavailable",
+                    retryable = false,
+                    message = "Reader raw source was unavailable and no processed HTML fallback was provided.",
+                }
+            end
+        end
+
+        self.repository:setLocalState(document.id, {
+            is_local_present = false,
+            last_sync_error = raw_err and raw_err.kind or "content",
+        })
+        return nil, raw_err
+    end
+
+    local result, err = self:_installHtml(document, "reader_html")
+    if not result then
+        self.repository:setLocalState(document.id, {
+            is_local_present = false,
+            last_sync_error = err and err.kind or "content",
+        })
+    end
+    return result, err
+end
 return FirstArticle

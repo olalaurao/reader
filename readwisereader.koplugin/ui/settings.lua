@@ -150,7 +150,31 @@ function SettingsUI:getSettingsMenu()
                                 end,
                             },
                             {
-                                text = _("PDF / EPUB / Email / RSS: later gates"),
+                                text = _("PDF"),
+                                checked_func = function()
+                                    return self.config:isSyncCategoryEnabled("pdf")
+                                end,
+                                callback = function()
+                                    self.config:setSyncCategoryEnabled(
+                                        "pdf",
+                                        not self.config:isSyncCategoryEnabled("pdf")
+                                    )
+                                end,
+                            },
+                            {
+                                text = _("EPUB"),
+                                checked_func = function()
+                                    return self.config:isSyncCategoryEnabled("epub")
+                                end,
+                                callback = function()
+                                    self.config:setSyncCategoryEnabled(
+                                        "epub",
+                                        not self.config:isSyncCategoryEnabled("epub")
+                                    )
+                                end,
+                            },
+                            {
+                                text = _("Email / RSS: later gate"),
                                 enabled_func = function() return false end,
                             },
                         },

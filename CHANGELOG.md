@@ -1,4 +1,7 @@
 # Changelog
+- Phase H experimental 0.1.20 adds original Reader PDF/EPUB materialization through ephemeral `raw_source_url` links: bounded streaming to temp files, PDF/ZIP magic validation, atomic install, 64 MiB per-file cap, 128 MiB free-space reserve, original-format-first behavior and processed-HTML fallback only for safe non-transient raw-source failures.
+- Added PDF/EPUB document-type toggles (still off by default), raw-format outcome counters, and a targeted **Test PDF / EPUB (Gate 6)** picker so the physical gate can validate one real PDF and EPUB without triggering a whole-library raw-format backfill.
+
 - Phase G started with experimental 0.1.17: added an on-device CRengine spike for document-relative local image assets plus an intentionally missing asset to validate graceful failure on the PW3 before production image downloading is implemented.
 - Experimental 0.1.18 implements bounded offline article image caching with relative local assets, a 2 MiB per-image cap, 8 MiB per-article image budget, 20-attempt limit, duplicate URL reuse within an article, and non-fatal placeholders for unavailable/unsupported/over-limit images.
 - Added a `Download article images` document setting (default on), image outcome counters in sync summaries, and a bounded HTTP sink so oversized image responses are aborted before being fully accumulated in memory.

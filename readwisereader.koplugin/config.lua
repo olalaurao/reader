@@ -120,6 +120,14 @@ function Config:getMaxImagesPerArticle()
     return Constants.MAX_IMAGES_PER_ARTICLE
 end
 
+function Config:getMaxRawSourceBytes()
+    return Constants.MAX_RAW_SOURCE_BYTES
+end
+
+function Config:getMinRawSourceFreeBytes()
+    return Constants.MIN_RAW_SOURCE_FREE_BYTES
+end
+
 function Config:getSyncLocations()
     return self:_getListSetting("sync_locations", Constants.DEFAULT_SYNC_LOCATIONS)
 end

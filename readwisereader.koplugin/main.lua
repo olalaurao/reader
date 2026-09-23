@@ -12,6 +12,7 @@ local Html = require("content/html")
 local Images = require("content/images")
 local Http = require("api/http")
 local Installer = require("content/installer")
+local RawSource = require("content/raw_source")
 local KOReaderCollections = require("koreader/collections")
 local KOReaderDocuments = require("koreader/documents")
 local Reader = require("api/reader")
@@ -21,6 +22,7 @@ local SettingsUI = require("ui/settings")
 local SyncMeta = require("storage/sync_meta")
 local SyncUI = require("ui/sync")
 local ImageSpikeUI = require("ui/image_spike")
+local RawFormatUI = require("ui/raw_format")
 local TagDiagnosticsUI = require("ui/tag_diagnostics")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
@@ -60,6 +62,13 @@ function ReadwiseReader:init()
             total_max = self.config:getMaxArticleImageBytes(),
             max_images = self.config:getMaxImagesPerArticle(),
         },
+        raw_source = RawSource:new{
+            http = self.http,
+            installer = installer,
+            download_root = self.config:getDownloadDirectory(),
+            max_bytes = self.config:getMaxRawSourceBytes(),
+            min_free_bytes = self.config:getMinRawSourceFreeBytes(),
+        },
         filenames = Filenames,
         installer = installer,
         hasher = Hash,
@@ -96,6 +105,11 @@ function ReadwiseReader:init()
         installer = Installer:new(),
         koreader_documents = self.koreader_documents,
     }
+    self.raw_format_ui = RawFormatUI:new{
+        config = self.config,
+        koreader_documents = self.koreader_documents,
+        collections = self.koreader_collections,
+    }
     self.ui.menu:registerToMainMenu(self)
 end
 
@@ -111,6 +125,7 @@ function ReadwiseReader:addToMainMenu(menu_items)
             self.library_ui:getScanMenuItem(),
             self.tag_diagnostics_ui:getMenuItem(),
             self.image_spike_ui:getMenuItem(),
+            self.raw_format_ui:getMenuItem(),
             self.settings_ui:getSettingsMenu(),
         },
     }

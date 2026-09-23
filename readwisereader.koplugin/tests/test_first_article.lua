@@ -54,9 +54,10 @@ local function newCoordinator(options)
             end,
         },
         images = options.images,
+        raw_source = options.raw_source,
         filenames = options.filenames or {
-            build = function(_, id)
-                return "article--rw-" .. id .. ".html"
+            build = function(_, id, extension)
+                return "article--rw-" .. id .. "." .. (extension or "html")
             end,
             joinUnderRoot = function(root, subdir, filename)
                 return root .. "/" .. subdir .. "/" .. filename
@@ -117,6 +118,50 @@ return function()
     end
 
     do
+        local captured = {}
+        local coordinator = newCoordinator{
+            reader = {
+                listDocuments = function(_, request)
+                    captured.list = request
+                    return {
+                        results = {
+                            { id = "p1", title = "PDF 1", category = "pdf", location = "later" },
+                            { id = "child", title = "Child", category = "pdf", parent_id = "p1" },
+                        },
+                    }
+                end,
+                getDocument = function(_, id, with_html, with_raw)
+                    captured.get = {
+                        id = id,
+                        with_html = with_html,
+                        with_raw = with_raw,
+                    }
+                    return {
+                        id = id,
+                        title = "PDF 1",
+                        category = "pdf",
+                        location = "later",
+                        raw_source_url = "https://signed.example/p1",
+                        html_content = "<p>fallback</p>",
+                    }
+                end,
+            },
+        }
+        local candidates, list_err = coordinator:listFormatCandidates("pdf", 10)
+        assert(list_err == nil)
+        assert(#candidates == 1 and candidates[1].id == "p1")
+        assert(captured.list.category == "pdf")
+        assert(captured.list.limit == 10)
+        assert(captured.list.with_raw_source_url == false)
+
+        local document, get_err = coordinator:fetchFormatDocument("p1", "pdf")
+        assert(get_err == nil)
+        assert(document.category == "pdf")
+        assert(captured.get.with_html == true)
+        assert(captured.get.with_raw == true)
+    end
+
+    do
         local coordinator, rows, states, installs, metadata = newCoordinator()
         local document, fetch_err = coordinator:fetchDocument("article-1")
         assert(fetch_err == nil)
@@ -172,6 +217,106 @@ return function()
         assert(#installs == 1)
         assert(installs[1].content:find('.rw%-assets%-with%-images/img%-001%.png'))
         assert(states["with-images"].is_local_present == true)
+    end
+
+    do
+        local raw_calls = {}
+        local coordinator, rows, states, installs, metadata = newCoordinator{
+            raw_source = {
+                download = function(_, document, path)
+                    raw_calls[#raw_calls + 1] = { id = document.id, path = path }
+                    return {
+                        path = path,
+                        bytes = 321,
+                        format = "pdf",
+                        download_strategy = "reader_raw_source",
+                    }
+                end,
+                isFallbackEligible = function() return false end,
+            },
+        }
+        local result, err = coordinator:installDocument{
+            id = "pdf-1",
+            title = "Original PDF",
+            category = "pdf",
+            location = "later",
+            updated_at = "u2",
+            raw_source_url = "https://signed.example/pdf",
+            html_content = "<p>fallback</p>",
+        }
+        assert(err == nil)
+        assert(result.raw_source_used == true)
+        assert(result.raw_fallback_used == false)
+        assert(result.raw_bytes == 321)
+        assert(result.path == "/root/Readwise/PDFs/article--rw-pdf-1.pdf")
+        assert(#raw_calls == 1)
+        assert(#installs == 0)
+        assert(states["pdf-1"].local_format == "pdf")
+        assert(states["pdf-1"].download_strategy == "reader_raw_source")
+        assert(rows["pdf-1"].local_path == result.path)
+        assert(#metadata == 1)
+    end
+
+    do
+        local coordinator, _, states, installs = newCoordinator{
+            raw_source = {
+                download = function()
+                    return nil, {
+                        kind = "raw_unavailable",
+                        retryable = false,
+                        message = "no raw source",
+                    }
+                end,
+                isFallbackEligible = function(_, err)
+                    return err and err.kind == "raw_unavailable"
+                end,
+            },
+        }
+        local result, err = coordinator:installDocument{
+            id = "epub-fallback",
+            title = "EPUB fallback",
+            category = "epub",
+            location = "new",
+            updated_at = "u3",
+            html_content = "<p>Readable fallback</p>",
+        }
+        assert(err == nil)
+        assert(result.raw_source_used == false)
+        assert(result.raw_fallback_used == true)
+        assert(result.path == "/root/Readwise/EPUBs/article--rw-epub-fallback.html")
+        assert(#installs == 1)
+        assert(installs[1].content:find("Readable fallback", 1, true))
+        assert(states["epub-fallback"].local_format == "html")
+        assert(states["epub-fallback"].download_strategy == "reader_html_fallback")
+    end
+
+    do
+        local coordinator, _, states = newCoordinator{
+            raw_source = {
+                download = function()
+                    return nil, {
+                        kind = "raw_unavailable",
+                        retryable = false,
+                        message = "no raw",
+                    }
+                end,
+                isFallbackEligible = function() return true end,
+            },
+        }
+        local result, err = coordinator:installDocument{
+            id = "pdf-no-fallback",
+            title = "No fallback",
+            category = "pdf",
+            location = "new",
+            updated_at = "u4",
+            html_content = nil,
+        }
+        assert(result == nil)
+        assert(err.kind == "content")
+        assert(err.stage == "raw_fallback")
+        assert(err.retryable == false)
+        assert(states["pdf-no-fallback"].is_local_present == false)
+        assert(states["pdf-no-fallback"].last_sync_error == "content")
     end
 
     do

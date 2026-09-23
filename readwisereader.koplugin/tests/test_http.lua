@@ -151,6 +151,65 @@ return function()
 
     do
         local socketutil = newSocketUtil()
+        local chunks = {}
+        local http = Http:new{
+            http = {
+                request = function(request)
+                    assert(request.sink("abc") == 1)
+                    assert(request.sink("def") == 1)
+                    assert(request.sink(nil) == 1)
+                    return 1, 200, { ["Content-Type"] = "application/pdf" }, "HTTP/1.1 200 OK"
+                end,
+            },
+            ltn12 = fakeLtn12,
+            socketutil = socketutil,
+            logger = { dbg = function() end },
+        }
+
+        local response, err = http:request{
+            url = "https://signed.example/file.pdf?secret=redacted",
+            timeout_class = "download",
+            max_body_bytes = 10,
+            sink = function(chunk)
+                if chunk then chunks[#chunks + 1] = chunk end
+                return 1
+            end,
+        }
+        assert(err == nil)
+        assert(response.status == 200)
+        assert(response.body == nil)
+        assert(response.bytes_received == 6)
+        assert(table.concat(chunks) == "abcdef")
+    end
+
+    do
+        local socketutil = newSocketUtil()
+        local http = Http:new{
+            http = {
+                request = function(request)
+                    local ok = request.sink("abc")
+                    assert(ok == nil)
+                    return nil, "disk full", nil, nil
+                end,
+            },
+            ltn12 = fakeLtn12,
+            socketutil = socketutil,
+            logger = { dbg = function() end },
+        }
+        local response, err = http:request{
+            url = "https://signed.example/file.pdf?secret=redacted",
+            sink = function()
+                return nil, "no space left on device"
+            end,
+        }
+        assert(response == nil)
+        assert(err.kind == "sink")
+        assert(err.retryable == true)
+        assert(err.detail:find("no space left", 1, true))
+    end
+
+    do
+        local socketutil = newSocketUtil()
         local http = Http:new{
             http = {
                 request = function()

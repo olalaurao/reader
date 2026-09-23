@@ -67,6 +67,9 @@ local function summaryText(report)
         string.format(_("Images skipped by limits/settings: %d"), report.images_skipped or 0),
         string.format(_("Images unavailable/unsupported: %d"), report.images_failed or 0),
         string.format(_("Image bytes cached: %s"), megabytes(report.image_bytes or 0)),
+        string.format(_("Raw PDF/EPUB downloaded: %d"), report.raw_sources_downloaded or 0),
+        string.format(_("Raw-source HTML fallbacks: %d"), report.raw_html_fallbacks or 0),
+        string.format(_("Raw bytes downloaded: %s"), megabytes(report.raw_source_bytes or 0)),
         string.format(_("Metadata updated: %d"), report.metadata_updated or 0),
         string.format(
             _("Reader tag metadata backfill: %s"),
@@ -113,7 +116,7 @@ end
 
 function SyncUI:getSyncMenuItem()
     return {
-        text = _("Sync now (Gate 4)"),
+        text = _("Sync now"),
         keep_menu_open = true,
         callback = function()
             self:syncNow(false)
@@ -177,7 +180,7 @@ function SyncUI:confirmAndRun(full_rescan)
 
 Existing managed files will not be blindly overwritten. This may take a while.]])
     else
-        text = _([[This is the first document sync. It will download every supported article matching the current Documents filters.
+        text = _([[This is the first document sync. It will download every supported document matching the current Documents filters.
 
 Review Settings → Documents first if you want a smaller initial sync.
 

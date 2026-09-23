@@ -112,7 +112,99 @@ local function doc(id, location, title, updated, html, tags)
     }
 end
 
+local function rawDoc(id, category, location, updated, html, raw_url)
+    return {
+        id = id,
+        category = category,
+        location = location,
+        title = id,
+        updated_at = updated,
+        html_content = html,
+        raw_source_url = raw_url,
+        raw_source_available = type(raw_url) == "string" and raw_url ~= "",
+    }
+end
+
 return function()
+    do
+        local saw_pdf_raw, saw_epub_raw = false, false
+        local reader = {
+            iterateDocuments = function(_, options, callback)
+                if options.with_html_content then
+                    assert(options.location == "new")
+                    if options.category == "pdf" then
+                        assert(options.with_raw_source_url == true)
+                        saw_pdf_raw = true
+                        callback(rawDoc("p1", "pdf", "new", "u1", "<p>pdf fallback</p>", "https://signed/p1"))
+                    elseif options.category == "epub" then
+                        assert(options.with_raw_source_url == true)
+                        saw_epub_raw = true
+                        callback(rawDoc("e1", "epub", "new", "u1", "<p>epub fallback</p>", "https://signed/e1"))
+                    end
+                end
+                return { pages = 1, duplicates = 0 }
+            end,
+        }
+        local materialized = {}
+        local syncer = newSync{
+            reader = reader,
+            categories = { "pdf", "epub" },
+            locations = { "new" },
+            materializer = {
+                installDocument = function(_, document)
+                    materialized[#materialized + 1] = document.category
+                    return {
+                        path = "/Readwise/" .. document.id .. "." .. document.category,
+                        raw_source_used = true,
+                        raw_bytes = document.category == "pdf" and 100 or 200,
+                    }
+                end,
+            },
+        }
+        local report, err = syncer:sync{}
+        assert(err == nil)
+        assert(saw_pdf_raw and saw_epub_raw)
+        table.sort(materialized)
+        assert(materialized[1] == "epub" and materialized[2] == "pdf")
+        assert(report.raw_sources_downloaded == 2)
+        assert(report.raw_source_bytes == 300)
+        assert(report.raw_html_fallbacks == 0)
+    end
+
+    do
+        local meta = fakeMeta({
+            document_watermark = "T001000",
+            document_query_after = "T000995",
+            document_filter_scope = "locations=new;categories=pdf",
+            metadata_projection_version = PROJECTION,
+        })
+        local got_raw = false
+        local reader = {
+            iterateDocuments = function(_, options, callback)
+                assert(options.updated_after == "T000995")
+                callback(rawDoc("p-new", "pdf", "new", "u2", nil, nil))
+                return { pages = 1, duplicates = 0 }
+            end,
+            getDocument = function(_, id, with_html, with_raw)
+                assert(id == "p-new")
+                assert(with_html == true)
+                assert(with_raw == true)
+                got_raw = true
+                return rawDoc("p-new", "pdf", "new", "u2", "<p>fallback</p>", "https://signed/p-new")
+            end,
+        }
+        local syncer = newSync{
+            reader = reader,
+            meta = meta,
+            categories = { "pdf" },
+            locations = { "new" },
+        }
+        local report, err = syncer:sync{}
+        assert(err == nil)
+        assert(got_raw == true)
+        assert(report.downloaded == 1)
+    end
+
     do
         local reader = {
             iterateDocuments = function(_, options, callback)

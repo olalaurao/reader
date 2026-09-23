@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase G COMPLETE — Gate 5 PASSED on PW3 / KOReader 2026.07.1; Phase H raw PDF/EPUB formats is next**
+**Phase H COMPLETE — Gate 6 PASSED on PW3 / KOReader 2026.07.1; Phase I sidecar/annotation adapter is next**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Current work is **Phase F.5 / Gate 4A**:
+Current work is **Phase H / Gate 6**. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -410,6 +410,62 @@ Accepted production behavior:
 
 **Phase G is complete. Phase H / Gate 6 (raw PDF + EPUB with fallback) is now unblocked.**
 
+## Phase H — raw PDF / EPUB
+
+### 0.1.20 implementation ready for Gate 6
+
+Baseline:
+- target PW3 / KOReader v2026.07.1;
+- Bookshelf v5.1.4 may remain installed;
+- Phase G / Gate 5 is closed and merged to `main` through PR #8 as `f33bcd6210931b3d74bcb5a814e1cc9e3591fec2`.
+
+Implemented H1/H2/H3/H4:
+- Reader `raw_source_url` is requested only when a PDF/EPUB actually needs materialization; signed source URLs are never persisted and request logging strips their query parameters;
+- raw files stream directly from HTTP into a temporary file instead of being accumulated fully in Lua memory;
+- streamed files are fsynced, minimally validated, atomically renamed and temp files are removed on failure;
+- PDF validation requires the `%PDF-` signature;
+- EPUB validation requires ZIP magic;
+- safety cap: **64 MiB per raw source**;
+- free-space reserve before raw download: **128 MiB**;
+- transient network/no-space failures remain retryable and do not silently substitute content;
+- missing/expired/non-distributable/invalid/over-limit raw sources may fall back to Reader processed HTML **only when usable HTML exists**;
+- raw-without-fallback becomes a stable nonretryable per-document content skip rather than stranding the global watermark;
+- local state records the actual format/strategy (`reader_raw_source` vs `reader_html_fallback`);
+- normal sync supports PDF/EPUB categories, but they remain OFF by default so upgrading does not unexpectedly backfill the user's whole raw-format library;
+- sync summary reports original raw downloads, HTML fallbacks and raw bytes;
+- targeted **Readwise Reader -> Test PDF / EPUB (Gate 6)** picker was added so physical Gate 6 can test exactly one PDF and one EPUB without enabling global category filters;
+- if the chosen item only produces HTML fallback, the Gate 6 UI says so and asks for a different document instead of falsely treating the fallback as an original-format pass.
+
+Automated coverage includes:
+- bounded streaming HTTP sink and sink failure;
+- streamed temp/fsync/validate/atomic-install lifecycle;
+- PDF/EPUB magic validation;
+- raw missing/invalid/oversize/fallback eligibility;
+- no-space preflight;
+- original PDF materialization and EPUB HTML fallback;
+- raw source with no HTML fallback;
+- full and incremental sync requesting fresh raw URLs only for raw categories;
+- targeted Gate 6 candidate fetch requesting both processed HTML and a fresh raw URL;
+- targeted Gate 6 UI: original raw opens normally, while HTML fallback still receives KOReader metadata/Collection projection but is explicitly rejected as original-format gate evidence.
+- run #294: **SUCCESS** — raw/fallback UI path coverage;
+- run #295 on `84741215...`: **SUCCESS** — full syntax, all unit tests, package/layout and artifact;
+- run #296 on `5852ac33...`: **SUCCESS** — final 0.1.20 documentation/build tip;
+- installable inner ZIP verified with `unzip -t`; SHA-256: `20fe677c52ea4eefba24c4fb4e98c09b286df04f2b0eaddd416f64e2de4fd23c`.
+
+Physical Gate 6 result on the target PW3 / KOReader 2026.07.1:
+- one real Reader PDF downloaded/opened as the original PDF: **PASS**;
+- PDF close/reopen and reading progress preservation: **PASS**;
+- one real Reader EPUB downloaded/opened as the original EPUB: **PASS**;
+- EPUB reflow/font reading behavior: **PASS**;
+- EPUB close/reopen and reading progress preservation: **PASS**;
+- offline/local reopen: **PASS**;
+- no crash/freeze: **PASS**.
+
+### Gate 6 — PASS
+
+Gate 6 is closed. **Phase H is complete and Phase I / Gate 7 (KOReader sidecar/annotation adapter) is now unblocked.**
+
+
 
 
 
@@ -424,8 +480,8 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 
 ## Current branch / commit
 
-- Branch: `phase-g/images-gate5`
-- Base `main`: `268388dca4f115890a491d557fa81d08f325979e` (PR #7 merge / Phase F.5 + Gate 4A passed)
+- Branch: `phase-h/raw-formats-gate6`
+- Base `main`: `f33bcd6210931b3d74bcb5a814e1cc9e3591fec2` (PR #8 merge / Phase G + Gate 5 passed)
 - Phase F historical merge: `21dd64719ca248dd7706895fab1651751edf8844` (Gate 4 passed on KOReader 2025.04)
 - F1 settings/root ownership: `a57da9980d1b77a16bf2a0b8fbaa09327b1691d9`
 - F1/F2 incremental sync engine: `265405a479ab538ed4fbdde9223ca97c28aaad07`
@@ -453,7 +509,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Jailbreak/KUAL functional
 - KOReader historical Gate 0–4 baseline: `2025.04`
 - canonical physical V1 baseline from Gate 4A-1 onward: official KOReader `v2026.07.1`, `kindlepw2` package
-- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase G / Gate 5 images
+- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase H / Gate 6 raw PDF + EPUB
 
 ## Phase A result
 
@@ -1310,34 +1366,24 @@ A deliberate roadmap/spec change was made on 2026-09-22 at the user's request: K
 
 ## Blockers
 
-Immediate blocker: **merge Phase F, then Gate 4A on the target PW3**. Phase G is blocked until Gate 4A-1 and Gate 4A-2 pass.
-
-**Gate 4A is now the next blocker:** Readwise Reader regression on official KOReader v2026.07.1, then Bookshelf v5.1.4 coexistence.
+Immediate blocker: **Gate 6 physical validation on the target PW3** for one original Reader PDF and one original Reader EPUB.
 
 Later hard gates remain:
+- KOReader sidecar annotation extraction/identity;
 - Reader v3 ↔ Readwise v2 highlight ID mapping;
 - safe note-update path;
 - safe highlight-delete path;
 - exact-content matching edge cases;
-- relative image assets on CRengine;
 - content replacement vs existing KOReader positions/sidecars.
 
 ## Exact next steps
 
-1. Run final Phase F CI on the current branch tip.
-2. Open/merge the normal Phase F PR into `main`; record the exact merge commit/package as the known-good KOReader 2025.04 baseline.
-3. Before changing KOReader, back up `/mnt/us/koreader/` (or at minimum settings/plugins/Readwise DB) plus `/mnt/us/documents/Readwise/` and sidecars.
-4. Upgrade **KOReader only** to official v2026.07.1 using `koreader-kindlepw2-v2026.07.1.zip`; do not update Kindle firmware/jailbreak.
-5. Run Gate 4A-1 — a targeted compatibility regression, **not a full replay of Gates 0–4**:
-   - KOReader/plugin loads;
-   - token/test connection;
-   - open an existing downloaded article and verify progress/highlight/note;
-   - normal sync + no-op second sync;
-   - cancel one full rescan and verify watermark safety;
-   - one managed Reader move/rename on the same file.
-6. If Gate 4A-1 passes, install Bookshelf v5.1.4 with Cover browser enabled.
-7. Run Gate 4A-2 coexistence, including Reader location -> Collections and Reader tags -> Bookshelf-compatible metadata.
-8. **Do not begin Phase G until Gate 4A-1 and Gate 4A-2 pass.**
+1. Package/install build **0.1.20** after final CI.
+2. On the PW3, use **Readwise Reader -> Test PDF / EPUB (Gate 6) -> Choose one PDF** and select a real distributable PDF.
+3. Confirm it opens as a native PDF, reads normally, closes/reopens and preserves progress. If the plugin reports HTML fallback, choose a different PDF.
+4. Repeat with **Choose one EPUB** and confirm native EPUB reflow/font controls, close/reopen and progress. If it reports HTML fallback, choose a different EPUB.
+5. Prefer one offline reopen after both originals are local; no global PDF/EPUB sync filter or Full document rescan is required for this gate.
+6. If both originals pass, close Gate 6 / Phase H, merge to `main`, then begin Phase I sidecar/annotation adapter.
 
 ## Existing architectural decisions still in force
 

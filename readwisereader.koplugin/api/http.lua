@@ -101,26 +101,31 @@ function Http:request(options)
     local method = options.method or "GET"
     local url = assert(options.url, "url is required")
     local sink = {}
+    local custom_sink = options.sink
     local max_body_bytes = tonumber(options.max_body_bytes)
     if max_body_bytes and max_body_bytes <= 0 then max_body_bytes = nil end
     local received = 0
     local body_too_large = false
+    local sink_failed = false
+    local sink_error
 
-    local response_sink
-    if max_body_bytes then
-        response_sink = function(chunk)
-            if chunk ~= nil then
-                received = received + #chunk
-                if received > max_body_bytes then
-                    body_too_large = true
-                    return nil, "response body exceeded configured limit"
-                end
-                sink[#sink + 1] = chunk
+    local downstream = custom_sink or self.socketutil.table_sink(sink)
+    local response_sink = function(chunk)
+        if chunk ~= nil then
+            received = received + #chunk
+            if max_body_bytes and received > max_body_bytes then
+                body_too_large = true
+                return nil, "response body exceeded configured limit"
             end
-            return 1
         end
-    else
-        response_sink = self.socketutil.table_sink(sink)
+
+        local ok, err = downstream(chunk)
+        if ok == nil or ok == false then
+            sink_failed = true
+            sink_error = err
+            return nil, err
+        end
+        return ok
     end
 
     local request = {
@@ -162,6 +167,15 @@ function Http:request(options)
         }
     end
 
+    if sink_failed then
+        return nil, {
+            kind = "sink",
+            retryable = true,
+            message = "The response could not be written safely.",
+            detail = sink_error and tostring(sink_error) or nil,
+        }
+    end
+
     if not call[1] then
         return nil, {
             kind = "unknown",
@@ -181,7 +195,14 @@ function Http:request(options)
     end
 
     if status >= 200 and status < 300 then
-        return { status = status, headers = headers, body = table.concat(sink) }
+        local body
+        if not custom_sink then body = table.concat(sink) end
+        return {
+            status = status,
+            headers = headers,
+            body = body,
+            bytes_received = received,
+        }
     end
 
     return nil, statusError(status, headers)
