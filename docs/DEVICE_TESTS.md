@@ -592,7 +592,7 @@ Gate 4 is closed. Do not replay all Gates 0–4 after the KOReader upgrade. Gate
 
 ## Gate 4A — KOReader v2026.07.1 + Bookshelf migration
 
-Status: **IN PROGRESS — Gate 4A-1 PASSED; Gate 4A-2 base coexistence + Collections PASSED; 0.1.12 tag projection physical validation next**
+Status: **Gate 4A COMPLETE — Gate 4A-1 and Gate 4A-2 PASSED; Phase G / Gate 5 next**
 
 Canonical detailed runbook: `docs/KOREADER_UPGRADE.md`.
 
@@ -716,5 +716,13 @@ Retest:
 Return only:
 `0.1.13 sync errors0: sim/não / tag apareceu em Genres: sim/não / mudança da tag refletiu: sim/não / sem duplicar: sim/não`
 
-Gate 4A-2 closes only after this targeted test passes.
+Gate 4A-2 final result: **PASS**.
+
+Final 0.1.16 tag/cache validation:
+- Reader document tag appeared in Bookshelf Genres after normal sync;
+- deleting the tag in Reader and syncing again removed it from Genres;
+- no Full document rescan was required;
+- no duplicate/settings/sidecar/progress regression observed.
+
+Proceed to Phase G / Gate 5.
 
