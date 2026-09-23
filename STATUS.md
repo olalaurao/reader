@@ -1414,10 +1414,9 @@ A deliberate roadmap/spec change was made on 2026-09-22 at the user's request: K
 
 ## Blockers
 
-Immediate blocker: **Gate 6 physical validation on the target PW3** for one original Reader PDF and one original Reader EPUB.
+Immediate blocker: **Gate 7 physical validation on the target PW3** for one managed article highlight/note and stable sidecar identity after reopen.
 
 Later hard gates remain:
-- KOReader sidecar annotation extraction/identity;
 - Reader v3 ↔ Readwise v2 highlight ID mapping;
 - safe note-update path;
 - safe highlight-delete path;
@@ -1426,12 +1425,13 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Package/install build **0.1.20** after final CI.
-2. On the PW3, use **Readwise Reader -> Test PDF / EPUB (Gate 6) -> Choose one PDF** and select a real distributable PDF.
-3. Confirm it opens as a native PDF, reads normally, closes/reopens and preserves progress. If the plugin reports HTML fallback, choose a different PDF.
-4. Repeat with **Choose one EPUB** and confirm native EPUB reflow/font controls, close/reopen and progress. If it reports HTML fallback, choose a different EPUB.
-5. Prefer one offline reopen after both originals are local; no global PDF/EPUB sync filter or Full document rescan is required for this gate.
-6. If both originals pass, close Gate 6 / Phase H, merge to `main`, then begin Phase I sidecar/annotation adapter.
+1. Finish final CI/package for build **0.1.21**.
+2. Install only the updated `readwisereader.koplugin`; keep the existing database/settings/documents.
+3. On one already-managed article, create a short highlight and the distinctive Gate 7 note from `docs/DEVICE_TESTS.md`.
+4. Close/reopen the article and run **Scan current annotations (Gate 7)** from inside that article.
+5. Verify exact selected text/note, populated locator evidence and `Identity quality: strong`; record the Local ID.
+6. Close/reopen once more and rescan; the same Local ID must remain and the item should be unchanged.
+7. If Gate 7 passes, close/merge Phase I and begin **Phase J / Gate 8 annotation API interoperability spike**. No outbound annotation sync should be implemented before that spike proves the current Reader/Readwise ID/update/delete behavior.
 
 ## Existing architectural decisions still in force
 
