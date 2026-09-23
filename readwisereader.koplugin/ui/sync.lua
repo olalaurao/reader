@@ -67,6 +67,9 @@ local function summaryText(report)
         string.format(_("Images skipped by limits/settings: %d"), report.images_skipped or 0),
         string.format(_("Images unavailable/unsupported: %d"), report.images_failed or 0),
         string.format(_("Image bytes cached: %s"), megabytes(report.image_bytes or 0)),
+        string.format(_("Raw PDF/EPUB downloaded: %d"), report.raw_sources_downloaded or 0),
+        string.format(_("Raw-source HTML fallbacks: %d"), report.raw_html_fallbacks or 0),
+        string.format(_("Raw bytes downloaded: %s"), megabytes(report.raw_source_bytes or 0)),
         string.format(_("Metadata updated: %d"), report.metadata_updated or 0),
         string.format(
             _("Reader tag metadata backfill: %s"),
