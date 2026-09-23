@@ -46,6 +46,8 @@ local function summaryText(report)
         string.format(_("Filtered out: %d"), report.filtered_out or 0),
         string.format(_("Metadata documents seen: %d"), report.metadata_seen or 0),
         string.format(_("Active filters: %s"), report.filter_scope or _("unknown")),
+        string.format(_("Skipped (not materializable): %d"), report.nonretryable_skipped or 0),
+        string.format(_("Retryable item errors: %d"), report.retryable_item_errors or 0),
         string.format(_("Errors: %d"), report.errors or 0),
         string.format(_("Metadata write errors: %d"), report.postprocess_metadata_errors or 0),
         string.format(_("Collection write errors: %d"), report.postprocess_collection_errors or 0),
