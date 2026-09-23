@@ -112,6 +112,21 @@ Current interpretation:
 - continue Gate 4A-2 with targeted functional checks only; do not stress-test large grouped shelves unnecessarily.
 
 
+### Gate 4A-2 base coexistence functional pass
+
+Physical result on target PW3 / KOReader 2026.07.1 + Bookshelf v5.1.4:
+- a Readwise-managed article opens successfully from Bookshelf;
+- existing reading progress is preserved;
+- closing the article returns to Bookshelf without crash;
+- Readwise Reader `Sync now` completes successfully with Bookshelf installed;
+- a second no-op sync completes without creating duplicates.
+
+Base Bookshelf/Readwise coexistence is therefore **PASS**. Remaining Gate 4A-2 blockers are:
+- validate Reader-location Collections inside Bookshelf and a Reader-side location move;
+- implement and validate Reader tags -> Bookshelf-compatible metadata;
+- final restart/persistence/no-op coexistence check.
+
+
 
 
 
