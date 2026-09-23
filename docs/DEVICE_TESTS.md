@@ -508,16 +508,29 @@ Expected:
 
 ### G4.3 — Reader location move
 
-Choose one already-downloaded test article and change its Reader location between supported locations that remain observable in your test.
+Use the latest Gate 4 recovery build (0.1.11 or newer). Choose one **already-downloaded** test article and change its Reader location between supported locations that remain enabled in the plugin.
 
-Run sync.
+Prefer an explicit round trip so the final state is observable even if an earlier failed attempt already updated SQLite:
+
+1. note the current Reader location and confirm the article exists only once locally;
+2. in Reader, move it to another enabled location (for example Inbox -> Later);
+3. run `Sync now`;
+4. verify `Errors: 0`;
+5. open KOReader Collections and verify the same local path is now in the new `Readwise: ...` Collection and is no longer in the old plugin-managed location Collection;
+6. verify any unrelated user Collection containing that file is still intact;
+7. if the first move was previously attempted on an older build, move it back in Reader and sync again to force a fresh transition.
 
 Expected:
 - same Reader-ID-owned local path remains;
 - no new duplicate file;
 - Reader location state updates;
-- membership moves between the plugin-managed `Readwise: ...` Collections;
-- unrelated user Collections are not removed.
+- membership moves between the plugin-managed `Readwise: Inbox/Later/Shortlist/Feed/Archive` Collections;
+- unrelated user Collections are not removed;
+- watermark advances only on a clean sync.
+
+Reader is the source of truth for these remote organization fields: a later Reader-side location change must reconcile the KOReader Collection on the next successful sync.
+
+Bookshelf follow-up (Gate 4A-2): these managed Collections must remain visible/usable as Reader location shelves/filters, and Reader tags must be projected separately through metadata/keywords rather than one Collection per tag.
 
 ### G4.4 — Reader title rename
 
