@@ -52,6 +52,7 @@ function Annotations:upsertLocal(link)
             locator_fingerprint = excluded.locator_fingerprint,
             last_text_hash = excluded.last_text_hash,
             last_note_hash = excluded.last_note_hash,
+            local_deleted_at = NULL,
             sync_state = excluded.sync_state,
             last_sync_error = excluded.last_sync_error;
     ]])
@@ -85,6 +86,43 @@ function Annotations:getById(local_annotation_id)
     local row = stmt:bind(local_annotation_id):step()
     stmt:close()
     return rowToLink(row)
+end
+
+function Annotations:listByDocument(reader_document_id)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        SELECT
+            local_annotation_id, reader_document_id, reader_highlight_document_id,
+            readwise_v2_highlight_id, created_remote, local_created_at,
+            locator_fingerprint, original_text_hash, last_text_hash, last_note_hash,
+            last_synced_text, last_synced_note, remote_updated_marker,
+            local_deleted_at, sync_state, last_sync_error
+        FROM annotation_links
+        WHERE reader_document_id = ?
+        ORDER BY local_annotation_id;
+    ]])
+    local result = {}
+    while true do
+        local row = stmt:bind(reader_document_id):step()
+        if not row then break end
+        result[#result + 1] = rowToLink(row)
+    end
+    stmt:close()
+    return result
+end
+
+function Annotations:markLocalDeleted(local_annotation_id, deleted_at)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        UPDATE annotation_links SET
+            local_deleted_at = COALESCE(local_deleted_at, ?),
+            sync_state = 'local_deleted',
+            last_sync_error = NULL
+        WHERE local_annotation_id = ?;
+    ]])
+    stmt:bind(deleted_at, local_annotation_id):step()
+    stmt:close()
+    return self:getById(local_annotation_id)
 end
 
 function Annotations:setReaderRemoteLink(local_annotation_id, reader_highlight_document_id, synced)
