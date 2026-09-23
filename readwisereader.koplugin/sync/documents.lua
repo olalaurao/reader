@@ -134,6 +134,8 @@ function DocumentsSync:_install(document, report)
         end
         report.errors = report.errors + 1
         report.retryable_item_errors = report.retryable_item_errors + 1
+        local stage = err and err.stage or (err and err.kind) or "unknown"
+        report.retryable_error_stages[stage] = (report.retryable_error_stages[stage] or 0) + 1
         return false
     end
 
@@ -282,6 +284,7 @@ function DocumentsSync:sync(options)
         unsupported_categories = 0,
         nonretryable_skipped = 0,
         retryable_item_errors = 0,
+        retryable_error_stages = {},
         errors = 0,
         watermark_advanced = false,
     }
