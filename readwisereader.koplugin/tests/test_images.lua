@@ -76,6 +76,47 @@ return function()
 
     do
         local installer = newInstaller()
+        local requested = {}
+        local images = Images:new{
+            http = {
+                request = function(_, request)
+                    requested[#requested + 1] = request.url
+                    return { status = 200, headers = { ["Content-Type"] = "image/png" }, body = PNG }
+                end,
+            },
+            installer = installer,
+            per_image_max = 1024,
+            total_max = 4096,
+            max_images = 5,
+            resolve_url = function(src) return src end,
+        }
+
+        local html, report = images:localize({
+            html_content = [[
+<picture>
+  <source srcset="https://cdn.example/small.png 400w, https://cdn.example/good.png 1000w, https://cdn.example/huge.png 1800w">
+  <img src="data:image/gif;base64,placeholder" alt="Responsive">
+</picture>
+<img src="data:image/gif;base64,placeholder" data-src="https://cdn.example/lazy.png" alt="Lazy">
+<img src="https://cdn.example/fallback.png" srcset="https://cdn.example/set-small.png 320w, https://cdn.example/set-good.png 900w" alt="Srcset">
+]],
+        }, "/root/assets", "assets")
+
+        assert(report.candidates == 3)
+        assert(report.responsive_promoted == 1)
+        assert(report.downloaded == 3)
+        assert(#requested == 3)
+        assert(requested[1] == "https://cdn.example/good.png")
+        assert(requested[2] == "https://cdn.example/lazy.png")
+        assert(requested[3] == "https://cdn.example/set-good.png")
+        assert(not html:find("data:image", 1, true))
+        assert(html:find('src="assets/img%-001%.png"'))
+        assert(html:find('src="assets/img%-002%.png"'))
+        assert(html:find('src="assets/img%-003%.png"'))
+    end
+
+    do
+        local installer = newInstaller()
         local requests = 0
         local images = Images:new{
             http = {
