@@ -1,4 +1,5 @@
 # Changelog
+- Phase G started with experimental 0.1.17: added an on-device CRengine spike for document-relative local image assets plus an intentionally missing asset to validate graceful failure on the PW3 before production image downloading is implemented.
 
 All notable project changes are recorded here.
 
