@@ -27,6 +27,7 @@ function Worker:run(options)
     local Reader = require("api/reader")
     local DocumentsSync = require("sync/documents")
     local logger = require("logger")
+    local util = require("util")
 
     local config = Config:new()
     local db
@@ -67,6 +68,7 @@ function Worker:run(options)
             end,
         }
 
+        local storage_before = util.diskUsage(config:getDownloadDirectory())
         local materializer = FirstArticle:new{
             reader = reader,
             repository = repository,
@@ -106,6 +108,9 @@ function Worker:run(options)
         end
         -- Cache invalidation is performed implicitly by parent metadata writes.
         sync_report.metadata_invalidate_paths = nil
+        local storage_after = util.diskUsage(config:getDownloadDirectory())
+        sync_report.storage_available_before = storage_before and storage_before.available or nil
+        sync_report.storage_available_after = storage_after and storage_after.available or nil
         return sync_report
     end)
 
