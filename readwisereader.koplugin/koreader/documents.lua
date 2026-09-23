@@ -16,6 +16,7 @@ function Documents:new(options)
     options = options or {}
     return setmetatable({
         deps = options.deps or defaultDependencies(),
+        broadcast_events = options.broadcast_events ~= false,
     }, self)
 end
 
@@ -46,6 +47,13 @@ function Documents:writeMetadata(filepath, document)
         }
     end
 
+    if self.broadcast_events then
+        self:invalidateMetadata(filepath)
+    end
+    return true
+end
+
+function Documents:invalidateMetadata(filepath)
     self.deps.UIManager:broadcastEvent(self.deps.Event:new("InvalidateMetadataCache", filepath))
     self.deps.UIManager:broadcastEvent(self.deps.Event:new("BookMetadataChanged"))
     return true

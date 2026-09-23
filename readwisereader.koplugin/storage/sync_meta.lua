@@ -29,6 +29,21 @@ function SyncMeta:set(key, value)
     stmt:close()
 end
 
+function SyncMeta:setMany(values)
+    assert(type(values) == "table", "values table is required")
+    self.db:transaction(function(conn)
+        for key, value in pairs(values) do
+            assert(type(key) == "string" and key ~= "", "key is required")
+            local stmt = conn:prepare([[
+                INSERT INTO sync_meta(key, value) VALUES (?, ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+            ]])
+            stmt:bind(key, value):step()
+            stmt:close()
+        end
+    end)
+end
+
 function SyncMeta:delete(key)
     local conn = self.db:getConnection()
     local stmt = conn:prepare("DELETE FROM sync_meta WHERE key = ?;")

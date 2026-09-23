@@ -4,7 +4,7 @@ A KOReader plugin project for using a Kindle as an offline reading client for Re
 
 ## Current status
 
-**Gates 0–3 are complete on the target Kindle Paperwhite 3 / KOReader 2025.04.** Phase E `0.1.2` successfully downloads a selected Reader article, installs/opens it as a normal KOReader document, and preserves normal reading behavior including reflow, search, highlights, notes and reopen persistence. Phase F document sync is next.
+**Gates 0–3 are complete on the target Kindle Paperwhite 3 / KOReader 2025.04. Phase F `0.1.3` is implemented off-device and Gate 4 is next.** It adds filtered multi-article sync, incremental watermarks, stable Reader-ID ownership, metadata/location updates, Readwise Collections, cancellation, sync summaries and explicit full rescan. Existing local content is not destructively refreshed in Phase F.
 
 The Gate 2 action performs a metadata-only full Reader-library scan with cursor guards, ID deduplication, request pacing, bounded `Retry-After` recovery and cancellable KOReader UI. It reports counts by location/category. **It does not download or change Reader documents and does not perform remote writes.**
 
@@ -12,10 +12,11 @@ The Gate 2 action performs a metadata-only full Reader-library scan with cursor 
 
 - Kindle Paperwhite 3 / 7th generation
 - Kindle firmware 5.16.2.1.1
-- KOReader 2025.04
+- KOReader 2025.04 through Gate 4
+- planned controlled migration after Gate 4: official KOReader v2026.07.1 (`kindlepw2` on this PW3), then Bookshelf v5.1.4 coexistence validation
 - Manual sync only for V1
 
-Do not update Kindle firmware or KOReader merely to test this project.
+Do not update Kindle firmware/jailbreak for this project. The KOReader update is now a deliberate Gate 4A migration with backup, rollback and regression testing; see `docs/KOREADER_UPGRADE.md`.
 
 ## Canonical project documents
 
@@ -23,6 +24,7 @@ Do not update Kindle firmware or KOReader merely to test this project.
 - [IMPLEMENTATION_SPEC.md](IMPLEMENTATION_SPEC.md) — canonical implementation architecture, invariants, gates and test requirements.
 - [STATUS.md](STATUS.md) — resumable implementation ledger and exact current next steps.
 - [docs/DEVICE_TESTS.md](docs/DEVICE_TESTS.md) — physical test procedures and results.
+- [docs/KOREADER_UPGRADE.md](docs/KOREADER_UPGRADE.md) — post-Gate-4 KOReader v2026.07.1 + Bookshelf migration/rollback gate.
 
 If code and the implementation spec diverge, either the code must be fixed or the spec must be deliberately updated in the same work and the reason recorded in `STATUS.md`.
 
@@ -98,4 +100,4 @@ The plugin loads an on-device list of article candidates. Select one ordinary kn
 
 Gate 3 validates normal KOReader document behavior: rendering, Unicode, reflow/font/margin controls, search, dictionary UI when configured, local highlight/note creation, and persistence of position/annotations after closing and reopening. Image localization is deliberately deferred to Phase G / Gate 5; PDF/EPUB originals are Phase H / Gate 6.
 
-Follow the exact procedure in `docs/DEVICE_TESTS.md`. **Phase F remains blocked until Gate 3 passes on the real PW3.**
+Gate 3 is closed. Follow the Gate 4 procedure in `docs/DEVICE_TESTS.md` for Phase F. **Do not update KOReader until Gate 4 has passed on the known 2025.04 baseline.**

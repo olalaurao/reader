@@ -130,6 +130,28 @@ function Documents:setLocalState(reader_id, state)
     stmt:close()
 end
 
+function Documents:setLastSyncError(reader_id, error_kind)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare("UPDATE documents SET last_sync_error = ? WHERE reader_id = ?;")
+    stmt:bind(error_kind, reader_id):step()
+    stmt:close()
+end
+
+function Documents:listManaged()
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare(
+        "SELECT " .. SELECT_COLUMNS .. " FROM documents WHERE is_managed = 1 ORDER BY reader_id;"
+    )
+    local documents = {}
+    while true do
+        local row = stmt:step()
+        if not row then break end
+        documents[#documents + 1] = rowToDocument(row)
+    end
+    stmt:close()
+    return documents
+end
+
 function Documents:count()
     return tonumber(self.db:getConnection():rowexec("SELECT count(*) FROM documents;")) or 0
 end

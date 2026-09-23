@@ -53,7 +53,7 @@ local function newCoordinator(options)
                 return "<html>" .. document.html_content .. "</html>"
             end,
         },
-        filenames = {
+        filenames = options.filenames or {
             build = function(_, id)
                 return "article--rw-" .. id .. ".html"
             end,
@@ -61,7 +61,7 @@ local function newCoordinator(options)
                 return root .. "/" .. subdir .. "/" .. filename
             end,
         },
-        installer = {
+        installer = options.installer or {
             install = function(_, content, path)
                 installs[#installs + 1] = { content = content, path = path }
                 return { path = path }
@@ -128,6 +128,54 @@ return function()
         assert(rows["article-1"].local_path == result.path)
         assert(#metadata == 1)
         assert(metadata[1].id == "article-1")
+    end
+
+    do
+        local calls = {}
+        local filenames = {
+            build = function(title, id)
+                if title == nil then
+                    return "Untitled--rw-" .. id .. ".html"
+                end
+                return "problematic--rw-" .. id .. ".html"
+            end,
+            joinUnderRoot = function(root, subdir, filename)
+                return root .. "/" .. subdir .. "/" .. filename
+            end,
+        }
+        local installer = {
+            install = function(_, content, path)
+                calls[#calls + 1] = path
+                if #calls == 1 then
+                    return nil, {
+                        kind = "io",
+                        stage = "open",
+                        detail = "invalid_name",
+                        retryable = true,
+                    }
+                end
+                return { path = path }
+            end,
+        }
+        local coordinator, rows, states = newCoordinator{
+            filenames = filenames,
+            installer = installer,
+        }
+        local result, err = coordinator:installDocument{
+            id = "bad-name",
+            title = "problematic",
+            category = "article",
+            location = "new",
+            updated_at = "u1",
+            html_content = "<p>ok</p>",
+        }
+        assert(err == nil)
+        assert(#calls == 2)
+        assert(calls[1]:find("problematic", 1, true))
+        assert(calls[2]:find("Untitled", 1, true))
+        assert(result.path == calls[2])
+        assert(states["bad-name"].local_path == calls[2])
+        assert(rows["bad-name"].local_path == calls[2])
     end
 
     do

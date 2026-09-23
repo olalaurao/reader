@@ -44,13 +44,19 @@ Desenvolver e validar primeiro para o aparelho real:
 - firmware Kindle: `5.16.2.1.1 (4097470002)`
 - jailbreak funcional
 - KUAL funcional
-- KOReader: `2025.04`
+- KOReader atual / baseline validada: `2025.04`
+- migração planejada imediatamente depois do Gate 4: KOReader oficial `2026.07.1`, pacote `kindlepw2`
+- Bookshelf planejado depois da regressão do novo KOReader: `v5.1.4`
 
 ### Regra de compatibilidade
 
-A V1 só será considerada pronta depois de funcionar de forma repetível nesse hardware real.
+A V1 continua presa ao mesmo PW3 real. Até o Gate 4, `2025.04` é a baseline conhecida. **Depois que o Gate 4 passar**, faremos uma migração controlada para `2026.07.1` antes de implementar imagens, formatos raw e sidecars/anotações.
 
-Depois disso, compatibilidade com outras versões do KOReader/Kindle pode ser ampliada sem comprometer o alvo inicial.
+O novo KOReader só vira o alvo físico canônico depois de um gate de regressão do Readwise Reader. Bookshelf entra somente depois desse primeiro gate, para separar regressão de versão de conflito entre plugins.
+
+Com firmware 5.16.2.1.1, o target planejado é `kindlepw2`; `kindlehf` exige firmware >= 5.16.3. Não atualizar firmware/jailbreak para esta migração.
+
+Runbook: `docs/KOREADER_UPGRADE.md`.
 
 ### Wi‑Fi
 
@@ -591,16 +597,40 @@ Preferir mecanismo nativo e pouco invasivo:
 - Collections quando estáveis;
 - metadados sem alterar arquivos desnecessariamente.
 
-Possíveis Collections:
+### Reader como fonte de verdade da organização remota
+
+Para documentos gerenciados pelo plugin, a organização feita no **Readwise Reader** deve ser projetada no KOReader no próximo sync, sem trocar a identidade/local path do documento.
+
+Mapeamento canônico de `location`:
 
 ```text
-Readwise: Inbox
-Readwise: Later
-Readwise: Shortlist
-Readwise: Feed
+Reader new       -> KOReader Collection "Readwise: Inbox"
+Reader later     -> KOReader Collection "Readwise: Later"
+Reader shortlist -> KOReader Collection "Readwise: Shortlist"
+Reader feed      -> KOReader Collection "Readwise: Feed"
+Reader archive   -> KOReader Collection "Readwise: Archive"
 ```
 
-Não criar centenas de Collections automaticamente a partir de tags na V1.
+Regras:
+- ao mover um item no Reader, o próximo sync remove o arquivo apenas das outras **Collections gerenciadas pelo plugin** e o adiciona à Collection correspondente à nova location;
+- Collections criadas pelo usuário e não gerenciadas pelo plugin nunca devem ser removidas;
+- mover/renomear no Reader não pode criar um segundo arquivo local;
+- Reader ID continua sendo a identidade, independentemente de título/location;
+- título, autor, resumo/site e demais metadados Reader projetados devem atualizar os custom metadata do mesmo arquivo local.
+
+### Tags Reader -> metadata / Bookshelf
+
+Não criar centenas de Collections automaticamente a partir de tags.
+
+As tags do Reader devem ser projetadas para um campo de metadata compatível com KOReader/Bookshelf, preferencialmente `keywords`, preservando os valores úteis e sem transformar cada tag em Collection.
+
+Objetivo no Bookshelf após Gate 4A:
+- location visível/filtrável através das Collections `Readwise: ...`;
+- tags Reader visíveis/filtráveis através de metadata/keywords (Bookshelf pode tratá-las como genres/tags);
+- título/autor/progresso continuam vindo do mesmo documento local;
+- uma mudança posterior de location ou tags no Reader aparece no KOReader/Bookshelf depois do próximo sync.
+
+Isso é uma projeção Reader -> KOReader para organização. Não implica editar tags/locations no KOReader e escrevê-las de volta no Reader na V1.
 
 ---
 
@@ -1136,6 +1166,16 @@ Manter instruções de rollback:
 14. Downloads atômicos.
 15. espaço livre/limites.
 
+### Migração controlada do KOReader — depois do Gate 4 e antes das fases seguintes
+15A. Congelar/registrar a build que passou Gate 4 em KOReader 2025.04.
+15B. Fazer backup de KOReader/settings/plugins/DB e dos documentos/sidecars Readwise.
+15C. Atualizar **somente KOReader** para o release oficial v2026.07.1 usando o pacote `kindlepw2`; não atualizar firmware/jailbreak.
+15D. Repetir smoke/regressão do Readwise Reader sem Bookshelf; corrigir qualquer incompatibilidade.
+15E. Quando Gate 4A-1 passar, adotar v2026.07.1 como baseline das fases seguintes.
+15F. Instalar Bookshelf v5.1.4 com Cover browser habilitado e testar coexistência.
+15G. Só depois habilitar opcionalmente `Start with -> Bookshelf`.
+15H. Não começar imagens/formatos/sidecars antes de Gate 4A-1 e Gate 4A-2 passarem.
+
 ### Formatos
 16. Artigos.
 17. Emails/newsletters.
@@ -1215,13 +1255,17 @@ A V1 só está pronta quando, no **Kindle PW3 real**, conseguirmos repetir:
 14. `[[Foucault]]` funcionar como wikilink;
 15. executar Sync novamente;
 16. nenhuma duplicata ser criada;
-17. editar uma nota e sincronizar;
-18. simular falha de rede e recuperar;
-19. reiniciar o KOReader com fila pendente e recuperar;
-20. marcar documento finished;
-21. sincronizar;
-22. documento ir para Archive no Reader;
-23. arquivo local e sidecar continuarem íntegros.
+17. mover esse documento no Reader (Inbox/Later/Archive etc.) e sincronizar;
+18. a mesma cópia local mudar para a Collection `Readwise: ...` correspondente, sem perder Collections não gerenciadas pelo plugin;
+19. alterar uma tag no Reader e sincronizar;
+20. a tag atualizada aparecer nos metadados do mesmo documento e, com Bookshelf habilitado, ficar disponível como tag/genre/keyword sem criar uma Collection por tag;
+21. editar uma nota e sincronizar;
+22. simular falha de rede e recuperar;
+23. reiniciar o KOReader com fila pendente e recuperar;
+24. marcar documento finished;
+25. sincronizar;
+26. documento ir para Archive no Reader;
+27. arquivo local e sidecar continuarem íntegros.
 
 Além disso:
 - token não aparece em Git/log;
@@ -1238,12 +1282,12 @@ Antes de implementar definitivamente, medir/testar:
 - interoperabilidade de IDs Reader v3 ↔ Readwise v2;
 - update/delete de highlight criado via v3;
 - comportamento de highlights em PDF/EPUB;
-- formato e estabilidade dos sidecars do KOReader 2025.04;
+- formato e estabilidade dos sidecars no KOReader pós-migração (esperado v2026.07.1);
 - eventos/hooks apropriados para detectar criação/edição/remoção de annotations;
 - efeito de atualizar conteúdo local em posições e highlights existentes;
 - disponibilidade real de `raw_source_url` por tipo;
 - comportamento do Obsidian export para updates de notas em documentos novos/antigos;
-- APIs internas do KOReader disponíveis especificamente em 2025.04.
+- APIs internas do KOReader revalidadas especificamente na baseline pós-migração antes das fases que dependem delas.
 
 Esses pontos viram testes, não pressupostos.
 
@@ -1252,7 +1296,8 @@ Esses pontos viram testes, não pressupostos.
 ## 45. Não objetivos / regras de segurança operacional
 
 Não:
-- atualizar KOReader/firmware só para facilitar desenvolvimento sem necessidade;
+- atualizar Kindle firmware/jailbreak para facilitar desenvolvimento;
+- atualizar KOReader fora da migração planejada Gate 4 -> Gate 4A ou sem backup/rollback;
 - mexer no jailbreak;
 - armazenar token no repo;
 - apagar biblioteca remota automaticamente;
@@ -1268,12 +1313,4 @@ Não:
 
 ## 46. Próximo passo
 
-Começar pelo **Gate 0**:
-
-1. adicionar skeleton do plugin;
-2. instalar no PW3;
-3. confirmar que aparece no menu;
-4. confirmar que remover a pasta reverte completamente;
-5. só então implementar autenticação.
-
-Nada da biblioteca/highlights deve ser construído antes de a base rodar no aparelho-alvo.
+Finalizar a **Phase F / Gate 4** em KOReader 2025.04. Depois do Gate 4, executar a migração controlada de `docs/KOREADER_UPGRADE.md`: backup -> KOReader oficial v2026.07.1 (`kindlepw2`) -> regressão do Readwise Reader -> Bookshelf v5.1.4 -> teste de coexistência. Só então seguir para imagens, formatos e sidecars/anotações.

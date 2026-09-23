@@ -437,3 +437,173 @@ Do not send the article title/content. Return only:
 If anything fails, also return the exact visible error and, only if needed, a sanitized `koreader/crash.log` excerpt with token/private content removed.
 
 Gate 3 is closed: **PASSED on 2026-09-22**. Phase F may begin after Phase E is merged.
+
+
+## Gate 4 — document sync engine
+
+Status: **PASSED — 2026-09-22/23 on target PW3 / KOReader 2025.04**
+
+Build target:
+- plugin version: `0.1.3`;
+- branch: `phase-f/document-sync-gate4`;
+- Gate 4 preparation commit: `5fb309774d8d4442b17251d582e475b21688a331`;
+- GitHub Actions run: #70 — **SUCCESS**;
+- workflow artifact ID: `10723390104`;
+- installable ZIP SHA-256: `ab055261fd54f48936e603f342310b5957ca000e717dca15e6e3fd44eca5afe9`.
+
+Purpose:
+- validate real multi-document materialization and incremental ownership;
+- prove second sync is idempotent;
+- prove Reader title/location changes do not create duplicate local documents;
+- validate cancellability/recovery and conservative watermark handling.
+
+### Safety / filter setup before the first Gate 4 sync
+
+The real Reader account is large. **Do not accept the first-sync confirmation before reviewing filters.**
+
+1. Back up `koreader/settings/`, `koreader/plugins/` and the existing `/mnt/us/documents/Readwise/` folder/sidecars.
+2. Install the `0.1.3` Gate 4 build but keep KOReader at **2025.04**.
+3. Open **Readwise Reader → Settings → Documents → Locations**.
+4. For the first Gate 4 run, choose a small controlled scope:
+   - turn **Inbox OFF**;
+   - leave **Later ON** if it contains a manageable set, or use Shortlist if you deliberately prepared a small test set;
+   - leave Archive/Feed OFF unless specifically testing them.
+5. Under **Types**, keep **Articles ON**. PDF/EPUB/Email/RSS are intentionally disabled until later gates.
+6. Confirm the download folder is the expected path under `/mnt/us/documents/`.
+7. Keep the token private. Wi-Fi is controlled outside the plugin.
+
+The first sync displays an explicit warning that every supported article matching the current filters will be downloaded.
+
+### G4.1 — first controlled multi-article sync
+
+1. Turn Wi-Fi on outside KOReader.
+2. Open **Readwise Reader → Sync now (Gate 4)**.
+3. Read the first-sync warning and confirm only after the filters above are correct.
+4. Let the sync finish.
+
+Expected:
+- visible cancellable sync surface;
+- at least two matching test articles are installed if the chosen scope contains them;
+- final summary appears;
+- `Errors: 0`;
+- watermark is updated only after successful parent metadata/Collection finalization;
+- files are normal local HTML documents under the configured Readwise folder;
+- KOReader remains responsive;
+- plugin does not toggle Wi-Fi.
+
+Open at least one newly synced article and confirm it reads normally.
+
+### G4.2 — second sync unchanged
+
+Without changing Reader:
+
+1. run **Sync now (Gate 4)** again;
+2. let it complete.
+
+Expected:
+- no second copy of an already-managed article;
+- no title/filename-based duplicate;
+- normally `Downloaded: 0` unless a genuinely new matching Reader item appeared;
+- incremental sync completes successfully.
+
+### G4.3 — Reader location move
+
+Use the latest Gate 4 recovery build (0.1.11 or newer). Choose one **already-downloaded** test article and change its Reader location between supported locations that remain enabled in the plugin.
+
+Prefer an explicit round trip so the final state is observable even if an earlier failed attempt already updated SQLite:
+
+1. note the current Reader location and confirm the article exists only once locally;
+2. in Reader, move it to another enabled location (for example Inbox -> Later);
+3. run `Sync now`;
+4. verify `Errors: 0`;
+5. open KOReader Collections and verify the same local path is now in the new `Readwise: ...` Collection and is no longer in the old plugin-managed location Collection;
+6. verify any unrelated user Collection containing that file is still intact;
+7. if the first move was previously attempted on an older build, move it back in Reader and sync again to force a fresh transition.
+
+Expected:
+- same Reader-ID-owned local path remains;
+- no new duplicate file;
+- Reader location state updates;
+- membership moves between the plugin-managed `Readwise: Inbox/Later/Shortlist/Feed/Archive` Collections;
+- unrelated user Collections are not removed;
+- watermark advances only on a clean sync.
+
+Reader is the source of truth for these remote organization fields: a later Reader-side location change must reconcile the KOReader Collection on the next successful sync.
+
+Bookshelf follow-up (Gate 4A-2): these managed Collections must remain visible/usable as Reader location shelves/filters, and Reader tags must be projected separately through metadata/keywords rather than one Collection per tag.
+
+### G4.4 — Reader title rename
+
+Rename that same Reader article remotely and sync.
+
+Expected:
+- KOReader metadata title updates;
+- existing local filename/path may remain unchanged;
+- **no second local file** is created;
+- existing sidecar/progress/highlights remain attached to the same local file.
+
+Phase F intentionally does not replace the document body merely because Reader `updated_at` changed; content replacement safety is Phase Q.
+
+### G4.5 — cancellation and recovery
+
+1. Open **Full document rescan**.
+2. Confirm the warning.
+3. While the visible Trapper surface is running, tap to cancel.
+
+Expected:
+- KOReader returns responsive;
+- already-completed atomic files remain valid;
+- no incomplete temp file replaces a valid final file;
+- cancelled attempt does not commit a new document watermark.
+
+Then run a normal **Sync now** and confirm it recovers/completes.
+
+### Gate 4 pass report
+
+Do not send token or private titles/content. Return only:
+
+`múltiplos artigos: sim/não / segundo sync sem duplicar: sim/não / mover location sem duplicar: sim/não / renomear sem duplicar: sim/não / cancelamento funcionou: sim/não / recuperou depois: sim/não / wifi não foi alterado: sim/não`
+
+If any item is `não`, also send:
+- the exact visible error/message;
+- which G4 step failed;
+- a relevant **sanitized** `koreader/crash.log` excerpt only if needed.
+
+**Do not update KOReader yet if Gate 4 fails.** Fix/retest Phase F on 2025.04 first.
+
+
+### Gate 4 recorded physical result
+
+- multiple-article/full-backfill sync: **PASS**;
+- second incremental sync / no duplicate: **PASS**;
+- Reader location move without duplicate: **PASS**;
+- moved document changed to the corresponding plugin-managed `Readwise: ...` Collection: **PASS**;
+- Reader title rename without duplicate: **PASS**;
+- reading progress preserved through rename: **PASS**;
+- cancellation: **PASS**;
+- KOReader remained responsive: **PASS**;
+- cancelled rescan did not advance watermark: **PASS**;
+- normal sync recovered afterward with `Errors: 0`: **PASS**.
+
+Gate 4 is closed. Do not replay all Gates 0–4 after the KOReader upgrade. Gate 4A-1 is a deliberately smaller regression suite that samples the KOReader-internal contracts most likely to change.
+
+---
+
+## Gate 4A — KOReader v2026.07.1 + Bookshelf migration
+
+Status: **UNBLOCKED — Gate 4 passed; execute after Phase F is merged**
+
+Canonical detailed runbook: `docs/KOREADER_UPGRADE.md`.
+
+Order is mandatory:
+
+1. Gate 4 passes on KOReader 2025.04.
+2. Record/merge the exact known-good Phase F build.
+3. Back up KOReader/settings/plugins/Readwise DB + document sidecars.
+4. Upgrade **KOReader only** to official `v2026.07.1`, using `koreader-kindlepw2-v2026.07.1.zip` on this PW3/firmware.
+5. **Gate 4A-1:** re-run Readwise Reader compatibility tests with Bookshelf absent/disabled.
+6. Only after 4A-1 passes, install Bookshelf `v5.1.4` with built-in Cover browser enabled.
+7. **Gate 4A-2:** validate both plugins together across sync/open/close/no-op sync/restart.
+8. Only then may Phase G begin.
+
+Do not use `kindlehf` on the current firmware 5.16.2.1.1; KOReader documents that target for firmware >= 5.16.3. Do not update Kindle firmware/jailbreak for this project.

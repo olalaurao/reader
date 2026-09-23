@@ -5,6 +5,14 @@ local Constants = require("constants")
 local Config = {}
 Config.__index = Config
 
+local function copyList(values)
+    local copy = {}
+    for _, value in ipairs(values or {}) do
+        copy[#copy + 1] = value
+    end
+    return copy
+end
+
 local function trim(value)
     if type(value) ~= "string" then
         return ""
@@ -46,6 +54,93 @@ function Config:getDownloadDirectory()
         return Constants.DEFAULT_DOWNLOAD_ROOT
     end
     return trim(path):gsub("/+$", "")
+end
+
+function Config:setDownloadDirectory(value)
+    local path = trim(value):gsub("/+$", "")
+    if path == "" then
+        return false, "empty"
+    end
+
+    local under_documents = path == "/mnt/us/documents"
+        or path:sub(1, #"/mnt/us/documents/") == "/mnt/us/documents/"
+    if not under_documents or path:find("%z") then
+        return false, "unsafe"
+    end
+    for component in path:gmatch("[^/]+") do
+        if component == "." or component == ".." then
+            return false, "unsafe"
+        end
+    end
+    self.settings:saveSetting("download_directory", path)
+    self.settings:flush()
+    return true
+end
+
+function Config:_getListSetting(key, defaults)
+    local value = self.settings:readSetting(key)
+    if type(value) ~= "table" then
+        return copyList(defaults)
+    end
+    local result, seen = {}, {}
+    for _, item in ipairs(value) do
+        if type(item) == "string" and item ~= "" and not seen[item] then
+            seen[item] = true
+            result[#result + 1] = item
+        end
+    end
+    return result
+end
+
+function Config:_setListSetting(key, values)
+    self.settings:saveSetting(key, copyList(values))
+    self.settings:flush()
+end
+
+function Config:getSyncLocations()
+    return self:_getListSetting("sync_locations", Constants.DEFAULT_SYNC_LOCATIONS)
+end
+
+function Config:getSyncCategories()
+    return self:_getListSetting("sync_categories", Constants.DEFAULT_SYNC_CATEGORIES)
+end
+
+local function setEnabled(config, key, defaults, value, enabled)
+    local values = config:_getListSetting(key, defaults)
+    local result, found = {}, false
+    for _, item in ipairs(values) do
+        if item == value then
+            found = true
+            if enabled then result[#result + 1] = item end
+        else
+            result[#result + 1] = item
+        end
+    end
+    if enabled and not found then result[#result + 1] = value end
+    config:_setListSetting(key, result)
+end
+
+local function isEnabled(values, value)
+    for _, item in ipairs(values) do
+        if item == value then return true end
+    end
+    return false
+end
+
+function Config:setSyncLocationEnabled(location, enabled)
+    setEnabled(self, "sync_locations", Constants.DEFAULT_SYNC_LOCATIONS, location, enabled == true)
+end
+
+function Config:isSyncLocationEnabled(location)
+    return isEnabled(self:getSyncLocations(), location)
+end
+
+function Config:setSyncCategoryEnabled(category, enabled)
+    setEnabled(self, "sync_categories", Constants.DEFAULT_SYNC_CATEGORIES, category, enabled == true)
+end
+
+function Config:isSyncCategoryEnabled(category)
+    return isEnabled(self:getSyncCategories(), category)
 end
 
 function Config:setAccessToken(value)

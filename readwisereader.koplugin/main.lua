@@ -11,11 +11,14 @@ local Hash = require("content/hash")
 local Html = require("content/html")
 local Http = require("api/http")
 local Installer = require("content/installer")
+local KOReaderCollections = require("koreader/collections")
 local KOReaderDocuments = require("koreader/documents")
 local Reader = require("api/reader")
 local Metadata = require("sync/metadata")
 local LibraryUI = require("ui/library")
 local SettingsUI = require("ui/settings")
+local SyncMeta = require("storage/sync_meta")
+local SyncUI = require("ui/sync")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
 
@@ -36,7 +39,11 @@ function ReadwiseReader:init()
     self.documents_repository = DocumentsRepository:new{
         db = self.db,
     }
+    self.sync_meta = SyncMeta:new{
+        db = self.db,
+    }
     self.koreader_documents = KOReaderDocuments:new()
+    self.koreader_collections = KOReaderCollections:new()
     self.first_article = FirstArticle:new{
         reader = self.reader_api,
         repository = self.documents_repository,
@@ -63,6 +70,12 @@ function ReadwiseReader:init()
         config = self.config,
         reader = self.reader_api,
     }
+    self.sync_ui = SyncUI:new{
+        config = self.config,
+        sync_meta = self.sync_meta,
+        collections = self.koreader_collections,
+        koreader_documents = self.koreader_documents,
+    }
     self.ui.menu:registerToMainMenu(self)
 end
 
@@ -71,6 +84,9 @@ function ReadwiseReader:addToMainMenu(menu_items)
         text = _("Readwise Reader"),
         sorting_hint = "more_tools",
         sub_item_table = {
+            self.sync_ui:getSyncMenuItem(),
+            self.sync_ui:getStatusMenuItem(),
+            self.sync_ui:getFullRescanMenuItem(),
             self.article_ui:getMenuItem(),
             self.library_ui:getScanMenuItem(),
             self.settings_ui:getSettingsMenu(),

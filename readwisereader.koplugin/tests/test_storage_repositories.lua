@@ -172,6 +172,14 @@ local function testSyncMeta()
     assertEqual(meta:get("document_watermark"), "2026-09-22T12:00:00Z")
     meta:set("document_watermark", "2026-09-22T13:00:00Z")
     assertEqual(meta:get("document_watermark"), "2026-09-22T13:00:00Z")
+    meta:setMany({
+        document_watermark = "2026-09-22T14:00:00Z",
+        document_query_after = "2026-09-22T13:55:00Z",
+        last_successful_sync_at = "2026-09-22T14:01:00Z",
+    })
+    assertEqual(meta:get("document_watermark"), "2026-09-22T14:00:00Z")
+    assertEqual(meta:get("document_query_after"), "2026-09-22T13:55:00Z")
+    assertEqual(meta:get("last_successful_sync_at"), "2026-09-22T14:01:00Z")
     meta:delete("document_watermark")
     assertEqual(meta:get("document_watermark"), nil)
 

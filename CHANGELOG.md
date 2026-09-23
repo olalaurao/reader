@@ -37,6 +37,16 @@ All notable project changes are recorded here.
 - PW3 `crash.log` then identified the remaining selector failure: an untitled candidate caused Lua loop variable `_` to shadow gettext `_` (`attempt to call local '_' (a number value)`).
 - Experimental `0.1.2` fixes the shadowing and adds an untitled-candidate regression test.
 - Gate 3 passed on the target PW3 / KOReader 2025.04: selected article download/open, rendering, Unicode, reflow, search, highlight/note creation and close/reopen persistence were validated.
+- Phase E merged to `main`; experimental `0.1.3` Phase F document sync implemented.
+- Added configurable document root and Reader location/category filters.
+- Added Reader-ID-owned full-first/incremental-later article sync with a canonical scan-start watermark and 5-minute overlap query bound.
+- Added metadata/location updates without title-based duplicate files, plus idempotent managed Readwise Collections that preserve unrelated user collections.
+- Added cancellable `Sync now`, sync status, first-sync confirmation and explicit full document rescan.
+- Existing remote-changed local content is deferred safely instead of destructively replaced; content refresh remains Phase Q.
+- Trapper child work is limited to network/atomic-file/SQLite operations; KOReader metadata and Collection settings are finalized in the parent process.
+- Added transactional final watermark commit only after parent post-processing succeeds.
+- Added post-processing/watermark failure tests, no-op second-sync/rename/location tests and rooted path-escape coverage.
+- Added Phase F.5 / Gate 4A: after Gate 4 on KOReader 2025.04, migrate deliberately to official KOReader v2026.07.1 (`kindlepw2`) and then validate Bookshelf v5.1.4 before Phase G.
 
 ## [0.0.2] - 2026-09-22
 
