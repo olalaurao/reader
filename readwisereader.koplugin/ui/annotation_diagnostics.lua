@@ -21,6 +21,8 @@ local function errorText(err)
         return _("This document is not managed by Readwise Reader.")
     elseif err.kind == "not_local" then
         return _("This Reader document is not recorded as a local file.")
+    elseif err.kind == "local_missing" then
+        return _("The managed Reader file is missing. No annotation deletion state was inferred.")
     elseif err.kind == "sidecar" then
         return _("KOReader's sidecar could not be read safely. No deletion state was inferred.")
     end
