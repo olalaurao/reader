@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase F.5 COMPLETE — Gate 4A-1 and Gate 4A-2 PASSED on PW3 / KOReader 2026.07.1; Phase G images is next**
+**Phase G / Gate 5 IN PROGRESS — G1 relative local asset spike build 0.1.17 pending physical validation**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -275,6 +275,39 @@ Validated across the complete coexistence sequence:
 - the initial Bookshelf hard-freeze did not reproduce after the controlled device/library/font recovery; Series/Genres can still be slow on the PW3, so this remains a performance note rather than a gate blocker.
 
 **Phase F.5 is complete. Phase G / Gate 5 (images) is now unblocked.**
+
+## Phase G — images
+
+### G1 relative local asset spike — build 0.1.17 ready
+
+Canonical baseline:
+- Kindle PW3;
+- KOReader v2026.07.1;
+- Bookshelf v5.1.4 may remain installed.
+
+Research before implementation:
+- KOReader v2026.07.1's own QuickStart generator comments that **crengine will not accept full image paths** and rewrites image references to relative paths before opening generated HTML;
+- this supports testing document-relative local assets as the preferred alternative to putting large image payloads inside the HTML;
+- the older community Readwise Reader plugin instead inlined downloaded images as data URIs and explicitly warned that image-heavy HTML could destabilize memory-constrained ereaders;
+- therefore G1 deliberately validates adjacent relative assets first before selecting the production image strategy.
+
+0.1.17 adds a diagnostic-only menu action:
+- **Readwise Reader -> Image asset spike (Gate 5)**;
+- installs a tiny diagnostic HTML under `<download_root>/Diagnostics/`;
+- installs one local SVG under `Diagnostics/gate5-assets/`;
+- HTML references it only as `gate5-assets/gate5-test.svg` (no absolute Kindle path);
+- also references one intentionally missing relative asset;
+- opens the diagnostic HTML directly through the existing KOReader document adapter;
+- does not change normal Reader sync or download behavior.
+
+Expected device evidence:
+1. the local `GATE 5` image renders;
+2. text before and after it remains readable;
+3. the intentionally missing image does not crash/freeze KOReader;
+4. text after the missing image remains readable;
+5. close/reopen preserves normal document behavior.
+
+G2 remains blocked until this physical spike proves the relative-local-asset contract on the target PW3.
 
 
 
