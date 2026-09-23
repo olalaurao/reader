@@ -9,4 +9,8 @@ function Hash.digest(value)
     return update()
 end
 
+function Hash.sha256(value)
+    return require("ffi/sha2").sha256(value or "")
+end
+
 return Hash
