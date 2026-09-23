@@ -449,8 +449,6 @@ function Mutations:syncPath(local_path)
 end
 
 Mutations._isNotFound = isNotFound
+Mutations._comparableNote = comparableNote
 
 return Mutations
-
-
-Mutations._comparableNote = comparableNote
