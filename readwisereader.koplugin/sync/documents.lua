@@ -6,7 +6,7 @@ DocumentsSync.__index = DocumentsSync
 local DEFAULT_OVERLAP_SECONDS = 300
 local HTML_PAGE_LIMIT = 25
 local METADATA_PROJECTION_VERSION = "reader-tags-v2"
-local SUPPORTED_CATEGORIES = { article = true }
+local SUPPORTED_CATEGORIES = { article = true, pdf = true, epub = true }
 local PERMANENT_MATERIALIZATION_ERRORS = {
     content = true,
     exists = true,
@@ -243,12 +243,12 @@ function DocumentsSync:_scanMetadata(watermark, filters, managed_by_id, pending_
             if not has_local
                 and self:_isEligible(document, filters)
                 and shouldRetryMissing(existing, document) then
-                pending_new[document.id] = true
+                pending_new[document.id] = document.category
             end
         elseif self:_isEligible(document, filters) then
             local current = self.repository:upsertRemote(document, seen_at)
             managed_by_id[document.id] = current
-            pending_new[document.id] = true
+            pending_new[document.id] = document.category
         else
             report.filtered_out = report.filtered_out + 1
         end
@@ -270,7 +270,7 @@ function DocumentsSync:_fullMaterialization(filters, report, seen_at)
                     category = category,
                     limit = HTML_PAGE_LIMIT,
                     with_html_content = true,
-                    with_raw_source_url = false,
+                    with_raw_source_url = category == "pdf" or category == "epub",
                 }, function(document)
                     if document.parent_id ~= nil or seen[document.id] then return end
                     seen[document.id] = true
@@ -299,7 +299,9 @@ end
 
 function DocumentsSync:_incrementalMaterialization(filters, pending_new, report, seen_at)
     for _, reader_id in ipairs(sortedKeys(pending_new)) do
-        local document, err = self.reader:getDocument(reader_id, true, false)
+        local category = pending_new[reader_id]
+        local wants_raw = category == "pdf" or category == "epub"
+        local document, err = self.reader:getDocument(reader_id, true, wants_raw)
         if not document then
             report.errors = report.errors + 1
             self.repository:setLastSyncError(reader_id, err and err.kind or "unknown")
