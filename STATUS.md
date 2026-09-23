@@ -352,7 +352,27 @@ Automated validation:
 - run #234 on `f37143af...`: **SUCCESS** — syntax, all unit tests, packaging/layout and artifact;
 - installable inner ZIP SHA-256: `16f4447911cf817b0cd673649f102013febc77a45d8b0d9f291fc78735d69cf8`.
 
-Build **0.1.18** is ready for the Gate 5 production device test in `docs/DEVICE_TESTS.md`.
+0.1.18 physical result: **FAIL — article images did not download/render**.
+
+Root cause found by comparing the production parser with the archived community Reader plugin and the Reader HTML shapes it handles:
+- 0.1.18 only treated a literal `<img src="...">` as an image candidate;
+- Reader commonly emits responsive images through `<picture><source srcset="...">` and lazy-image attributes such as `data-src` / `srcset`;
+- 0.1.18 then stripped `<source>` elements after processing, so a responsive picture could end up with **zero downloadable candidates**;
+- this is consistent with the device symptom: article materialization succeeded but image download did not happen.
+
+0.1.19 fix:
+- normalize `<picture>/<source srcset>` into one concrete `<img>` before localization;
+- choose a <=1200px responsive candidate when available;
+- support direct `img srcset`, `data-src`, `data-lazy-src`, `data-original` and `data-url`;
+- prefer lazy/responsive URLs over tiny data-URI placeholders;
+- keep the existing relative-local-asset, size caps, timeout/failure placeholders and atomic install strategy;
+- sync report now shows **Image candidates found** and **Responsive images promoted** to make this failure class visible.
+
+Important test constraint:
+- an article already materialized by 0.1.18 is intentionally considered local and is **not rewritten** by a later ordinary sync; this is the conservative content-refresh contract held until Phase Q;
+- therefore the 0.1.19 Gate 5 retest must use a **different newly-saved Reader article** that has never been downloaded to this Kindle.
+
+Build **0.1.19** pending final CI/artifact packaging.
 
 
 
