@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase J / Gate 8 IN PROGRESS — build 0.1.22 staged disposable annotation API interoperability spike pending physical/account validation**
+**Phase J COMPLETE — Gate 8 PASSED on PW3 / KOReader 2026.07.1; Phase K production annotation sync is next**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -569,7 +569,22 @@ Automated/package validation:
 - workflow artifact digest: `sha256:df8d7a86ab921345789aac79b578fc2aca926e4e8ad0c6430b7b7ecb18aa8d49`;
 - installable inner ZIP verified with `unzip -t`; SHA-256: `17e5ae9c060407becb1053684f557d3aeae04042c0e790b42b8b5c0518a4db6d`.
 
-Gate 8 remains **OPEN** until the four disposable steps are run on the real account and the observed shapes/propagation results are written into `docs/API_INTEROP.md`.
+Physical Gate 8 result on the target PW3 / KOReader 2026.07.1:
+- all four disposable spike steps completed successfully;
+- Reader v3 highlight create/parent linkage/note/tag verification passed;
+- deterministic Reader-child ↔ Readwise-v2 mapping passed, so no text/note heuristic was needed;
+- Reader v3 note/tag update passed;
+- Readwise v2 note update response matched and the same Reader v3 child reflected the new note after refresh;
+- the v2 response also reported green for the disposable color mutation;
+- Reader v3 delete succeeded, the child disappeared from v3, and Readwise v2 no longer exposed it; v2 DELETE cleanup fallback was not needed;
+- disposable parent cleanup succeeded.
+
+Product decision from the physical run:
+- **highlight color synchronization is dropped from V1**. Reader currently provides no useful multi-color workflow for this project and the target PW3 is monochrome. The Gate 8 green mutation remains interoperability evidence only.
+
+### Gate 8 — PASS
+
+Gate 8 is closed. **Phase J is complete and Phase K production annotation sync (text matching → create → durable remote identity → note updates/deduplication) is now unblocked.**
 
 
 
