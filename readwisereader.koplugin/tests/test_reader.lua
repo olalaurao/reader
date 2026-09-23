@@ -296,4 +296,82 @@ return function()
         assert(err.kind == "not_found")
     end
 
+
+    do
+        local calls = 0
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function(_, request)
+                    calls = calls + 1
+                    if request.url:find("/api/v3/tags/", 1, true) then
+                        return { status = 200, headers = {}, body = "tags" }
+                    end
+                    assert(request.url:find("tag=gate4a%-tag%-test"))
+                    return { status = 200, headers = {}, body = "docs" }
+                end,
+            },
+            json_decode = function(body)
+                if body == "tags" then
+                    return {
+                        results = {
+                            { key = "other", name = "Other" },
+                            { key = "gate4a-tag-test", name = "gate4a-tag-test" },
+                        },
+                        nextPageCursor = nil,
+                    }
+                end
+                return {
+                    results = {
+                        {
+                            id = "doc-1",
+                            category = "article",
+                            location = "new",
+                            parent_id = nil,
+                            tags = {
+                                ["gate4a-tag-test"] = { name = "gate4a-tag-test" },
+                            },
+                        },
+                    },
+                    nextPageCursor = nil,
+                }
+            end,
+            list_min_interval = 0,
+        }
+
+        local report, err = reader:diagnoseTag("gate4a-tag-test")
+        assert(err == nil)
+        assert(report.tag_found == true)
+        assert(report.tag_key == "gate4a-tag-test")
+        assert(report.document_pages == 1)
+        assert(#report.documents == 1)
+        assert(report.documents[1].id == "doc-1")
+        assert(report.documents[1].tags[1] == "gate4a-tag-test")
+        assert(calls == 2)
+    end
+
+    do
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function()
+                    return { status = 200, headers = {}, body = "tags" }
+                end,
+            },
+            json_decode = function()
+                return {
+                    results = {
+                        { key = "other", name = "Other" },
+                    },
+                    nextPageCursor = nil,
+                }
+            end,
+            list_min_interval = 0,
+        }
+        local report, err = reader:diagnoseTag("gate4a-tag-test")
+        assert(err == nil)
+        assert(report.tag_found == false)
+        assert(#report.documents == 0)
+    end
+
 end
