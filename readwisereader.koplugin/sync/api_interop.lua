@@ -183,9 +183,20 @@ function ApiInterop:create()
         [KEYS.highlight_id] = highlight.id,
     }
 
-    local child, child_err = self.reader:getDocument(highlight.id, false, false)
+    local child
+    local child_err
+    for _ = 1, 5 do
+        child, child_err = self.reader:getDocument(highlight.id, false, false)
+        if child then break end
+    end
     if not child then
-        return nil, child_err
+        -- Keep the persisted disposable IDs so the same known objects can be
+        -- retried or cleaned; never create a second highlight blindly.
+        return nil, child_err or {
+            kind = "gate8_child_not_ready",
+            retryable = true,
+            message = "Disposable Reader highlight did not become listable in time.",
+        }
     end
 
     return {
