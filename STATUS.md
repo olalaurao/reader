@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase F — Gate 4 physical attempt 1 exposed filter-scope backfill bug; 0.1.4 recovery build pending validation**
+**Phase F — Gate 4 mostly recovered on 0.1.10/0.1.11; G4.3 location projection retest pending clean 0.1.11 run**
 
 Phase E was merged normally to `main` as `e5de4a75a9e8e43dd270194201626c80d0c15802`. Phase F `0.1.3` is implemented on `phase-f/document-sync-gate4`: configurable document ownership/filtering, full-first/incremental-later article sync, conservative watermarking, Reader-ID identity, metadata/location updates, Readwise collections, cancellable UI, summaries and explicit full rescan. The latest code checks pass off-device. **Do not begin Phase G before Gate 4 passes on KOReader 2025.04.**
 
@@ -406,6 +406,38 @@ This **functionally passes G4.2 idempotency**, but the report also exposed an ef
 - regression tests cover both no-change suppression and retry-after-remote-change.
 
 Gate 4 remains OPEN pending the clean 0.1.11 no-op retest, then location move, title rename, cancellation, and recovery.
+
+### G4.3 location-move attempt on pre-0.1.11 behavior
+
+A Reader-side location move was detected on-device:
+- `Mode: incremental`;
+- `Metadata updated: 1`;
+- `Reader location changes: 1`;
+- `Content refresh deferred safely: 1`;
+- metadata/Collection parent write errors: 0.
+
+However the run was **not a clean G4.3 pass**:
+- `Skipped (not materializable): 44`;
+- `Errors: 1`;
+- watermark was not advanced.
+
+The `44` permanent skips are diagnostic evidence that this run still used the pre-0.1.11 retry behavior (0.1.10-equivalent state), because 0.1.11 suppresses unchanged permanent skips from the incremental pending set. The lone unclassified error is consistent with one of the old pre-seeded missing documents failing its per-ID refetch before materialization.
+
+The actual Reader location change itself was observed, but G4.3 must be repeated on 0.1.11+ by moving the same managed article again (preferably back to the previous Reader location) and verifying:
+- `Errors: 0`;
+- no duplicate/local-path change;
+- the path is in the new plugin-managed `Readwise: ...` Collection and removed from the old managed location Collection;
+- unrelated user Collections remain untouched.
+
+### Canonical organization/Bookshelf contract added
+
+PLAN, IMPLEMENTATION_SPEC, DEVICE_TESTS and the KOReader/Bookshelf upgrade runbook now define Reader as the source of truth for remote organization projection:
+- Reader location -> exactly one plugin-managed `Readwise: Inbox/Later/Shortlist/Feed/Archive` Collection;
+- Reader title/author/summary/site -> KOReader custom metadata on the same local path;
+- Reader tags -> KOReader/Bookshelf-compatible metadata (target `keywords`), not one Collection per tag;
+- later Reader-side changes must reconcile on the next successful incremental sync;
+- Bookshelf consumes these Collections/metadata after Gate 4A, without becoming a second source of truth.
+
 
 
 
