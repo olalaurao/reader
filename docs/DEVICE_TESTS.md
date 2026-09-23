@@ -1014,4 +1014,77 @@ If cleanup reports any failure, run **Recovery: clean disposable Gate 8 data** o
 Return:
 `step1 all yes: sim/não / Reader initial visible: sim/não / mapping method: <texto> / external_id=child: sim/não / v3 note update Reader: sim/não / v2 note update→v3: sim/não / v2 note visible Reader: sim/não / green: sim/não/não aparece cor / v3 delete: sim/não / v3 sumiu: sim/não / v2 sumiu após v3 delete: sim/não / v2 delete necessário: sim/não / parent cleanup: sim/não / doc temporário sumiu: sim/não`
 
-Gate 8 remains open until these observed results are written to `docs/API_INTEROP.md`.
+Recorded physical result:
+- all four disposable spike steps completed: **PASS**;
+- parent-linked Reader v3 create/LIST, literal note and tag: **PASS**;
+- deterministic Reader-child ↔ Readwise-v2 mapping: **PASS**;
+- Reader v3 note/tag PATCH reflected in Reader: **PASS**;
+- Readwise v2 note PATCH propagated back to the same Reader child: **PASS**;
+- Reader v3 delete removed the child from v3 and v2 without needing the v2 delete fallback: **PASS**;
+- disposable parent cleanup: **PASS**;
+- color mutation worked as spike evidence only; production highlight-color sync is out of V1.
+
+**Gate 8 PASSED. Proceed to Phase K / Gate 9.**
+
+
+## Phase K / Gate 9 — exact Reader-visible text matching
+
+Build: **0.1.24**
+
+This gate is **read-only remotely**. It fetches the current managed Reader parent and compares the newest KOReader highlight against Reader-visible text. It does **not** create/update/delete a Reader highlight. The old 0.1.23 upload action is intentionally hidden until this gate passes.
+
+For each case below, make the requested highlight the **newest** highlight in the article, close/reopen the article so the sidecar is flushed, then run:
+**Readwise Reader -> Test current highlight match (Gate 9)**.
+
+Keep Wi-Fi on for the diagnostic because it fetches the current Reader HTML.
+
+### Case 1 — ordinary unique text
+1. Open an already-managed Reader article.
+2. Highlight a distinctive passage that occurs only once.
+3. Close/reopen, run the Gate 9 diagnostic.
+4. Expect:
+   - `Matched: yes`;
+   - `Result: exact` is ideal, but a safe normalization mode is acceptable if the HTML requires it;
+   - `Reader exact visible text` represents the same selected passage;
+   - `Remote writes: none`.
+
+### Case 2 — paragraph/line-break boundary
+1. Create a new highlight spanning the end of one paragraph/visible line boundary and the beginning of the next.
+2. Close/reopen, run the diagnostic.
+3. Expect `Matched: yes`; normally `Result: whitespace`.
+4. Verify the displayed Reader text is the same passage, including the correct words on both sides of the boundary.
+
+### Case 3 — curly quote / dash
+1. In an article containing typographic quotes/apostrophes or an en/em dash, create a new highlight containing that punctuation.
+2. Close/reopen, run the diagnostic.
+3. Expect `Matched: yes`.
+4. If KOReader and Reader expose different straight/curly forms, expect `Result: punctuation`; if they are byte-identical, `exact` is also valid.
+5. Verify the recovered Reader text shows the correct passage.
+
+### Case 4 — repeated text must be blocked
+1. Create the newest highlight on a short passage that occurs identically at least twice in the Reader-visible article. If needed, use a repeated short phrase rather than risking a unique sentence.
+2. Close/reopen, run the diagnostic.
+3. Expect:
+   - `Matched: no`;
+   - `Result: ambiguous`;
+   - `Remote writes: none`.
+4. Do **not** use the upload action; it is not exposed in 0.1.24.
+
+Return:
+`unique: matched yes/no + result / line-break: matched yes/no + result / curly-dash: matched yes/no + result / repeated: ambiguous yes/no / every screen said Remote writes none: yes/no / no crash-freeze: yes/no`
+
+Gate 9 passes only when the three safe-match cases recover the intended Reader-visible passage and the repeated case is rejected as ambiguous, with no remote write.
+
+### Recorded physical result — 2026-09-23
+
+**PASS** on the target Kindle PW3 / KOReader v2026.07.1.
+
+Observed:
+- unique-text case passed;
+- paragraph/line-boundary case passed;
+- curly quote/dash case passed;
+- repeated-text case was correctly rejected as ambiguous;
+- every diagnostic remained remotely read-only (`Remote writes: none`);
+- no crash/freeze was observed.
+
+**Gate 9 PASSED. Proceed to Phase L / Gate 10 only after Phase K is merged to `main`.**

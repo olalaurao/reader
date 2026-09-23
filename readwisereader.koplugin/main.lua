@@ -2,6 +2,7 @@
 
 local ArticleUI = require("ui/article")
 local AnnotationDiagnosticsUI = require("ui/annotation_diagnostics")
+local TextMatchDiagnosticsUI = require("ui/text_match_diagnostics")
 local ApiInteropUI = require("ui/api_interop")
 local Config = require("config")
 local Constants = require("constants")
@@ -132,6 +133,12 @@ function ReadwiseReader:init()
             return self.ui and self.ui.document and self.ui.document.file or nil
         end,
     }
+    self.text_match_diagnostics_ui = TextMatchDiagnosticsUI:new{
+        config = self.config,
+        get_current_path = function()
+            return self.ui and self.ui.document and self.ui.document.file or nil
+        end,
+    }
     self.api_interop_ui = ApiInteropUI:new{
         config = self.config,
     }
@@ -152,6 +159,7 @@ function ReadwiseReader:addToMainMenu(menu_items)
             self.image_spike_ui:getMenuItem(),
             self.raw_format_ui:getMenuItem(),
             self.annotation_diagnostics_ui:getMenuItem(),
+            self.text_match_diagnostics_ui:getMenuItem(),
             self.api_interop_ui:getMenuItem(),
             self.settings_ui:getSettingsMenu(),
         },

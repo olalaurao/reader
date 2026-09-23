@@ -1,4 +1,6 @@
 # Changelog
+- Phase K experimental 0.1.24 adds a **read-only Gate 9 text-matching diagnostic** for the newest local highlight in the current managed Reader document. Matching now operates on Reader-visible text rather than raw HTML, decodes common/numeric entities, ignores non-visible script/style/comment content, handles inline-tag splits, Unicode NFC, whitespace/NBSP, soft hyphens and conservative straight/curly quote + dash equivalence, and rejects repeated ambiguous matches.
+- The previously staged 0.1.23 remote-upload action is intentionally **not exposed in the menu** until Gate 9 passes; no Gate 9 diagnostic action creates, updates or deletes a remote annotation.
 - Phase J experimental 0.1.22 adds a staged, disposable annotation API interoperability spike: Reader v3 child create/LIST/PATCH/DELETE, deterministic Reader↔Readwise v2 external-ID mapping probe, v2 note/color PATCH, cross-API delete observation, and recovery cleanup that only targets persisted Gate 8 disposable IDs.
 - Refreshed the annotation architecture for the current Reader API contract: Reader v3 now explicitly documents `notes` and `tags` PATCH support on highlight children, so Gate 8 tests v3 note update directly instead of assuming v2 is mandatory.
 
