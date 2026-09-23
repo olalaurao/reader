@@ -26,6 +26,7 @@ local function withStubbedSyncUI(run, options)
         subprocess_calls = 0,
         refresh_calls = 0,
         metadata_writes = {},
+        metadata_consumer_refreshes = 0,
         collection_writes = {},
         meta_writes = {},
         worker_calls = {},
@@ -120,6 +121,10 @@ local function newUI(SyncUI, state, watermark, report, ui_options)
                 }
                 return ui_options.metadata_ok ~= false
             end,
+            refreshExternalMetadataCaches = function()
+                state.metadata_consumer_refreshes = state.metadata_consumer_refreshes + 1
+                return ui_options.metadata_cache_ok ~= false
+            end,
         },
         worker = {
             run = function(_, options)
@@ -162,6 +167,7 @@ return function()
         assert(#state.worker_calls == 1)
         assert(state.worker_calls[1].full_rescan == false)
         assert(#state.metadata_writes == 1)
+        assert(state.metadata_consumer_refreshes == 1)
         assert(#state.collection_writes == 1)
         assert(state.meta_writes.document_watermark == "2026-09-22T20:00:00Z")
         assert(state.meta_writes.document_query_after == "2026-09-22T19:55:00Z")
@@ -191,6 +197,7 @@ return function()
         ui:syncNow(false)
         assert(state.refresh_calls == 0, "no-op sync must not refresh Collections")
         assert(#state.metadata_writes == 0)
+        assert(state.metadata_consumer_refreshes == 0)
         assert(#state.collection_writes == 0)
     end)
 
