@@ -113,6 +113,10 @@ local function summaryText(report)
         string.format(_("Readwise v2 mappings resolved: %d"), report.v2_annotation_mappings_resolved or 0),
         string.format(_("Readwise v2 remote-note reads: %d"), report.v2_remote_note_reads or 0),
         string.format(_("Readwise v2 note updates: %d"), report.v2_note_updates or 0),
+        string.format(_("Reader note verification reads: %d"), report.reader_note_verification_reads or 0),
+        string.format(_("Reader propagation misses: %d"), report.reader_note_propagation_misses or 0),
+        string.format(_("Reader v3 repair PATCHes: %d"), report.reader_v3_note_repairs or 0),
+        string.format(_("Reader note repairs completed: %d"), report.reader_note_repairs or 0),
         string.format(_("Annotation remote errors: %d"), report.annotation_remote_errors or 0),
     }
 
