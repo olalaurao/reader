@@ -470,6 +470,7 @@ function Reader:diagnoseTag(name, options)
             location = document.location,
             parent_id = document.parent_id,
             tags = document.tags,
+            updated_at = document.updated_at,
         }
     end)
     if not scan then return nil, scan_err end
