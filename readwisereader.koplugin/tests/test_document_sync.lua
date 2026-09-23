@@ -273,7 +273,7 @@ return function()
             end,
             getDocument = function() error("metadata projection backfill must not fetch content") end,
         }
-        local syncer, _, updated_meta, installs, _, metadata = newSync{
+        local syncer, _, updated_meta, installs, collections, metadata = newSync{
             reader = reader, repository = repository, meta = meta, now_values = { 1037, 1038 },
         }
         local report, err = syncer:sync{}
@@ -283,6 +283,7 @@ return function()
         assert(report.content_pages == 0)
         assert(metadata_calls == 1)
         assert(#installs == 0)
+        assert(#collections == 0)
         assert(#metadata == 1 and metadata[1].tags[1] == "backfilled")
         assert(updated_meta.values.metadata_projection_version == PROJECTION)
     end
