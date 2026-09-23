@@ -2394,17 +2394,50 @@ Physical validation on the target PW3 / KOReader v2026.07.1 passed:
 
 Gate 10 is closed. Phase M / Gate 11 official Readwise → Obsidian export validation is now unblocked.
 
-## Phase M — Obsidian end-to-end
+## Phase M — Obsidian end-to-end — COMPLETE, GATE 11 PASSED
 
-### M1
-- official Readwise export;
-- verify note content;
-- verify wikilink.
+### M1 — official export contract
+Current official Readwise documentation was revalidated on 2026-09-23.
 
-### Gate 11
-`[[Foucault]]` functions in Obsidian as intended with user's real template/config.
+Canonical path:
+- use the **Readwise Official** community plugin inside the user's real Obsidian vault;
+- new highlights can sync automatically or through the command `Readwise Official: Sync your data now`;
+- the documented default Highlight template renders attached notes through `{{ highlight_note }}`;
+- new highlights from an already-known document are appended to its existing Obsidian page;
+- the integration is append-only so it does not overwrite user edits.
 
-Document append-only/edit limitation clearly.
+This phase does not add a new KOReader build. Gate 10 already proved that the exact local note reaches the correct Reader highlight. Gate 11 isolates the downstream official export only.
+
+### M2 — template/config rule
+The first Gate 11 observation must use the user's real current Readwise/Obsidian export configuration without silently changing it.
+
+Minimum compatible configuration:
+- the active Highlight template must emit `highlight_note` (the official default does);
+- the note must not be wrapped/escaped in a way that turns `[[Foucault]]` into code or plain escaped text.
+
+If the user's current custom template intentionally omits highlight notes, record that as an export-configuration limitation. It is not evidence of a Kindle→Reader plugin failure.
+
+### M3 — append-only limitation
+The official integration does not automatically rewrite an Obsidian file when an already-exported highlight is later edited or gains a note/tag. A refresh/re-export workflow is needed for those historical changes.
+
+Therefore:
+- Gate 11 validates **initial export** of the Gate 10 test annotation;
+- Phase N / Gate 12 can prove Kindle note edits reach Reader, but automatic propagation of those edits into a previously-exported Obsidian block is outside the official export's current append-only behavior;
+- this limitation must be documented rather than hidden.
+
+### Gate 11 — PASSED
+Using the Gate 10 test highlight whose Reader note is exactly:
+
+`ver [[Foucault]]`
+`#pesquisar`
+
+verify in the user's real Obsidian vault:
+- the official Readwise sync places the highlight under the correct exported article;
+- source Markdown contains the note with literal `[[Foucault]]`;
+- `#pesquisar` is preserved;
+- Obsidian recognizes `[[Foucault]]` as an internal wikilink under the user's real template/config.
+
+No new Kindle build was required. The user's real export configuration passed all criteria: correct article/highlight, note present, literal `[[Foucault]]`, preserved `#pesquisar`, and a functioning Obsidian internal wikilink. Gate 11 is closed and Phase N / Gate 12 is unblocked.
 
 ## Phase N — update/delete annotations
 

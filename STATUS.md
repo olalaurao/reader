@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase L COMPLETE — Gate 10 PASSED on PW3 / KOReader 2026.07.1; build 0.1.25**
+**Phase M COMPLETE — Gate 11 PASSED in the user's real Obsidian vault; Kindle build remains 0.1.25**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. **Phase L / Gate 10 has now passed physically** on build 0.1.25: correct original Reader parent, exact highlight text/note, marker verification, second-sync zero create, no duplicate and no crash/freeze. Next is Phase M / Gate 11 Obsidian end-to-end validation. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Current work is **Phase M / Gate 11 official Readwise → Obsidian export validation** using the already-proven Gate 10 highlight/note; no new Kindle plugin build is required for this gate. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -603,18 +603,16 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 
 ## Current branch / commit
 
-- Branch: `phase-l/highlight-create-gate10`
-- Base/integrated `main`: `e482dfb93ac882c20fdea946574835eb5a884766` (PR #12 merge / Phase K + Gate 9 passed)
-- Phase L duplicate-safe create core: `ecdfebc05d7100f7498a7cf2c763315e41db1c6e`
-- Phase L Sync-now current-document integration: `b8683bc8af3db6c505562aff818dbea3bdba0b53`
-- Phase L prior-attempt no-blind-retry hardening: `d81fccc13e0a70226f46e73cf08b0c13b2e33017`
-- Phase L 0.1.25 physical-test staging: `1a6f16011deae9c177b6ddcd40e875070a1e0b9a`
-- Run #400 on create core: **SUCCESS**
-- Run #401 on Sync-now integration: **SUCCESS**
+- Branch: `phase-m/obsidian-gate11`
+- Base/integrated `main`: `5fa22b7726baa175b9149309f5480d8cce5cb39a` (PR #13 merge / Phase L + Gate 10 passed)
+- Phase L final branch closeout: `9655c9216468e2626ab9d845712cc8ff0bed5fea`
+- Phase L PR #13 CI run #406: **SUCCESS**
+- Phase M Gate 11 preparation: `48d4bfac6818151bb9b97ab4a8fd2a95dadae3ab`
+- Phase M preparation CI run #409: **SUCCESS** — development checks, full Lua suite, package/layout and artifact all passed; plugin code is unchanged from 0.1.25.
+- Current Phase M work is documentation/validation only; Kindle plugin remains build **0.1.25**.
+- Historical Phase K main merge: `e482dfb93ac882c20fdea946574835eb5a884766`
 - Historical Phase J main merge: `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`
 - Historical Phase I main merge: `a7d0ca39ca1e7a1df1f775b9eb1ca121a572d802`
-- Phase F historical merge: `21dd64719ca248dd7706895fab1651751edf8844`
-
 ## Target environment
 
 - Kindle Paperwhite 3 / 7th generation
@@ -623,7 +621,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Jailbreak/KUAL functional
 - KOReader historical Gate 0–4 baseline: `2025.04`
 - canonical physical V1 baseline from Gate 4A-1 onward: official KOReader `v2026.07.1`, `kindlepw2` package
-- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase L / Gate 10 highlight creation
+- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase M / Gate 11 Obsidian export validation
 
 ## Phase A result
 
@@ -1434,7 +1432,8 @@ Current authoritative summary:
 - Gate 8: **PASSED** — Reader v3 ↔ Readwise v2 annotation interoperability.
 - Gate 9: **PASSED** — physical PW3 / KOReader v2026.07.1, build 0.1.24.
 - Gate 10: **PASSED** — physical PW3 / KOReader v2026.07.1, build 0.1.25.
-- Gates 11–14: **NOT YET PASSED**.
+- Gate 11: **PENDING USER/OBSIDIAN VALIDATION** — no new Kindle build required.
+- Gates 12–14: **NOT YET PASSED**.
 
 Historical early-gate detail:
 - B1 off-device implementation: complete.
@@ -1500,33 +1499,36 @@ A pre-existing Phase K branch state had incorrectly grouped remote highlight cre
 
 ## Blockers
 
-No Gate 10 blocker remains. Physical validation on build 0.1.25 passed on the target PW3 / KOReader v2026.07.1:
-- the new KOReader highlight was created under the correct original Reader document;
-- selected text matched correctly;
-- the multiline note containing `[[Foucault]]` and `#pesquisar` arrived exactly;
-- the first normal sync had no blocked create;
-- the per-annotation reconciliation marker was observed through Reader LIST;
-- the second unchanged sync created zero new highlights;
-- Reader retained only one copy of the tested highlight;
-- no crash/freeze was observed.
+No Gate 11 blocker remains. The user's real Readwise Official → Obsidian export passed end-to-end with the Gate 10 annotation:
+- the active real export configuration included highlight notes;
+- the correct Reader article exported to the correct Obsidian file;
+- the Gate 10 highlight appeared;
+- the note appeared;
+- source Markdown preserved literal `[[Foucault]]`;
+- `#pesquisar` was preserved;
+- Obsidian recognized `[[Foucault]]` as a normal internal wikilink.
+
+Official limitation retained in scope:
+- the Readwise Obsidian integration is append-only for ordinary syncs; later edits to an already-exported highlight/note do not automatically rewrite the old Obsidian block;
+- refreshing historical changes requires the documented refresh/re-export workflow.
 
 Next hard gate:
-- **Phase M / Gate 11** — official Readwise → Obsidian export with the real user template/config, proving the literal `[[Foucault]]` note survives as an Obsidian wikilink.
+- **Phase N / Gate 12** — Kindle note update → Reader update; conflict detection; deletion remains remote-off by default and only an explicitly enabled, unequivocally linked target may be deleted.
 
 Later hard gates remain:
-- Gate 12 note update/conflict and opt-in deletion;
 - Gate 13 full offline queue/retry hardening;
 - Gate 14 finished/archive;
 - Gate 15 content refresh safety.
 
 ## Exact next steps
 
-1. Close Phase L documentation and merge `phase-l/highlight-create-gate10` to `main`.
-2. Start Phase M only from the merged Gate 10 baseline.
-3. Revalidate the current official Readwise → Obsidian export behavior and setup before prescribing a physical test.
-4. Document the exact end-to-end Gate 11 procedure using the user's real template/config; do not change the plugin merely to compensate for export-template behavior unless evidence shows the Kindle→Reader payload is wrong.
-5. Verify the Gate 10 test note reaches the exported Obsidian markdown unchanged enough that `[[Foucault]]` is a normal wikilink.
-6. Record any append-only/update limitation of the official export clearly.
+1. Close/merge Phase M to `main`.
+2. Start Phase N from the merged Gate 11 baseline.
+3. Implement Reader v3 note updates only for already-linked highlights and persist the last-synced note/hash only after confirmed success.
+4. Before overwriting a changed local note, fetch the exact linked Reader child and detect whether the remote note also diverged from `last_synced_note`; if both changed, mark conflict and do not overwrite.
+5. Keep deletion propagation OFF by default; a local disappearance must not delete the remote highlight.
+6. Add an explicit opt-in deletion setting and require a durable Reader child ID belonging to the same parent before delete.
+7. Produce the next physical-test build and direct artifact link only after automated coverage passes.
 
 ## Existing architectural decisions still in force
 
@@ -1610,8 +1612,9 @@ Phase K:
 
 - Gate 8: **PASSED** physically and merged to `main`.
 - Gate 9: **PASSED physically** on the target PW3 / KOReader v2026.07.1. All four documented matching cases passed, every diagnostic remained remotely read-only, and no crash/freeze was observed.
-- Gate 10: **IMPLEMENTED / PENDING PHYSICAL TEST** in build 0.1.25. The old 0.1.23 action was not simply re-enabled; its create path was replaced with durable queueing and marker-based reconciliation.
-- Gate 11 and later: **NOT STARTED in gate terms**.
+- Gate 10: **PASSED physically** on build 0.1.25 and merged to `main` through PR #13.
+- Gate 11: **PREPARED / PENDING USER OBSIDIAN TEST**. No plugin-code change is required for the initial export proof.
+- Gate 12 and later: **NOT STARTED in gate terms**.
 
 
 ## Phase L — Gate 10 highlight create + deduplication
@@ -1640,3 +1643,30 @@ Automated validation:
 - artifact digest: `sha256:175b2d2d5748f3b466fe37bdd61c54daa2f6d3f23f6dcb20a02088cf6282a734`.
 
 Physical Gate 10 **PASSED** on 2026-09-23. Phase M / Gate 11 is now unblocked.
+
+## Phase M — Gate 11 Obsidian end-to-end
+
+**Status: COMPLETE — GATE 11 PASSED in the user's real Obsidian vault; no new Kindle build was required**
+
+Official behavior revalidated from current Readwise documentation on 2026-09-23:
+- install/use the **Readwise Official** Obsidian community plugin;
+- manual sync command: `Readwise Official: Sync your data now`;
+- default highlight export template includes attached notes through `{{ highlight_note }}`;
+- new highlights are appended to an existing exported document page;
+- export is append-only and does not overwrite user edits;
+- later edits to an already-exported highlight/note do not automatically propagate into the existing Obsidian file.
+
+Gate design:
+- use the exact Gate 10 Reader highlight/note already proven from KOReader;
+- do not change the KOReader plugin or create a new Kindle build;
+- preserve the user's real export template/config for the first observation;
+- inspect source Markdown, not only rendered appearance;
+- require literal `[[Foucault]]` to remain normal Markdown and resolve as an Obsidian internal link;
+- document refresh/re-export only as recovery for already-exported/changed items, not as automatic update behavior.
+
+Preparation commit: `48d4bfac6818151bb9b97ab4a8fd2a95dadae3ab`.
+CI run #409: **SUCCESS**.
+Handoff run #410 on `f8ff416262744facc342c8d843cac65e7f7aeba3`: **SUCCESS**.
+Runbook: `docs/OBSIDIAN_GATE11.md`.
+
+Physical/user result: **PASS** — real template exported notes, correct article/highlight appeared, note appeared, literal `[[Foucault]]` and `#pesquisar` were preserved, and the wikilink functioned in Obsidian.
