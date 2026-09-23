@@ -78,11 +78,29 @@ Never expose the Readwise token in chat, Git, screenshots or logs.
 
 Install **official v2026.07.1 `kindlepw2`**.
 
+Pinned asset:
+- `koreader-kindlepw2-v2026.07.1.zip`
+- official release: https://github.com/koreader/koreader/releases/tag/v2026.07.1
+- SHA-256: `ea1f575c54492a2c679d128b7f3210fd7d6a87e5f5a1ff1f7a7fe2080ff68f86`
+
+For this existing KUAL installation, prefer KOReader's documented **Manual Update** path rather than deleting/replacing the entire KOReader directory:
+
+1. exit KOReader completely before entering USB storage mode;
+2. connect the Kindle by USB;
+3. copy the **ZIP itself** (`koreader-kindlepw2-v2026.07.1.zip`) to the Kindle USB root; do not unpack/delete the existing `koreader/` folder;
+4. safely eject/unplug;
+5. open KUAL -> KOReader -> Tools -> Update KOReader;
+6. let the updater finish and relaunch KOReader;
+7. verify the reported KOReader version is 2026.07.1 before Gate 4A-1.
+
+The current official Kindle wiki states that manual update preserves settings as long as the `koreader` folder is not deleted.
+
 Do not:
 - update Kindle firmware;
 - alter jailbreak/KUAL;
 - install Bookshelf yet;
-- delete KOReader settings or sidecars.
+- delete KOReader settings or sidecars;
+- enter USB mass-storage mode while KOReader is still running.
 
 ### C. Gate 4A-1 — Readwise Reader alone
 
