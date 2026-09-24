@@ -286,3 +286,20 @@ From build 0.1.37:
 - durable create queue processing remains independent of the document that is currently open after a restart.
 
 Do **not** infer from this that destructive mutation scope was broadened. Note updates and optional remote deletes remain bounded to the current document in this gate. Broader destructive behavior requires its own explicit design/gate; never get it "for free" by reusing create-backlog iteration.
+
+
+## 16. Broad sidecar discovery needs exception containment
+
+Build 0.1.37 passed the full automated suite but the first physical Gate 13A run on the target PW3 returned only `Document sync failed safely` before a normal report appeared.
+
+The exact throw source was not visible because the worker-level `pcall` intentionally hid raw Lua exception text. The architectural lesson is still clear: once manual Sync traverses **multiple historical sidecars**, production code must expect inputs that unit fixtures did not model.
+
+From 0.1.38:
+- each document scan is exception-contained independently;
+- each document's queue preparation is exception-contained independently;
+- one malformed annotation normalization is skipped/counted instead of aborting the sidecar;
+- failure of the optimized local-managed repository query falls back safely;
+- a remaining global worker exception reports its coarse stage without exposing tokens or remote payloads;
+- isolated failures must never authorize a remote write or imply local deletion.
+
+Do not weaken this containment just because a later fixture passes. Broad backlog discovery is inherently exposed to old, mixed-format, partially-migrated KOReader sidecars.
