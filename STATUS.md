@@ -34,7 +34,7 @@ Build 0.1.45 keeps the 0.1.44 state-model work and fixes the first physical cras
 - root cause: KOReader `ffiUtil.copyFile` returns nil on success, but the new v1→v2 pre-migration backup code treated nil as failure and raised before migration;
 - 0.1.45 fixes the backup return-value contract, contains parent preflight errors, and removes unnecessary `ffi/sha2` from the diagnostic.
 
-Gate 15 remains **OPEN**. Q2 is blocked until Q1 is physically validated on 0.1.45.
+Gate 15 remains **OPEN**. Q1-A article safety has now PASSED physically on 0.1.45; Q2 metadata-only acknowledgement is unblocked.
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -3650,3 +3650,46 @@ Gate 15 Q1-A is not complete yet. Required next evidence:
    - Automatic replacement allowed: no;
    - remote writes none / local writes none.
 7. Do not run another ordinary Sync until this post-revision diagnostic is reviewed.
+
+
+### Gate 15 Q1-A post-revision diagnostic — PASS
+
+After the title-only Reader revision and first Sync, the user verified:
+- local article still opens;
+- reading position/progress unchanged;
+- existing highlights unchanged;
+- existing notes unchanged.
+
+Post-revision Gate 15 diagnostic on build 0.1.45:
+- category: article;
+- local format: html;
+- download strategy: reader_html;
+- local file present: yes;
+- sidecar present: yes;
+- percent_finished: **0.1538**;
+- sidecar annotations: **6**;
+- last XPointer present: **yes**;
+- last page present: no;
+- partial file checksum present: yes;
+- reading state at risk: **yes**;
+- DB remote revision: `2026-09-24T18:00:45.318557+00:00`;
+- materialized remote revision: unavailable (legacy baseline, expected);
+- refresh pending: **yes**;
+- pending remote revision equals current Reader revision;
+- remote revision state: `materialized_baseline_unknown`;
+- remote probe: **passed**;
+- visible-text comparison: **same**;
+- local HTML bytes: **27733**;
+- remote HTML bytes: **27477**;
+- V1 refresh decision: **`same_visible_text_keep_local`**;
+- automatic replacement allowed: **no**;
+- remote writes: none;
+- local writes: none.
+
+Conclusion:
+- Q1-A article safety **PASSED physically**;
+- a real same-ID metadata-only Reader revision was detected durably;
+- local bytes were not replaced;
+- KOReader progress/highlights/notes survived;
+- normalized visible content remained equivalent;
+- Q2 is now authorized to acknowledge/clear only these proven same-visible-text article revisions without touching local bytes or sidecar.
