@@ -118,6 +118,47 @@ return function()
 
     withStubbedUI(function(UI, shown)
         local ui = UI:new{
+            documents = {
+                getByLocalPath = function()
+                    error("synthetic database migration failure")
+                end,
+            },
+            status = {},
+            worker = {},
+            get_current_path = function() return "/book.html" end,
+        }
+        local ok = pcall(function() ui:run() end)
+        assert(ok == true,
+            "Gate 15 parent preflight errors must not escape the menu callback")
+        assert(#shown == 1)
+        assert(shown[1].text:find("sync database safely", 1, true))
+        assert(shown[1].text:find("No document or sidecar was changed", 1, true))
+    end)
+
+    withStubbedUI(function(UI, shown)
+        local ui = UI:new{
+            documents = {
+                getByLocalPath = function()
+                    return { reader_id = "doc-1", is_managed = true }
+                end,
+            },
+            status = {
+                scan = function()
+                    error("synthetic sidecar read failure")
+                end,
+            },
+            worker = {},
+            get_current_path = function() return "/book.html" end,
+        }
+        local ok = pcall(function() ui:run() end)
+        assert(ok == true,
+            "Gate 15 status errors must not escape the menu callback")
+        assert(#shown == 1)
+        assert(shown[1].text:find("reading state safely", 1, true))
+    end)
+
+    withStubbedUI(function(UI, shown)
+        local ui = UI:new{
             documents = { getByLocalPath = function() return nil end },
             status = {},
             worker = {},
