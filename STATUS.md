@@ -628,10 +628,11 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Branch: `phase-p/finished-archive-gate14`
 - Draft PR: **#17** — keep draft / do not merge until Gate 14 passes physically.
 - Base/integrated `main`: `b7c8977b89cf572bec1280e3490a033341af4375` (PR #16 merge / Phase O + Gate 13 passed)
-- Current pre-handoff branch HEAD: `bf3698a0ef1e6368aa6081d3ad499c6d676506c0`; this STATUS handoff commit follows it.
+- Validated 0.1.43 code/package state: `bf3698a0ef1e6368aa6081d3ad499c6d676506c0`.
+- Pre-final documentation/status HEAD: `9066f96f133e590cd8343eca3e25812cbd5197e7`; this final STATUS-only handoff commit follows it.
 - Build version for physical Gate 14 P1: **0.1.43**.
 - Gate 14 P0 signal spike: **PASSED physically**.
-- CI run **#865** on 0.1.43 branch state: **SUCCESS**.
+- CI run **#865** on the validated 0.1.43 code/package state: **SUCCESS**.
   - development checks: SUCCESS;
   - full Lua unit suite: SUCCESS;
   - installable ZIP build: SUCCESS;
@@ -647,6 +648,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
   - packaged `constants.lua`: version **0.1.43**;
   - packaged archive/status/diagnostic modules present;
   - packaged ZIP contains no `tests/` entries.
+- Final pre-handoff CI run **#867** on `9066f96f133e590cd8343eca3e25812cbd5197e7`: **SUCCESS** across development checks, full Lua suite, package/layout, and artifact upload.
 - PR #17 remains draft until Gate 14 completes physically.
 
 ## Target environment
