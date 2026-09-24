@@ -2345,3 +2345,23 @@ Proceed to the final unchanged second Sync:
 - require archived=0 / archive processed=0 / archive waiting=0 / archive remote errors=0;
 - Reader remains Archive;
 - local state remains intact.
+
+
+### Gate 14 final idempotency — PASS
+
+After the first 0.1.43 Sync archived the target and the Kindle-side preservation check passed, one unchanged second Sync was run.
+
+Confirmed:
+- no repeated archive mutation;
+- archive queue remained empty;
+- Reader document remained in Archive;
+- local document still exists and opens;
+- sidecar remains intact;
+- reading progress remains intact;
+- highlights remain intact;
+- notes remain intact;
+- no annotation regression or fatal error.
+
+**Gate 14 PASSED. Phase P complete.**
+
+Next physical gate: Gate 15 / content refresh safety.
