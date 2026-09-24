@@ -611,6 +611,10 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - 0.1.31 end-to-end note verification/repair build: `77e7d7ca5c791b5324a3b2561eb3a4b274a966f0`
 - Run #457 on build 0.1.31: **SUCCESS**
 - Gate 12A artifact ID: `10780487761`
+- Gate 12D 0.1.32 artifact ID: `10783537576`
+- 0.1.32 artifact name: `readwisereader-koplugin-bea761cab22553b0419ee58a4cba93e3818b5ef4`
+- 0.1.32 artifact digest: `sha256:96488ff7faa582057b38a67d9307734b6b10dd76a34038f450cc354fe13481d2`
+- Run #483 on 0.1.32 head `bea761cab22553b0419ee58a4cba93e3818b5ef4`: **SUCCESS**
 - artifact digest: `sha256:53041ae091550714584e4572f7bb069bef2870ca24a591361ea784ed7945be2e`
 - Annotation engineering memory: `docs/ANNOTATION_SYNC_LESSONS.md`, introduced at `80f42810cccfbfdfb7d2535e6e86156a0c0bfd0e`
 - Gate 12A physical PASS recorded in STATUS/spec/API interop/device runbook on 2026-09-23
