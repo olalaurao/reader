@@ -652,6 +652,8 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
   - packaged `constants.lua`: version **0.1.42**;
   - packaged ZIP contains no `tests/` entries.
 - Documentation-only commits after the 0.1.42 package head do not change installable plugin bytes.
+- Current pre-final-STATUS branch HEAD: `0de519ba8d0d950cb6f5b1140b552acded31cac1`; this STATUS-only handoff commit follows it.
+- CI run **#816** on that documentation head: **SUCCESS** (development checks, full Lua suite, package/layout, artifact upload).
 - No archive PATCH, queue mutation, local deletion, or finished-state write has been implemented yet.
 - Canonical candidate under physical validation: `summary.status == "complete"`.
 
@@ -3161,3 +3163,15 @@ This is strong source evidence, but the canonical spec requires an experimental 
 - no test files packaged.
 
 Physical blocker remains the before/after Finished signal spike; no later Phase P mutation is authorized yet.
+
+
+### Remaining V1 path after Gate 13
+
+Numbered gates:
+- Gates 0–13: **14 of 17 numbered gates passed**.
+- Gate 14: current Phase P / Finished → Archive.
+- Gate 15: content refresh safety.
+- Gate 16: release-candidate hardening.
+- After Gate 16: execute the complete V1 acceptance script and tag `v1.0.0` only if it passes.
+
+The largest remaining technical uncertainty is Gate 15 because remote content replacement must not invalidate local progress/highlights, especially across HTML versus original EPUB/PDF materializations.
