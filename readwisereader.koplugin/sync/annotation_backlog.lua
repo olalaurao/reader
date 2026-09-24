@@ -54,8 +54,14 @@ end
 -- It scans every locally-present Reader-managed document so a highlight made
 -- before switching to another book is still discovered on the next manual sync.
 function Backlog:queueAll(current_path)
+    local documents
+    if type(self.documents.listManagedLocal) == "function" then
+        documents = self.documents:listManagedLocal()
+    else
+        documents = self.documents:listManaged()
+    end
     local ordered, current_managed = localManagedDocuments(
-        self.documents:listManaged(),
+        documents,
         current_path
     )
 
