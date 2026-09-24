@@ -1530,7 +1530,7 @@ The first physical 0.1.37 run then exposed a robustness gap not represented in C
 
 ## Blockers
 
-Immediate blocker: **establish a stable physical offline state, then retry Gate 13A on build 0.1.38**.
+Immediate blocker: **confirm the physical package is truly 0.1.38, then close Gate 13A and proceed to reboot persistence**.
 
 Physical 0.1.37 result:
 - native Kindle Airplane Mode had been enabled before the test;
@@ -2349,3 +2349,55 @@ Conclusion:
 - current plugin load does not by itself reproduce Wi-Fi restoration under this controlled state;
 - this controlled KOReader-offline state is now the required fixture for Gate 13A on build 0.1.38;
 - no new highlight should be created: reuse the exact existing Gate 13 fixture from the failed 0.1.37 attempt.
+
+
+### Gate 13A controlled-offline physical result — BEHAVIOR PASS / build identity requires confirmation
+
+Physical setup:
+- KOReader **Restore Wi-Fi connection on resume** disabled;
+- Wi-Fi turned OFF from KOReader's own Network menu;
+- controlled offline state remained stable;
+- same existing Gate 13 fixture reused.
+
+Observed report:
+- Remote preflight: `unknown`;
+- Annotation sync: `queued_offline`;
+- Managed annotation documents scanned: **801**;
+- Authoritative annotation sidecars: **13**;
+- Annotation documents skipped safely: **788**;
+- Annotation scan errors: **0**;
+- Annotation queue errors: **0**;
+- Managed-document highlights scanned: **12**;
+- Highlights created: **0**;
+- Highlights reconciled safely: **0**;
+- Highlights already linked: **9**;
+- Highlights unmatched/ambiguous: **0**;
+- Highlight creates blocked safely: **0**;
+- Highlight creates queued durably: **3**;
+- Create queue items processed: **0**;
+- Create retries deferred: **0**;
+- Create auth waits: **0**;
+- Create queue waiting after sync: **3**;
+- Metadata pages: **0**;
+- Content pages: **0**;
+- Errors: **0**;
+- Notes updated: **0**;
+- Remote highlight deletions: **0**.
+
+Behavioral conclusion:
+- the controlled offline fixture works;
+- no remote create/update/delete or document feed request progressed;
+- durable create backlog exists and remains waiting;
+- no document watermark work occurred;
+- this satisfies the core Gate 13A offline-queue safety behavior.
+
+Build-identity caveat before reboot:
+- the photographed report does **not** show the 0.1.38-only diagnostic lines that should appear between scan/queue counters and managed-document highlight count:
+  - isolated scan exceptions;
+  - isolated normalization exceptions;
+  - isolated queue exceptions;
+  - repository source/fallback;
+  - current annotation document status.
+- therefore do not yet claim the physical run as definitively executed by 0.1.38;
+- before Gate 13B reboot, reinstall/confirm the validated 0.1.38 package and repeat the same idempotent offline Sync using the same already-queued fixtures;
+- this repeat must still create/process zero remote items and must show the 0.1.38 diagnostic fields.
