@@ -271,3 +271,18 @@ If the probe fails:
 - surface the probe class in diagnostics.
 
 This is distinct from ambiguous-write recovery: a failed **pre-write read-only probe** proves no mutation was attempted, while a timeout/5xx **after POST begins** must still use the existing reconciliation-only rules and must never become a blind retry.
+
+
+## 15. Backlog discovery is broader than mutation scope
+
+Phases L/N intentionally staged annotation work around the currently-open managed document. Phase O closes only the **create discovery/backlog** part of that limitation.
+
+From build 0.1.37:
+- manual Sync scans every Reader-managed document that the database records as locally present;
+- the current document is prioritized, but it is not the only discovery source;
+- remote-only documents are excluded before sidecar I/O;
+- one missing/malformed/non-authoritative sidecar does not abort discovery for other documents and never implies deletion;
+- authoritative sidecars reconcile deterministic local IDs first, then those exact candidates are queued without a second sidecar read;
+- durable create queue processing remains independent of the document that is currently open after a restart.
+
+Do **not** infer from this that destructive mutation scope was broadened. Note updates and optional remote deletes remain bounded to the current document in this gate. Broader destructive behavior requires its own explicit design/gate; never get it "for free" by reusing create-backlog iteration.
