@@ -177,38 +177,27 @@ function Upload:_prepareQueue(document, candidate, content, marker)
 end
 
 -- Local-only stage. No network operation is allowed here.
-function Upload:queuePath(local_path)
-    local document = self.documents:getByLocalPath(local_path)
+-- Candidates passed by AnnotationSync already have their deterministic local
+-- identities reconciled and their annotation_links persisted.
+function Upload:queueCandidates(document, candidates)
     if not document or document.is_managed ~= true then
-        return nil, err("not_managed", "The current document is not managed by Readwise Reader.")
+        return nil, err("not_managed", "The document is not managed by Readwise Reader.")
     end
-    if document.is_local_present ~= true or not self.file_exists(document.local_path) then
-        return nil, err("local_missing", "The managed Reader file is missing.")
-    end
-
-    local scan, scan_err = self.adapter:scan(document.local_path, document.reader_id)
-    if not scan then return nil, scan_err end
-    if not scan.authoritative then
-        return {
-            status = scan.status or "sidecar_not_authoritative",
-            scanned = 0,
-            queued = 0,
-            already_linked = 0,
-            unmatched = 0,
-            blocked = 0,
-        }
+    if document.is_local_present ~= true then
+        return nil, err("local_missing", "The managed Reader document is not recorded as local.")
     end
 
+    candidates = candidates or {}
     local report = {
         status = "ok",
-        scanned = #(scan.annotations or {}),
+        scanned = #candidates,
         queued = 0,
         already_linked = 0,
         unmatched = 0,
         blocked = 0,
     }
 
-    for _, candidate in ipairs(scan.annotations or {}) do
+    for _, candidate in ipairs(candidates) do
         local link = self.annotations:getById(candidate.local_annotation_id)
         if not link then
             report.unmatched = report.unmatched + 1
@@ -242,6 +231,33 @@ function Upload:queuePath(local_path)
     end
 
     return report
+end
+
+-- Compatibility/local utility entry point. Worker backlog discovery uses
+-- AnnotationSync + queueCandidates so each sidecar is read only once.
+function Upload:queuePath(local_path)
+    local document = self.documents:getByLocalPath(local_path)
+    if not document or document.is_managed ~= true then
+        return nil, err("not_managed", "The current document is not managed by Readwise Reader.")
+    end
+    if document.is_local_present ~= true or not self.file_exists(document.local_path) then
+        return nil, err("local_missing", "The managed Reader file is missing.")
+    end
+
+    local scan, scan_err = self.adapter:scan(document.local_path, document.reader_id)
+    if not scan then return nil, scan_err end
+    if not scan.authoritative then
+        return {
+            status = scan.status or "sidecar_not_authoritative",
+            scanned = 0,
+            queued = 0,
+            already_linked = 0,
+            unmatched = 0,
+            blocked = 0,
+        }
+    end
+
+    return self:queueCandidates(document, scan.annotations or {})
 end
 
 function Upload:_deferPreflight(item, failure, report)
