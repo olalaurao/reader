@@ -84,23 +84,12 @@ local LATIN_COMPOSE = {
     ["N" .. TILDE] = "Ñ", ["n" .. TILDE] = "ñ",
 }
 
-local utf8proc_checked = false
-local utf8proc
-
+-- Keep annotation matching independent from KOReader's native utf8proc FFI.
+-- A native FFI fault cannot be caught by Lua pcall and can terminate the child
+-- process without a traceback. For the normalization fallback needed by the
+-- matcher we only compose the Latin base+combining sequences that we explicitly
+-- support; exact matching remains the first and preferred stage.
 local function normalizeNFC(value)
-    if not utf8proc_checked then
-        utf8proc_checked = true
-        local ok, module = pcall(require, "ffi/utf8proc")
-        if ok and module and type(module.normalize_NFC) == "function" then
-            utf8proc = module
-        end
-    end
-    if utf8proc then
-        local ok, normalized = pcall(utf8proc.normalize_NFC, value)
-        if ok and type(normalized) == "string" then
-            return normalized
-        end
-    end
     return LATIN_COMPOSE[value] or value
 end
 
@@ -391,7 +380,14 @@ local function ambiguousError(message)
     }
 end
 
-function TextMatch.findExactSubstring(remote_content, local_text)
+function TextMatch.findExactSubstring(remote_content, local_text, options)
+    options = options or {}
+    local on_stage = options.on_stage
+    local function stage(name)
+        if type(on_stage) == "function" then on_stage(name) end
+    end
+
+    stage("validate")
     if type(remote_content) ~= "string" or remote_content == "" then
         return nil, { kind = "content", retryable = false, message = "Reader content is unavailable." }
     end
@@ -399,11 +395,13 @@ function TextMatch.findExactSubstring(remote_content, local_text)
         return nil, { kind = "text", retryable = false, message = "Local highlight text is empty." }
     end
 
+    stage("visible_text")
     local remote_visible = TextMatch.visibleText(remote_content)
     if remote_visible == "" then
         return nil, { kind = "content", retryable = false, message = "Reader visible text is unavailable." }
     end
 
+    stage("exact")
     local first, last, exact_state = uniqueLiteral(remote_visible, local_text)
     if exact_state == "unique" then
         return remote_visible:sub(first, last), { mode = "exact" }
@@ -434,11 +432,17 @@ function TextMatch.findExactSubstring(remote_content, local_text)
         },
     }
 
-    for _, stage in ipairs(stages) do
-        local result, info_or_state = mappedStage(remote_visible, local_text, stage.options, stage.mode)
+    for _, candidate in ipairs(stages) do
+        stage(candidate.mode)
+        local result, info_or_state = mappedStage(
+            remote_visible,
+            local_text,
+            candidate.options,
+            candidate.mode
+        )
         if result then return result, info_or_state end
         if info_or_state == "ambiguous" then
-            return ambiguousError(stage.ambiguous)
+            return ambiguousError(candidate.ambiguous)
         end
     end
 
@@ -450,5 +454,6 @@ function TextMatch.findExactSubstring(remote_content, local_text)
 end
 
 TextMatch._normalizedWithMap = normalizedWithMap
+TextMatch._normalizeNFC = normalizeNFC
 
 return TextMatch
