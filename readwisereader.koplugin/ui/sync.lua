@@ -112,6 +112,7 @@ local function summaryText(report)
         string.format(_("Annotation documents skipped safely: %d"), report.annotation_documents_skipped or 0),
         string.format(_("Annotation scan errors: %d"), report.annotation_scan_errors or 0),
         string.format(_("Annotation scan exceptions isolated: %d"), report.annotation_scan_exceptions or 0),
+        string.format(_("Annotation normalize exceptions isolated: %d"), report.annotation_normalize_exceptions or 0),
         string.format(_("Annotation queue errors: %d"), report.annotation_queue_errors or 0),
         string.format(_("Annotation queue exceptions isolated: %d"), report.annotation_queue_exceptions or 0),
         string.format(_("Annotation repository source: %s"), report.annotation_repository_source or _("unknown")),
