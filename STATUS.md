@@ -3544,3 +3544,50 @@ Root cause was identified without requiring another device action:
 - existing local content replacement remains hard-disabled.
 
 Next physical action: install 0.1.45, open the same managed article, tap Gate 15 once, and return the full diagnostic screen. If KOReader exits again, stop immediately and preserve the newest `koreader/crash.log`.
+
+
+### Gate 15 Q1-A baseline on 0.1.45 — PASS
+
+Physical PW3 result after installing corrected build 0.1.45:
+- Gate 15 diagnostic opened normally; no KOReader/KUAL exit;
+- category: `article`;
+- local format: `html`;
+- download strategy: `reader_html`;
+- local file present: **yes**;
+- sidecar present: **yes**;
+- `percent_finished = 0.1538`;
+- sidecar annotations: **6**;
+- last XPointer present: **yes**;
+- last page present: **no**;
+- partial file checksum present: **yes**;
+- reading state at risk: **yes**;
+- DB remote revision: `2026-09-24T16:36:08.800974+00:00`;
+- materialized remote revision: **unavailable** (expected for legacy pre-v2 materialization);
+- refresh pending: **no**;
+- pending remote revision: unavailable;
+- current Reader revision equals DB remote revision;
+- remote revision state: `materialized_baseline_unknown`;
+- remote probe: **passed**;
+- visible-text comparison: **same**;
+- local HTML bytes: **27733**;
+- remote HTML bytes: **27477**;
+- V1 refresh decision: `same_visible_text_keep_local`;
+- automatic replacement allowed: **no**;
+- remote writes: **none**;
+- local writes: **none**.
+
+Interpretation:
+- 0.1.45 fixes the 0.1.44 crash path on the target;
+- schema migration/open path is now functional;
+- legacy materialization baseline being unknown is expected and safe;
+- the article has real progress + annotations and therefore is a valid Q1-A preservation fixture;
+- baseline text comparison is stable despite wrapper/markup byte-count differences;
+- no replacement/write occurred.
+
+Next physical action:
+1. in Reader, change **only the title** of this same document;
+2. do not delete/re-save or edit body content;
+3. after Reader persists the rename, run ordinary **Sync now** once on Kindle;
+4. return the complete Sync report;
+5. do not run a second Sync yet;
+6. then reopen the article and verify progress/position + highlights/notes remain before the post-revision Gate 15 diagnostic.
