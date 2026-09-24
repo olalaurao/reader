@@ -2148,3 +2148,26 @@ Proceed to controlled Gate 13C mutation:
 3. run **Sync now once**;
 4. return full report before any second Sync;
 5. verify Reader contains exactly one copy of each expected new highlight/note.
+
+
+### Gate 13C first controlled reconnect — plugin PASS
+
+Build 0.1.41 ordinary Sync after the read-only matcher probe passed:
+- remote preflight passed;
+- highlights created 3;
+- queue processed 3;
+- queue waiting 0;
+- retries/auth waits/blocked creates 0;
+- unmatched/ambiguous 0;
+- errors 0;
+- metadata pages 1;
+- content pages 0;
+- current document reported `current_document_not_managed`, which is acceptable because create backlog processing is global.
+
+Before the final unchanged second Sync:
+1. inspect Reader;
+2. confirm all 3 expected new highlights are in the correct original documents;
+3. confirm exactly one copy of each;
+4. confirm expected note content is present.
+
+Do not run the second Sync until this Reader-side verification is complete.
