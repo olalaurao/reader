@@ -3,6 +3,7 @@
 local ConfirmBox = require("ui/widget/confirmbox")
 local InfoMessage = require("ui/widget/infomessage")
 local NetworkMgr = require("ui/network/manager")
+local NetworkState = require("platform/network_state")
 local Trapper = require("ui/trapper")
 local UIManager = require("ui/uimanager")
 local Worker = require("sync/worker")
@@ -155,6 +156,9 @@ function SyncUI:new(options)
         koreader_documents = assert(options.koreader_documents, "koreader_documents is required"),
         get_current_path = options.get_current_path or function() return nil end,
         worker = options.worker or Worker,
+        network_state = options.network_state or NetworkState:new{
+            network_mgr = NetworkMgr,
+        },
     }, self)
 end
 
@@ -195,7 +199,8 @@ function SyncUI:_preflight(require_online)
     end
     -- V1 never controls Wi-Fi. Ordinary Sync now is allowed offline so local
     -- sidecars can be scanned and outbound work can be queued durably.
-    if require_online and not NetworkMgr:isOnline() then
+    local online = self.network_state:isAvailable()
+    if require_online and not online then
         UIManager:show(InfoMessage:new{
             text = _("No internet connection. Full document sync requires Wi-Fi, but ordinary Sync now can queue local annotations offline."),
         })
@@ -209,7 +214,7 @@ function SyncUI:syncNow(full_rescan)
         return
     end
 
-    local online = NetworkMgr:isOnline()
+    local online = self.network_state:isAvailable()
     if full_rescan then
         self:confirmAndRun(true)
         return
@@ -254,7 +259,7 @@ end
 
 function SyncUI:_run(full_rescan, network_available)
     if network_available == nil then
-        network_available = NetworkMgr:isOnline()
+        network_available = self.network_state:isAvailable()
     end
     local current_path = self.get_current_path()
     Trapper:wrap(function()
