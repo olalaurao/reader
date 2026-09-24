@@ -1,5 +1,6 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
+local ConfirmBox = require("ui/widget/confirmbox")
 local InfoMessage = require("ui/widget/infomessage")
 local MultiInputDialog = require("ui/widget/multiinputdialog")
 local NetworkMgr = require("ui/network/manager")
@@ -42,6 +43,35 @@ function SettingsUI:getSettingsMenu()
                         keep_menu_open = true,
                         callback = function()
                             self:testConnection()
+                        end,
+                    },
+                },
+            },
+            {
+                text = _("Highlights"),
+                sub_item_table = {
+                    {
+                        text = _("Propagate highlight deletions"),
+                        keep_menu_open = true,
+                        checked_func = function()
+                            return self.config:getPropagateHighlightDeletions()
+                        end,
+                        callback = function()
+                            if self.config:getPropagateHighlightDeletions() then
+                                self.config:setPropagateHighlightDeletions(false)
+                                return
+                            end
+                            UIManager:show(ConfirmBox:new{
+                                text = _([[Enable remote highlight deletion?
+
+When enabled, deleting a linked KOReader highlight can delete that exact linked highlight from Readwise Reader during Sync now.
+
+This is destructive. The plugin still verifies the remote child ID, parent document and KOReader marker before deleting.]]),
+                                ok_text = _("Enable"),
+                                ok_callback = function()
+                                    self.config:setPropagateHighlightDeletions(true)
+                                end,
+                            })
                         end,
                     },
                 },

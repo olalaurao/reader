@@ -1206,3 +1206,335 @@ Observed:
 - Obsidian wikilink behavior: **yes**.
 
 **Gate 11 PASSED. Phase N / Gate 12 is now unblocked after Phase M merge.**
+
+## Phase N / Gate 12 — note update, conflict, deletion OFF → ON
+
+Build: **0.1.26**
+
+Use a clean already-managed Reader article if possible. Keep the article open whenever you run **Sync now**. This build still limits annotation mutations to the currently-open managed document.
+
+### A. Note update
+1. Create/sync a fresh unique test highlight if the article does not already have a clean linked one.
+2. On KOReader, edit that linked highlight note to exactly:
+   `gate12 kindle [[Foucault]]`
+   then on the next line:
+   `#nota-update`
+3. Close/reopen the article to flush the sidecar; leave it open.
+4. Run **Readwise Reader → Sync now**.
+5. Expect:
+   - `Notes updated: 1` (or at least 1 if another intentional linked note changed);
+   - `Note conflicts blocked: 0`;
+   - `Annotation mutations blocked safely: 0`.
+6. Refresh Reader and verify the exact same linked highlight now has exactly that multiline note.
+
+### B. Conflict must not overwrite either side
+1. Create and sync a **second** fresh test highlight in the same clean article with baseline note `gate12 conflict base`.
+2. After it is linked, edit its KOReader note to `gate12 LOCAL conflict` but **do not sync yet**.
+3. In Reader web/phone, edit that same second highlight note to `gate12 REMOTE conflict`.
+4. Back on KOReader, close/reopen the article and run **Sync now**.
+5. Expect:
+   - `Note conflicts blocked: 1` for this controlled case;
+   - no PATCH overwrites the Reader value.
+6. Verify Reader still says `gate12 REMOTE conflict` and KOReader still says `gate12 LOCAL conflict`.
+
+### C. Delete with propagation OFF
+1. Confirm **Settings → Highlights → Propagate highlight deletions** is unchecked.
+2. Delete the first Gate 12 linked highlight locally in KOReader (not the conflict fixture).
+3. Close/reopen; keep the article open; run **Sync now**.
+4. Expect:
+   - `Local highlight deletions detected: 1`;
+   - `Deletions retained remotely (propagation off): 1`;
+   - `Remote highlight deletions: 0`.
+5. Refresh Reader: the deleted-local test highlight must still exist remotely.
+6. **Safety stop:** if either detected or retained is greater than 1, do not enable deletion; report the counts so the old tombstones can be inspected first.
+
+### D. Deliberately enable deletion
+Only continue if step C reported exactly one pending deletion.
+1. Open **Settings → Highlights → Propagate highlight deletions**.
+2. Select it and accept the destructive-action confirmation.
+3. Return to the same article and run **Sync now**.
+4. Expect `Remote highlight deletions: 1` and zero mutation block/error for that target.
+5. Refresh Reader:
+   - the first deleted-local test highlight is gone;
+   - the second conflict-test highlight is still present.
+6. Immediately return to Settings and turn **Propagate highlight deletions OFF** again.
+7. Confirm no crash/freeze.
+
+Return:
+`nota update Reader exata: sim/não / notes updated=<n> / conflito detectado=sim/não / Reader conflito preservou remoto: sim/não / Kindle conflito preservou local: sim/não / delete OFF detected=<n> retained=<n> remote_deleted=<n> / remoto permaneceu com OFF: sim/não / delete ON remote_deleted=<n> / só alvo foi apagado: sim/não / setting voltou OFF: sim/não / sem crash-freeze: sim/não`
+
+Gate 12 passes only after note update, no-overwrite conflict behavior, default-off deletion, and one explicitly verified linked delete all pass.
+
+
+### Gate 12 attempt 1 — build 0.1.26 — FAIL / fixed in 0.1.27
+Observed on the target PW3:
+- current-document highlights scanned: 1;
+- highlights already linked: 1;
+- notes updated: 0;
+- conflicts blocked: 0;
+- mutation blocks: 0;
+- annotation remote errors: 1.
+
+Root cause was compatibility with pre-Gate-10 linked Reader children using the generic plugin source marker. Build 0.1.27 adds safe legacy support for note updates only. **Do not continue Gate 12 on 0.1.26.**
+
+### Gate 12 attempt 2 — build 0.1.27 — FAIL / fixed in 0.1.28
+Observed on the target PW3 after editing the note of an already-linked highlight:
+- current-document highlights scanned: 2;
+- highlights created: 0;
+- highlights already linked: 2;
+- notes updated: 0;
+- note conflicts blocked: 0;
+- annotation mutations blocked safely: 1;
+- annotation remote errors: 0;
+- Reader note did not change.
+
+The same newly-created linked child had previously reported zero verified reconciliation markers. Build 0.1.28 therefore treats durable Reader child ID + correct parent + highlight category as sufficient identity for **note update only**. Remote deletion remains strict and unchanged.
+
+#### 0.1.28 retest
+Do not create another highlight. Keep the edited local note as-is.
+1. Install 0.1.28.
+2. Open the same managed article.
+3. Close/reopen once so the sidecar is flushed, then leave the article open.
+4. Run **Readwise Reader → Sync now**.
+5. Expect:
+   - `Highlights created: 0`;
+   - `Notes updated: 1`;
+   - `Note conflicts blocked: 0`;
+   - `Annotation remote errors: 0`;
+   - `Durable linked highlights accepted without marker` may be greater than 0;
+   - the target note appears exactly in Reader.
+6. Do **not** test conflict or deletion until this update case passes.
+
+### Gate 12 attempt 3 — build 0.1.28 — FAIL / fixed in 0.1.29
+Observed:
+- scanned: 2;
+- already linked: 2;
+- notes updated: 0;
+- note conflicts blocked: 2;
+- mutation blocks: 0;
+- durable linked highlights accepted without marker: 2;
+- remote errors: 0.
+
+Build 0.1.29 uses deterministic Readwise v2 `external_id` mapping for the remote note/conflict source and for the note PATCH. Do not create another highlight.
+
+#### 0.1.29 retest
+1. Install 0.1.29.
+2. Keep the same local edited note(s) and the same article.
+3. Close/reopen the article and leave it open.
+4. Run Sync now.
+5. Expected for the edited target:
+   - `Highlights created: 0`;
+   - `Readwise v2 mappings resolved` at least 1 on first resolution (or 0 if already persisted from a prior 0.1.29 run);
+   - `Readwise v2 remote-note reads` at least 1;
+   - `Readwise v2 note updates` at least 1 when the remote still equals the stored baseline;
+   - `Notes updated` at least 1;
+   - no false conflict for that target;
+   - Reader shows the edited note.
+6. Do not test deletion until note update passes.
+
+### Gate 12 attempt 4 — build 0.1.29 — FAIL / fixed in 0.1.30
+Observed:
+- v2 mappings resolved: 2;
+- v2 remote-note reads: 2;
+- v2 note updates: 0;
+- note conflicts blocked: 2;
+- remote errors: 0.
+
+This proves mapping/API reads are correct; build 0.1.30 changes only note equality comparison to tolerate invisible newline/whitespace normalization.
+
+#### 0.1.30 retest
+Do not create or edit another highlight.
+1. Install 0.1.30.
+2. Use the same article and same local edited note.
+3. Close/reopen the article; leave it open.
+4. Run Sync now.
+5. Expected for the target:
+   - Highlights created: 0;
+   - v2 remote-note reads >= 1;
+   - v2 note updates >= 1 if the remote still contains the old baseline;
+   - Notes updated >= 1;
+   - no false conflict for the target;
+   - Reader displays the edited note.
+6. Do not test deletion until this passes.
+
+### Gate 12 attempt 5 — build 0.1.30 — Reader remained stale / fixed in 0.1.31
+Observed:
+- Notes updated: 1;
+- v2 note updates: 1;
+- note conflicts: 0;
+- remote errors: 0;
+- Reader still displayed the old note.
+
+0.1.31 no longer accepts the v2 response as sufficient success. It verifies the exact Reader child, waits for propagation, and if necessary repairs that child with a v3 PATCH before persisting success.
+
+#### 0.1.31 retest
+Do not create or edit another highlight.
+1. Install 0.1.31.
+2. Use the same article and same local note.
+3. Close/reopen the article; leave it open.
+4. Run Sync now.
+5. Expected recovery path may show:
+   - `Readwise v2 note updates: 0` because v2 already has the desired value from 0.1.30;
+   - `Reader note verification reads` > 0;
+   - `Reader v3 repair PATCHes: 1` if Reader is still stale;
+   - `Reader note repairs completed: 1`;
+   - `Note updates reconciled: 1` rather than `Notes updated: 1` on this recovery run;
+   - `Annotation remote errors: 0`;
+   - Reader displays the new local note.
+6. Do not test conflict/delete until the Reader visibly shows the new note.
+
+
+### Gate 12 attempt 6 — build 0.1.31 — NOTE UPDATE PASS
+
+Physical result on target PW3 / KOReader v2026.07.1:
+
+- current-document highlights scanned: **2**;
+- highlights created: **0**;
+- highlights already linked: **2**;
+- notes updated: **1**;
+- note updates reconciled: **1**;
+- note conflicts blocked: **0**;
+- annotation mutations blocked safely: **0**;
+- local highlight deletions detected: **0**;
+- remote highlight deletions: **0**;
+- deletions retained remotely: **0**;
+- legacy linked highlights accepted safely: **0**;
+- durable linked highlights accepted without marker: **8**;
+- Readwise v2 annotation pages scanned: **0**;
+- Readwise v2 mappings resolved: **0**;
+- Readwise v2 remote-note reads: **2**;
+- Readwise v2 note updates: **1**;
+- Reader note verification reads: **6**;
+- Reader propagation misses: **1**;
+- Reader v3 repair PATCHes: **2**;
+- Reader note repairs completed: **2**;
+- annotation remote errors: **0**;
+- the user refreshed/checked Reader and visually confirmed the edited note is correct.
+
+**Gate 12A / note update: PASS.**
+
+What this physically proves:
+- a successful v2 note PATCH alone is not sufficient;
+- the production path must verify the exact linked Reader v3 child;
+- if Reader is stale after v2, a v3 repair PATCH to that same validated child can restore convergence;
+- durable sync baseline must advance only after Reader visibility is proven.
+
+Next: proceed to **Gate 12B conflict test**. Do not test deletion until conflict handling passes.
+See `docs/ANNOTATION_SYNC_LESSONS.md` before modifying annotation logic again.
+
+
+### Gate 12B — conflict handling — PASS
+
+Physical result on target PW3 / KOReader v2026.07.1, build 0.1.31:
+- current-document highlights scanned: **1**;
+- highlights created: **0**;
+- highlights already linked: **1**;
+- notes updated: **0**;
+- note updates reconciled: **0**;
+- note conflicts blocked: **1**;
+- annotation mutations blocked safely: **0**;
+- local highlight deletions detected: **0**;
+- remote highlight deletions: **0**;
+- durable linked highlights accepted without marker: **1**;
+- Readwise v2 annotation pages scanned: **3**;
+- Readwise v2 mappings resolved: **1**;
+- Readwise v2 remote-note reads: **1**;
+- Readwise v2 note updates: **0**;
+- Reader note verification reads: **0**;
+- Reader v3 repair PATCHes: **0**;
+- annotation remote errors: **0**;
+- Reader remained `gate12 REMOTE conflict`;
+- Kindle remained `gate12 LOCAL conflict`.
+
+**Gate 12B PASS. No side was overwritten.**
+
+Next: Gate 12C — deletion propagation OFF. Do not enable remote deletion until the OFF run reports exactly one pending deletion.
+
+
+### Gate 12C — deletion propagation OFF — PASS
+
+Physical result on target PW3 / KOReader v2026.07.1, build 0.1.31.
+
+Setup:
+- two fresh linked highlights were created successfully in one clean managed article.
+
+After deleting only the target highlight locally while **Propagate highlight deletions** remained OFF:
+- current-document highlights scanned: **1**;
+- highlights created: **0**;
+- highlights already linked: **1**;
+- local highlight deletions detected: **1**;
+- remote highlight deletions: **0**;
+- deletions retained remotely (propagation off): **1**;
+- annotation mutations blocked safely: **0**;
+- annotation remote errors: **0**;
+- the user confirmed both highlights still exist in Reader.
+
+**Gate 12C PASS.**
+
+Next: Gate 12D deliberate opt-in delete. Use the same tombstoned target; do not create a new target. Enable deletion, run Sync now once, verify only the target disappears remotely, then immediately disable deletion again.
+
+
+### Gate 12D attempt 1 — build 0.1.31 — BLOCKED SAFELY / fixed in 0.1.32
+
+Observed:
+- current-document highlights scanned: **1**;
+- highlights already linked: **1**;
+- local highlight deletions detected: **1**;
+- remote highlight deletions: **0**;
+- annotation mutations blocked safely: **1**;
+- annotation remote errors: **0**;
+- target still existed in Reader.
+
+Cause: the old destructive identity check still required the exact Reader source marker, which production Reader did not return reliably.
+
+#### 0.1.32 retest
+
+Use the **same tombstoned target** from Gate 12C/12D attempt 1. Do not create another target.
+
+1. Install build 0.1.32.
+2. Confirm **Propagate highlight deletions** is OFF after the failed 0.1.31 attempt.
+3. Open the same article; keep it open.
+4. Enable **Settings → Highlights → Propagate highlight deletions** and accept the destructive warning.
+5. Run **Sync now once**.
+6. Expected:
+   - `Local highlight deletions detected: 1`;
+   - `Delete cross-API identity verified: 1`;
+   - `Reader delete verification reads: >=1`;
+   - `Reader deletions verified: 1`;
+   - `Delete verification pending: 0`;
+   - `Remote highlight deletions: 1`;
+   - `Annotation mutations blocked safely: 0`;
+   - `Annotation remote errors: 0`.
+7. Refresh Reader:
+   - tombstoned target is gone;
+   - control highlight remains.
+8. Immediately turn **Propagate highlight deletions OFF** again.
+9. If cross-API identity is not verified, delete remains 0, verification is pending, or any error/block appears: turn the setting OFF and stop.
+
+
+### Gate 12D — deliberate opt-in deletion — PASS
+
+Build: **0.1.32**
+
+Observed:
+- the tombstoned target disappeared from Reader;
+- the control highlight remained in Reader;
+- **Propagate highlight deletions** was turned OFF again.
+
+Follow-up Sync now with propagation OFF:
+- current-document highlights scanned: **2**;
+- highlights created: **0**;
+- highlights already linked: **2**;
+- local highlight deletions detected: **0**;
+- remote highlight deletions: **0**;
+- deletions retained remotely: **0**;
+- annotation mutations blocked safely: **0**;
+- delete cross-API identity verified: **0** (no pending delete on this confirmation run);
+- Reader delete verification reads: **0**;
+- Reader deletions verified: **0**;
+- delete verification pending: **0**;
+- annotation remote errors: **0**.
+
+The successful destructive-run diagnostic counters were not captured in a photo, so they are intentionally not reconstructed. The end state plus the clean follow-up prove that the target tombstone was reconciled and no unintended deletion remained pending.
+
+**Gate 12D PASS. Gate 12 PASS.**

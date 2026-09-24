@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase M COMPLETE — Gate 11 PASSED in the user's real Obsidian vault; Kindle build remains 0.1.25**
+**Phase N COMPLETE — GATE 12 PASSED PHYSICALLY on PW3 / KOReader 2026.07.1; build 0.1.32**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Current work is **Phase M / Gate 11 official Readwise → Obsidian export validation** using the already-proven Gate 10 highlight/note; no new Kindle plugin build is required for this gate. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Current work is **Phase N / Gate 12**. Note update, conflict handling, and deletion-OFF have passed physically. The first deliberate deletion attempt on 0.1.31 was blocked safely because Reader did not expose the expected source marker. Build 0.1.32 replaces that unreliable marker requirement with cross-API Reader+v2 identity and post-DELETE verification. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -603,16 +603,24 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 
 ## Current branch / commit
 
-- Branch: `phase-m/obsidian-gate11`
-- Base/integrated `main`: `5fa22b7726baa175b9149309f5480d8cce5cb39a` (PR #13 merge / Phase L + Gate 10 passed)
-- Phase L final branch closeout: `9655c9216468e2626ab9d845712cc8ff0bed5fea`
-- Phase L PR #13 CI run #406: **SUCCESS**
-- Phase M Gate 11 preparation: `48d4bfac6818151bb9b97ab4a8fd2a95dadae3ab`
-- Phase M preparation CI run #409: **SUCCESS** — development checks, full Lua suite, package/layout and artifact all passed; plugin code is unchanged from 0.1.25.
-- Current Phase M work is documentation/validation only; Kindle plugin remains build **0.1.25**.
-- Historical Phase K main merge: `e482dfb93ac882c20fdea946574835eb5a884766`
-- Historical Phase J main merge: `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`
-- Historical Phase I main merge: `a7d0ca39ca1e7a1df1f775b9eb1ca121a572d802`
+- Branch: `phase-n/note-update-delete-gate12`
+- Base/integrated `main`: `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4` (PR #14 merge / Phase M + Gate 11 passed)
+- Phase N mutation engine: `183c578dbf2b97b3a5d111d369f40e8cc3bff4d2`
+- Phase N Sync/settings integration: `9e8c532c9407041ecb8dd2babeabff1586476774`
+- Phase N destructive-toggle coverage: `4d081b346156f7dd09e4db6640181a9ee9518864`
+- 0.1.31 end-to-end note verification/repair build: `77e7d7ca5c791b5324a3b2561eb3a4b274a966f0`
+- Run #457 on build 0.1.31: **SUCCESS**
+- Gate 12A artifact ID: `10780487761`
+- Gate 12D 0.1.32 artifact ID: `10783537576`
+- 0.1.32 artifact name: `readwisereader-koplugin-bea761cab22553b0419ee58a4cba93e3818b5ef4`
+- 0.1.32 artifact digest: `sha256:96488ff7faa582057b38a67d9307734b6b10dd76a34038f450cc354fe13481d2`
+- Run #483 on 0.1.32 head `bea761cab22553b0419ee58a4cba93e3818b5ef4`: **SUCCESS**
+- artifact digest: `sha256:53041ae091550714584e4572f7bb069bef2870ca24a591361ea784ed7945be2e`
+- Annotation engineering memory: `docs/ANNOTATION_SYNC_LESSONS.md`, introduced at `80f42810cccfbfdfb7d2535e6e86156a0c0bfd0e`
+- Gate 12A physical PASS recorded in STATUS/spec/API interop/device runbook on 2026-09-23
+- Historical Phase M main merge: `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`
+- Historical Phase L main merge: `5fa22b7726baa175b9149309f5480d8cce5cb39a`
+
 ## Target environment
 
 - Kindle Paperwhite 3 / 7th generation
@@ -621,7 +629,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Jailbreak/KUAL functional
 - KOReader historical Gate 0–4 baseline: `2025.04`
 - canonical physical V1 baseline from Gate 4A-1 onward: official KOReader `v2026.07.1`, `kindlepw2` package
-- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase M / Gate 11 Obsidian export validation
+- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase N / Gate 12 conflict + safe deletion after note-update PASS
 
 ## Phase A result
 
@@ -1432,8 +1440,9 @@ Current authoritative summary:
 - Gate 8: **PASSED** — Reader v3 ↔ Readwise v2 annotation interoperability.
 - Gate 9: **PASSED** — physical PW3 / KOReader v2026.07.1, build 0.1.24.
 - Gate 10: **PASSED** — physical PW3 / KOReader v2026.07.1, build 0.1.25.
-- Gate 11: **PENDING USER/OBSIDIAN VALIDATION** — no new Kindle build required.
-- Gates 12–14: **NOT YET PASSED**.
+- Gate 11: **PASSED** — real Readwise Official → Obsidian export/configuration.
+- Gate 12: **PASSED** — build 0.1.32 final physical close; note update, conflict, delete-OFF, deliberate delete-ON all validated.
+- Gates 13–15: **NOT YET PASSED**.
 
 Historical early-gate detail:
 - B1 off-device implementation: complete.
@@ -1499,36 +1508,30 @@ A pre-existing Phase K branch state had incorrectly grouped remote highlight cre
 
 ## Blockers
 
-No Gate 11 blocker remains. The user's real Readwise Official → Obsidian export passed end-to-end with the Gate 10 annotation:
-- the active real export configuration included highlight notes;
-- the correct Reader article exported to the correct Obsidian file;
-- the Gate 10 highlight appeared;
-- the note appeared;
-- source Markdown preserved literal `[[Foucault]]`;
-- `#pesquisar` was preserved;
-- Obsidian recognized `[[Foucault]]` as a normal internal wikilink.
+No Gate 12 blocker remains. Phase N is complete.
 
-Official limitation retained in scope:
-- the Readwise Obsidian integration is append-only for ordinary syncs; later edits to an already-exported highlight/note do not automatically rewrite the old Obsidian block;
-- refreshing historical changes requires the documented refresh/re-export workflow.
+Gate 12 physical result:
+- 12A note update: PASS;
+- 12B simultaneous local/remote conflict: PASS, neither side overwritten;
+- 12C local deletion with propagation OFF: PASS, remote retained;
+- 12D deliberate opt-in deletion on build 0.1.32: PASS, target disappeared remotely, control remained, setting returned OFF;
+- follow-up sync with deletion OFF was clean: local deletions 0, remote deletions 0, mutation blocks 0, remote errors 0.
 
 Next hard gate:
-- **Phase N / Gate 12** — Kindle note update → Reader update; conflict detection; deletion remains remote-off by default and only an explicitly enabled, unequivocally linked target may be deleted.
+- **Phase O / Gate 13 — offline queue hardening:** no duplicate and no lost annotation across offline create/restart/reconnect, 429, timeout, 5xx, auth expiration, and stale in-flight recovery.
 
-Later hard gates remain:
-- Gate 13 full offline queue/retry hardening;
+Later hard gates:
 - Gate 14 finished/archive;
 - Gate 15 content refresh safety.
 
 ## Exact next steps
 
-1. Close/merge Phase M to `main`.
-2. Start Phase N from the merged Gate 11 baseline.
-3. Implement Reader v3 note updates only for already-linked highlights and persist the last-synced note/hash only after confirmed success.
-4. Before overwriting a changed local note, fetch the exact linked Reader child and detect whether the remote note also diverged from `last_synced_note`; if both changed, mark conflict and do not overwrite.
-5. Keep deletion propagation OFF by default; a local disappearance must not delete the remote highlight.
-6. Add an explicit opt-in deletion setting and require a durable Reader child ID belonging to the same parent before delete.
-7. Produce the next physical-test build and direct artifact link only after automated coverage passes.
+1. Close/merge Phase N to `main`.
+2. Start Phase O from the merged Gate 12 baseline.
+3. Audit the existing pending-ops queue, mutation state transitions, retry classification, and startup/reboot recovery before adding new behavior.
+4. Preserve all annotation invariants from `docs/ANNOTATION_SYNC_LESSONS.md`.
+5. Implement Gate 13 in the spec order: offline create/restart/reconnect; 429/timeout/5xx/auth; stale in-flight reconciliation.
+6. Do not advance to Phase P / Gate 14 until Gate 13 physically passes.
 
 ## Existing architectural decisions still in force
 
@@ -1537,7 +1540,8 @@ Later hard gates remain:
 - Plugin does not toggle Wi-Fi.
 - Reader is the source for library content; Kindle/KOReader is the primary reading surface.
 - Reader v3 is used for library and parent-linked highlight creation.
-- Readwise v2 is used only where later interoperability testing proves it required/reliable.
+- Production note sync uses deterministic Readwise v2 mapping for remote note truth/update and Reader v3 for child identity plus end-to-end verification/repair. Do not collapse this back to a single-API assumption.
+- Read `docs/ANNOTATION_SYNC_LESSONS.md` before future annotation work.
 - SQLite will hold documents/annotation links/queue/watermarks.
 - LuaSettings holds small user config/token.
 - KOReader sidecar `annotations` is the annotation source of truth.
@@ -1670,3 +1674,286 @@ Handoff run #410 on `f8ff416262744facc342c8d843cac65e7f7aeba3`: **SUCCESS**.
 Runbook: `docs/OBSIDIAN_GATE11.md`.
 
 Physical/user result: **PASS** — real template exported notes, correct article/highlight appeared, note appeared, literal `[[Foucault]]` and `#pesquisar` were preserved, and the wikilink functioned in Obsidian.
+
+## Phase N — Gate 12 note update / conflict / safe deletion
+
+**Status: PARTIAL PHYSICAL PASS — build 0.1.31; NOTE UPDATE PASSED, CONFLICT + DELETE PENDING**
+
+Implemented on `phase-n/note-update-delete-gate12`:
+- shared stable annotation remote marker identity;
+- linked Reader-child verification before any PATCH/DELETE;
+- note update with post-PATCH GET verification;
+- three-way conflict detection using `last_synced_note`; no silent overwrite;
+- update-response reconciliation when remote already equals local;
+- local text edits blocked from remote mutation;
+- delete propagation default OFF;
+- explicit confirmed Settings toggle;
+- local tombstones retained while deletion is OFF;
+- verified remote deletion and durable remote-link clearing while preserving tombstone history;
+- current-document-only mutation scope;
+- Sync summary counters for notes/conflicts/deletions.
+
+Automated validation:
+- run #415: **SUCCESS** — mutation engine/state tests;
+- run #416: **SUCCESS** — Sync now/settings integration;
+- run #417: **SUCCESS** — destructive opt-in UI coverage.
+- run #418 on build `fe97378c76f92f2e4b5c79f0eb1c293d4f864965`: **SUCCESS** — development checks, full Lua suite, ZIP build/layout and artifact upload.
+- Gate 12 artifact ID: `10777011478`.
+- artifact name: `readwisereader-koplugin-fe97378c76f92f2e4b5c79f0eb1c293d4f864965`.
+- artifact digest: `sha256:8f20886e44b96fb46dbc03bd968f536fd9ece7de203d092d446abb797caebd1e`.
+
+Gate 12 physical attempt with build 0.1.26 exposed a real compatibility regression:
+- the current document scanned one linked highlight;
+- it was recognized as already linked;
+- note update stayed at 0;
+- mutation conflict/blocked counters stayed 0;
+- one annotation remote error was reported;
+- root cause: pre-Gate-10 linked highlights used the generic Reader source marker `KOReader Readwise Reader`, while 0.1.26 required only the newer per-annotation source marker.
+
+Fixed in 0.1.27:
+- note update accepts the legacy generic source only when durable Reader child ID + original parent ID + `category=highlight` all match;
+- exact per-annotation marker remains preferred;
+- remote DELETE does **not** accept the legacy generic marker;
+- remote identity mismatches are surfaced as safe blocks instead of generic remote errors;
+- run #420 on hotfix commit `5c22be3ebae3b95f67ba28fb5472011cb9f1cff8`: **SUCCESS**.
+
+Gate 12 attempt 2 with build 0.1.27 still blocked the note update:
+- 2 current-document highlights scanned;
+- 2 already linked;
+- 0 highlights created;
+- 0 notes updated;
+- 0 note conflicts;
+- 1 annotation mutation blocked safely;
+- 0 annotation remote errors;
+- Reader note remained unchanged.
+
+The same newly-created linked child had previously reported `Reconciliation markers verified: 0`, proving the Reader `source` marker is not reliable enough to be a mandatory identity component for non-destructive note updates.
+
+Fixed in 0.1.28:
+- note update requires the durable Reader child ID + original parent ID + `category=highlight`;
+- exact/legacy source markers remain useful evidence when present, but are no longer mandatory for note PATCH;
+- previously blocked/conflict items are re-evaluated while the local note still differs from `last_synced_note`, allowing recovery without recreating the highlight;
+- DELETE remains unchanged and still requires the exact per-annotation ownership marker;
+- run #422 on `209ef6504194f955dd424712474e5d7d90190d9d`: **SUCCESS**.
+
+Physical Gate 12 remains required.
+
+### Gate 12 attempt 3 — build 0.1.28 — FAIL / fixed in 0.1.29
+- current-document highlights scanned: 2;
+- highlights already linked: 2;
+- notes updated: 0;
+- note conflicts blocked: 2;
+- annotation mutations blocked safely: 0;
+- durable linked highlights accepted without marker: 2;
+- annotation remote errors: 0.
+
+Conclusion: identity resolution was fixed, but Reader v3 LIST `notes` produced false conflicts for both linked production highlights.
+
+0.1.29 fix:
+- resolve the exact Readwise v2 highlight by `external_id == Reader child id`;
+- persist the numeric v2 highlight id after deterministic resolution;
+- read the current remote note from v2 for three-way conflict detection;
+- PATCH that exact v2 highlight when only the local note changed;
+- verify returned v2 id/note before advancing the last-synced baseline;
+- Reader v3 remains the child id/parent/category identity check;
+- deletion behavior is unchanged and still strict.
+
+Code CI #432 on `1f6ee715feaa294984e04b3bb7139fd7836acff0`: **SUCCESS**.
+Physical Gate 12 remains required.
+
+### Gate 12 attempt 4 — build 0.1.29 — FAIL / fixed in 0.1.30
+- current-document highlights scanned: 2;
+- highlights already linked: 2;
+- notes updated: 0;
+- note conflicts blocked: 2;
+- durable linked highlights accepted without marker: 2;
+- Readwise v2 annotation pages scanned: 3;
+- Readwise v2 mappings resolved: 2;
+- Readwise v2 remote-note reads: 2;
+- Readwise v2 note updates: 0;
+- annotation remote errors: 0.
+
+Conclusion: identity and deterministic v2 mapping were correct; the remaining false conflict was in raw string comparison between the stored baseline and Readwise's normalized note representation.
+
+0.1.30 fix:
+- normalize CRLF/CR to LF for comparison;
+- trim trailing spaces/tabs per line and surrounding whitespace for comparison only;
+- preserve the exact local note as the update payload and persisted post-success baseline;
+- conflict detection remains conservative for substantive text differences;
+- CI #441 on `b53c40189d94200fdd0cc9677c797174aa778ccd`: **SUCCESS**.
+
+Physical Gate 12 remains open.
+
+### Gate 12 attempt 5 — build 0.1.30 — API success but Reader stale / fixed in 0.1.31
+- highlights created: 0;
+- notes updated: 1;
+- note conflicts blocked: 0;
+- durable linked highlights accepted without marker: 2;
+- Readwise v2 remote-note reads: 2;
+- Readwise v2 note updates: 1;
+- annotation remote errors: 0;
+- **Reader UI still showed the old note**.
+
+Conclusion: 0.1.30 advanced `last_synced_note` after a successful v2 PATCH response without proving propagation to the Reader v3 child. This made the summary claim success too early.
+
+0.1.31 fix:
+- poll the exact linked Reader v3 child after a v2 note PATCH before marking success;
+- if v2 has the desired note but Reader v3 is stale, issue a v3 repair PATCH to that same validated child;
+- verify the Reader child again after repair;
+- only after Reader visibility is proven does `last_synced_note` advance and `Notes updated` increment;
+- recover the 0.1.30 premature baseline state when local + baseline + v2 agree but Reader v3 is stale;
+- new diagnostics expose Reader verification reads, propagation misses, v3 repair PATCHes and completed repairs;
+- functional CI #449 and worker integration CI #450 passed.
+
+Physical Gate 12 remains open.
+
+
+### Gate 12 attempt 6 — build 0.1.31 — NOTE UPDATE PASS
+
+Physical result on target PW3 / KOReader v2026.07.1:
+- current-document highlights scanned: **2**;
+- highlights created: **0**;
+- highlights already linked: **2**;
+- notes updated: **1**;
+- note updates reconciled: **1**;
+- note conflicts blocked: **0**;
+- annotation mutations blocked safely: **0**;
+- local highlight deletions detected: **0**;
+- remote highlight deletions: **0**;
+- deletions retained remotely: **0**;
+- legacy linked highlights accepted safely: **0**;
+- durable linked highlights accepted without marker: **8**;
+- Readwise v2 annotation pages scanned: **0** (numeric v2 IDs were already persisted);
+- Readwise v2 mappings resolved: **0**;
+- Readwise v2 remote-note reads: **2**;
+- Readwise v2 note updates: **1**;
+- Reader note verification reads: **6**;
+- Reader propagation misses: **1**;
+- Reader v3 repair PATCHes: **2**;
+- Reader note repairs completed: **2**;
+- annotation remote errors: **0**;
+- user visually confirmed the edited note is now correct in Reader.
+
+**Gate 12A note update: PASS.**
+
+Canonical implementation lesson:
+- remote conflict/update truth comes from the exact mapped Readwise v2 highlight;
+- Reader v3 remains required for child identity and final user-visible verification;
+- if v2 is correct but Reader is stale, repair the same validated Reader child via v3 and verify;
+- never advance `last_synced_note` or report success before Reader visibility is proven;
+- see `docs/ANNOTATION_SYNC_LESSONS.md` for the full reusable contract.
+
+Gate 12 as a whole remains open until conflict and deletion tests pass.
+
+
+### Gate 12B — conflict handling — PHYSICAL PASS
+
+Physical result on target PW3 / KOReader v2026.07.1, build 0.1.31:
+- current-document highlights scanned: **1**;
+- highlights created: **0**;
+- highlights already linked: **1**;
+- notes updated: **0**;
+- note updates reconciled: **0**;
+- note conflicts blocked: **1**;
+- annotation mutations blocked safely: **0**;
+- local highlight deletions detected: **0**;
+- remote highlight deletions: **0**;
+- deletions retained remotely: **0**;
+- durable linked highlights accepted without marker: **1**;
+- Readwise v2 annotation pages scanned: **3**;
+- Readwise v2 mappings resolved: **1**;
+- Readwise v2 remote-note reads: **1**;
+- Readwise v2 note updates: **0**;
+- Reader note verification reads: **0**;
+- Reader v3 repair PATCHes: **0**;
+- annotation remote errors: **0**;
+- user confirmed Reader retained `gate12 REMOTE conflict`;
+- user confirmed Kindle retained `gate12 LOCAL conflict`.
+
+**Gate 12B conflict handling: PASS.**
+
+This physically proves that the three-way conflict path blocks mutation before any remote note PATCH and preserves both divergent states.
+
+
+### Gate 12C — local deletion with propagation OFF — PHYSICAL PASS
+
+Physical result on target PW3 / KOReader v2026.07.1, build 0.1.31.
+
+Fixture setup sync:
+- current-document highlights scanned: **2**;
+- highlights created: **2**;
+- annotation remote errors: **0**.
+
+After deleting only the target highlight locally with propagation OFF:
+- current-document highlights scanned: **1**;
+- highlights created: **0**;
+- highlights already linked: **1**;
+- local highlight deletions detected: **1**;
+- remote highlight deletions: **0**;
+- deletions retained remotely (propagation off): **1**;
+- annotation mutations blocked safely: **0**;
+- annotation remote errors: **0**;
+- user confirmed **both remote highlights still exist** in Reader.
+
+**Gate 12C deletion-OFF: PASS.**
+
+This physically proves the default-safe tombstone behavior: local disappearance is detected and retained durably without destructive remote action while propagation is OFF.
+
+Next: Gate 12D deliberate opt-in deletion of exactly that linked target; control highlight must remain.
+
+
+### Gate 12D attempt 1 — build 0.1.31 — BLOCKED SAFELY / fixed in 0.1.32
+
+Observed on target PW3 / KOReader v2026.07.1:
+- current-document highlights scanned: **1**;
+- highlights already linked: **1**;
+- local highlight deletions detected: **1**;
+- remote highlight deletions: **0**;
+- deletion retained remotely (propagation off): **0**;
+- annotation mutations blocked safely: **1**;
+- annotation remote errors: **0**;
+- the target remained in Reader.
+
+Root cause:
+- the destructive path still required the exact Reader `source/saved_using` marker;
+- physical production Reader data did not expose that marker reliably, even for the legitimate target.
+
+0.1.32 fix:
+- destructive identity now requires the exact durable Reader child id;
+- the child must belong to the expected parent and be `category=highlight`;
+- the exact Readwise v2 highlight must map back with `external_id == Reader child id`;
+- zero/ambiguous/mismatched cross-API identity blocks the DELETE;
+- after Reader DELETE acknowledgement, the plugin polls the exact Reader child and clears the durable link only after the child is confirmed gone;
+- new diagnostics expose cross-API identity verification and post-delete Reader verification;
+- code CI #475 on `e6fca05b24f90254087b7111dc1346e255f76a8f`: **SUCCESS**.
+
+Gate 12D remains physically pending on build 0.1.32.
+
+
+### Gate 12D — deliberate opt-in deletion — PHYSICAL PASS
+
+Physical result on target PW3 / KOReader v2026.07.1, build 0.1.32.
+
+Observed destructive outcome:
+- the exact tombstoned target disappeared from Reader;
+- the control highlight remained in Reader;
+- deletion propagation was turned OFF again immediately after the test.
+
+Follow-up confirmation sync with deletion propagation OFF:
+- current-document highlights scanned: **2**;
+- highlights created: **0**;
+- highlights already linked: **2**;
+- local highlight deletions detected: **0**;
+- remote highlight deletions: **0**;
+- deletions retained remotely: **0**;
+- annotation mutations blocked safely: **0**;
+- delete cross-API identity verified: **0** (expected on the follow-up because no delete remained pending);
+- Reader delete verification reads: **0**;
+- Reader deletions verified: **0**;
+- delete verification pending: **0**;
+- annotation remote errors: **0**;
+- user confirmed control remained and setting was OFF.
+
+The destructive-run diagnostic screen itself was not captured after the successful 0.1.32 run, so no unobserved per-run counter is invented here. The end state and clean follow-up prove the tombstone was reconciled: the remote target was gone, control remained, and no local deletion remained pending.
+
+**Gate 12D: PASS. Gate 12: PASS. Phase N: COMPLETE.**

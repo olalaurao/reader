@@ -103,6 +103,15 @@ function Config:getDownloadImages()
     return value == true
 end
 
+function Config:getPropagateHighlightDeletions()
+    return self.settings:readSetting("propagate_highlight_deletions") == true
+end
+
+function Config:setPropagateHighlightDeletions(enabled)
+    self.settings:saveSetting("propagate_highlight_deletions", enabled == true)
+    self.settings:flush()
+end
+
 function Config:setDownloadImages(enabled)
     self.settings:saveSetting("download_images", enabled == true)
     self.settings:flush()

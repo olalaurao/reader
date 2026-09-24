@@ -6,6 +6,7 @@ package.path = "readwisereader.koplugin/?.lua;"
 
 local tests = {
     "tests.test_config",
+    "tests.test_settings_ui",
     "tests.test_http",
     "tests.test_reader",
     "tests.test_readwise",
@@ -21,6 +22,7 @@ local tests = {
     "tests.test_text_match_probe",
     "tests.test_text_match_diagnostics_ui",
     "tests.test_annotation_upload",
+    "tests.test_annotation_mutations",
     "tests.test_api_interop",
     "tests.test_filenames",
     "tests.test_html",

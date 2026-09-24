@@ -147,6 +147,16 @@ local function testAnnotations()
     assertEqual(restored.local_deleted_at, nil, "seen annotation must clear local deletion tombstone")
     assertEqual(restored.reader_highlight_document_id, "reader-highlight-1", "local rescan must preserve remote link")
 
+    local conflicted = anns:setSyncState("ann-1", "conflict", "note_conflict")
+    assertEqual(conflicted.sync_state, "conflict")
+    assertEqual(conflicted.last_sync_error, "note_conflict")
+
+    local remote_deleted = anns:markRemoteDeleted("ann-1")
+    assertEqual(remote_deleted.created_remote, false)
+    assertEqual(remote_deleted.reader_highlight_document_id, nil)
+    assertEqual(remote_deleted.readwise_v2_highlight_id, nil)
+    assertEqual(remote_deleted.sync_state, "deleted_synced")
+
     db:close()
 end
 
