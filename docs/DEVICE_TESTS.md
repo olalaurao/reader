@@ -2205,3 +2205,40 @@ Confirmed:
 **Gate 13 PASSED. Phase O complete.**
 
 Next physical gate: Gate 14 / Finished → Archive.
+
+
+### Phase P / Gate 14 P0 — build 0.1.42 finished-signal spike
+
+Purpose: experimentally verify the KOReader 2026.07.1 persisted Finished signal before implementing any Reader archive PATCH.
+
+Source candidate: `doc_settings.summary.status == "complete"`.
+
+0.1.42 diagnostic guarantees:
+- current document must be Reader-managed;
+- sidecar/runtime/BookList values are read only;
+- remote requests: none;
+- remote writes: none;
+- local writes: none.
+
+Physical sequence:
+1. Install 0.1.42 preserving DB/settings/documents/sidecars.
+2. Open one Reader-managed local document that can be used for this gate.
+3. Run **Readwise Reader → Inspect finished status (Gate 14)**.
+4. Capture the complete **before** screen.
+5. Open KOReader **Book status** and choose **Finished**.
+6. Close Book status so settings can flush.
+7. Run **Inspect finished status (Gate 14)** again.
+8. Capture the complete **after** screen.
+
+Expected after state:
+- Managed Reader document: yes;
+- Local file present: yes;
+- Sidecar present: yes;
+- Sidecar `summary.status: complete`;
+- BookList status: `complete`;
+- Runtime `summary.status: complete`;
+- Canonical finished candidate: yes;
+- remote requests/writes: none;
+- local writes: none.
+
+Return both before/after screens. Do not run a new Phase P archive mutation build until this signal spike passes.
