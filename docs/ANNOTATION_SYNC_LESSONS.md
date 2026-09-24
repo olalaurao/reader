@@ -166,7 +166,7 @@ Conclusion: the production note-update pipeline must be **v2 conflict/update + v
 - do not treat a v2 PATCH response as Reader propagation proof;
 - do not advance `last_synced_note` before Reader visibility is verified;
 - do not silently last-writer-wins a conflict;
-- do not relax destructive DELETE identity checks because note-update identity is more permissive;
+- do not weaken destructive DELETE identity to text/note heuristics; use exact cross-API Reader child + Readwise v2 external-id identity;
 - do not blindly retry ambiguous remote creates.
 
 ## 9. Apply these lessons beyond this plugin
@@ -199,3 +199,28 @@ Gate 12C physically proved on build 0.1.31:
 - the sync reports the deletion as retained remotely, with no mutation block/error.
 
 Future implementations must preserve this default-safe invariant: **local deletion alone must never imply remote deletion**. Destructive propagation requires an explicit opt-in plus the stronger remote identity contract.
+
+
+## 12. Destructive identity lesson from Gate 12D attempt 1
+
+Build 0.1.31 physically proved that Reader `source/saved_using` is not reliable enough to be a mandatory destructive identity field either: the legitimate tombstoned target was detected, but DELETE was blocked because the marker was absent/inconsistent.
+
+The correction in 0.1.32 does **not** remove destructive identity protection. It replaces a weak/unreliable field with a stronger two-representation proof:
+
+```text
+Reader child id == durable linked child id
+AND Reader parent_id == expected document
+AND Reader category == highlight
+AND Readwise v2 external_id == Reader child id
+```
+
+Rules:
+- v2 zero-match blocks;
+- v2 ambiguity blocks;
+- stored v2 id must still map back to the exact Reader child;
+- parent/category mismatch blocks;
+- DELETE acknowledgement is not durable success;
+- poll the exact Reader child and clear durable link state only after Reader reports it gone;
+- never substitute text/note similarity for destructive identity.
+
+This is the destructive counterpart to the note-sync lesson: **cross-API agreement is stronger than assuming one API representation contains every field reliably.**
