@@ -120,6 +120,43 @@ local function testV1ToV2Migration()
     conn:close()
 end
 
+local function testBackupCopySemantics()
+    local copied_from, copied_to
+    local db = DB:new{
+        path = "/tmp/readwisereader.sqlite3",
+        sq3 = SQ3,
+        device = { canUseWAL = function() return false end },
+        copy_file = function(from, to)
+            copied_from, copied_to = from, to
+            -- KOReader ffiUtil.copyFile returns nil on success.
+            return nil
+        end,
+    }
+    local ok, err = pcall(function()
+        db:_backupBeforeMigration(1)
+    end)
+    assertEqual(ok, true,
+        "nil from KOReader copyFile must mean backup success")
+    assertEqual(err, nil)
+    assertEqual(copied_from, "/tmp/readwisereader.sqlite3")
+    assertEqual(copied_to, "/tmp/readwisereader.sqlite3.bak")
+
+    local failing = DB:new{
+        path = "/tmp/readwisereader.sqlite3",
+        sq3 = SQ3,
+        device = { canUseWAL = function() return false end },
+        copy_file = function()
+            return "synthetic copy failure"
+        end,
+    }
+    local failed, message = pcall(function()
+        failing:_backupBeforeMigration(1)
+    end)
+    assertEqual(failed, false,
+        "non-nil KOReader copyFile return must be treated as failure")
+    assertTrue(tostring(message):find("synthetic copy failure", 1, true) ~= nil)
+end
+
 local function testTransactionRollback()
     local db = newMemoryDB()
     local conn = db:open()
@@ -162,6 +199,7 @@ return function()
     testFreshSchema()
     testQueueUniquenessAndForeignKey()
     testV1ToV2Migration()
+    testBackupCopySemantics()
     testTransactionRollback()
     testMigrationRollbackSignal()
 end
