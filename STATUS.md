@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase Q / Gate 15 — Q1-A ARTICLE SAFETY PASSED; Q2 metadata-only acknowledgement IMPLEMENTED in build 0.1.46; physical Q2 validation pending**
+**Phase Q / Gate 15 — Q1-A ARTICLE SAFETY PASSED; Q2 first physical Sync safety PASS but acknowledgement counters were cropped; first-acknowledgement recovery evidence is pending before the second Sync**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
@@ -3801,3 +3801,83 @@ Still required before marking this first Q2 Sync PASS:
 - `Changed-content revisions retained`.
 
 Do not run a second Sync until those counters from this same first Q2 report are captured/reviewed.
+
+
+## 2026-09-24 continuation audit — Gate 15 Q2 physical blocker
+
+### Current milestone
+- Phase Q / Gate 15 remains **OPEN**.
+- Q1-A article safety remains **PASSED physically**.
+- The first 0.1.46 Q2 Sync has already run once and all visible safety/error counters passed, but the five acknowledgement counters at the top of that same report were cropped.
+- Phase R / Gate 16 remains blocked.
+
+### Branch / HEAD
+- Branch: `phase-q/content-refresh-gate15`.
+- Base `main`: `5d7c954d051e491c1b11344057c59df7e2cf9656`.
+- Draft PR: #18; still draft and mergeable.
+- Production 0.1.46 code/package head remains `2fe649de11ed4acb5b3914386e7f98e52f81646b`.
+- Test head before this documentation closeout: `bfa7af39cebfd3f3470ddea4ce03503d78bba55d`.
+- No production plugin file changed after the validated 0.1.46 code/package head; the later diff contains only canonical docs/device-test notes and `tests/test_content_refresh_reconcile.lua`.
+- This documentation-only closeout commit follows `bfa7af39...`.
+
+### Files altered in this continuation
+- `readwisereader.koplugin/tests/test_content_refresh_reconcile.lua`;
+- `IMPLEMENTATION_SPEC.md`;
+- `docs/DEVICE_TESTS.md`;
+- `STATUS.md`.
+- `PLAN.md` was read completely and did not require a scope change.
+
+### What was implemented / verified
+- re-read `STATUS.md`, `IMPLEMENTATION_SPEC.md` and `PLAN.md` completely before changing the repository;
+- re-inspected PR #18, current branch/base and the actual Q2 production path;
+- verified Q2 production still requires exact pending Reader revision equality, clears only the pending marker for same visible text, retains changed/unverified/raced/raw revisions, and never replaces local bytes/sidecars;
+- added explicit automated idempotency coverage proving that after one metadata-only acknowledgement a second reconcile sees zero pending work, issues no extra Reader GET and acknowledges nothing;
+- added automated coverage proving repeated raw reconciliation keeps raw revisions pending and performs no replacement GET;
+- added automated coverage proving a missing local article remains pending and performs no remote comparison;
+- corrected the test harness so `listContentRefreshPending()` models the real SQL query and returns only pending rows;
+- documented a read-only recovery path for the already-cropped first Q2 report so the fixture is not mutated merely to recreate evidence.
+
+### Tests executed / results
+- pre-change branch HEAD `376e6dd...`: workflow #998 **SUCCESS**; development checks, full Lua suite, ZIP build, package layout and artifact upload all passed;
+- first expanded-test run #1002: **FAILED only in the new test harness** because the fake pending-list method returned an acknowledged row that the real SQL query filters out; production code was unchanged;
+- harness corrected in `bfa7af39...`;
+- workflow #1004 on `bfa7af39...`: **SUCCESS**; development checks, full Lua suite, ZIP build, package layout and artifact upload all passed;
+- compare from production head `2fe649de...` through `bfa7af39...` shows no production plugin-file changes after 0.1.46.
+
+### Gates
+- Gates 0–14: **PASSED**.
+- Gate 15 Q1-A: **PASSED physically**.
+- Gate 15 Q2: **first Sync executed; visible safety portion passed; acknowledgement proof still pending because the top counters were cropped**.
+- Gate 15 Q1-B raw coverage: still pending when/if suitable already-local original PDF/EPUB fixtures remain available.
+- Gate 16: **BLOCKED by Gate 15**.
+
+### Physical tests pending
+1. **Do not run another ordinary Sync yet.**
+2. If the first Q2 report is still available, capture the five acknowledgement counters at its top.
+3. If that report is gone/cannot be recovered, open the same Q1-A article and run **Inspect content refresh safety (Gate 15)** once. Require pending=no, current Reader revision=DB revision, remote probe passed, visible text same, replacement no, remote writes none, local writes none.
+4. If that diagnostic says pending=yes, stop; do not run a second Sync.
+5. Confirm the article still has the same progress/position, highlights and notes.
+6. Only after the first acknowledgement is established, run one unchanged second Sync and require zero acknowledgement/work for the same revision and pending=0.
+7. Then use already-local original PDF/EPUB fixtures for harmless title-only Q1-B revisions if they still exist; do not manufacture a destructive fixture.
+
+### Bugs / failures found
+- No production Q2 defect was found in this continuation.
+- The only new automated failure was the deliberately-added test harness semantics; CI exposed it and the harness was corrected.
+- The physical report layout/capture can hide the Q2 acknowledgement lines. This is a test-evidence problem, not evidence of a Q2 content-safety failure.
+
+### Technical decisions / spec deviations
+- No product-scope change and no production behavior change.
+- Gate 15 validation now explicitly permits a read-only diagnostic recovery when the one authorized first Q2 report was cropped/dismissed. This avoids mutating the fixture merely to recreate a report.
+- This is a validation-procedure refinement from physical UI evidence, not a relaxation of Gate 15: pending must still be proven cleared, local state must remain intact, and the unchanged second Sync must still be idempotent.
+- No firmware/KOReader update, Wi-Fi control, credential handling change, destructive remote behavior or replacement path was added.
+
+### Blocker
+The only immediate blocker is **physical first-acknowledgement evidence for the Q2 Sync that already happened**. No further code or Gate 16 work is authorized before that evidence is resolved.
+
+### Exact next steps
+1. Recover the five counters from the existing first Q2 report if possible; otherwise use the read-only Gate 15 diagnostic fallback above.
+2. Verify local progress/position/highlights/notes.
+3. Run the unchanged second Sync only after steps 1–2 pass.
+4. Resolve Q1-B original PDF/EPUB coverage/scope.
+5. Close Gate 15 only when article Q2 idempotency and raw-format evidence/scope are both documented.
+6. Only then start Phase R / Gate 16.

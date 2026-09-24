@@ -2637,3 +2637,28 @@ The photo cropped the Q2 acknowledgement lines immediately above:
 - changed-content retained.
 
 Capture those lines from the same report before running another Sync.
+
+
+### Gate 15 Q2 cropped-report recovery rule
+
+The first 0.1.46 Q2 Sync was already run once and its visible safety counters passed, but the photograph cropped the acknowledgement counters at the top of the report.
+
+Do **not** run another Sync merely to recreate those counters.
+
+Preferred evidence, if the original report is still open:
+- capture `Content refresh pending review`;
+- `Refresh pending examined`;
+- `Refresh articles compared`;
+- `Metadata-only revisions acknowledged`;
+- `Changed-content revisions retained`.
+
+If the original report is no longer recoverable, use the same Q1-A article and run **Inspect content refresh safety (Gate 15)** once. This diagnostic is read-only. Require:
+- refresh pending: no;
+- current Reader revision equals DB remote revision;
+- remote probe: passed;
+- visible-text comparison: same;
+- automatic replacement allowed: no;
+- remote writes: none;
+- local writes: none.
+
+If refresh pending is still yes, stop and return the screen; do not run the second Sync. Only after first-acknowledgement evidence and local progress/highlight/note preservation are confirmed may the unchanged second Sync be run.

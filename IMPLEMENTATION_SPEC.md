@@ -3064,6 +3064,9 @@ Validate **Phase Q / Gate 15 Q2** on build 0.1.46 using the already-pending Q1-A
    - `Content refresh pending review = 0` unless unrelated pending fixtures already exist;
    - `Content pages = 0`;
    - changed/raw/unverified/race/remote-error counters = 0 for this fixture;
+
+**Cropped-report recovery rule:** if the one authorized first Q2 Sync report was already dismissed or its acknowledgement lines were cropped, do **not** run another Sync just to recreate the report. Open the same article and run the read-only **Inspect content refresh safety (Gate 15)** diagnostic once. Require `refresh pending = no`, current Reader revision = DB remote revision, remote probe = passed, visible-text comparison = same, automatic replacement = no, remote writes = none and local writes = none. Combined with the already-recorded pre-Q2 `refresh pending = yes` and the 0.1.46 invariant that only an exact same-visible-text reconciliation clears that marker, this may substitute for the cropped acknowledgement lines. If the diagnostic still shows pending, stop and do not run the second Sync.
+
 7. reopen the same article and verify progress/position, highlights and notes remain unchanged;
 8. run one unchanged second Sync and require no new acknowledgement/work for the same revision;
 9. if suitable already-local original PDF/EPUB fixtures exist, perform Q1-B title-only revisions and require `Raw PDF/EPUB revisions retained` with no replacement;
