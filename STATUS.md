@@ -6,26 +6,33 @@
 
 ## Current milestone
 
-**Phase P / Gate 14 — canonical Finished signal spike IMPLEMENTED in build 0.1.42; physical PW3 validation required before archive mutation**
+**Phase P / Gate 14 — P0 FINISHED SIGNAL PASSED PHYSICALLY; P1 Finished → Archive IMPLEMENTED in build 0.1.43; physical archive validation pending**
 
-Phase O / Gate 13 is complete and merged to `main` through PR #16 as `b7c8977b89cf572bec1280e3490a033341af4375`. Gate 13 physically proved offline durable queueing, restart persistence, reconnect exactly-once delivery, and unchanged second-sync idempotency on the PW3.
+Phase O / Gate 13 is complete and merged to `main` through PR #16 as `b7c8977b89cf572bec1280e3490a033341af4375`.
 
-Current Phase P work follows the canonical stop condition: **do not implement Reader archive PATCH until KOReader's finished signal is experimentally confirmed on the target**.
+Gate 14 P0 physically proved the canonical KOReader Finished signal on the target PW3 / KOReader v2026.07.1:
+- before: sidecar/BookList/runtime status = `reading`;
+- after **Book status → Finished**: sidecar/BookList/runtime status = `complete`;
+- persisted `summary.modified` advanced from 2026-09-23 to 2026-09-24;
+- persisted `percent_finished` remained **0.1538**, proving percentage is not the Finished authority;
+- sidecar remained present;
+- diagnostic performed no plugin network request, remote write, or local write.
 
-Source-level evidence from official KOReader v2026.07.1:
-- `frontend/ui/widget/bookstatuswidget.lua` maps the Finished control to argument `"complete"`;
-- `frontend/apps/reader/modules/readerstatus.lua::markBook()` sets `summary.status = "complete"` and updates `summary.modified`;
-- `frontend/ui/widget/booklist.lua` documents `complete = Finished` and reads book status from `doc_settings.summary.status`.
+Canonical V1 rule: **Finished iff persisted KOReader `summary.status == "complete"`**. Do not infer from reading percentage/end position.
 
-Build 0.1.42 therefore adds only a **local/read-only Gate 14 diagnostic**. It compares:
-- persisted sidecar `summary.status`;
-- persisted `summary.modified`;
-- persisted `percent_finished`;
-- KOReader BookList status;
-- current runtime `summary.status`;
-- local DB Reader location.
+Build 0.1.43 implements the production archive path:
+- **Finished documents → Archive in Reader** setting, default ON;
+- local canonical finished discovery across Reader-managed locally-present documents;
+- durable `archive_document:<reader_id>` intent before remote reachability/mutation;
+- read-only Reader GET reconciliation before every PATCH/retry;
+- individual Reader PATCH `{"location":"archive"}`;
+- idempotent recovery after timeout/process death;
+- local document-row location persisted to `archive` before queue success for crash safety;
+- parent-side move to plugin-managed `Readwise: Archive` Collection;
+- local file, sidecar, progress, highlights and notes are never deleted/rewritten by archive;
+- no reverse/unarchive behavior in V1.
 
-The diagnostic performs **no remote request, no remote write, and no local write**.
+Gate 14 remains **OPEN** until the 0.1.43 physical first Sync + local/Reader preservation check + unchanged second Sync pass.
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -619,46 +626,28 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 ## Current branch / commit
 
 - Branch: `phase-p/finished-archive-gate14`
-- Draft PR: **#17**
+- Draft PR: **#17** — keep draft / do not merge until Gate 14 passes physically.
 - Base/integrated `main`: `b7c8977b89cf572bec1280e3490a033341af4375` (PR #16 merge / Phase O + Gate 13 passed)
-- 0.1.42 code/package HEAD: `84afff1d5fec69dcf42e55554aa90af778d58e05`
-- Build version: **0.1.42**
-- Phase P spike files:
-  - `readwisereader.koplugin/koreader/status.lua` — safe local sidecar/BookList finished-status adapter;
-  - `readwisereader.koplugin/ui/finished_diagnostics.lua` — local-only Gate 14 diagnostic;
-  - `readwisereader.koplugin/main.lua` — menu wiring;
-  - `readwisereader.koplugin/tests/test_koreader_status.lua`;
-  - `readwisereader.koplugin/tests/test_finished_diagnostics_ui.lua`;
-  - `readwisereader.koplugin/tests/run.lua`;
-  - `readwisereader.koplugin/constants.lua`;
-  - `readwisereader.koplugin/_meta.lua`;
-  - `CHANGELOG.md`;
-  - canonical docs/status.
-- Initial PR CI run **#810** failed in development checks because the first 0.1.42 metadata-description edit accidentally left the Lua long string unterminated. No tests/package ran from that failed build.
-- `84afff1d5fec69dcf42e55554aa90af778d58e05` fixes the metadata syntax.
-- CI run **#812** on the corrected code/package head: **SUCCESS**.
+- Current pre-handoff branch HEAD: `bf3698a0ef1e6368aa6081d3ad499c6d676506c0`; this STATUS handoff commit follows it.
+- Build version for physical Gate 14 P1: **0.1.43**.
+- Gate 14 P0 signal spike: **PASSED physically**.
+- CI run **#865** on 0.1.43 branch state: **SUCCESS**.
   - development checks: SUCCESS;
   - full Lua unit suite: SUCCESS;
   - installable ZIP build: SUCCESS;
   - package layout validation: SUCCESS;
   - artifact upload: SUCCESS.
-- Validated 0.1.42 artifact:
-  - workflow run: `36022820811` / run #812;
-  - artifact ID: `10818495299`;
-  - artifact name: `readwisereader-koplugin-7668964a8fc8283f5b682afb107b508c8738cba2`;
-  - outer artifact SHA-256: `6cd590229ea205ac64bd027490b738166cb33846e8cacfefb70f6f92433bb58d`;
-  - installable inner `readwisereader.koplugin.zip` SHA-256: `df37908276eb9938a87d3d401a01bbe607bf295cc477288b25e48bbddbfd2a7a`;
+- Validated 0.1.43 artifact:
+  - workflow run: `36025625389` / run #865;
+  - artifact ID: `10819258366`;
+  - artifact name: `readwisereader-koplugin-d62120d76d0f9e7455e04b07434047ca03a5a6a7`;
+  - outer artifact SHA-256: `694cd120f8de707c4e38403806c993553ed0efc49526e7cdba8fe8a1a083f0e4`;
+  - installable inner `readwisereader.koplugin.zip` SHA-256: `479358fa86d85dcde16e22aee2e1195521366a205e14f3708c754a16299bd067`;
   - inner ZIP `unzip -t`: **PASS**, no errors;
-  - packaged `constants.lua`: version **0.1.42**;
+  - packaged `constants.lua`: version **0.1.43**;
+  - packaged archive/status/diagnostic modules present;
   - packaged ZIP contains no `tests/` entries.
-- Documentation-only commits after the 0.1.42 package head do not change installable plugin bytes.
-- Current pre-final-STATUS branch HEAD: `0de519ba8d0d950cb6f5b1140b552acded31cac1`; this STATUS-only handoff commit follows it.
-- CI run **#816** on the documentation head: **SUCCESS** (development checks, full Lua suite, package/layout, artifact upload).
-- Final pre-handoff HEAD: `50624f2c14be85b57e6270da1fd0eba97488fbc6`.
-- Final pre-handoff CI run **#818** on that HEAD: **SUCCESS** across development checks, full Lua suite, package/layout and artifact upload.
-- This final STATUS-only handoff commit follows `50624f2c...`; installable plugin bytes remain the validated 0.1.42 artifact from code/package HEAD `84afff1d...`.
-- No archive PATCH, queue mutation, local deletion, or finished-state write has been implemented yet.
-- Canonical candidate under physical validation: `summary.status == "complete"`.
+- PR #17 remains draft until Gate 14 completes physically.
 
 ## Target environment
 
@@ -1557,35 +1546,52 @@ The first physical 0.1.37 run then exposed a robustness gap not represented in C
 
 ## Blockers
 
-Immediate blocker: **physical Gate 14 finished-signal spike on build 0.1.42**.
+Immediate blocker: **physical Gate 14 P1 validation on build 0.1.43**.
 
-Everything that does not require target-device evidence is complete for the spike:
-- official KOReader 2026.07.1 finished semantics inspected;
-- managed-current-document guard implemented;
-- sidecar/runtime/BookList status comparison implemented;
-- diagnostic is strictly local/read-only;
-- deterministic unit tests added;
-- no archive behavior was guessed or implemented before the spike.
+Everything possible without the Kindle is complete:
+- P0 canonical Finished signal physically proven;
+- archive setting implemented;
+- durable queue state implemented without schema migration;
+- offline/local discovery happens before remote preflight;
+- remote archive reconciliation-before-PATCH implemented;
+- retry/timeout/process-death idempotency implemented;
+- local-file-preservation guard implemented;
+- DB location + Collection postprocess implemented;
+- deterministic tests cover first archive, second-sync no-op, already-archive adoption, timeout reconciliation without duplicate PATCH, local Finished reversal before PATCH, and missing-local-file blocking;
+- storage/config/UI tests updated;
+- full CI/package validation passed.
 
-Gate 14 archive mutation remains intentionally blocked until the physical PW3 demonstrates that marking the managed document Finished persists the expected canonical signal.
+### Deviations / technical decisions
+- Section 5.8's old conceptual sequence listed remote preflight before finished detection. Gate 13 proved local network flags cannot authorize writes and established the safer pattern used here: **detect/persist local intent before the read-only remote preflight; perform no remote mutation until preflight passes**. The canonical Phase P spec is updated accordingly.
+- No DB schema migration was added because the existing generic queue already has all fields required by `archive_document`.
+- `percent_finished` is explicitly not used: physical evidence showed a Finished document at 0.1538.
 
 ## Exact next steps
 
-1. Install **0.1.42** preserving settings/database/documents/sidecars.
-2. Open a **Reader-managed local document** that is safe to use for Gate 14.
-3. Before changing its status, run **Readwise Reader → Inspect finished status (Gate 14)** and capture the screen.
-4. In KOReader, use **Book status → Finished** for that same document.
-5. Close the Book status screen so KOReader flushes the status; keep/open the same document.
-6. Run **Inspect finished status (Gate 14)** again.
-7. Return both before/after results.
-8. Required experimental evidence before implementation:
-   - after marking Finished, persisted sidecar `summary.status = complete`;
-   - runtime summary status = `complete`;
-   - BookList status = `complete` (or document any divergence);
-   - sidecar remains present;
-   - no plugin write/network activity occurred.
-9. Only after this passes, implement durable archive intent + Reader `PATCH location=archive` + idempotency/retry safety.
-10. Do not begin Phase Q / Gate 15 until Gate 14 itself passes.
+1. Install **0.1.43** preserving settings/database/documents/sidecars.
+2. Keep the same test document marked **Finished**.
+3. Confirm **Settings → Finished documents → Archive in Reader** is checked.
+4. Keep Wi-Fi/internet available.
+5. Do not alter/delete the fixture's highlights or notes.
+6. Run ordinary **Sync now exactly once**.
+7. Return the **entire Sync report**.
+8. Verify in Reader that the document location is **Archive**.
+9. On Kindle verify:
+   - local document still exists and opens;
+   - sidecar still exists;
+   - reading progress is preserved;
+   - existing highlights are preserved;
+   - existing notes are preserved.
+10. Do **not** run the second Sync until the first report + Reader/local preservation are reviewed.
+11. After first-half PASS, run one unchanged second Sync.
+12. Require second Sync:
+   - Reader documents archived = **0**;
+   - Archive queue items processed = **0**;
+   - Archive queue waiting after sync = **0**;
+   - Archive remote errors = **0**;
+   - Reader remains Archive;
+   - local file/sidecar/progress/highlights/notes remain intact.
+13. Only after that close Gate 14 / Phase P and begin Phase Q / Gate 15.
 
 ## Existing architectural decisions still in force
 
@@ -3178,3 +3184,104 @@ Numbered gates:
 - After Gate 16: execute the complete V1 acceptance script and tag `v1.0.0` only if it passes.
 
 The largest remaining technical uncertainty is Gate 15 because remote content replacement must not invalidate local progress/highlights, especially across HTML versus original EPUB/PDF materializations.
+
+
+## Phase P 0.1.43 archive implementation handoff
+
+### Physical P0 evidence
+Before Finished:
+- managed Reader document: yes;
+- local file: yes;
+- Reader location local DB: new;
+- sidecar: yes;
+- sidecar summary.status: reading;
+- sidecar summary.modified: 2026-09-23;
+- sidecar percent_finished: 0.1538;
+- BookList status: reading;
+- runtime summary.status: reading;
+- candidate: no;
+- remote requests/writes: none;
+- local writes: none.
+
+After KOReader Book status → Finished:
+- Reader location local DB still new;
+- sidecar still present;
+- sidecar summary.status: **complete**;
+- sidecar summary.modified: 2026-09-24;
+- sidecar percent_finished: **0.1538**;
+- BookList status: **complete**;
+- runtime summary.status: **complete**;
+- candidate: yes;
+- remote requests/writes: none;
+- local writes: none.
+
+Conclusion: Gate 14 P0 **PASS**. `summary.status == "complete"` is canonical; reading percentage is not.
+
+### Files altered for P1 / 0.1.43
+- `readwisereader.koplugin/sync/archive.lua` (new)
+- `readwisereader.koplugin/koreader/status.lua`
+- `readwisereader.koplugin/storage/queue.lua`
+- `readwisereader.koplugin/storage/documents.lua`
+- `readwisereader.koplugin/sync/worker.lua`
+- `readwisereader.koplugin/config.lua`
+- `readwisereader.koplugin/ui/settings.lua`
+- `readwisereader.koplugin/ui/sync.lua`
+- `readwisereader.koplugin/main.lua` (diagnostic remains available)
+- `readwisereader.koplugin/tests/test_archive.lua` (new)
+- `readwisereader.koplugin/tests/test_config.lua`
+- `readwisereader.koplugin/tests/test_settings_ui.lua`
+- `readwisereader.koplugin/tests/test_storage_repositories.lua`
+- `readwisereader.koplugin/tests/test_sync_ui.lua`
+- `readwisereader.koplugin/tests/test_koreader_status.lua`
+- `readwisereader.koplugin/tests/test_finished_diagnostics_ui.lua`
+- `readwisereader.koplugin/tests/run.lua`
+- `readwisereader.koplugin/constants.lua`
+- `readwisereader.koplugin/_meta.lua`
+- `CHANGELOG.md`
+- `IMPLEMENTATION_SPEC.md`
+- `PLAN.md`
+- `docs/DEVICE_TESTS.md`
+- `STATUS.md`
+
+### What was implemented
+- default-ON archive-finished user setting;
+- canonical local Finished discovery;
+- durable archive queue operation using stable Reader document identity;
+- safe cancellation when local Finished is reverted before confirmed archive;
+- unknown sidecar status never treated as unfinished;
+- Reader GET reconciliation before mutation/retry;
+- individual idempotent archive PATCH;
+- ambiguous timeout/server outcome is durable and GET-reconciled before retry;
+- stale in-flight generic recovery is safe because archive PATCH is idempotent and prechecked;
+- confirmed remote archive persists local DB location first, then closes queue item;
+- successful archive feeds parent-side Collection projection to `Readwise: Archive`;
+- local file missing blocks remote archive instead of violating local-keep contract;
+- no local file/sidecar/content mutation in archive module.
+
+### Tests / validation
+- deterministic archive tests:
+  - first Finished archive;
+  - unchanged second pass no duplicate PATCH;
+  - already-remote archive adoption;
+  - timeout where remote PATCH actually succeeded → next GET reconciles, no second PATCH;
+  - local Finished reverted before mutation → safe cancel;
+  - missing local file → safe block/no PATCH.
+- config/UI/storage/sync-report tests updated.
+- CI #865: **SUCCESS**.
+- artifact outer SHA-256: `694cd120f8de707c4e38403806c993553ed0efc49526e7cdba8fe8a1a083f0e4`.
+- installable ZIP SHA-256: `479358fa86d85dcde16e22aee2e1195521366a205e14f3708c754a16299bd067`.
+- ZIP integrity/version/layout: PASS.
+
+### Bugs / failures found
+- 0.1.42 preparation previously had one transient unterminated `_meta.lua` long-string failure; CI caught it before packaging and it was fixed before P0 testing.
+- During P1 review, success-persistence ordering was hardened: local document-row location is written before queue success so a process death cannot strand a succeeded queue row with stale local location.
+- Unknown/missing KOReader summary status was hardened to safe skip/block, not interpreted as `reading`.
+
+### Gates
+- Gates 0–13: PASSED.
+- Gate 14 P0: **PASSED physically**.
+- Gate 14 P1: **IMPLEMENTED / PHYSICAL TEST PENDING**.
+- Gate 15+: blocked.
+
+### Blocker
+- one physical first Sync + Reader/local preservation verification on 0.1.43; then one unchanged second Sync.
