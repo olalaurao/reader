@@ -628,7 +628,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Draft PR: **#18** — keep draft / do not merge until Gate 15 passes physically.
 - Base/integrated `main`: `5d7c954d051e491c1b11344057c59df7e2cf9656` (PR #17 merge / Phase P + Gate 14 passed)
 - Validated 0.1.44 code/package head: `e491c7ed6096513d623f6ac6129e4ad73de56705`.
-- Current pre-STATUS documentation head: `3d8329f6f461af32d4aa1fb4544e9c23b124ac62`; this STATUS handoff commit follows it.
+- Validated documentation/status head before the final handoff: `6c10b102efb3e70f110d1675995f3b81ff9da39f`; this final STATUS-only handoff commit follows it.
 - Build version for physical Gate 15 Q1: **0.1.44**.
 - Database schema: **v2**.
   - existing v1 database is backed up by the existing migration framework before migration;
@@ -649,6 +649,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
   - packaged `constants.lua`: version **0.1.44**;
   - Gate 15 policy/worker/UI files present;
   - packaged ZIP contains no `tests/` entries.
+- Final pre-handoff CI run **#921** on `6c10b102efb3e70f110d1675995f3b81ff9da39f`: **SUCCESS** across development checks, full Lua unit suite, ZIP build/layout and artifact upload.
 - Documentation-only commits after `e491c7ed...` do not change installable plugin bytes.
 
 ## Target environment
@@ -3506,3 +3507,14 @@ Conclusion:
 
 ### Physical blocker
 Run the 0.1.44 article before/title-change/Sync/after diagnostic sequence. Raw PDF/EPUB coverage follows only when suitable already-local original-format fixtures exist.
+
+
+### Session closeout — Gate 15 Q1 ready for device
+
+- Phase P / PR #17 merged successfully to main at `5d7c954d051e491c1b11344057c59df7e2cf9656`.
+- Phase Q branch/PR created: `phase-q/content-refresh-gate15` / draft PR #18.
+- 0.1.44 implementation, tests, canonical spec, PLAN and device runbook are synchronized.
+- validated package remains the #917 artifact with installable SHA-256 `6371f5d49656bb7fad201494a81f29bdc6df2e60cb895e39750a103ef84828b6`.
+- final pre-handoff CI #921 is green.
+- no Gate 15 Q2 content acknowledgement or replacement code has been implemented ahead of the required PW3 evidence.
+- next action is exactly the Q1-A article baseline → Reader title-only revision → Sync → preservation → post-revision diagnostic sequence documented above.
