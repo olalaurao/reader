@@ -3750,3 +3750,54 @@ Automated/package validation:
 
 ### Blocker
 One 0.1.46 ordinary Sync on the existing pending Q1-A article, preservation verification, then one unchanged Sync.
+
+
+### Gate 15 Q2 0.1.46 first physical Sync — PARTIAL PASS / top counters cropped
+
+User ran the required first ordinary Sync on build 0.1.46 using the already-pending Q1-A article revision.
+
+Visible report evidence:
+- Raw PDF/EPUB revisions retained: **0**;
+- Unverified refresh revisions retained: **0**;
+- Refresh local files missing: **0**;
+- Refresh revision races retained: **0**;
+- Refresh remote read errors: **0**;
+- Filtered out: **0**;
+- Metadata documents seen: **1**;
+- Retryable item errors: **0**;
+- Retryable stages: none;
+- Errors: **0**;
+- Metadata write errors: **0**;
+- Collection write errors: **0**;
+- Metadata pages: **1**;
+- Content pages: **0**;
+- Duplicate API records ignored: **0**;
+- Remote preflight: **passed**;
+- Annotation sync: `scan_partial`;
+- Managed annotation documents scanned: **802**;
+- Authoritative annotation sidecars: **13**;
+- Annotation documents skipped safely: **789**;
+- annotation scan/normalize/queue exceptions: **0**;
+- Current annotation document status shown as `current_document_not_managed` for this Sync context;
+- Managed-document highlights scanned: **12**;
+- Highlights created: **0**;
+- Highlights already linked: **12**;
+- Highlights unmatched/ambiguous: **0**;
+- Create queue items processed: **0**;
+- Create queue waiting after sync: **0**;
+- Notes updated: **0**;
+- local/remote highlight deletions: **0**.
+
+Interpretation:
+- Q2 Sync completed without content download/replacement and without visible annotation regression;
+- all visible safety/error buckets are zero;
+- however the photograph starts at `Raw PDF/EPUB revisions retained` and crops the decisive Q2 counters immediately above it.
+
+Still required before marking this first Q2 Sync PASS:
+- `Content refresh pending review`;
+- `Refresh pending examined`;
+- `Refresh articles compared`;
+- `Metadata-only revisions acknowledged`;
+- `Changed-content revisions retained`.
+
+Do not run a second Sync until those counters from this same first Q2 report are captured/reviewed.
