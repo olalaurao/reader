@@ -19,4 +19,13 @@ return function()
     assert(metadata.tags[1] == "research")
     assert(metadata.tags[2] == "deep work")
     assert(metadata.tags ~= source_tags, "worker metadata payload must own its tag array")
+
+    assert(Worker._isNetworkUnavailable({ kind = "offline" }) == true)
+    assert(Worker._isNetworkUnavailable({ kind = "timeout" }) == true)
+    assert(Worker._isNetworkUnavailable({ kind = "tls" }) == true)
+    assert(Worker._isNetworkUnavailable({ kind = "unknown" }) == true)
+    assert(Worker._isNetworkUnavailable({ kind = "auth" }) == false)
+    assert(Worker._isNetworkUnavailable({ kind = "rate_limit" }) == false)
+    assert(Worker._isNetworkUnavailable({ kind = "server" }) == false)
+    assert(Worker._isNetworkUnavailable(nil) == false)
 end
