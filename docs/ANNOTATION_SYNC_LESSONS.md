@@ -303,3 +303,28 @@ From 0.1.38:
 - isolated failures must never authorize a remote write or imply local deletion.
 
 Do not weaken this containment just because a later fixture passes. Broad backlog discovery is inherently exposed to old, mixed-format, partially-migrated KOReader sidecars.
+
+
+## 17. A missing subprocess result is an ambiguity boundary
+
+Gate 13C reconnect on build 0.1.38 produced only `Document sync failed safely` after Wi-Fi was restored.
+
+Inspection of KOReader v2026.07.1 `Trapper:dismissableRunInSubprocess` showed:
+- normal task multiple-return values are packed, serialized, decoded and returned to the parent;
+- therefore a normal `return nil, err` from the worker should not by itself collapse into a missing error;
+- a completed subprocess with no usable returned value can instead mean the child ended without serialized output or serialization itself failed.
+
+For a create queue, that is an **ambiguity boundary**:
+- filesystem/SQLite side effects from the child may already have happened;
+- a remote POST may or may not have happened;
+- never respond by blindly running Sync again.
+
+Safe response pattern:
+1. freeze mutation;
+2. snapshot durable queue state read-only;
+3. probe child-process auth/read path read-only;
+4. scan exact remote ownership markers read-only;
+5. inspect parent-document matching read-only;
+6. only then choose reconciliation, retry, or a narrower fix.
+
+When diagnosing hard child exits, persist only a coarse non-sensitive stage string. Do not persist tokens, notes, selected text, Reader IDs, signed URLs, or raw response bodies merely to obtain crash breadcrumbs.
