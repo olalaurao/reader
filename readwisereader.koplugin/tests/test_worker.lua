@@ -28,4 +28,31 @@ return function()
     assert(Worker._isNetworkUnavailable({ kind = "rate_limit" }) == false)
     assert(Worker._isNetworkUnavailable({ kind = "server" }) == false)
     assert(Worker._isNetworkUnavailable(nil) == false)
+
+    local calls = 0
+    local reachable, probe_err = Worker._probeReader({
+        validateToken = function()
+            calls = calls + 1
+            return true
+        end,
+    })
+    assert(reachable == true)
+    assert(probe_err == nil)
+    assert(calls == 1)
+
+    local offline, offline_err = Worker._probeReader({
+        validateToken = function()
+            return nil, { kind = "offline", retryable = true }
+        end,
+    })
+    assert(offline == false)
+    assert(offline_err.kind == "offline")
+
+    local unknown, unknown_err = Worker._probeReader({
+        validateToken = function()
+            return nil, nil
+        end,
+    })
+    assert(unknown == false)
+    assert(unknown_err.kind == "unknown")
 end
