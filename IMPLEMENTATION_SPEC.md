@@ -2606,14 +2606,24 @@ Implementation review found a plausible hard-exit mechanism in the matcher: it l
 - parent reads remain bounded at 1 MiB;
 - no queue mutation/promotion and no POST/PATCH/DELETE.
 
+Physical 0.1.41 matcher result: **PASS**.
+- diagnostic reached `done_match_probe`;
+- queue remained pending=3 / attempts=0 / in_flight=0 / blocked=0;
+- marker scan found 0 active exact marker matches;
+- all three parent reads succeeded;
+- item #1 matched exact;
+- items #2/#3 matched via whitespace normalization;
+- no remote writes occurred.
+
+The same production matcher is therefore physically cleared for these queued fixtures.
+
 Next physical step:
-1. install 0.1.41 preserving DB/settings/documents/sidecars;
-2. keep Wi-Fi ON; do not create/edit/delete any Gate 13 fixture;
-3. **do not run Sync now**;
-4. run **Readwise Reader → Inspect reconnect queue (Gate 13)** once;
-5. return the whole diagnostic screen;
-6. if all three pending items finish matching without a hard exit, the same pure-Lua matcher is physically cleared for a controlled Gate 13C mutation retry;
-7. if the child still exits, the recovered snapshot/last stage identifies the exact matcher phase to isolate next.
+1. keep 0.1.41 and Wi-Fi ON;
+2. do not alter Gate 13 fixtures;
+3. run ordinary **Sync now exactly once**;
+4. return the full report before any second sync;
+5. verify each pending highlight/note appears exactly once under its original Reader document;
+6. then run one unchanged second Sync and prove created=0 / waiting=0 / no duplicate.
 
 Gate 13 closes only after no duplicate and no lost annotation are physically proven across offline → reboot → reconnect.
 
