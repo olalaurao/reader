@@ -12,7 +12,13 @@ local function newHarness(options)
     local cleared = {}
     local repository = {
         listContentRefreshPending = function()
-            return rows
+            local pending = {}
+            for _, row in ipairs(rows) do
+                if row.content_refresh_pending == true then
+                    pending[#pending + 1] = row
+                end
+            end
+            return pending
         end,
         clearContentRefreshPending = function(_, id)
             cleared[#cleared + 1] = id
