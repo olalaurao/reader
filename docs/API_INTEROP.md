@@ -259,3 +259,14 @@ Canonical destructive identity from build 0.1.32:
 - no text/note heuristic fallback.
 
 After Reader DELETE acknowledgement, the exact child must be re-read until it is confirmed absent before local durable remote-link state is cleared.
+
+
+### Gate 12D physical close
+
+Build 0.1.32 passed the production deletion gate:
+- the intended tombstoned Reader highlight disappeared;
+- the control highlight remained;
+- propagation was returned OFF;
+- the next OFF sync reported no remaining local/remote deletion and no annotation block/error.
+
+This physically validates cross-API destructive identity as the production contract. Reader `source/saved_using` remains supplementary only.
