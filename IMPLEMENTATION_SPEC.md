@@ -2730,7 +2730,7 @@ Physical result:
 
 Phase P is complete.
 
-## Phase Q — content refresh safety — Q1 SPIKE FIXED IN 0.1.45, GATE 15 OPEN
+## Phase Q — content refresh safety — Q1-A PASSED; Q2 IMPLEMENTED IN 0.1.46; GATE 15 OPEN
 
 ### Q1 — build 0.1.45 read-only / no-replacement spike
 
@@ -2796,17 +2796,39 @@ Root cause:
 
 Because the failure occurs before `Migrations.apply` begins its transaction, the original v1 database should remain unchanged. A successful `.bak` copy may have been created.
 
-### Q1 physical spike required
+### Q1-A article physical result — PASS on 0.1.45
 
-Article fixture:
-1. use a managed local article with existing progress + highlight/note;
-2. run Gate 15 diagnostic before remote revision;
-3. make a harmless Reader metadata edit (for example title) to create a deterministic same-ID remote revision;
-4. Sync once;
-5. require refresh pending to persist and **no local content replacement**;
-6. run diagnostic again;
-7. require visible text comparison `same`, reading-state-at-risk = yes, replacement allowed = no;
-8. confirm progress/highlight/note unchanged.
+Real PW3 fixture:
+- managed local article / HTML / `reader_html`;
+- sidecar present;
+- `percent_finished = 0.1538`;
+- 6 annotations;
+- last XPointer present;
+- partial file checksum present;
+- reading state at risk = yes.
+
+After a Reader **title-only** same-ID revision and one Sync:
+- `Content refresh pending review = 1`;
+- metadata pages = 1;
+- content pages = **0**;
+- errors = 0;
+- no annotation create/update/delete regression;
+- local article still opened;
+- progress/position, highlights and notes were unchanged.
+
+Post-revision diagnostic:
+- refresh pending = yes;
+- pending remote revision equals current Reader revision;
+- remote probe passed;
+- visible-text comparison = **same**;
+- decision = `same_visible_text_keep_local`;
+- automatic replacement = no;
+- remote writes none;
+- local writes none.
+
+This physically authorizes Q2 to acknowledge only the exact pending revision whose fetched visible text is proven equivalent to the current local bytes.
+
+### Q1-B raw fixtures
 
 Raw fixtures:
 1. use an already-downloaded original PDF and EPUB when available;
@@ -2817,11 +2839,40 @@ Raw fixtures:
 
 The public API cannot deterministically mutate an existing document's body for this gate. The `different` body branch is therefore covered by deterministic automated fixtures and the production invariant "existing file is never materialized/replaced"; a naturally/server-reparsed document may additionally validate it when available.
 
-### Q2 — after Q1 physical spike
-- automatically acknowledge/clear metadata-only article revisions only after read-only comparison proves visible text unchanged;
-- keep changed/unverified article revisions pending;
-- keep raw PDF/EPUB revisions pending;
-- no automatic byte replacement in V1 unless a later explicit format stability spike changes this spec.
+### Q2 — IMPLEMENTED in build 0.1.46
+
+Normal Sync now reconciles durable refresh-pending rows after the normal document metadata pass:
+- process at most **5 pending HTML articles per Sync** to protect PW3 responsiveness/rate limits;
+- read local HTML under the existing 4 MiB cap;
+- GET the same Reader document read-only with HTML under the same cap;
+- require fetched Reader `updated_at` to equal the exact durable `content_refresh_remote_updated_at`; a revision race is retained pending;
+- compare normalized visible text directly in Lua;
+- when visible text is `same`:
+  - clear only the durable refresh-pending marker;
+  - do **not** replace/rewrite local document bytes;
+  - do **not** write sidecar/progress/annotations;
+  - do **not** issue a remote mutation;
+- when visible text is `different`, retain pending;
+- when read/compare is unavailable, retain pending;
+- raw PDF/EPUB revisions remain pending and are not fetched as replacement bytes;
+- local missing files remain pending and are reported;
+- Reader read failures are non-destructive and leave the revision pending.
+
+A legacy row may keep `materialized_remote_updated_at = NULL` even after a metadata-only revision is acknowledged. That field means the revision that literally produced the local bytes; Q2 does not falsify it. Future Reader revisions are still detected from the metadata row's `remote_updated_at` and produce a new pending revision.
+
+Sync report adds:
+- refresh pending examined;
+- refresh articles compared;
+- metadata-only revisions acknowledged;
+- changed-content revisions retained;
+- raw PDF/EPUB revisions retained;
+- unverified revisions retained;
+- local files missing;
+- revision races retained;
+- remote read errors;
+- final pending count.
+
+Automatic byte replacement remains disabled in V1 unless a later explicit format stability spike changes this spec.
 
 ### Gate 15
 No local annotation/progress loss caused by remote content update/revision. Existing local bytes and sidecar must remain intact for every changed/unverified/raw case; metadata-only article revisions may be acknowledged without replacing bytes after Q1 passes.
@@ -2999,17 +3050,23 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Run **Phase Q / Gate 15 Q1** on corrected build 0.1.45.
+Validate **Phase Q / Gate 15 Q2** on build 0.1.46 using the already-pending Q1-A title-only article revision.
 
-1. install 0.1.45; schema v1→v2 must backup/migrate automatically using KOReader's nil-on-success copy contract;
-2. open a managed article that already has progress + highlight/note;
-3. run **Inspect content refresh safety (Gate 15)** and capture baseline;
-4. in Reader, change only the article title (harmless metadata-only same-ID revision);
-5. run ordinary Sync once;
-6. return full Sync report;
-7. reopen the same article and confirm progress/highlight/note unchanged;
-8. run the Gate 15 diagnostic again and return the screen;
-9. if available, repeat the harmless revision + diagnostic on one original PDF and one original EPUB to prove raw revisions are deferred;
-10. only after Q1 passes implement Q2 metadata-only acknowledgement/clearing;
-11. do not begin Phase R / Gate 16 until Gate 15 passes.
+1. install 0.1.46 preserving settings/database/documents/sidecars;
+2. do not change the article, title, highlights, notes or reading position before the test;
+3. Wi-Fi/internet ON;
+4. run ordinary **Sync now exactly once**;
+5. return the full report;
+6. require:
+   - `Refresh pending examined >= 1`;
+   - `Refresh articles compared >= 1`;
+   - `Metadata-only revisions acknowledged = 1` for the Q1-A fixture;
+   - `Content refresh pending review = 0` unless unrelated pending fixtures already exist;
+   - `Content pages = 0`;
+   - changed/raw/unverified/race/remote-error counters = 0 for this fixture;
+7. reopen the same article and verify progress/position, highlights and notes remain unchanged;
+8. run one unchanged second Sync and require no new acknowledgement/work for the same revision;
+9. if suitable already-local original PDF/EPUB fixtures exist, perform Q1-B title-only revisions and require `Raw PDF/EPUB revisions retained` with no replacement;
+10. Gate 15 closes only after article Q2 idempotency plus required raw-format evidence/scope decision is recorded;
+11. do not begin Phase R / Gate 16 before Gate 15 closes.
 
