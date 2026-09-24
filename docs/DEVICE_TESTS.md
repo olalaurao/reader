@@ -1601,3 +1601,33 @@ Return:
 `offline mode sim/não / queued=<n> / waiting offline=<n> / sobreviveu reboot sim/não / reconnect created=<n> reconciled=<n> waiting=<n> / nota exata Reader sim/não / segundo sync created=<n> waiting=<n> / exatamente 1 cópia sim/não / local preservado sim/não / sem crash-freeze sim/não`
 
 Gate 13 passes only if the same durable annotation survives offline + KOReader restart and reaches Reader exactly once after reconnect.
+
+
+### Gate 13A attempt 1/2 — build 0.1.33 — FAIL / fixed in 0.1.34
+
+The user correctly enabled Kindle Airplane Mode before testing, but both attempts still showed online behavior:
+- metadata pages fetched;
+- fresh highlight created remotely immediately;
+- create queue processed in the same run;
+- queue waiting ended at 0.
+
+This was **not user error**. Build 0.1.33 used KOReader `NetworkMgr:isOnline()`, which on KOReader 2026.07.1 checks DNS reachability rather than the Kindle native Airplane Mode flag. Kindle KOReader can also restore Wi-Fi independently.
+
+#### 0.1.34 Gate 13A retest
+1. Install 0.1.34.
+2. Use a new unique local highlight/note; do not reuse the two 0.1.33 fixtures that already reached Reader.
+3. Enable **Airplane Mode in the native Kindle UI**.
+4. Enter KOReader/plugin normally; no special timing/wait is required beyond letting the UI settle.
+5. Close/reopen the managed article once to flush the sidecar.
+6. Run ordinary **Sync now**.
+7. Expected:
+   - Mode: `offline / local queue`;
+   - Annotation sync: `queued_offline`;
+   - Highlights created: **0**;
+   - Highlight creates queued durably: >=1;
+   - Create queue items processed: **0**;
+   - Create queue waiting after sync: >=1;
+   - Metadata pages: **0**;
+   - Content pages: **0**;
+   - new fixture must not yet exist in Reader.
+8. Stop after this screen. Do not reboot until Gate 13A passes.
