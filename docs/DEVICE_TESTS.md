@@ -2523,3 +2523,25 @@ Next:
 - run one ordinary Sync now;
 - return full Sync report;
 - do not run a second Sync until the result is reviewed.
+
+
+### Gate 15 Q1-A title-only revision Sync — PASS PARTIAL
+
+After changing only the Reader title, the first 0.1.45 Sync showed:
+- Content refresh pending review: 1;
+- metadata documents seen: 1;
+- content pages: 0;
+- errors: 0;
+- remote preflight passed;
+- highlights created 0;
+- highlights already linked 12;
+- annotation queues/errors 0.
+
+This confirms the revision was detected and persisted without replacing the local document.
+
+Next:
+- reopen the same local article;
+- confirm progress/position + highlights + notes are intact;
+- run **Inspect content refresh safety (Gate 15)** again;
+- expect refresh pending yes / visible text same / decision same_visible_text_keep_local / replacement no.
+Do not run another ordinary Sync yet.
