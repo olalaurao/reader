@@ -1321,7 +1321,8 @@ Ordem:
 1. Gate 13A: **PASS** em 0.1.38 — fila offline permaneceu durável e nenhuma escrita remota ocorreu;
 2. Gate 13B: **PASS** em 0.1.38 — fila + highlight/nota local sobreviveram ao restart do KOReader;
 3. Gate 13C tentativa 1: **FAIL SAFE** — após religar Wi-Fi, `Sync now` terminou sem relatório utilizável;
-4. antes de qualquer novo write/retry, instalar 0.1.39 e rodar somente o diagnóstico read-only **Inspect reconnect queue (Gate 13)** para medir fila, auth no child process, marcadores remotos e matching dos parents;
-5. com essa evidência, corrigir/retomar o reconnect sem blind retry e provar entrega exatamente uma vez;
-6. rodar segundo sync sem mudanças e confirmar zero duplicatas;
-7. somente depois iniciar **Phase P / Gate 14 (Finished → Archive)**.
+4. diagnóstico 0.1.39: **hard exit em `parent_reads`**, provando que queue/auth/marker scan avançaram e estreitando a falha para fetch do parent e/ou text matching;
+5. antes de qualquer novo write/retry, instalar 0.1.40 e rodar somente **Inspect reconnect queue (Gate 13)**: ele separa metadata fetch de HTML fetch, limita o body a 1 MiB, desliga text matching e preserva snapshot sanitizado mesmo se o child morrer;
+6. com essa evidência, corrigir o caminho exato sem blind retry e provar entrega exatamente uma vez;
+7. rodar segundo sync sem mudanças e confirmar zero duplicatas;
+8. somente depois iniciar **Phase P / Gate 14 (Finished → Archive)**.
