@@ -1449,3 +1449,26 @@ Physical result on target PW3 / KOReader v2026.07.1, build 0.1.31:
 **Gate 12B PASS. No side was overwritten.**
 
 Next: Gate 12C — deletion propagation OFF. Do not enable remote deletion until the OFF run reports exactly one pending deletion.
+
+
+### Gate 12C — deletion propagation OFF — PASS
+
+Physical result on target PW3 / KOReader v2026.07.1, build 0.1.31.
+
+Setup:
+- two fresh linked highlights were created successfully in one clean managed article.
+
+After deleting only the target highlight locally while **Propagate highlight deletions** remained OFF:
+- current-document highlights scanned: **1**;
+- highlights created: **0**;
+- highlights already linked: **1**;
+- local highlight deletions detected: **1**;
+- remote highlight deletions: **0**;
+- deletions retained remotely (propagation off): **1**;
+- annotation mutations blocked safely: **0**;
+- annotation remote errors: **0**;
+- the user confirmed both highlights still exist in Reader.
+
+**Gate 12C PASS.**
+
+Next: Gate 12D deliberate opt-in delete. Use the same tombstoned target; do not create a new target. Enable deletion, run Sync now once, verify only the target disappears remotely, then immediately disable deletion again.
