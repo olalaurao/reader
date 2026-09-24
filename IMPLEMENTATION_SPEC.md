@@ -1582,14 +1582,19 @@ Before sync:
 4. token exists;
 5. no migration failure;
 6. recover stale queue state;
-7. check network state without toggling Wi-Fi;
-8. compute free-space snapshot;
-9. create sync report object.
+7. treat local KOReader/Kindle network state only as advisory on the target PW3; do not let it authorize remote writes;
+8. scan/persist local annotation intents before any remote request;
+9. inside the cancellable worker, use the existing read-only Readwise auth GET as the authoritative remote reachability/auth probe before any queue processing or remote mutation;
+10. compute free-space snapshot;
+11. create sync report object.
 
-If offline:
-- still scan local annotations if useful and enqueue pending work;
+If the read-only remote probe fails:
+- keep local annotations and queued work durable;
+- perform no remote write;
+- do not advance the document watermark;
+- distinguish network-class failure from auth/rate-limit/server unavailability in diagnostics;
 - do not show a fatal crash;
-- report "queued; connect Wi-Fi and sync again."
+- report that work remains queued and Wi-Fi/auth/service availability must be restored outside the plugin.
 
 ---
 
@@ -2508,17 +2513,18 @@ Physical deletion-ON close on build 0.1.32: the tombstoned target disappeared re
 ## Phase O — offline queue hardening — IMPLEMENTED, GATE 13 PENDING
 
 ### O1 — offline create / restart / reconnect
-Queue core implemented in 0.1.33. Automatic Kindle offline detection remains under physical validation: both 0.1.33 and 0.1.34 entered the online path on the target after native Airplane Mode was enabled. Build 0.1.35 is a read-only signal spike before any further behavioral change:
-- ordinary **Sync now** no longer rejects Wi-Fi-off operation; full rescan still requires network;
-- do **not** assume a single Kindle LIPC property is authoritative until validated on the target; 0.1.34's `com.lab126.cmd airplaneMode` assumption failed physically;
-- the UI passes explicit network availability into the worker and never controls Wi-Fi itself;
-- build 0.1.35 exposes a read-only diagnostic for native Kindle `airplaneMode`, `wirelessEnable`, `wifid enable`, KOReader network signals, and the plugin-derived decision;
-- generic KOReader `NetworkMgr:isOnline()` must not be treated as equivalent to Kindle Airplane Mode; official KOReader 2026.07.1 source implements it as hostname-resolution reachability and the Kindle backend supports Wi-Fi restore;
-- current managed sidecar annotations are scanned and durable create intents are queued **before any remote document request**;
-- offline mode performs local sidecar → DB → queue work and returns without network access or watermark advancement;
+Queue core implemented in 0.1.33. Physical builds 0.1.33 and 0.1.34 proved that target-device local network state cannot safely authorize writes. The 0.1.35 read-only diagnostic then observed, while the user had no internet/native Airplane Mode, that `airplaneMode`, `wirelessEnable` and `wifid enable` were all unavailable while KOReader still reported `isWifiOn/isConnected/isOnline=true`.
+
+Build 0.1.36 changes the authoritative contract:
+- current managed sidecar annotations are scanned and durable create intents are queued **before any remote request**;
+- KOReader/Kindle local connectivity flags are advisory only;
+- the worker performs the already-existing read-only `GET /api/v2/auth/` before queue processing, annotation mutation or document sync;
+- only a successful 204 probe permits remote work;
+- a network-class probe failure returns `offline / local queue`, performs no remote write, keeps queue items waiting, and advances no watermark;
+- auth/rate-limit/server-class probe failures likewise perform no remote writes and report `local queue / remote unavailable`;
+- the plugin never enables/disables Wi-Fi;
 - queued payload contains the local text/note, parent Reader ID, stable local annotation ID, hashes and marker;
-- queue processing is independent of the original in-memory reader session, so a new KOReader process can resume it after reboot;
-- online queue processing occurs before the remote document feed.
+- queue processing remains independent of the original in-memory reader session, so a new KOReader process can resume it after reboot.
 
 ### O2 — retry classes
 Implemented:
@@ -2550,8 +2556,8 @@ Implemented:
 - zero/ambiguous match never guesses and never blind retries;
 - non-create stale operations retain generic pending recovery semantics for later phases.
 
-### Gate 13 — physical validation blocked on network-state spike
-Automated O2/O3 fault injection is complete. Physical validation on the target PW3 must prove the real persistence boundary:
+### Gate 13 — physical validation pending on build 0.1.36
+Automated O2/O3 fault injection is complete. The 0.1.35 network-state spike is also complete and invalidated local-state authorization. Physical validation on the target PW3 must now prove the 0.1.36 read-only reachability gate plus the real persistence boundary:
 1. with Wi-Fi OFF, create one fresh unique highlight/note in a clean managed article;
 2. close/reopen to flush the sidecar and run ordinary Sync now offline;
 3. confirm the report says offline/local queue, `Highlight creates queued durably >= 1`, `Create queue waiting after sync >= 1`, and `Highlights created = 0`;
@@ -2759,23 +2765,15 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Complete **Phase F / Gate 4** on the existing KOReader `v2025.04` baseline:
+Continue **Phase O / Gate 13** from the merged Gate 12 baseline.
 
-1. finish CI/documentation for the document-sync engine;
-2. package the Gate 4 build;
-3. physically validate multi-article sync, no-op second sync, location move, title rename, cancellation/recovery and no duplicates;
-4. record and merge Gate 4 through a normal PR;
-5. execute **Phase F.5 / Gate 4A** exactly as `docs/KOREADER_UPGRADE.md` describes;
-6. only after Readwise Reader passes on official KOReader `v2026.07.1`, install/test Bookshelf `v5.1.4`;
-7. do not begin Phase G until Gate 4A-1 and Gate 4A-2 pass.
+1. finish CI/package validation for build 0.1.36;
+2. physically retest ordinary Sync now with native Airplane Mode/no internet using one new unique local highlight;
+3. require the read-only remote preflight to fail safely before any remote write, with the annotation remaining durably queued and no document watermark advance;
+4. restart KOReader while that same queue item is pending;
+5. reconnect Wi-Fi outside the plugin and run Sync now;
+6. prove exactly one remote highlight/note is created or reconciled, then a second unchanged sync creates zero duplicates;
+7. record Gate 13 only after local survival + reboot persistence + exactly-once remote delivery all pass;
+8. do not begin Phase P / Gate 14 before Gate 13 closes.
 
-
-Physical Gate 12D attempt 1 on build 0.1.31 was blocked safely: 1 local deletion detected, 0 remote deletions, 1 mutation block, 0 remote errors, target still present. This invalidated the exact-source-marker requirement for production destructive identity. Build 0.1.32 replaces that field with exact Reader child + exact Readwise v2 external-id mapping and verifies Reader disappearance before success.
-
-
-Gate 12D final note: the destructive-run summary was not photographed after the successful 0.1.32 attempt, so the canonical record does not invent those counters. Gate closure is based on the observed remote target disappearance, preserved control highlight, setting returned OFF, and the subsequent clean reconciliation sync with no pending deletion.
-
-Gate 13 network-state spike requirement:
-- no further automatic network-state rule may be adopted from documentation alone;
-- physical ON/OFF diagnostic observations from the target PW3 are required;
-- if no stable target-visible signal preserves the user's native Airplane Mode intent after KOReader startup, use an explicit **local queue only** action/mode rather than guessing or controlling Wi-Fi.
+Physical evidence from build 0.1.35: with no internet/native Airplane Mode, all attempted Kindle LIPC network properties were unavailable while KOReader still reported Wi-Fi/connected/online=true. Therefore local network flags are advisory only; build 0.1.36 uses the existing read-only Readwise auth GET as the authoritative pre-write reachability gate.
