@@ -1472,3 +1472,41 @@ After deleting only the target highlight locally while **Propagate highlight del
 **Gate 12C PASS.**
 
 Next: Gate 12D deliberate opt-in delete. Use the same tombstoned target; do not create a new target. Enable deletion, run Sync now once, verify only the target disappears remotely, then immediately disable deletion again.
+
+
+### Gate 12D attempt 1 — build 0.1.31 — BLOCKED SAFELY / fixed in 0.1.32
+
+Observed:
+- current-document highlights scanned: **1**;
+- highlights already linked: **1**;
+- local highlight deletions detected: **1**;
+- remote highlight deletions: **0**;
+- annotation mutations blocked safely: **1**;
+- annotation remote errors: **0**;
+- target still existed in Reader.
+
+Cause: the old destructive identity check still required the exact Reader source marker, which production Reader did not return reliably.
+
+#### 0.1.32 retest
+
+Use the **same tombstoned target** from Gate 12C/12D attempt 1. Do not create another target.
+
+1. Install build 0.1.32.
+2. Confirm **Propagate highlight deletions** is OFF after the failed 0.1.31 attempt.
+3. Open the same article; keep it open.
+4. Enable **Settings → Highlights → Propagate highlight deletions** and accept the destructive warning.
+5. Run **Sync now once**.
+6. Expected:
+   - `Local highlight deletions detected: 1`;
+   - `Delete cross-API identity verified: 1`;
+   - `Reader delete verification reads: >=1`;
+   - `Reader deletions verified: 1`;
+   - `Delete verification pending: 0`;
+   - `Remote highlight deletions: 1`;
+   - `Annotation mutations blocked safely: 0`;
+   - `Annotation remote errors: 0`.
+7. Refresh Reader:
+   - tombstoned target is gone;
+   - control highlight remains.
+8. Immediately turn **Propagate highlight deletions OFF** again.
+9. If cross-API identity is not verified, delete remains 0, verification is pending, or any error/block appears: turn the setting OFF and stop.
