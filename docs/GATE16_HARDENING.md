@@ -52,7 +52,11 @@ Checkpoint 1 — **PASS** on target PW3:
 - existing managed article preserves position/progress/highlights/notes;
 - first ordinary Wi-Fi-on Sync completes without fatal errors, duplicates or unexpected replacement.
 
-Current checkpoint: step 4, unchanged second Sync. Do not proceed to the offline queue/restart steps until that report is reviewed.
+Checkpoint 2 — **PASS** on target PW3:
+- unchanged second Sync completed as a no-op;
+- no fatal error, duplicate, unexpected replacement/download, repeated settled acknowledgement or unexpected queue/archive mutation.
+
+Current checkpoint: step 5, controlled offline durable queue. Do not restart/reconnect until the offline report proves the new annotation is waiting durably.
 
 After installing only the new plugin directory and restarting KOReader:
 
@@ -67,9 +71,24 @@ After installing only the new plugin directory and restarting KOReader:
 4. Run an unchanged second Sync.
    - no duplicate work;
    - no new metadata-only acknowledgement for already-settled article revisions.
-5. Turn connectivity off outside the plugin, create a harmless local highlight/note in a managed article, and run Sync once.
-   - local work remains durably queued;
-   - no remote write is reported.
+5. Create the controlled offline queue fixture:
+   - ensure KOReader **Restore Wi-Fi connection on resume** is OFF;
+   - turn Wi-Fi OFF from KOReader's own Network menu while already inside KOReader;
+   - open/close Readwise Reader without Sync and verify Wi-Fi stays OFF;
+   - create a fresh highlight in a managed article with note `gate16 rc offline [[Foucault]]` then `#queue-test-47` on the next line;
+   - close/reopen the article once to flush its sidecar;
+   - run Sync exactly once while Wi-Fi remains OFF.
+   - remote preflight must not pass;
+   - annotation sync must be `queued_offline` or `queued_offline_partial`;
+   - Highlights created = 0;
+   - creates queued durably >=1;
+   - create queue items processed = 0;
+   - create queue waiting >=1;
+   - metadata/content pages = 0;
+   - no remote mutation and no fatal error.
+   - stop and review this report before restart/reconnect.
+
+   Native Kindle Airplane Mode alone is not the Gate 16 fixture because Gate 13 proved KOReader/Kindle restore state can report misleading local network state.
 6. Restart KOReader while that work is still pending, restore connectivity, then Sync.
    - the queue is recovered;
    - the highlight/note reaches the correct Reader document once;

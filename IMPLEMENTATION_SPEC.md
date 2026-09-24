@@ -3108,27 +3108,35 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Continue the **0.1.47 Gate 16 PW3 release-candidate smoke** from the physically passed initial checkpoint.
+Continue the **0.1.47 Gate 16 PW3 release-candidate smoke** from the physically passed unchanged-second-Sync checkpoint.
 
-Already physically passed on the target PW3:
-- 0.1.47 plugin/startup;
-- existing settings/token preserved;
-- existing managed article reading state preserved;
-- first ordinary Wi-Fi-on Sync completed without fatal error, duplicate or unexpected replacement.
+Already physically passed:
+- plugin/startup and settings/token preservation;
+- existing managed article reading state preservation;
+- first ordinary Wi-Fi-on Sync;
+- unchanged second Sync/no-op idempotency.
 
-Next checkpoint — unchanged no-op Sync only:
-1. make no intentional Reader/local content or annotation changes;
-2. keep connectivity available;
-3. run ordinary `Sync now` exactly once;
-4. require no fatal error, no duplicate, no unexpected replacement/download and no new metadata-only acknowledgement for already-settled article revisions;
-5. review that report before continuing.
+Next checkpoint — **controlled offline durable queue only**:
+1. keep 0.1.47 installed;
+2. use the Gate-13-proven PW3 offline fixture: disable KOReader **Restore Wi-Fi connection on resume**, then turn Wi-Fi OFF from KOReader's Network menu while already inside KOReader;
+3. confirm opening/closing Readwise Reader without Sync does not restore Wi-Fi;
+4. create one fresh highlight in an existing managed article with exact note:
+   - `gate16 rc offline [[Foucault]]`
+   - `#queue-test-47`
+5. close/reopen the article once to flush the sidecar;
+6. Sync exactly once while Wi-Fi remains OFF;
+7. require remote preflight not passed, `queued_offline`/partial, zero remote create, >=1 durable queued create, zero queue items processed, >=1 waiting item, metadata/content pages zero, no remote mutation and no fatal errors;
+8. verify the fixture is not present in Reader yet;
+9. stop before restart/reconnect and return the report.
+
+Do not use native Airplane Mode alone as proof of offline state; Gate 13 showed local network flags/restore behavior can be misleading on the target PW3.
 
 Only after this checkpoint passes:
-- create one harmless local highlight/note while connectivity is actually unavailable;
-- Sync once and require durable local queue/no remote write;
-- restart KOReader while pending;
-- reconnect and Sync exactly once;
-- verify one remote create and no duplicate;
+- restart KOReader while the item is still pending and Wi-Fi OFF;
+- verify local queue/article/highlight/note survive;
+- reconnect;
+- Sync exactly once;
+- verify exactly one remote highlight/note and no duplicate;
 - perform final restart/state/log-redaction checks.
 
-Do not mark Gate 16 passed until the whole RC sequence is physically stable.
+Gate 16 remains **OPEN** until the whole RC sequence is physically stable.

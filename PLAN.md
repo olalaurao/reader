@@ -1315,24 +1315,29 @@ Não:
 
 ## 46. Próximo passo
 
-A candidata **0.1.47** já passou o primeiro smoke físico do Gate 16 no PW3:
-- plugin inicia;
-- settings/token persistem;
-- artigo gerenciado preserva posição/progresso/highlights/notas;
-- primeiro Sync Wi-Fi-on completa sem erro fatal, duplicata ou replacement inesperado.
+A candidata **0.1.47** já passou no PW3:
+- startup/settings/token;
+- preservação do artigo gerenciado;
+- primeiro Sync Wi-Fi-on;
+- segundo Sync inalterado/no-op, sem duplicata/replacement/re-ack inesperado.
 
-Próximo checkpoint físico: **segundo Sync sem nenhuma mudança**.
-- não alterar Reader/local state de propósito;
-- rodar `Sync now` uma vez;
-- confirmar no-op/idempotência: sem duplicata, sem replacement/download inesperado e sem novo acknowledgement de revisão já resolvida.
+Próximo checkpoint físico: **fila durável em offline controlado**, ainda sem reboot/reconnect.
 
-Somente depois desse PASS seguir para:
-1. highlight/nota local offline;
-2. fila durável sem remote write;
-3. restart do KOReader com item pendente;
-4. reconnect + Sync exatamente uma vez;
-5. ausência de duplicata;
-6. novo restart/persistência;
-7. revisão local do crash.log por token/Authorization/URL assinada/private payload.
+Usar o mesmo método que passou no Gate 13:
+1. `Restore Wi-Fi connection on resume` OFF;
+2. Wi-Fi OFF pelo menu de rede do KOReader;
+3. confirmar que abrir/fechar Readwise Reader sem Sync não religa o Wi-Fi;
+4. criar highlight novo com nota `gate16 rc offline [[Foucault]]` + `#queue-test-47`;
+5. fechar/reabrir artigo para persistir sidecar;
+6. Sync uma vez ainda offline;
+7. exigir create remoto 0, queued durably >=1, processed 0, waiting >=1, metadata/content pages 0 e nenhum remote write;
+8. parar e revisar o relatório antes de reiniciar ou reconectar.
+
+Só depois desse PASS:
+- restart do KOReader com fila pendente;
+- reconnect + Sync exatamente uma vez;
+- exatamente uma cópia remota;
+- restart final/persistência;
+- revisão local de `crash.log` por token/Authorization/URL assinada/private payload.
 
 Gate 16 continua aberto; Phase S continua bloqueada.

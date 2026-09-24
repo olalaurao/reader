@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase R / Gate 16 — 0.1.47 RC initial PW3 smoke PASSED; unchanged second Sync is the current physical checkpoint**
+**Phase R / Gate 16 — 0.1.47 RC startup/first Sync + unchanged second Sync PASSED; controlled offline durable-queue checkpoint is current**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
@@ -4588,3 +4588,74 @@ Conclusion:
 - PR #19 remains draft and mergeable; branch is 31 commits ahead / 0 behind `main`.
 - No production code/schema/package change is authorized between the passed first RC smoke and the unchanged-second-Sync checkpoint.
 - Exact next action remains: run one unchanged `Sync now`, return the full report, then stop before offline queue/restart testing.
+
+
+## Gate 16 0.1.47 RC physical smoke — checkpoint 2 PASS
+
+User confirmed the unchanged second ordinary Sync on the already-installed 0.1.47 passed every required no-op/idempotency criterion.
+
+Accepted physical result:
+- no intentional Reader/local content or annotation change occurred between the first and second Sync;
+- second `Sync now` completed without fatal error;
+- no duplicate document/highlight appeared;
+- no unexpected content download/replacement occurred;
+- no new metadata-only acknowledgement occurred for already-settled revisions;
+- no unexpected queue/archive mutation was observed;
+- local reading state remained intact.
+
+Conclusion:
+- Gate 16 RC step 4 is **PASSED physically**;
+- startup/state/first-Sync and unchanged-second-Sync checkpoints are both closed;
+- the next physical checkpoint is the controlled offline durable-queue proof only;
+- restart/reconnect remains blocked until the offline report proves the new annotation is durably waiting;
+- no production-code/schema/package change is justified between checkpoints 2 and 3.
+
+### Off-device audit before checkpoint 3
+- current 0.1.47 worker still queues local annotation candidates before the read-only remote reachability probe;
+- offline/timeout/TLS/unknown remote-probe failures remain classified as unavailable and do not authorize remote writes;
+- `queued_offline` / `queued_offline_partial` reporting remains covered;
+- file-backed queue persistence across process reopen is covered;
+- stale ambiguous highlight creates recover to blocked, never blind POST retry;
+- durable `retry_wait` deadline/payload/attempt count survives another reopen;
+- this exact architecture already passed physically in Gate 13 and is being revalidated as an RC regression check, not redesigned.
+
+### Gates after checkpoint 2
+- Gates 0–15: PASSED.
+- Gate 16 deterministic hardening: PASSED.
+- Gate 16 RC startup/state/first Sync: PASSED.
+- Gate 16 RC unchanged second Sync: **PASSED**.
+- Gate 16 RC controlled offline durable queue: **PENDING**.
+- Gate 16 RC restart/reconnect exactly-once: BLOCKED by offline durable-queue proof.
+- Gate 16 final restart/state/log-secret review: BLOCKED.
+- Phase S: BLOCKED by Gate 16.
+
+### Exact next physical checkpoint — controlled offline queue only
+Use the same stable offline fixture already proven on this PW3; **do not use native Airplane Mode as the primary fixture** because Gate 13 proved Kindle/KOReader restore state can make it misleading.
+
+1. Keep the installed **0.1.47**; do not reinstall/update anything.
+2. While still online, open one existing plugin-managed Reader article and choose a passage that does not already contain this test highlight.
+3. In KOReader, ensure **Restore Wi-Fi connection on resume is OFF**.
+4. Turn **Wi-Fi OFF from KOReader's own Network menu while already inside KOReader**.
+5. Open/close the Readwise Reader menu once **without Sync** and confirm Wi-Fi stays OFF. If Wi-Fi comes back, STOP and report that before creating the fixture.
+6. With Wi-Fi still OFF, create one fresh unique KOReader highlight with exact note:
+   `gate16 rc offline [[Foucault]]`
+   then on the next line:
+   `#queue-test-47`
+7. Close/reopen the article once to flush the sidecar.
+8. Run ordinary **Readwise Reader → Sync now exactly once** while Wi-Fi remains OFF.
+9. Require:
+   - remote preflight is not passed;
+   - annotation sync reports `queued_offline` or `queued_offline_partial`;
+   - Highlights created = **0**;
+   - Highlight creates queued durably >= **1**;
+   - Create queue items processed = **0**;
+   - Create queue waiting after sync >= **1**;
+   - Metadata pages = **0**;
+   - Content pages = **0**;
+   - no note update/delete/archive remote mutation;
+   - Errors = **0** (isolated safe-skip counters may be nonzero only if explicitly reported as such);
+   - new test highlight does **not** exist in Reader yet.
+10. Return the full report.
+11. **Stop there:** do not restart KOReader and do not turn Wi-Fi back ON until this offline queue checkpoint is reviewed.
+
+If queued/waiting is zero, remote preflight passed, or any remote create occurred, Gate 16 checkpoint 3 FAILS and restart/reconnect must not proceed.

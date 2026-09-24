@@ -2878,3 +2878,44 @@ Expected:
 - no unexpected queue/archive mutation.
 
 Stop after this report. The offline highlight/queue/restart test comes only after this no-op checkpoint passes.
+
+
+## Gate 16 — 0.1.47 RC checkpoint 2 — PASS
+
+User confirmed the unchanged second Sync passed:
+- no intentional changes between Syncs;
+- no fatal error;
+- no duplicate document/highlight;
+- no unexpected content download/replacement;
+- no repeated metadata-only acknowledgement for settled revisions;
+- no unexpected queue/archive mutation.
+
+### Next device checkpoint — controlled offline durable queue
+
+Do not reinstall the plugin. Do not use native Airplane Mode alone.
+
+1. Open an existing managed Reader article while still online.
+2. Ensure KOReader **Restore Wi-Fi connection on resume** is OFF.
+3. Turn Wi-Fi OFF from KOReader's own Network menu.
+4. Open/close Readwise Reader without Sync. If Wi-Fi returns, stop.
+5. While Wi-Fi remains OFF, create one new highlight with exact note:
+   `gate16 rc offline [[Foucault]]`
+   `#queue-test-47`
+6. Close/reopen the article once.
+7. Run **Sync now exactly once** while Wi-Fi remains OFF.
+8. Return the full report and stop before restart/reconnect.
+
+Expected:
+- remote preflight not passed;
+- Annotation sync: `queued_offline` or `queued_offline_partial`;
+- Highlights created: 0;
+- Highlight creates queued durably: >=1;
+- Create queue items processed: 0;
+- Create queue waiting after sync: >=1;
+- Metadata pages: 0;
+- Content pages: 0;
+- no remote note/delete/archive mutation;
+- Errors: 0;
+- fixture not present in Reader yet.
+
+If queue waiting is 0 or any remote create occurs, do not proceed to reboot.
