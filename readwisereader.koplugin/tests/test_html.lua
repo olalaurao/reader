@@ -22,6 +22,15 @@ return function()
     assert(full:find("<p>Visible only</p>", 1, true))
     assert(not full:find("<style>x</style>", 1, true))
 
+    local multilingual = Html.build{
+        title = "漢字 & العربية 👩🏽‍💻",
+        author = "Zoë <作者>",
+        html_content = "<p>café é — العربية — 漢字 — 👩🏽‍💻</p>",
+    }
+    assert(multilingual:find("漢字 &amp; العربية 👩🏽‍💻", 1, true))
+    assert(multilingual:find('content="Zoë &lt;作者&gt;"', 1, true))
+    assert(multilingual:find("café é — العربية — 漢字 — 👩🏽‍💻", 1, true))
+
     local missing, missing_err = Html.build{ title = "No content" }
     assert(missing == nil)
     assert(missing_err.kind == "content")
