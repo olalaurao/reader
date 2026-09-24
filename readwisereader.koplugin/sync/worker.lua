@@ -316,6 +316,9 @@ function Worker:run(options)
             sync_report.archive_remote_errors = 0
             sync_report.archive_queue_waiting =
                 queue_repository:countArchiveWaiting()
+            sync_report.content_refresh_pending_total =
+                sync_report.content_refresh_pending_total
+                or repository:countContentRefreshPending()
         end
 
         local function localQueueOnlyReport(preflight_err)
