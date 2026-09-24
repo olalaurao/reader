@@ -26,6 +26,7 @@ local tests = {
     "tests.test_annotation_mutations",
     "tests.test_archive",
     "tests.test_content_refresh",
+    "tests.test_content_refresh_reconcile",
     "tests.test_content_refresh_probe_worker",
     "tests.test_api_interop",
     "tests.test_filenames",
