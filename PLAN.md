@@ -1323,7 +1323,7 @@ Ordem:
 3. Gate 13C tentativa 1: **FAIL SAFE** — após religar Wi-Fi, `Sync now` terminou sem relatório utilizável;
 4. diagnóstico 0.1.39: **hard exit em `parent_reads`**, provando que queue/auth/marker scan avançaram e estreitando a falha para fetch do parent e/ou text matching;
 5. diagnóstico 0.1.40: **PASS** — os 3 parents fizeram metadata + HTML fetch completos (9.851 / 27.477 / 8.564 bytes), marker scan achou 0 cópias ativas; a fronteira restante é o matcher;
-6. instalar 0.1.41 e rodar somente **Inspect reconnect queue (Gate 13)** com o matcher real, agora sem `ffi/utf8proc`, usando normalização conservadora em Lua puro e breadcrumbs por fase;
-7. se o matcher passar no PW3, retomar Gate 13C de forma controlada e provar entrega exatamente uma vez;
-8. rodar segundo sync sem mudanças e confirmar zero duplicatas;
+6. diagnóstico 0.1.41: **PASS** — os 3 itens terminaram o matcher real no PW3 sem crash (1 exact, 2 whitespace), permanecendo pending/attempts=0/marker_matches=0 e sem writes;
+7. retomar Gate 13C de forma controlada em 0.1.41: um único **Sync now**, verificar exatamente uma cópia de cada item no Reader;
+8. rodar segundo sync sem mudanças e confirmar zero creates, fila vazia e zero duplicatas;
 9. somente depois iniciar **Phase P / Gate 14 (Finished → Archive)**.
