@@ -2563,3 +2563,53 @@ After the title-only revision:
 - remote/local writes none.
 
 Q1-A is physically passed. Q2 may now clear only same-visible-text metadata-only article revisions without replacing local bytes.
+
+
+### Gate 15 Q2 — build 0.1.46 metadata-only acknowledgement
+
+Q1-A article result is physically PASS on 0.1.45:
+- title-only revision detected;
+- refresh pending persisted;
+- content pages 0;
+- progress/highlights/notes preserved;
+- post-revision visible text same;
+- replacement disabled.
+
+0.1.46 Q2 behavior:
+- examine max 5 pending HTML articles per Sync;
+- GET current Reader HTML read-only;
+- only acknowledge if fetched `updated_at` exactly matches pending revision;
+- visible text same → clear pending marker only;
+- changed/unavailable/race → retain pending;
+- raw PDF/EPUB → retain pending without replacement download;
+- never replace local document/sidecar.
+
+Physical Q2 article test:
+1. install 0.1.46 preserving DB/settings/documents/sidecars;
+2. do not alter the already-pending Q1-A fixture;
+3. Wi-Fi ON;
+4. run **Sync now once**;
+5. return full report.
+
+Expected for the fixture:
+- Refresh pending examined >= 1;
+- Refresh articles compared >= 1;
+- Metadata-only revisions acknowledged = 1;
+- Content refresh pending review = 0 unless unrelated pending rows exist;
+- Content pages = 0;
+- Changed-content revisions retained = 0;
+- Refresh revision races retained = 0;
+- Refresh remote read errors = 0;
+- no content replacement/download.
+
+Then:
+- reopen article;
+- confirm position/progress, highlights, notes unchanged;
+- run one unchanged second Sync;
+- require metadata-only acknowledged = 0 and no repeated refresh work for the same revision.
+
+Raw Q1-B remains:
+- use existing locally-managed raw PDF/EPUB when available;
+- title-only Reader revision;
+- Sync;
+- require raw revision retained, no replacement download, local state intact.
