@@ -67,7 +67,7 @@ return function()
 
         local response, err = http:request{
             method = "GET",
-            url = "https://readwise.io/api/v2/auth/?secret=query",
+            url = "https://readwise.io/api/v2/auth/?secret=query#fragment-secret",
             headers = { Authorization = "Token abc123" },
         }
 
@@ -79,6 +79,7 @@ return function()
         local log_text = table.concat(logged, " ")
         assert(log_text:find("abc123", 1, true) == nil)
         assert(log_text:find("secret=query", 1, true) == nil)
+        assert(log_text:find("fragment-secret", 1, true) == nil)
     end
 
     do
@@ -226,6 +227,9 @@ return function()
         assert(err.kind == "unknown")
         assert(socketutil.reset_count == 1)
     end
+
+    assert(Http._safeUrl("https://signed.example/file.pdf?X-Amz-Signature=secret#more") == "https://signed.example/file.pdf")
+    assert(Http._safeUrl("https://example.com/path#fragment-secret") == "https://example.com/path")
 
     assert(Http._statusError(401, {}).kind == "auth")
     assert(Http._statusError(403, {}).kind == "auth")
