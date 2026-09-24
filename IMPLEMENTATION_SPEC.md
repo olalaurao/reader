@@ -2598,6 +2598,9 @@ Implementation review found a plausible hard-exit mechanism in the matcher: it l
 - native NFC FFI is removed from annotation matching entirely;
 - the Unicode fallback composes only the explicitly-supported Latin base+combining sequences in pure Lua;
 - unsupported normalization cases fail safely as unmatched rather than invoking native code;
+- visible-text extraction batches contiguous ordinary text instead of allocating one Lua table slot per source byte;
+- normalized matching does not allocate a source-map subtable for every UTF-8 unit before it knows a stage matched;
+- source-span recovery after a unique normalized match uses a second linear pass, keeping the matching semantics while reducing peak allocation;
 - the reconnect diagnostic now executes the **real matcher** for each pending item;
 - durable stages record `validate`, `visible_text`, `exact`, `unicode`, `whitespace`, `punctuation`, and per-item completion;
 - parent reads remain bounded at 1 MiB;
