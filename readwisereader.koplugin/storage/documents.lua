@@ -139,6 +139,14 @@ function Documents:setLocalState(reader_id, state)
     stmt:close()
 end
 
+function Documents:setLocation(reader_id, location)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare("UPDATE documents SET location = ? WHERE reader_id = ?;")
+    stmt:bind(location, reader_id):step()
+    stmt:close()
+    return self:getById(reader_id)
+end
+
 function Documents:setLastSyncError(reader_id, error_kind)
     local conn = self.db:getConnection()
     local stmt = conn:prepare("UPDATE documents SET last_sync_error = ? WHERE reader_id = ?;")
