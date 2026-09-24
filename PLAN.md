@@ -1315,29 +1315,31 @@ Não:
 
 ## 46. Próximo passo
 
-A **Phase Q / Gate 15 passou completa** no PW3 alvo.
+A **Phase Q / Gate 15 passou completa** e a matriz determinística da **Phase R / Gate 16** está coberta off-device na candidata **0.1.47**.
 
-Validado:
-- artigo metadata-only sem perda local e com acknowledgement idempotente;
-- PDF original retido sem replacement após revisão de título;
-- EPUB original retido sem replacement após revisão de título;
-- progresso, sidecars, highlights e notas preservados;
-- replacement automático continua desabilitado.
+Hardening automatizado já cobre, na ordem canônica:
+- biblioteca de 5.000 documentos / 50 páginas;
+- pouco espaço e ENOSPC sem arquivo parcial;
+- registros malformados;
+- respostas/documentos enormes com limites;
+- Unicode;
+- 429 / Retry-After;
+- perda de rede durante scan incremental sem avançar watermark;
+- fila persistente em force-close/reboot;
+- migration/transaction rollback;
+- compatibilidade de rollback para 0.1.46;
+- redaction/tripwires de token e URLs assinadas.
 
-Fase atual: **Phase R / Gate 16 — hardening**.
+Próximo passo físico: **smoke de release candidate 0.1.47 no PW3**, seguindo `docs/GATE16_HARDENING.md`:
+1. backup da 0.1.46 + settings/DB/documentos/sidecars;
+2. instalar somente a 0.1.47;
+3. smoke de plugin/estado local;
+4. Sync normal e segundo Sync no-op;
+5. criar highlight/nota offline e confirmar fila durável;
+6. reiniciar KOReader com item pendente, reconectar e sincronizar sem duplicata;
+7. novo restart/persistência;
+8. revisão local do crash.log por segredos.
 
-Ordem:
-1. biblioteca grande;
-2. pouco armazenamento;
-3. documento malformado;
-4. documento enorme;
-5. Unicode;
-6. 429;
-7. Wi-Fi/rede intermitente;
-8. force-close;
-9. reboot;
-10. migration;
-11. rollback;
-12. revisão de logs/redaction.
+Não testar low-disk/malformed/huge enchendo o Kindle ou fabricando conteúdo privado; esses riscos ficam nos testes determinísticos.
 
-Fazer primeiro todos os testes determinísticos/off-device; pedir teste físico somente quando um item depender realmente do PW3.
+**Gate 16 continua aberto** até a 0.1.47 ficar fisicamente estável no PW3. Só depois iniciar Phase S / aceite final V1.
