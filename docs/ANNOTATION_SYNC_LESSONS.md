@@ -28,13 +28,13 @@ Reader `saved_using/source` is useful evidence but **must not be mandatory for n
 - production Reader LIST may omit or normalize the newer per-annotation marker;
 - Gate 12 physically proved that a correct durable child can be linked while marker verification is zero.
 
-For **remote DELETE**, keep the stronger destructive rule:
+For **remote DELETE**, keep the stronger destructive rule proven by Gate 12D:
 - exact durable Reader child id;
 - same parent;
 - `category=highlight`;
-- exact newer per-annotation KOReader ownership marker.
+- exact Readwise v2 highlight whose `external_id` equals that Reader child id.
 
-Do not let the legacy generic marker or a missing marker authorize destructive deletion.
+Reader `saved_using/source` is supplementary evidence only and must **not** be mandatory for deletion either: Gate 12D attempt 1 proved the legitimate target could omit/normalize it. Do not replace the cross-API identity proof with text/note similarity or a legacy generic marker.
 
 ## 3. Reader v3 ↔ Readwise v2 mapping
 
@@ -242,3 +242,132 @@ This closes the destructive identity lesson:
 - do verify an unrelated control survives.
 
 Future destructive annotation work must preserve both halves of Gate 12: safe retention while OFF and exact-target deletion while deliberately ON.
+
+
+## 14. Network reachability is a pre-write safety boundary
+
+Gate 13 physical testing on the target PW3 exposed a device-specific but architecturally important rule.
+
+Builds 0.1.33/0.1.34 trusted local network state too much. Build 0.1.35 then measured the target while the user had no internet/native Airplane Mode:
+- attempted Kindle `airplaneMode`, `wirelessEnable`, and `wifid enable` properties were unavailable;
+- KOReader still reported Wi-Fi on, connected, and online.
+
+Therefore **local network state must not authorize a remote annotation write** on this target.
+
+Production ordering from 0.1.36 onward:
+
+```text
+read KOReader sidecar
+→ persist annotation/link + durable queue intent
+→ read-only Readwise auth/reachability probe
+→ only on probe success: reconcile/process create queue and other remote mutations
+```
+
+If the probe fails:
+- keep the queue/link state;
+- do not POST/PATCH/DELETE;
+- do not advance the document watermark;
+- do not toggle Wi-Fi;
+- surface the probe class in diagnostics.
+
+This is distinct from ambiguous-write recovery: a failed **pre-write read-only probe** proves no mutation was attempted, while a timeout/5xx **after POST begins** must still use the existing reconciliation-only rules and must never become a blind retry.
+
+
+## 15. Backlog discovery is broader than mutation scope
+
+Phases L/N intentionally staged annotation work around the currently-open managed document. Phase O closes only the **create discovery/backlog** part of that limitation.
+
+From build 0.1.37:
+- manual Sync scans every Reader-managed document that the database records as locally present;
+- the current document is prioritized, but it is not the only discovery source;
+- remote-only documents are excluded before sidecar I/O;
+- one missing/malformed/non-authoritative sidecar does not abort discovery for other documents and never implies deletion;
+- authoritative sidecars reconcile deterministic local IDs first, then those exact candidates are queued without a second sidecar read;
+- durable create queue processing remains independent of the document that is currently open after a restart.
+
+Do **not** infer from this that destructive mutation scope was broadened. Note updates and optional remote deletes remain bounded to the current document in this gate. Broader destructive behavior requires its own explicit design/gate; never get it "for free" by reusing create-backlog iteration.
+
+
+## 16. Broad sidecar discovery needs exception containment
+
+Build 0.1.37 passed the full automated suite but the first physical Gate 13A run on the target PW3 returned only `Document sync failed safely` before a normal report appeared.
+
+The exact throw source was not visible because the worker-level `pcall` intentionally hid raw Lua exception text. The architectural lesson is still clear: once manual Sync traverses **multiple historical sidecars**, production code must expect inputs that unit fixtures did not model.
+
+From 0.1.38:
+- each document scan is exception-contained independently;
+- each document's queue preparation is exception-contained independently;
+- one malformed annotation normalization is skipped/counted instead of aborting the sidecar;
+- failure of the optimized local-managed repository query falls back safely;
+- a remaining global worker exception reports its coarse stage without exposing tokens or remote payloads;
+- isolated failures must never authorize a remote write or imply local deletion.
+
+Do not weaken this containment just because a later fixture passes. Broad backlog discovery is inherently exposed to old, mixed-format, partially-migrated KOReader sidecars.
+
+
+## 17. A missing subprocess result is an ambiguity boundary
+
+Gate 13C reconnect on build 0.1.38 produced only `Document sync failed safely` after Wi-Fi was restored.
+
+Inspection of KOReader v2026.07.1 `Trapper:dismissableRunInSubprocess` showed:
+- normal task multiple-return values are packed, serialized, decoded and returned to the parent;
+- therefore a normal `return nil, err` from the worker should not by itself collapse into a missing error;
+- a completed subprocess with no usable returned value can instead mean the child ended without serialized output or serialization itself failed.
+
+For a create queue, that is an **ambiguity boundary**:
+- filesystem/SQLite side effects from the child may already have happened;
+- a remote POST may or may not have happened;
+- never respond by blindly running Sync again.
+
+Safe response pattern:
+1. freeze mutation;
+2. snapshot durable queue state read-only;
+3. probe child-process auth/read path read-only;
+4. scan exact remote ownership markers read-only;
+5. inspect parent-document matching read-only;
+6. only then choose reconciliation, retry, or a narrower fix.
+
+When diagnosing hard child exits, persist only a coarse non-sensitive stage string. Do not persist tokens, notes, selected text, Reader IDs, signed URLs, or raw response bodies merely to obtain crash breadcrumbs.
+
+
+## 18. Separate fetch memory from matcher memory
+
+The 0.1.39 reconnect probe physically advanced through queue snapshot, auth and exact-marker scan, then hard-exited after entering `parent_reads`.
+
+Do not collapse that evidence into "the API fetch crashed" or "the matcher crashed": the stage contained both.
+
+The current matching path has two independently memory-sensitive boundaries:
+- Reader `withHtmlContent=true` must buffer and JSON-decode the parent response;
+- `TextMatch.visibleText` historically lowercases the whole HTML and builds a Lua output table while normalized stages can build per-unit mapping tables.
+
+On a constrained PW3, either boundary can be fatal without a Lua traceback.
+
+Diagnostic rule:
+1. metadata-only parent GET first;
+2. bounded HTML parent GET second;
+3. persist sanitized result after each boundary;
+4. run **no matcher** until HTML fetch survival is proven;
+5. if HTML fetch is safe, then optimize/probe matcher separately;
+6. if HTML exceeds a conservative diagnostic cap, treat that as a production hardening requirement rather than increasing the cap blindly.
+
+Never solve a hard-exit ambiguity by moving a remote POST earlier in the sequence.
+
+
+## 19. Keep safety-critical matching out of native FFI
+
+Gate 13C produced this evidence sequence:
+- 0.1.39 hard-exited only after entering the combined parent-read/match stage;
+- 0.1.40 fetched all three parent HTML payloads successfully (9.851 / 27.477 / 8.564 bytes);
+- therefore the remaining hard-exit boundary is matcher execution, not parent retrieval.
+
+The annotation matcher previously attempted canonical normalization through KOReader's native `ffi/utf8proc.normalize_NFC`. A native FFI fault cannot be turned into a recoverable Lua error by `pcall`, which is incompatible with the queue's fail-safe contract.
+
+From 0.1.41:
+- annotation matching does not load/call native utf8proc;
+- exact match stays first;
+- the Unicode fallback uses a conservative pure-Lua composition table for explicitly supported Latin base+combining sequences;
+- unsupported canonical-equivalence cases may become safe false negatives (`unmatched`) rather than risking process termination;
+- whitespace and punctuation fallbacks still run after that;
+- diagnostic stage breadcrumbs isolate each matching phase before mutation is permitted.
+
+For this plugin, a safe false negative is preferable to a native crash or an unsafe guessed highlight location.

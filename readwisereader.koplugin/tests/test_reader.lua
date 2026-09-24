@@ -269,13 +269,14 @@ return function()
             list_min_interval = 0,
         }
 
-        local document, err = reader:getDocument("doc/with space", true, false)
+        local document, err = reader:getDocument("doc/with space", true, false, 123456)
         assert(err == nil)
         assert(document.id == "doc/with space")
         assert(document.html_content == "<p>Olá</p>")
         assert(captured.url:find("id=doc%2Fwith%20space", 1, true))
         assert(captured.url:find("withHtmlContent=true", 1, true))
         assert(captured.url:find("withRawSourceUrl=false", 1, true))
+        assert(captured.max_body_bytes == 123456)
     end
 
     do

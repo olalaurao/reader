@@ -160,6 +160,41 @@ return function()
     end
 
     do
+        local cyclic = {}
+        cyclic.self = cyclic
+        local annotations = {
+            {
+                datetime = "2026-09-23 11:00:00",
+                drawer = "lighten",
+                text = "Malformed locator",
+                page = "xp-bad",
+                pos0 = "xp-bad",
+                pos1 = "xp-bad-2",
+                ext = cyclic,
+            },
+            {
+                datetime = "2026-09-23 11:01:00",
+                drawer = "lighten",
+                text = "Valid after malformed",
+                page = "xp-ok",
+                pos0 = "xp-ok",
+                pos1 = "xp-ok-2",
+            },
+        }
+        local adapter = KOReaderAnnotations:new{
+            doc_settings = docSettings({ annotations = annotations }, "/book.sdr/metadata.epub.lua"),
+            hasher = hasher,
+        }
+        local result = assert(adapter:scan("/book.epub", "reader-1"))
+        assert(result.authoritative == true)
+        assert(#result.annotations == 1)
+        assert(result.annotations[1].text == "Valid after malformed")
+        assert(result.malformed == 1)
+        assert(result.normalize_exceptions == 1,
+            "one malformed annotation must not abort the entire sidecar")
+    end
+
+    do
         local adapter = KOReaderAnnotations:new{
             doc_settings = docSettings({}, nil),
             hasher = hasher,

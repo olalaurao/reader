@@ -141,6 +141,7 @@ function Queue:markSucceeded(idempotency_key, remote_id, updated_at)
         UPDATE queue SET
             status = 'succeeded',
             reader_highlight_document_id = COALESCE(?, reader_highlight_document_id),
+            available_after = NULL,
             last_error_kind = NULL,
             last_error_message = NULL,
             updated_at = ?
@@ -156,6 +157,7 @@ function Queue:markBlocked(idempotency_key, error_kind, error_message, updated_a
     local stmt = conn:prepare([[
         UPDATE queue SET
             status = 'blocked',
+            available_after = NULL,
             last_error_kind = ?,
             last_error_message = ?,
             updated_at = ?
@@ -164,6 +166,139 @@ function Queue:markBlocked(idempotency_key, error_kind, error_message, updated_a
     stmt:bind(error_kind, error_message, updated_at, idempotency_key):step()
     stmt:close()
     return self:getByKey(idempotency_key)
+end
+
+function Queue:markPendingError(idempotency_key, error_kind, error_message, updated_at)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        UPDATE queue SET
+            status = 'pending',
+            available_after = NULL,
+            last_error_kind = ?,
+            last_error_message = ?,
+            updated_at = ?
+        WHERE idempotency_key = ?;
+    ]])
+    stmt:bind(error_kind, error_message, updated_at, idempotency_key):step()
+    stmt:close()
+    return self:getByKey(idempotency_key)
+end
+
+function Queue:markRetryWait(idempotency_key, error_kind, error_message, available_after, updated_at)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        UPDATE queue SET
+            status = 'retry_wait',
+            available_after = ?,
+            last_error_kind = ?,
+            last_error_message = ?,
+            updated_at = ?
+        WHERE idempotency_key = ?;
+    ]])
+    stmt:bind(
+        available_after,
+        error_kind,
+        error_message,
+        updated_at,
+        idempotency_key
+    ):step()
+    stmt:close()
+    return self:getByKey(idempotency_key)
+end
+
+function Queue:promoteAvailable(now)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        UPDATE queue SET
+            status = 'pending',
+            available_after = NULL,
+            updated_at = ?
+        WHERE status = 'retry_wait'
+          AND (available_after IS NULL OR available_after <= ?);
+    ]])
+    stmt:bind(now, now):step()
+    stmt:close()
+end
+
+function Queue:listCreateWork(now)
+    self:promoteAvailable(now)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        SELECT
+            id, idempotency_key, operation, entity_type, local_annotation_id,
+            reader_document_id, reader_highlight_document_id,
+            readwise_v2_highlight_id, payload_json, payload_hash, status,
+            attempts, available_after, last_attempt_at, last_error_kind,
+            last_error_message, created_at, updated_at
+        FROM queue
+        WHERE operation = 'create_highlight'
+          AND status IN ('pending', 'in_flight', 'blocked')
+        ORDER BY id;
+    ]])
+    local items = {}
+    while true do
+        local row = stmt:step()
+        if not row then break end
+        items[#items + 1] = rowToItem(row)
+    end
+    stmt:close()
+    return items
+end
+
+function Queue:listCreateDiagnostics(limit)
+    limit = math.max(1, math.min(tonumber(limit) or 10, 50))
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        SELECT
+            id, idempotency_key, operation, entity_type, local_annotation_id,
+            reader_document_id, reader_highlight_document_id,
+            readwise_v2_highlight_id, payload_json, payload_hash, status,
+            attempts, available_after, last_attempt_at, last_error_kind,
+            last_error_message, created_at, updated_at
+        FROM queue
+        WHERE operation = 'create_highlight'
+        ORDER BY updated_at DESC, id DESC
+        LIMIT ?;
+    ]])
+    stmt:bind(limit)
+    local items = {}
+    while true do
+        local row = stmt:step()
+        if not row then break end
+        items[#items + 1] = rowToItem(row)
+    end
+    stmt:close()
+    return items
+end
+
+function Queue:countCreateStatuses()
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        SELECT status, count(*)
+        FROM queue
+        WHERE operation = 'create_highlight'
+        GROUP BY status;
+    ]])
+    local counts = {}
+    while true do
+        local row = stmt:step()
+        if not row then break end
+        counts[tostring(row[1])] = tonumber(row[2]) or 0
+    end
+    stmt:close()
+    return counts
+end
+
+function Queue:countCreateWaiting()
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        SELECT count(*) FROM queue
+        WHERE operation = 'create_highlight'
+          AND status IN ('pending', 'retry_wait', 'in_flight', 'blocked');
+    ]])
+    local row = stmt:step()
+    stmt:close()
+    return row and (tonumber(row[1]) or 0) or 0
 end
 
 function Queue:countByStatus(status)

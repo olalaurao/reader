@@ -901,6 +901,8 @@ conflict
 
 Após reiniciar o KOReader, a fila deve continuar consistente.
 
+No PW3 alvo, flags locais de Wi-Fi/online não são autoridade suficiente para liberar escrita remota: o Gate 13 demonstrou estado local falso-positivo em Airplane Mode. O Sync deve primeiro descobrir/registrar novos highlights em todos os documentos Reader gerenciados que estejam realmente presentes localmente, persistir a fila, e só então exigir um probe remoto **somente leitura** bem-sucedido antes de processá-la. Falha do probe mantém a fila local e não executa escrita remota. Updates de nota e deletes permanecem limitados ao documento atual nesta fase para não ampliar silenciosamente o escopo destrutivo.
+
 ---
 
 ## 31. Retry e rate limit
@@ -1313,4 +1315,17 @@ Não:
 
 ## 46. Próximo passo
 
-Finalizar a **Phase F / Gate 4** em KOReader 2025.04. Depois do Gate 4, executar a migração controlada de `docs/KOREADER_UPGRADE.md`: backup -> KOReader oficial v2026.07.1 (`kindlepw2`) -> regressão do Readwise Reader -> Bookshelf v5.1.4 -> teste de coexistência. Só então seguir para imagens, formatos e sidecars/anotações.
+A **Phase O / Gate 13 está concluída** na baseline física PW3 + KOReader v2026.07.1.
+
+Próxima fase: **Phase P / Gate 14 — Finished → Archive**.
+
+Ordem:
+1. validar experimentalmente qual é o sinal canônico de `finished` no KOReader 2026.07.1; não assumir campo/evento;
+2. detectar apenas documentos Reader gerenciados;
+3. transformar finished local em intenção durável de archive;
+4. atualizar o documento-pai no Reader para `location=archive` exatamente uma vez;
+5. manter arquivo local, sidecar, progresso, highlights e notas;
+6. não propagar archive como delete local;
+7. testar retry/idempotência;
+8. Gate 14 físico: marcar finished → Sync → Reader archive → arquivo/sidecar intactos → segundo Sync no-op;
+9. somente depois iniciar Phase Q / Gate 15.

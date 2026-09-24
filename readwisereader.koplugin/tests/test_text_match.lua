@@ -75,6 +75,25 @@ return function()
     )
     assert(missing == nil and unmatched.kind == "unmatched")
 
+
+    local stages = {}
+    local staged, staged_info = Match.findExactSubstring(
+        "<p>alpha  beta</p>",
+        "alpha beta",
+        {
+            on_stage = function(stage)
+                stages[#stages + 1] = stage
+            end,
+        }
+    )
+    assert(staged == "alpha  beta")
+    assert(staged_info.mode == "whitespace")
+    assert(table.concat(stages, ",") == "validate,visible_text,exact,unicode,whitespace")
+
+    assert(Match._normalizeNFC("e" .. "\204\129") == "é")
+    assert(Match._normalizeNFC("\255") == "\255",
+        "invalid/non-Latin bytes must stay in Lua and never cross native FFI")
+
     local visible = Match.visibleText(
         '<div title="1 > 0">one &amp; two</div><!-- hidden --><p>three</p>'
     )

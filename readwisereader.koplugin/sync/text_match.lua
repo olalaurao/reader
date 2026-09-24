@@ -84,23 +84,12 @@ local LATIN_COMPOSE = {
     ["N" .. TILDE] = "Ñ", ["n" .. TILDE] = "ñ",
 }
 
-local utf8proc_checked = false
-local utf8proc
-
+-- Keep annotation matching independent from KOReader's native utf8proc FFI.
+-- A native FFI fault cannot be caught by Lua pcall and can terminate the child
+-- process without a traceback. For the normalization fallback needed by the
+-- matcher we only compose the Latin base+combining sequences that we explicitly
+-- support; exact matching remains the first and preferred stage.
 local function normalizeNFC(value)
-    if not utf8proc_checked then
-        utf8proc_checked = true
-        local ok, module = pcall(require, "ffi/utf8proc")
-        if ok and module and type(module.normalize_NFC) == "function" then
-            utf8proc = module
-        end
-    end
-    if utf8proc then
-        local ok, normalized = pcall(utf8proc.normalize_NFC, value)
-        if ok and type(normalized) == "string" then
-            return normalized
-        end
-    end
     return LATIN_COMPOSE[value] or value
 end
 
@@ -274,17 +263,28 @@ function TextMatch.visibleText(html)
                 i = i + 1
             end
         else
-            out[#out + 1] = html:sub(i, i)
-            i = i + 1
+            -- Ordinary text is overwhelmingly the common case. Append one
+            -- contiguous chunk instead of one Lua string/table slot per byte.
+            local next_special = html:find("[<&]", i)
+            if next_special then
+                if next_special > i then
+                    out[#out + 1] = html:sub(i, next_special - 1)
+                end
+                i = next_special
+            else
+                out[#out + 1] = html:sub(i)
+                i = n + 1
+            end
         end
     end
 
     return table.concat(out)
 end
 
-local function normalizedWithMap(source, options)
+local function normalizedWithMap(source, options, build_map)
     options = options or {}
-    local parts, map = {}, {}
+    local parts = {}
+    local map = build_map and {} or nil
     local normalized_length = 0
     local i, n = 1, #source
 
@@ -293,12 +293,14 @@ local function normalizedWithMap(source, options)
         parts[#parts + 1] = value
         local start_index = normalized_length + 1
         normalized_length = normalized_length + #value
-        map[#map + 1] = {
-            normalized_start = start_index,
-            normalized_end = normalized_length,
-            source_start = source_start,
-            source_end = source_end,
-        }
+        if map then
+            map[#map + 1] = {
+                normalized_start = start_index,
+                normalized_end = normalized_length,
+                source_start = source_start,
+                source_end = source_end,
+            }
+        end
     end
 
     while i <= n do
@@ -359,6 +361,72 @@ local function sourceSpan(map, normalized_start, normalized_end)
     return source_start, source_end
 end
 
+local function sourceSpanForNormalizedRange(source, options, normalized_start, normalized_end)
+    options = options or {}
+    local normalized_length = 0
+    local source_start, source_end
+    local i, n = 1, #source
+
+    local function consume(value, unit_start, unit_end)
+        if value == "" then return false end
+        local unit_normalized_start = normalized_length + 1
+        normalized_length = normalized_length + #value
+        local unit_normalized_end = normalized_length
+
+        if not source_start
+            and normalized_start >= unit_normalized_start
+            and normalized_start <= unit_normalized_end then
+            source_start = unit_start
+        end
+        if normalized_end >= unit_normalized_start
+            and normalized_end <= unit_normalized_end then
+            source_end = unit_end
+            return true
+        end
+        return false
+    end
+
+    while i <= n do
+        local unit, cp, len = readUtf8(source, i)
+        if not unit then break end
+
+        if options.remove_soft_hyphen and unit == SOFT_HYPHEN then
+            i = i + len
+        elseif options.collapse_whitespace and isWhitespace(cp) then
+            local unit_start = i
+            local unit_end = i + len - 1
+            i = i + len
+            while i <= n do
+                local next_unit, next_cp, next_len = readUtf8(source, i)
+                if not next_unit or not isWhitespace(next_cp) then break end
+                unit_end = i + next_len - 1
+                i = i + next_len
+            end
+            if consume(" ", unit_start, unit_end) then break end
+        else
+            local unit_start = i
+            local unit_end = i + len - 1
+            i = i + len
+
+            if options.nfc then
+                while i <= n do
+                    local next_unit, next_cp, next_len = readUtf8(source, i)
+                    if not next_unit or not isCombining(next_cp) then break end
+                    unit_end = i + next_len - 1
+                    i = i + next_len
+                end
+            end
+
+            local value = source:sub(unit_start, unit_end)
+            if options.nfc then value = normalizeNFC(value) end
+            if options.punctuation then value = PUNCT_EQUIV[value] or value end
+            if consume(value, unit_start, unit_end) then break end
+        end
+    end
+
+    return source_start, source_end
+end
+
 local function uniqueLiteral(haystack, needle)
     local first = haystack:find(needle, 1, true)
     if not first then return nil, nil, "missing" end
@@ -368,13 +436,23 @@ local function uniqueLiteral(haystack, needle)
 end
 
 local function mappedStage(remote_visible, local_text, options, mode)
-    local normalized_remote, map = normalizedWithMap(remote_visible, options)
-    local normalized_local = normalizedWithMap(local_text, options)
+    -- Most stages are rejected before we ever need normalized->source offsets.
+    -- Avoid allocating one Lua mapping table per UTF-8 unit on those paths.
+    local normalized_remote = normalizedWithMap(remote_visible, options, false)
+    local normalized_local = normalizedWithMap(local_text, options, false)
     if normalized_local == "" then return nil, "missing" end
 
     local first, last, state = uniqueLiteral(normalized_remote, normalized_local)
     if state ~= "unique" then return nil, state end
-    local source_start, source_end = sourceSpan(map, first, last)
+
+    -- Recover only the two source offsets we need with a second linear
+    -- pass; do not allocate a mapping table per UTF-8 unit.
+    local source_start, source_end = sourceSpanForNormalizedRange(
+        remote_visible,
+        options,
+        first,
+        last
+    )
     if not source_start or not source_end then return nil, "missing" end
 
     return remote_visible:sub(source_start, source_end), {
@@ -391,7 +469,14 @@ local function ambiguousError(message)
     }
 end
 
-function TextMatch.findExactSubstring(remote_content, local_text)
+function TextMatch.findExactSubstring(remote_content, local_text, options)
+    options = options or {}
+    local on_stage = options.on_stage
+    local function stage(name)
+        if type(on_stage) == "function" then on_stage(name) end
+    end
+
+    stage("validate")
     if type(remote_content) ~= "string" or remote_content == "" then
         return nil, { kind = "content", retryable = false, message = "Reader content is unavailable." }
     end
@@ -399,11 +484,13 @@ function TextMatch.findExactSubstring(remote_content, local_text)
         return nil, { kind = "text", retryable = false, message = "Local highlight text is empty." }
     end
 
+    stage("visible_text")
     local remote_visible = TextMatch.visibleText(remote_content)
     if remote_visible == "" then
         return nil, { kind = "content", retryable = false, message = "Reader visible text is unavailable." }
     end
 
+    stage("exact")
     local first, last, exact_state = uniqueLiteral(remote_visible, local_text)
     if exact_state == "unique" then
         return remote_visible:sub(first, last), { mode = "exact" }
@@ -434,11 +521,17 @@ function TextMatch.findExactSubstring(remote_content, local_text)
         },
     }
 
-    for _, stage in ipairs(stages) do
-        local result, info_or_state = mappedStage(remote_visible, local_text, stage.options, stage.mode)
+    for _, candidate in ipairs(stages) do
+        stage(candidate.mode)
+        local result, info_or_state = mappedStage(
+            remote_visible,
+            local_text,
+            candidate.options,
+            candidate.mode
+        )
         if result then return result, info_or_state end
         if info_or_state == "ambiguous" then
-            return ambiguousError(stage.ambiguous)
+            return ambiguousError(candidate.ambiguous)
         end
     end
 
@@ -450,5 +543,7 @@ function TextMatch.findExactSubstring(remote_content, local_text)
 end
 
 TextMatch._normalizedWithMap = normalizedWithMap
+TextMatch._sourceSpanForNormalizedRange = sourceSpanForNormalizedRange
+TextMatch._normalizeNFC = normalizeNFC
 
 return TextMatch

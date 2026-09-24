@@ -18,6 +18,7 @@ local tests = {
     "tests.test_article_ui",
     "tests.test_annotation_diagnostics_ui",
     "tests.test_annotation_sync",
+    "tests.test_annotation_backlog",
     "tests.test_text_match",
     "tests.test_text_match_probe",
     "tests.test_text_match_diagnostics_ui",
@@ -36,6 +37,10 @@ local tests = {
     "tests.test_document_sync",
     "tests.test_worker",
     "tests.test_sync_ui",
+    "tests.test_network_state",
+    "tests.test_network_diagnostics_ui",
+    "tests.test_reconnect_probe_worker",
+    "tests.test_reconnect_diagnostics_ui",
     "tests.test_storage_db",
     "tests.test_storage_repositories",
 }

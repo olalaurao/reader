@@ -71,6 +71,22 @@ local function testDocuments()
     assertEqual(by_path.reader_id, "doc-1")
     assertEqual(docs:getByLocalPath("/mnt/us/documents/Readwise/Articles/missing.html"), nil)
 
+    local local_managed = docs:listManagedLocal()
+    assertEqual(#local_managed, 1)
+    assertEqual(local_managed[1].reader_id, "doc-1")
+
+    docs:upsertRemote({
+        id = "doc-2",
+        category = "article",
+        location = "new",
+        title = "Remote only",
+        updated_at = "2026-09-22T13:30:00Z",
+        raw_source_available = false,
+    }, 201)
+    assertEqual(#docs:listManaged(), 2)
+    assertEqual(#docs:listManagedLocal(), 1,
+        "annotation backlog query must not load remote-only documents")
+
     local conn = db:getConnection()
     local raw_url_count = tonumber(conn:rowexec([[
         SELECT count(*) FROM documents
@@ -239,9 +255,56 @@ local function testQueue()
         50
     )
     assertEqual(blocked.status, "blocked")
+
+    local auth_pending = queue:markPendingError(
+        "create_highlight:ann-1",
+        "preflight_auth",
+        "token rejected before POST",
+        51
+    )
+    assertEqual(auth_pending.status, "pending")
+    assertEqual(auth_pending.attempts, 1, "queue error state must not invent a new attempt")
+
+    local waiting = queue:markRetryWait(
+        "create_highlight:ann-1",
+        "preflight_rate_limit",
+        "retry later",
+        100,
+        52
+    )
+    assertEqual(waiting.status, "retry_wait")
+    assertEqual(waiting.available_after, 100)
+    assertEqual(#queue:listCreateWork(99), 0, "retry_wait item must not run early")
+    local due = queue:listCreateWork(100)
+    assertEqual(#due, 1)
+    assertEqual(due[1].status, "pending")
+    assertEqual(due[1].available_after, nil)
+    assertEqual(queue:countCreateWaiting(), 1)
+
     local succeeded = queue:markSucceeded("create_highlight:ann-1", "remote-1", 60)
     assertEqual(succeeded.status, "succeeded")
     assertEqual(succeeded.reader_highlight_document_id, "remote-1")
+
+    queue:prepare({
+        idempotency_key = "create_highlight:ann-2",
+        operation = "create_highlight",
+        entity_type = "annotation",
+        local_annotation_id = "ann-2",
+        reader_document_id = "doc-2",
+        payload_json = "{\"content\":\"two\"}",
+        payload_hash = "create-hash-2",
+        created_at = 70,
+        updated_at = 70,
+    })
+    local diagnostics = queue:listCreateDiagnostics(10)
+    assertEqual(#diagnostics, 2)
+    assertEqual(diagnostics[1].local_annotation_id, "ann-2",
+        "diagnostic rows must be newest-first without mutating queue state")
+    local counts = queue:countCreateStatuses()
+    assertEqual(counts.pending, 1)
+    assertEqual(counts.succeeded, 1)
+    assertEqual(queue:getByKey("create_highlight:ann-2").status, "pending",
+        "read-only diagnostics must not promote or mutate queue rows")
 
     db:close()
 end

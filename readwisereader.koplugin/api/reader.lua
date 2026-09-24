@@ -357,6 +357,7 @@ function Reader:listDocuments(options)
             ["Authorization"] = "Token " .. token,
         },
         timeout_class = "api",
+        max_body_bytes = options.max_body_bytes,
     }
     if not response then
         return nil, err
@@ -653,7 +654,7 @@ function Reader:deleteDocument(reader_id)
     return true
 end
 
-function Reader:getDocument(reader_id, with_html_content, with_raw_source_url)
+function Reader:getDocument(reader_id, with_html_content, with_raw_source_url, max_body_bytes)
     if type(reader_id) ~= "string" or reader_id == "" then
         return nil, {
             kind = "client",
@@ -667,6 +668,7 @@ function Reader:getDocument(reader_id, with_html_content, with_raw_source_url)
         limit = 1,
         with_html_content = with_html_content == true,
         with_raw_source_url = with_raw_source_url == true,
+        max_body_bytes = max_body_bytes,
     }
     if not page then
         return nil, err

@@ -7,6 +7,7 @@ local function withStubbedSyncUI(run, options)
         "ui/widget/confirmbox",
         "ui/widget/infomessage",
         "ui/network/manager",
+        "platform/network_state",
         "ui/trapper",
         "ui/uimanager",
         "sync/worker",
@@ -22,6 +23,7 @@ local function withStubbedSyncUI(run, options)
     local state = {
         shown = {},
         online = options.online ~= false,
+        airplane_mode = options.airplane_mode == true,
         wrap_calls = 0,
         subprocess_calls = 0,
         refresh_calls = 0,
@@ -42,7 +44,26 @@ local function withStubbedSyncUI(run, options)
         return { new = function(_, value) value.kind = "confirm" return value end }
     end
     package.preload["ui/network/manager"] = function()
-        return { isOnline = function() return state.online end }
+        return {
+            isOnline = function() return state.online end,
+            isWifiOn = function() return state.online end,
+            isConnected = function() return state.online end,
+            queryNetworkState = function() end,
+        }
+    end
+    package.preload["platform/network_state"] = function()
+        return {
+            new = function()
+                return {
+                    isAvailable = function()
+                        if state.airplane_mode then
+                            return false, "kindle_airplane_mode"
+                        end
+                        return state.online, state.online and "online" or "not_online"
+                    end,
+                }
+            end,
+        }
     end
     package.preload["ui/uimanager"] = function()
         return {
@@ -148,6 +169,18 @@ local function newUI(SyncUI, state, watermark, report, ui_options)
                     proposed_watermark = "2026-09-22T20:00:00Z",
                     proposed_query_after = "2026-09-22T19:55:00Z",
                     completed_at = "2026-09-22T20:01:00Z",
+                    annotation_documents_scanned = 3,
+                    annotation_documents_authoritative = 2,
+                    annotation_documents_skipped = 1,
+                    annotation_scan_errors = 1,
+                    annotation_scan_exceptions = 1,
+                    annotation_normalize_exceptions = 2,
+                    annotation_queue_errors = 1,
+                    annotation_queue_exceptions = 1,
+                    annotation_repository_source = "managed_fallback",
+                    annotation_repository_fallback = true,
+                    annotation_current_status = "ok",
+                    annotation_scanned = 4,
                     postprocess = {
                         {
                             path = "/Readwise/a.html",
@@ -163,6 +196,11 @@ end
 
 return function()
     withStubbedSyncUI(function(SyncUI, state)
+        assert(SyncUI._errorText({
+            kind = "worker",
+            stage = "annotation_backlog",
+        }):find("stage: annotation_backlog", 1, true))
+
         local ui = newUI(SyncUI, state, "2026-09-22T20:00:00Z")
         ui:syncNow(false)
         assert(state.wrap_calls == 1)
@@ -170,12 +208,26 @@ return function()
         assert(#state.worker_calls == 1)
         assert(state.worker_calls[1].full_rescan == false)
         assert(state.worker_calls[1].current_path == "/Readwise/current.html")
+        assert(state.worker_calls[1].network_available == nil,
+            "UI must not authorize remote writes from local network state")
         assert(#state.metadata_writes == 1)
         assert(state.metadata_consumer_refreshes == 1)
         assert(#state.collection_writes == 1)
         assert(state.meta_writes.document_watermark == "2026-09-22T20:00:00Z")
         assert(state.meta_writes.document_query_after == "2026-09-22T19:55:00Z")
         assert(state.shown[#state.shown].text:find("Downloaded: 2", 1, true))
+        assert(state.shown[#state.shown].text:find("Managed annotation documents scanned: 3", 1, true))
+        assert(state.shown[#state.shown].text:find("Authoritative annotation sidecars: 2", 1, true))
+        assert(state.shown[#state.shown].text:find("Annotation documents skipped safely: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("Annotation scan errors: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("Annotation scan exceptions isolated: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("Annotation normalize exceptions isolated: 2", 1, true))
+        assert(state.shown[#state.shown].text:find("Annotation queue errors: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("Annotation queue exceptions isolated: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("Annotation repository source: managed_fallback", 1, true))
+        assert(state.shown[#state.shown].text:find("Annotation repository fallback: yes", 1, true))
+        assert(state.shown[#state.shown].text:find("Current annotation document status: ok", 1, true))
+        assert(state.shown[#state.shown].text:find("Managed-document highlights scanned: 4", 1, true))
         assert(state.shown[#state.shown].text:find("Highlights created: 0", 1, true))
         assert(state.shown[#state.shown].text:find("Notes updated: 0", 1, true))
         assert(state.shown[#state.shown].text:find("Remote highlight deletions: 0", 1, true))
@@ -241,10 +293,85 @@ return function()
     end, { cancelled = true })
 
     withStubbedSyncUI(function(SyncUI, state)
-        local ui = newUI(SyncUI, state, "watermark")
+        local ui = newUI(SyncUI, state, "watermark", {
+            mode = "offline",
+            errors = 0,
+            remote_preflight = "offline",
+            annotation_sync_status = "queued_offline",
+            annotation_scanned = 1,
+            highlight_creates_queued = 1,
+            highlight_queue_waiting = 1,
+            postprocess = {},
+        })
         ui:syncNow(false)
+        assert(#state.worker_calls == 1)
+        assert(state.worker_calls[1].network_available == nil,
+            "UI must leave remote reachability authorization to the worker probe")
+        assert(state.shown[#state.shown].text:find("Mode: offline / local queue", 1, true))
+        assert(state.shown[#state.shown].text:find("Remote preflight: offline", 1, true))
+    end, { online = true, airplane_mode = true })
+
+    withStubbedSyncUI(function(SyncUI, state)
+        local ui = newUI(SyncUI, state, "watermark", {
+            mode = "remote_unavailable",
+            errors = 0,
+            remote_preflight = "auth",
+            annotation_sync_status = "queued_remote_unavailable",
+            annotation_scanned = 1,
+            highlight_creates_queued = 1,
+            highlight_queue_waiting = 1,
+            postprocess = {},
+        })
+        ui:syncNow(false)
+        assert(#state.worker_calls == 1)
+        assert(state.worker_calls[1].network_available == nil)
+        assert(state.shown[#state.shown].text:find(
+            "Mode: local queue / remote unavailable", 1, true
+        ))
+        assert(state.shown[#state.shown].text:find("Remote preflight: auth", 1, true))
+        assert(next(state.meta_writes) == nil)
+    end)
+
+    withStubbedSyncUI(function(SyncUI, state)
+        local ui = newUI(SyncUI, state, "watermark", {
+            mode = "offline",
+            errors = 0,
+            remote_preflight = "timeout",
+            annotation_sync_status = "queued_offline",
+            annotation_scanned = 1,
+            highlight_creates_queued = 1,
+            highlight_queue_waiting = 1,
+            postprocess = {},
+        })
+        ui:syncNow(false)
+        assert(state.wrap_calls == 1)
+        assert(state.subprocess_calls == 1)
+        assert(#state.worker_calls == 1)
+        assert(state.worker_calls[1].network_available == nil)
+        assert(state.worker_calls[1].current_path == "/Readwise/current.html")
+        assert(state.shown[#state.shown].text:find("Mode: offline / local queue", 1, true))
+        assert(state.shown[#state.shown].text:find("Remote preflight: timeout", 1, true))
+        assert(state.shown[#state.shown].text:find("Highlight creates queued durably: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("Create queue waiting after sync: 1", 1, true))
+        assert(next(state.meta_writes) == nil, "offline local queue must not advance document watermark")
+    end, { online = false })
+
+    withStubbedSyncUI(function(SyncUI, state)
+        local ui = newUI(SyncUI, state, "watermark", {
+            mode = "offline",
+            errors = 0,
+            remote_preflight = "offline",
+            annotation_sync_status = "queued_offline",
+            postprocess = {},
+        })
+        ui:confirmAndRun(true)
         assert(state.wrap_calls == 0)
         assert(state.subprocess_calls == 0)
-        assert(state.shown[#state.shown].text:find("No internet connection", 1, true))
+        assert(state.shown[#state.shown].kind == "confirm")
+        state.shown[#state.shown].ok_callback()
+        assert(state.wrap_calls == 1)
+        assert(state.subprocess_calls == 1)
+        assert(state.worker_calls[1].network_available == nil)
+        assert(state.shown[#state.shown].text:find("Remote preflight: offline", 1, true))
     end, { online = false })
 end

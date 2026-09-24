@@ -2,7 +2,6 @@
 
 local ConfirmBox = require("ui/widget/confirmbox")
 local InfoMessage = require("ui/widget/infomessage")
-local NetworkMgr = require("ui/network/manager")
 local Trapper = require("ui/trapper")
 local UIManager = require("ui/uimanager")
 local Worker = require("sync/worker")
@@ -48,12 +47,26 @@ local function errorText(err)
         return _("Reader pagination became inconsistent, so the sync stopped without advancing its watermark.")
     elseif err.kind == "cancelled" then
         return _("Document sync cancelled. Completed files were kept; the watermark was not advanced.")
+    elseif err.kind == "worker" then
+        return string.format(
+            _("Document sync failed safely at stage: %s. Local documents and queued work were preserved."),
+            err.stage or _("unknown")
+        )
     end
     return _("Document sync failed safely. Existing local documents were kept.")
 end
 
 local function summaryText(report)
-    local mode = report.mode == "full" and _("full") or _("incremental")
+    local mode
+    if report.mode == "full" then
+        mode = _("full")
+    elseif report.mode == "offline" then
+        mode = _("offline / local queue")
+    elseif report.mode == "remote_unavailable" then
+        mode = _("local queue / remote unavailable")
+    else
+        mode = _("incremental")
+    end
     local lines = {
         _("Readwise document sync complete"),
         "",
@@ -92,13 +105,33 @@ local function summaryText(report)
         string.format(_("Content pages: %d"), report.content_pages or 0),
         string.format(_("Duplicate API records ignored: %d"), report.duplicates_ignored or 0),
         "",
+        string.format(_("Remote preflight: %s"), report.remote_preflight or _("not run")),
         string.format(_("Annotation sync: %s"), report.annotation_sync_status or _("not run")),
-        string.format(_("Current-document highlights scanned: %d"), report.annotation_scanned or 0),
+        string.format(_("Managed annotation documents scanned: %d"), report.annotation_documents_scanned or 0),
+        string.format(_("Authoritative annotation sidecars: %d"), report.annotation_documents_authoritative or 0),
+        string.format(_("Annotation documents skipped safely: %d"), report.annotation_documents_skipped or 0),
+        string.format(_("Annotation scan errors: %d"), report.annotation_scan_errors or 0),
+        string.format(_("Annotation scan exceptions isolated: %d"), report.annotation_scan_exceptions or 0),
+        string.format(_("Annotation normalize exceptions isolated: %d"), report.annotation_normalize_exceptions or 0),
+        string.format(_("Annotation queue errors: %d"), report.annotation_queue_errors or 0),
+        string.format(_("Annotation queue exceptions isolated: %d"), report.annotation_queue_exceptions or 0),
+        string.format(_("Annotation repository source: %s"), report.annotation_repository_source or _("unknown")),
+        string.format(
+            _("Annotation repository fallback: %s"),
+            report.annotation_repository_fallback and _("yes") or _("no")
+        ),
+        string.format(_("Current annotation document status: %s"), report.annotation_current_status or _("unknown")),
+        string.format(_("Managed-document highlights scanned: %d"), report.annotation_scanned or 0),
         string.format(_("Highlights created: %d"), report.highlights_created or 0),
         string.format(_("Highlights reconciled safely: %d"), report.highlights_reconciled or 0),
         string.format(_("Highlights already linked: %d"), report.highlights_already_linked or 0),
         string.format(_("Highlights unmatched/ambiguous: %d"), report.highlights_unmatched or 0),
         string.format(_("Highlight creates blocked safely: %d"), report.highlight_creates_blocked or 0),
+        string.format(_("Highlight creates queued durably: %d"), report.highlight_creates_queued or 0),
+        string.format(_("Create queue items processed: %d"), report.highlight_queue_processed or 0),
+        string.format(_("Create retries deferred: %d"), report.highlight_create_deferred or 0),
+        string.format(_("Create auth waits: %d"), report.highlight_create_auth_waiting or 0),
+        string.format(_("Create queue waiting after sync: %d"), report.highlight_queue_waiting or 0),
         string.format(_("Reconciliation markers verified: %d"), report.highlight_marker_verified or 0),
         string.format(_("Notes updated: %d"), report.notes_updated or 0),
         string.format(_("Note updates reconciled: %d"), report.notes_reconciled or 0),
@@ -181,13 +214,6 @@ function SyncUI:_preflight()
         UIManager:show(InfoMessage:new{ text = _("No access token is configured.") })
         return false
     end
-    -- Deliberately inspect connectivity only; V1 never controls Wi-Fi.
-    if not NetworkMgr:isOnline() then
-        UIManager:show(InfoMessage:new{
-            text = _("No internet connection. Turn Wi-Fi on outside the plugin and try again."),
-        })
-        return false
-    end
     return true
 end
 
@@ -195,11 +221,17 @@ function SyncUI:syncNow(full_rescan)
     if not self:_preflight() then
         return
     end
-    if full_rescan or self.sync_meta:get("document_watermark") == nil then
-        self:confirmAndRun(full_rescan)
+
+    if full_rescan then
+        self:confirmAndRun(true)
         return
     end
-    self:_run(full_rescan)
+
+    if self.sync_meta:get("document_watermark") == nil then
+        self:confirmAndRun(false)
+        return
+    end
+    self:_run(false)
 end
 
 function SyncUI:confirmAndRun(full_rescan)
@@ -237,7 +269,7 @@ function SyncUI:_run(full_rescan)
             }
         end, _([[Syncing Reader documents…
 
-Tap to cancel. Completed files are installed atomically; the incremental watermark is committed only after a successful sync.]]))
+Tap to cancel. Local annotations are queued first. Readwise reachability is then verified read-only before any remote write; the incremental watermark is committed only after a successful remote sync.]]))
 
         if not completed then
             UIManager:show(InfoMessage:new{

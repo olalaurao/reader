@@ -63,6 +63,7 @@ function AnnotationSync:scanPath(local_path)
         authoritative = scan.authoritative == true,
         status = scan.status,
         malformed = scan.malformed or 0,
+        normalize_exceptions = scan.normalize_exceptions or 0,
         highlights = 0,
         notes = 0,
         new = 0,
@@ -72,6 +73,10 @@ function AnnotationSync:scanPath(local_path)
         degraded_identity = 0,
         identity_collisions = 0,
         sample = nil,
+        -- Internal handoff for Phase O backlog queueing. These are the same
+        -- candidates whose durable annotation_links were just reconciled
+        -- above; they are not logged or persisted as document bodies.
+        annotations = scan.annotations or {},
     }
 
     if not scan.authoritative then
