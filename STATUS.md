@@ -4502,3 +4502,14 @@ Do **not** deliberately fill the Kindle filesystem or manufacture corrupt/huge p
 - Final non-STATUS implementation/docs head: `f0406e8f29b54b9a3c15787fd0b1f7910b752c7b`.
 - Workflow #1079: **SUCCESS**.
 - Gate 16 deterministic hardening is complete off-device; the only blocker is the PW3 0.1.47 physical RC sequence.
+
+
+### Verified 0.1.47 installable package
+- Final Gate 16 RC workflow artifact: ID `10839315642`.
+- Outer GitHub artifact ZIP SHA-256: `0f65232fa694631fbed30f900e25707cd5962e2a467a041266474bcca6232615`.
+- Extracted installable `readwisereader.koplugin.zip` SHA-256: `8c61a845bf4e3cbfe16cd5cbd11a95169cf8c39a6242d7d46c2b1250ad263e1f`.
+- ZIP integrity check: PASS.
+- Package root: `readwisereader.koplugin/`.
+- Packaged `constants.VERSION`: `0.1.47`.
+- Packaged metadata describes the Gate 16 0.1.47 hardening candidate.
+- This is the exact package to use for the pending PW3 physical RC smoke.
