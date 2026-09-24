@@ -1318,9 +1318,10 @@ Não:
 Concluir a **Phase O / Gate 13** na baseline física já adotada: PW3 + KOReader v2026.07.1.
 
 Ordem:
-1. validar a build 0.1.38 com Airplane Mode/no internet, reutilizando o mesmo highlight criado na tentativa 0.1.37 que falhou com `Document sync failed safely`: a anotação deve entrar/permanecer na fila local e nenhuma escrita remota pode ocorrer;
-2. reiniciar KOReader com a fila pendente;
-3. reconectar Wi-Fi fora do plugin;
-4. sincronizar e provar entrega exatamente uma vez;
-5. rodar segundo sync sem mudanças e confirmar zero duplicatas;
-6. somente depois iniciar **Phase P / Gate 14 (Finished → Archive)**.
+1. Gate 13A: **PASS** em 0.1.38 — fila offline permaneceu durável e nenhuma escrita remota ocorreu;
+2. Gate 13B: **PASS** em 0.1.38 — fila + highlight/nota local sobreviveram ao restart do KOReader;
+3. Gate 13C tentativa 1: **FAIL SAFE** — após religar Wi-Fi, `Sync now` terminou sem relatório utilizável;
+4. antes de qualquer novo write/retry, instalar 0.1.39 e rodar somente o diagnóstico read-only **Inspect reconnect queue (Gate 13)** para medir fila, auth no child process, marcadores remotos e matching dos parents;
+5. com essa evidência, corrigir/retomar o reconnect sem blind retry e provar entrega exatamente uma vez;
+6. rodar segundo sync sem mudanças e confirmar zero duplicatas;
+7. somente depois iniciar **Phase P / Gate 14 (Finished → Archive)**.
