@@ -1548,7 +1548,7 @@ The first physical 0.1.37 run then exposed a robustness gap not represented in C
 
 ## Blockers
 
-Immediate blocker: **physical Gate 14 P1 validation on build 0.1.43**.
+Immediate blocker: **final unchanged second Sync for Gate 14 idempotency on build 0.1.43**.
 
 Everything possible without the Kindle is complete:
 - P0 canonical Finished signal physically proven;
@@ -3334,3 +3334,37 @@ Required local preservation check before second Sync:
 Only after all of the above pass:
 - run one unchanged second **Sync now**;
 - require no repeated archive mutation and archive queue waiting = 0.
+
+
+### Gate 14 P1 local preservation after first archive — PASS
+
+After the first 0.1.43 archive Sync moved the target Finished document to Reader Archive, the user verified on the Kindle:
+- the same local document still exists;
+- the document still opens normally;
+- reading position/progress is preserved;
+- existing highlights are preserved;
+- existing notes are preserved.
+
+Combined with the first-Sync Reader verification:
+- remote archive effect: PASS;
+- local keep contract: PASS;
+- annotation/progress preservation: PASS.
+
+No destructive local side effect was observed.
+
+Gate 14 now has only one remaining physical requirement: the unchanged second Sync must prove idempotency.
+
+Final Gate 14 action:
+1. make no document/annotation/status changes;
+2. keep Wi-Fi ON;
+3. run ordinary **Sync now** once;
+4. return the full Sync report;
+5. require:
+   - Reader documents archived = **0**;
+   - Archive queue items processed = **0**;
+   - Archive queue waiting after sync = **0**;
+   - Archive remote errors = **0**;
+   - no new annotation create/update/delete;
+   - Reader document remains in Archive;
+   - local file/sidecar/progress/highlights/notes remain intact.
+6. If this passes, Gate 14 / Phase P is complete and PR #17 can move toward merge before Phase Q / Gate 15.
