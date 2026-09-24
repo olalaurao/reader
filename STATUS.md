@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase O IMPLEMENTED — GATE 13 PHYSICAL VALIDATION PENDING on PW3 / KOReader 2026.07.1; build 0.1.33**
+**Phase O IMPLEMENTED — GATE 13 PHYSICAL VALIDATION PENDING on PW3 / KOReader 2026.07.1; build 0.1.34 airplane-mode hotfix**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Phase N / Gate 12 is complete and merged to `main` through PR #15 as `54509c84bb731cfa0507865d6cc8fb300859647d`. Current work is **Phase O / Gate 13 offline queue hardening** on build 0.1.33. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Phase N / Gate 12 is complete and merged to `main` through PR #15 as `54509c84bb731cfa0507865d6cc8fb300859647d`. Current work is **Phase O / Gate 13 offline queue hardening** on build 0.1.34 after physical testing showed KOReader's generic `isOnline()` check does not respect Kindle Airplane Mode reliably. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -614,7 +614,9 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Offline UI tests: `9f900b2ba34c69e52b35aff0818349e8b3954744`
 - 5xx ambiguous-create safety coverage: `83bdec82239172701eb4060402ca9affd54e7f76`
 - Run #500 on Phase O functional HEAD: **SUCCESS**
-- Build staged as **0.1.33**
+- Build 0.1.33 physically failed Gate 13A because KOReader still took the online path with Kindle Airplane Mode enabled.
+- 0.1.34 adds explicit Kindle native airplane-mode detection.
+- Build staged as **0.1.34**
 - Final build run #506 on `b6c906444c6777bacd8210c7cae0f453dcf5afb8`: **SUCCESS**
 - Gate 13 artifact ID: `10784790189`
 - artifact name: `readwisereader-koplugin-b6c906444c6777bacd8210c7cae0f453dcf5afb8`
@@ -2000,3 +2002,30 @@ Implementation:
 - queue/status diagnostics are visible in Sync now.
 
 Gate 13 physical test remains required.
+
+
+### Gate 13A attempts on build 0.1.33 — FAIL / fixed in 0.1.34
+
+Physical behavior observed twice on target PW3 / KOReader 2026.07.1 after the user enabled Kindle Airplane Mode:
+- sync still ran in incremental/online mode;
+- metadata pages were fetched;
+- the fresh annotation was queued and immediately processed;
+- `Highlights created: 1`;
+- `Create queue items processed: 1`;
+- `Create queue waiting after sync: 0`.
+
+Conclusion:
+- the durable queue itself worked, but the offline/online decision was wrong;
+- KOReader 2026.07.1 `NetworkMgr:isOnline()` is not an Airplane Mode check; official source shows it delegates to hostname resolution;
+- the Kindle backend also advertises Wi-Fi restore, so user Airplane Mode intent cannot be inferred from generic online state alone.
+
+0.1.34 correction:
+- new `platform/network_state.lua`;
+- on Kindle, read native `com.lab126.cmd airplaneMode` through liblipclua, with read-only shell fallback;
+- if airplaneMode == 1, ordinary Sync now is forced to offline/local-queue mode even if KOReader otherwise reports online;
+- otherwise refresh KOReader network state and require Wi-Fi/interface connectivity plus online state;
+- the plugin still never turns Wi-Fi on/off;
+- automated test reproduces `isOnline=true + airplaneMode=1` and requires `network_available=false`;
+- CI #513 on `77192203fe62cd9b9c7adb90d215de690e3f56a2`: **SUCCESS**.
+
+Gate 13A must be repeated on build 0.1.34 before reboot/reconnect testing.
