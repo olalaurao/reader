@@ -13,6 +13,18 @@ local function isNetworkUnavailable(err)
     return err ~= nil and NETWORK_UNAVAILABLE_KINDS[err.kind] == true
 end
 
+local function probeReader(reader)
+    local reachable, probe_err = reader:validateToken()
+    if reachable == true then
+        return true
+    end
+    return false, probe_err or {
+        kind = "unknown",
+        retryable = true,
+        message = "Readwise reachability probe failed without a classified error.",
+    }
+end
+
 local function copyMetadata(document)
     local tags
     if type(document.tags) == "table" then
@@ -275,7 +287,7 @@ function Worker:run(options)
         -- mutation, or document request, prove real Readwise reachability with
         -- the existing read-only auth endpoint. A failed probe leaves all local
         -- annotation work durably queued and performs no remote write.
-        local reachable, preflight_err = reader:validateToken()
+        local reachable, preflight_err = probeReader(reader)
         if not reachable then
             return localQueueOnlyReport(preflight_err)
         end
@@ -409,5 +421,6 @@ end
 
 Worker._copyMetadata = copyMetadata
 Worker._isNetworkUnavailable = isNetworkUnavailable
+Worker._probeReader = probeReader
 
 return Worker
