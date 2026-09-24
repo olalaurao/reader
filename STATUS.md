@@ -615,6 +615,10 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - 5xx ambiguous-create safety coverage: `83bdec82239172701eb4060402ca9affd54e7f76`
 - Run #500 on Phase O functional HEAD: **SUCCESS**
 - Build staged as **0.1.33**
+- Final build run #506 on `b6c906444c6777bacd8210c7cae0f453dcf5afb8`: **SUCCESS**
+- Gate 13 artifact ID: `10784790189`
+- artifact name: `readwisereader-koplugin-b6c906444c6777bacd8210c7cae0f453dcf5afb8`
+- artifact digest: `sha256:73067451006de5e87105fccca09d4633475a59656cc10a6483a2912ba49220d3`
 - Historical Phase N main merge: `54509c84bb731cfa0507865d6cc8fb300859647d`
 - Annotation invariants remain canonical in `docs/ANNOTATION_SYNC_LESSONS.md`
 
