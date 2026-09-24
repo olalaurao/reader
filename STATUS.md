@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase Q / Gate 15 — Q1-A ARTICLE SAFETY PASSED; Q2 ARTICLE ACKNOWLEDGEMENT + IDEMPOTENCY PASSED; Q1-B RAW PDF/EPUB PHYSICAL COVERAGE IS THE ONLY REMAINING GATE 15 BLOCKER**
+**Phase Q / Gate 15 — Q1-A + Q2 ARTICLE PASSED; Q1-B PDF BASELINE PASSED; PDF METADATA-REVISION TEST THEN EPUB COVERAGE REMAIN**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
@@ -4033,3 +4033,50 @@ Combined with the preceding read-only recovery diagnostic (pending=no, exact Rea
 - No scope deviation: V1 still forbids automatic existing-document replacement.
 - No secrets/private content were added to tests/docs.
 - No firmware/KOReader update, Wi-Fi control or destructive remote behavior was introduced.
+
+
+### Gate 15 Q1-B original PDF baseline — PHYSICAL PASS
+
+User confirmed the already-local plugin-managed original PDF passed the complete pre-revision Gate 15 diagnostic baseline.
+
+Accepted criteria:
+- category: pdf;
+- local format: pdf;
+- local file present: yes;
+- remote probe: passed;
+- visible-text comparison: `not_attempted_raw`;
+- V1 refresh decision: `defer_raw_keep_local`;
+- automatic replacement allowed: no;
+- remote writes: none;
+- local writes: none;
+- no local preservation problem was reported.
+
+Conclusion:
+- Q1-B PDF baseline is **PASSED**;
+- the raw diagnostic does not fetch/compare replacement body bytes;
+- the same PDF is now authorized for a harmless same-ID metadata-only revision test;
+- Gate 15 remains open; no Gate 16 work is authorized yet.
+
+### Exact next physical action — PDF metadata-only revision
+1. In Readwise Reader, change **only the title** of this exact same PDF.
+2. Do not re-save, delete/re-add, move, annotate, or otherwise alter the PDF.
+3. Return to Kindle with Wi-Fi ON.
+4. Run ordinary **Sync now exactly once**.
+5. Require:
+   - `Content refresh pending review >= 1` for the PDF revision;
+   - `Raw PDF/EPUB revisions retained >= 1`;
+   - `Refresh articles compared = 0` for this raw fixture;
+   - `Metadata-only revisions acknowledged = 0` for this raw fixture;
+   - `Content pages = 0`;
+   - `Refresh remote read errors = 0`;
+   - `Errors = 0`;
+   - no replacement download/content install.
+6. Reopen the same PDF and confirm local file opens and its sidecar/progress/annotations remain intact.
+7. Run **Inspect content refresh safety (Gate 15)** again and require:
+   - refresh pending: yes;
+   - current Reader revision = DB remote revision;
+   - comparison: `not_attempted_raw`;
+   - decision: `defer_raw_keep_local`;
+   - automatic replacement allowed: no;
+   - remote/local writes: none.
+8. Return the Sync report + diagnostic result before changing the EPUB fixture.

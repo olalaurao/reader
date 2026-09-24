@@ -2830,6 +2830,15 @@ This physically authorizes Q2 to acknowledge only the exact pending revision who
 
 ### Q1-B raw fixtures
 
+PDF baseline physical result: **PASS** on the target PW3 / KOReader v2026.07.1 / build 0.1.46.
+- existing plugin-managed original PDF identified and opened;
+- diagnostic reported raw PDF semantics (`category=pdf`, `local_format=pdf`);
+- remote probe passed;
+- visible-text comparison was `not_attempted_raw`;
+- decision was `defer_raw_keep_local`;
+- automatic replacement remained disabled;
+- remote/local writes were none.
+
 Raw fixtures:
 1. use an already-downloaded original PDF and EPUB when available;
 2. create a harmless same-ID Reader metadata revision;

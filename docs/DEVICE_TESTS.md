@@ -2721,3 +2721,31 @@ Expected baseline:
 - Local writes: none.
 
 Do not rename the PDF in Reader until this baseline is reviewed.
+
+
+### Gate 15 Q1-B original PDF baseline — PASS
+
+User confirmed the existing plugin-managed original PDF passed the Gate 15 baseline diagnostic:
+- category pdf;
+- local format pdf;
+- local file present;
+- remote probe passed;
+- visible-text comparison `not_attempted_raw`;
+- decision `defer_raw_keep_local`;
+- replacement not allowed;
+- remote writes none;
+- local writes none.
+
+Next device step:
+1. Change **only the title** of this same PDF in Reader.
+2. Run **Sync now once**.
+3. Return the full report.
+4. Then reopen the PDF, verify local state intact, and run the Gate 15 diagnostic again.
+
+Expected after the revision:
+- raw revision retained/pending;
+- no article comparison;
+- no metadata-only acknowledgement for the raw item;
+- content pages 0;
+- no replacement download;
+- diagnostic still `defer_raw_keep_local`.
