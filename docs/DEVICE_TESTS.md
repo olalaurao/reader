@@ -2325,3 +2325,23 @@ Second unchanged Sync:
 - no archive error;
 - Reader remains Archive;
 - local file/sidecar/progress/annotations remain unchanged.
+
+
+### Gate 14 P1 first archive local-preservation check — PASS
+
+After the first 0.1.43 Sync archived the target in Reader, Kindle-side verification confirmed:
+- local file still exists;
+- document still opens;
+- reading progress/position preserved;
+- existing highlights preserved;
+- existing notes preserved.
+
+The first half of Gate 14 P1 therefore passes end-to-end: remote archive occurred without destructive local effects.
+
+Proceed to the final unchanged second Sync:
+- make no changes;
+- Wi-Fi ON;
+- run Sync now once;
+- require archived=0 / archive processed=0 / archive waiting=0 / archive remote errors=0;
+- Reader remains Archive;
+- local state remains intact.
