@@ -2613,3 +2613,27 @@ Raw Q1-B remains:
 - title-only Reader revision;
 - Sync;
 - require raw revision retained, no replacement download, local state intact.
+
+
+### Gate 15 Q2 0.1.46 first Sync — visible safety counters PASS / acknowledgement counters cropped
+
+Visible:
+- raw retained 0;
+- unverified retained 0;
+- local missing 0;
+- revision races 0;
+- remote read errors 0;
+- metadata documents seen 1;
+- content pages 0;
+- errors 0;
+- remote preflight passed;
+- no annotation create/update/delete regression visible.
+
+The photo cropped the Q2 acknowledgement lines immediately above:
+- pending review;
+- pending examined;
+- articles compared;
+- metadata-only acknowledged;
+- changed-content retained.
+
+Capture those lines from the same report before running another Sync.
