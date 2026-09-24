@@ -3881,3 +3881,45 @@ The only immediate blocker is **physical first-acknowledgement evidence for the 
 4. Resolve Q1-B original PDF/EPUB coverage/scope.
 5. Close Gate 15 only when article Q2 idempotency and raw-format evidence/scope are both documented.
 6. Only then start Phase R / Gate 16.
+
+
+### Gate 15 Q2 first-report lower-half photo — safety evidence confirmed, acknowledgement lines still above viewport
+
+New physical photo received from the same already-authorized first 0.1.46 Q2 Sync report.
+
+Visible lower-half evidence:
+- annotation documents skipped safely: 789;
+- annotation scan errors: 0;
+- annotation scan exceptions isolated: 0;
+- annotation normalize exceptions isolated: 0;
+- annotation queue errors: 0;
+- annotation queue exceptions isolated: 0;
+- annotation repository source: managed_local;
+- annotation repository fallback: no;
+- current annotation document status: current_document_not_managed;
+- managed-document highlights scanned: 12;
+- highlights created/reconciled/unmatched/blocked/queued: 0;
+- highlights already linked: 12;
+- create queue processed/waiting: 0;
+- notes updated/conflicts/mutation blocks: 0;
+- local/remote highlight deletions: 0;
+- annotation remote errors: 0;
+- finished documents scanned: 802;
+- finished status detected: 0;
+- archive intents queued/processed: 0;
+- Reader documents archived: 0;
+- archive queue waiting after sync: 0;
+- archive remote errors: 0;
+- incremental watermark updated.
+
+Interpretation:
+- this strengthens the already-recorded first-Q2 safety evidence: no annotation or archive side effect/regression is visible and the Sync completed successfully;
+- it still does **not** expose the five decisive Q2 acknowledgement counters because the viewport is lower in the report;
+- do not run another Sync;
+- keep the existing report open and scroll upward to capture:
+  - Content refresh pending review;
+  - Refresh pending examined;
+  - Refresh articles compared;
+  - Metadata-only revisions acknowledged;
+  - Changed-content revisions retained.
+- if the existing report can no longer be recovered, use the read-only Gate 15 diagnostic fallback already recorded in this STATUS/spec.
