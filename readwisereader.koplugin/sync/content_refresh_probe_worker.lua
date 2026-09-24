@@ -41,7 +41,6 @@ function Worker:run(options)
     local Documents = require("storage/documents")
     local Http = require("api/http")
     local Reader = require("api/reader")
-    local Hash = require("content/hash")
     local Html = require("content/html")
     local TextMatch = require("sync/text_match")
     local Refresh = require("sync/content_refresh")
@@ -150,23 +149,12 @@ function Worker:run(options)
             else
                 report.local_bytes = #local_html
                 report.remote_html_bytes = #remote.html_content
-                local local_visible = Refresh.normalizeVisible(
+                report.comparison = Refresh.compareVisible(
                     local_html,
-                    Html,
-                    TextMatch
-                )
-                local remote_visible = Refresh.normalizeVisible(
                     remote.html_content,
                     Html,
                     TextMatch
                 )
-                if local_visible and remote_visible then
-                    report.comparison =
-                        Hash.sha256(local_visible) == Hash.sha256(remote_visible)
-                        and "same" or "different"
-                else
-                    report.comparison = "unavailable"
-                end
             end
         else
             report.comparison = "not_attempted_raw"
