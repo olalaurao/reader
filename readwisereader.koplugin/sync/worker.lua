@@ -70,8 +70,10 @@ function Worker:run(options)
 
     local config = Config:new()
     local db
+    local stage = "bootstrap"
 
     local ok, report, err = pcall(function()
+        stage = "db_open"
         -- Trapper's child process must not manipulate UIManager or KOReader
         -- settings/cache owned by the parent. It may perform network work,
         -- atomic file installs and durable SQLite writes.
@@ -181,6 +183,7 @@ function Worker:run(options)
             scanner = scanner,
             uploader = uploader,
         }
+        stage = "annotation_backlog"
         local local_queue_report = backlog:queueAll(options.current_path)
         local annotation_sync_status = local_queue_report.status or "ok"
         local current_managed = local_queue_report.current_managed == true
@@ -196,8 +199,18 @@ function Worker:run(options)
                 local_queue_report.documents_skipped or 0
             sync_report.annotation_scan_errors =
                 local_queue_report.scan_errors or 0
+            sync_report.annotation_scan_exceptions =
+                local_queue_report.scan_exceptions or 0
             sync_report.annotation_queue_errors =
                 local_queue_report.queue_errors or 0
+            sync_report.annotation_queue_exceptions =
+                local_queue_report.queue_exceptions or 0
+            sync_report.annotation_repository_source =
+                local_queue_report.repository_source or "unknown"
+            sync_report.annotation_repository_fallback =
+                local_queue_report.repository_fallback == true
+            sync_report.annotation_current_status =
+                local_queue_report.current_status or "unknown"
             sync_report.annotation_scanned = local_queue_report.scanned or 0
             sync_report.highlights_created = 0
             sync_report.highlights_reconciled = 0
@@ -274,6 +287,7 @@ function Worker:run(options)
         -- mutation, or document request, prove real Readwise reachability with
         -- the existing read-only auth endpoint. A failed probe leaves all local
         -- annotation work durably queued and performs no remote write.
+        stage = "remote_preflight"
         local reachable, preflight_err = probeReader(reader)
         if not reachable then
             return localQueueOnlyReport(preflight_err)
@@ -282,8 +296,10 @@ function Worker:run(options)
         -- Process every durable create, including work left by a previous
         -- KOReader process, before the document feed. New local work from all
         -- authoritative managed sidecars was already queued above.
+        stage = "create_queue_processing"
         local queue_report = uploader:processQueue()
 
+        stage = "document_sync"
         local sync_report, sync_err = syncer:sync{
             full_rescan = options.full_rescan == true,
             defer_watermark = true,
@@ -310,6 +326,7 @@ function Worker:run(options)
         sync_report.annotation_remote_errors = queue_report.remote_errors or 0
 
         if current_managed and current_scan_authoritative then
+            stage = "annotation_mutations"
             local mutations = AnnotationMutations:new{
                 documents = repository,
                 annotations = annotations_repository,
@@ -371,6 +388,7 @@ function Worker:run(options)
             end
         end
 
+        stage = "finalize_report"
         local paths = {}
         for path in pairs(postprocess_by_path) do
             paths[#paths + 1] = path
@@ -396,11 +414,12 @@ function Worker:run(options)
     end
 
     if not ok then
-        logger.warn("ReadwiseReader: [SYNC] worker failed safely")
+        logger.warn("ReadwiseReader: [SYNC] worker failed safely at stage", stage)
         return nil, {
             kind = "worker",
+            stage = stage,
             retryable = true,
-            message = "Document sync worker failed.",
+            message = "Document sync worker failed safely.",
         }
     end
     return report, err
