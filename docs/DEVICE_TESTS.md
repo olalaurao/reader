@@ -1538,3 +1538,66 @@ Follow-up Sync now with propagation OFF:
 The successful destructive-run diagnostic counters were not captured in a photo, so they are intentionally not reconstructed. The end state plus the clean follow-up prove that the target tombstone was reconciled and no unintended deletion remained pending.
 
 **Gate 12D PASS. Gate 12 PASS.**
+
+
+## Phase O / Gate 13 — offline queue, reboot and retry
+
+Build: **0.1.33**
+
+The live physical test intentionally covers the persistence/reboot boundary. 429/timeout/5xx/auth behavior is fault-injected in the automated suite so the test account does not need unsafe server-error manipulation.
+
+### Gate 13A — queue while offline
+Use a clean managed Reader article with no existing test highlight in the selected passage.
+
+1. Install 0.1.33, preserving settings/database/documents/sidecars.
+2. Open the article while online if needed, then turn **Wi-Fi OFF outside the plugin**.
+3. Create one fresh unique KOReader highlight with note:
+   `gate13 offline [[Foucault]]`
+   then on the next line:
+   `#queue-test`
+4. Close/reopen the article once to flush the sidecar; leave it open.
+5. Run **Readwise Reader → Sync now** while Wi-Fi is still OFF.
+6. Expected:
+   - Mode: `offline / local queue`;
+   - Annotation sync: `queued_offline`;
+   - Current-document highlights scanned: at least 1;
+   - Highlight creates queued durably: at least 1;
+   - Highlights created: **0**;
+   - Create queue waiting after sync: at least 1;
+   - no crash/freeze.
+7. Reader must **not** contain the new highlight yet.
+
+**Stop here if queued/waiting is 0. Do not turn Wi-Fi on and create another fixture; report the screen first.**
+
+### Gate 13B — reboot with pending queue
+1. With Wi-Fi still OFF and the queue item pending, fully exit/restart KOReader.
+2. Reopen KOReader. The local article/highlight/note must still exist.
+3. Do not recreate or edit the highlight.
+
+### Gate 13C — reconnect and exactly-once delivery
+1. Turn Wi-Fi ON outside the plugin.
+2. You may leave any managed article open; the durable queue is not tied to the old in-memory document session.
+3. Run **Sync now**.
+4. Expected:
+   - Create queue items processed: at least 1;
+   - Highlights created: **1** or Highlights reconciled safely: **1**;
+   - Create queue waiting after sync: **0**;
+   - Highlight creates blocked safely: **0** for the normal offline fixture;
+   - Annotation remote errors: **0**.
+5. Refresh Reader and verify exactly one copy under the correct original document with exact note:
+   `gate13 offline [[Foucault]]`
+   `#queue-test`
+
+### Gate 13D — second sync dedup
+1. Run **Sync now** again without changing anything.
+2. Expected:
+   - Highlights created: **0**;
+   - Create queue waiting after sync: **0**;
+   - no duplicate in Reader;
+   - local highlight/note still present;
+   - no crash/freeze.
+
+Return:
+`offline mode sim/não / queued=<n> / waiting offline=<n> / sobreviveu reboot sim/não / reconnect created=<n> reconciled=<n> waiting=<n> / nota exata Reader sim/não / segundo sync created=<n> waiting=<n> / exatamente 1 cópia sim/não / local preservado sim/não / sem crash-freeze sim/não`
+
+Gate 13 passes only if the same durable annotation survives offline + KOReader restart and reaches Reader exactly once after reconnect.
