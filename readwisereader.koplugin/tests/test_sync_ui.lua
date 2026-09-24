@@ -169,6 +169,12 @@ local function newUI(SyncUI, state, watermark, report, ui_options)
                     proposed_watermark = "2026-09-22T20:00:00Z",
                     proposed_query_after = "2026-09-22T19:55:00Z",
                     completed_at = "2026-09-22T20:01:00Z",
+                    annotation_documents_scanned = 3,
+                    annotation_documents_authoritative = 2,
+                    annotation_documents_skipped = 1,
+                    annotation_scan_errors = 0,
+                    annotation_queue_errors = 0,
+                    annotation_scanned = 4,
                     postprocess = {
                         {
                             path = "/Readwise/a.html",
@@ -199,6 +205,10 @@ return function()
         assert(state.meta_writes.document_watermark == "2026-09-22T20:00:00Z")
         assert(state.meta_writes.document_query_after == "2026-09-22T19:55:00Z")
         assert(state.shown[#state.shown].text:find("Downloaded: 2", 1, true))
+        assert(state.shown[#state.shown].text:find("Managed annotation documents scanned: 3", 1, true))
+        assert(state.shown[#state.shown].text:find("Authoritative annotation sidecars: 2", 1, true))
+        assert(state.shown[#state.shown].text:find("Annotation documents skipped safely: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("Managed-document highlights scanned: 4", 1, true))
         assert(state.shown[#state.shown].text:find("Highlights created: 0", 1, true))
         assert(state.shown[#state.shown].text:find("Notes updated: 0", 1, true))
         assert(state.shown[#state.shown].text:find("Remote highlight deletions: 0", 1, true))
