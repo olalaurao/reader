@@ -361,6 +361,72 @@ local function sourceSpan(map, normalized_start, normalized_end)
     return source_start, source_end
 end
 
+local function sourceSpanForNormalizedRange(source, options, normalized_start, normalized_end)
+    options = options or {}
+    local normalized_length = 0
+    local source_start, source_end
+    local i, n = 1, #source
+
+    local function consume(value, unit_start, unit_end)
+        if value == "" then return false end
+        local unit_normalized_start = normalized_length + 1
+        normalized_length = normalized_length + #value
+        local unit_normalized_end = normalized_length
+
+        if not source_start
+            and normalized_start >= unit_normalized_start
+            and normalized_start <= unit_normalized_end then
+            source_start = unit_start
+        end
+        if normalized_end >= unit_normalized_start
+            and normalized_end <= unit_normalized_end then
+            source_end = unit_end
+            return true
+        end
+        return false
+    end
+
+    while i <= n do
+        local unit, cp, len = readUtf8(source, i)
+        if not unit then break end
+
+        if options.remove_soft_hyphen and unit == SOFT_HYPHEN then
+            i = i + len
+        elseif options.collapse_whitespace and isWhitespace(cp) then
+            local unit_start = i
+            local unit_end = i + len - 1
+            i = i + len
+            while i <= n do
+                local next_unit, next_cp, next_len = readUtf8(source, i)
+                if not next_unit or not isWhitespace(next_cp) then break end
+                unit_end = i + next_len - 1
+                i = i + next_len
+            end
+            if consume(" ", unit_start, unit_end) then break end
+        else
+            local unit_start = i
+            local unit_end = i + len - 1
+            i = i + len
+
+            if options.nfc then
+                while i <= n do
+                    local next_unit, next_cp, next_len = readUtf8(source, i)
+                    if not next_unit or not isCombining(next_cp) then break end
+                    unit_end = i + next_len - 1
+                    i = i + next_len
+                end
+            end
+
+            local value = source:sub(unit_start, unit_end)
+            if options.nfc then value = normalizeNFC(value) end
+            if options.punctuation then value = PUNCT_EQUIV[value] or value end
+            if consume(value, unit_start, unit_end) then break end
+        end
+    end
+
+    return source_start, source_end
+end
+
 local function uniqueLiteral(haystack, needle)
     local first = haystack:find(needle, 1, true)
     if not first then return nil, nil, "missing" end
@@ -379,12 +445,14 @@ local function mappedStage(remote_visible, local_text, options, mode)
     local first, last, state = uniqueLiteral(normalized_remote, normalized_local)
     if state ~= "unique" then return nil, state end
 
-    -- Only the one stage that actually matched uniquely pays for a map.
-    local remapped_remote, map = normalizedWithMap(remote_visible, options, true)
-    if remapped_remote ~= normalized_remote then
-        return nil, "missing"
-    end
-    local source_start, source_end = sourceSpan(map, first, last)
+    -- Recover only the two source offsets we need with a second linear
+    -- pass; do not allocate a mapping table per UTF-8 unit.
+    local source_start, source_end = sourceSpanForNormalizedRange(
+        remote_visible,
+        options,
+        first,
+        last
+    )
     if not source_start or not source_end then return nil, "missing" end
 
     return remote_visible:sub(source_start, source_end), {
@@ -475,6 +543,7 @@ function TextMatch.findExactSubstring(remote_content, local_text, options)
 end
 
 TextMatch._normalizedWithMap = normalizedWithMap
+TextMatch._sourceSpanForNormalizedRange = sourceSpanForNormalizedRange
 TextMatch._normalizeNFC = normalizeNFC
 
 return TextMatch
