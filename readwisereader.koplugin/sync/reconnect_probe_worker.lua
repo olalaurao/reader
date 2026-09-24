@@ -106,6 +106,8 @@ function Worker:run(options)
     local Http = require("api/http")
     local Reader = require("api/reader")
     local Identity = require("sync/annotation_identity")
+    local TextMatch = require("sync/text_match")
+    local JSON = require("json")
 
     local config = Config:new()
     local db
@@ -130,7 +132,7 @@ function Worker:run(options)
             marker_scan_status = "not_run",
             marker_scan_pages = 0,
             marker_matches_total = 0,
-            parent_probe_mode = "bounded_fetch_only",
+            parent_probe_mode = "bounded_fetch_and_pure_lua_match",
         }
 
         local active = {}
@@ -261,11 +263,63 @@ function Worker:run(options)
                         "parent_" .. tostring(index) .. "_html_ok",
                         result
                     )
+
+                    local decode_ok, payload = pcall(JSON.decode, item.payload_json)
+                    if not decode_ok or type(payload) ~= "table" then
+                        summary.match_status = "payload_decode_failed"
+                        persist(
+                            stage_path,
+                            snapshot_path,
+                            "parent_" .. tostring(index) .. "_match_payload_failed",
+                            result
+                        )
+                    else
+                        local local_text = payload.local_text or payload.content
+                        if type(local_text) ~= "string" or local_text == "" then
+                            summary.match_status = "missing_local_text"
+                            persist(
+                                stage_path,
+                                snapshot_path,
+                                "parent_" .. tostring(index) .. "_match_missing_text",
+                                result
+                            )
+                        else
+                            local exact, match = TextMatch.findExactSubstring(
+                                parent.html_content,
+                                local_text,
+                                {
+                                    on_stage = function(match_stage)
+                                        persist(
+                                            stage_path,
+                                            snapshot_path,
+                                            "parent_" .. tostring(index)
+                                                .. "_match_" .. tostring(match_stage),
+                                            result
+                                        )
+                                    end,
+                                }
+                            )
+                            if exact then
+                                summary.match_status = "matched"
+                                summary.match_mode =
+                                    match and match.mode or "unknown"
+                            else
+                                summary.match_status =
+                                    match and match.kind or "unmatched"
+                            end
+                            persist(
+                                stage_path,
+                                snapshot_path,
+                                "parent_" .. tostring(index) .. "_match_done",
+                                result
+                            )
+                        end
+                    end
                 end
             end
         end
 
-        persist(stage_path, snapshot_path, "done_fetch_only", result)
+        persist(stage_path, snapshot_path, "done_match_probe", result)
         return result
     end)
 
