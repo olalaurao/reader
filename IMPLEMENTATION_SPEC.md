@@ -2439,7 +2439,7 @@ verify in the user's real Obsidian vault:
 
 No new Kindle build was required. The user's real export configuration passed all criteria: correct article/highlight, note present, literal `[[Foucault]]`, preserved `#pesquisar`, and a functioning Obsidian internal wikilink. Gate 11 is closed and Phase N / Gate 12 is unblocked.
 
-## Phase N — update/delete annotations — IMPLEMENTED, GATE 12A NOTE UPDATE + 12B CONFLICT PASSED; 12C–12D PENDING
+## Phase N — update/delete annotations — IMPLEMENTED, GATE 12A NOTE UPDATE + 12B CONFLICT + 12C DELETE-OFF PASSED; 12D PENDING
 
 Gate 8 physically proved on the target account/device that the linked Reader v3 highlight child accepted a note PATCH and reflected it in Reader. The current public Reader API page contains wording that is more restrictive for highlight-note updates, so **the physically observed Gate 8 contract remains the project contract and Gate 12 revalidates it in the production path**. Do not generalize beyond this tested linked-highlight workflow.
 
@@ -2492,7 +2492,7 @@ Automated tests cover:
 On the target PW3 / KOReader v2026.07.1:
 1. **PASS on build 0.1.31:** linked Kindle note edit reaches Reader exactly, with Reader-visible end-to-end verification/repair before durable success;
 2. **PASS on build 0.1.31:** simultaneous local+Reader note edit is reported as conflict and neither side is overwritten;
-3. with deletion propagation OFF, delete one linked KOReader test highlight and prove Reader keeps it;
+3. **PASS on build 0.1.31:** with deletion propagation OFF, deleting one linked KOReader test highlight leaves Reader unchanged and records exactly one retained tombstone;
 4. enable deletion only after the OFF sync reports exactly one pending local deletion for the clean test article;
 5. sync again and prove only that linked target is deleted remotely;
 6. disable deletion propagation again after the test.
@@ -2501,7 +2501,9 @@ Physical note-update evidence on build 0.1.31: 2 linked highlights scanned; 1 no
 
 Physical conflict evidence on build 0.1.31: one linked highlight scanned; 1 conflict blocked; 0 note updates; 0 v2 note updates; 0 mutation blocks; 0 remote errors; Reader preserved the remote edit and Kindle preserved the local edit.
 
-Gate 12 closes only after deletion OFF and deliberate deletion ON observations also pass. Do not proceed to Phase O / Gate 13 first.
+Physical deletion-OFF evidence on build 0.1.31: 2 fresh highlights were created; one was deleted only on KOReader; the OFF sync reported 1 local deletion detected, 1 retained remotely, 0 remote deletions, 0 mutation blocks, 0 remote errors; the user confirmed both Reader highlights still exist.
+
+Gate 12 closes only after the deliberate deletion-ON observation also passes. Do not proceed to Phase O / Gate 13 first.
 
 ## Phase O — offline queue hardening
 
