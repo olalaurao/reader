@@ -174,6 +174,7 @@ local function newUI(SyncUI, state, watermark, report, ui_options)
                     annotation_documents_skipped = 1,
                     annotation_scan_errors = 1,
                     annotation_scan_exceptions = 1,
+                    annotation_normalize_exceptions = 2,
                     annotation_queue_errors = 1,
                     annotation_queue_exceptions = 1,
                     annotation_repository_source = "managed_fallback",
@@ -220,6 +221,7 @@ return function()
         assert(state.shown[#state.shown].text:find("Annotation documents skipped safely: 1", 1, true))
         assert(state.shown[#state.shown].text:find("Annotation scan errors: 1", 1, true))
         assert(state.shown[#state.shown].text:find("Annotation scan exceptions isolated: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("Annotation normalize exceptions isolated: 2", 1, true))
         assert(state.shown[#state.shown].text:find("Annotation queue errors: 1", 1, true))
         assert(state.shown[#state.shown].text:find("Annotation queue exceptions isolated: 1", 1, true))
         assert(state.shown[#state.shown].text:find("Annotation repository source: managed_fallback", 1, true))
