@@ -2209,6 +2209,18 @@ Next physical gate: Gate 14 / Finished → Archive.
 
 ### Phase P / Gate 14 P0 — build 0.1.42 finished-signal spike
 
+Automated/package validation:
+- draft PR #17;
+- CI #810 caught an unterminated metadata string before tests/package; fixed immediately;
+- CI #812 on corrected 0.1.42: **SUCCESS**;
+- full Lua suite: SUCCESS;
+- package/layout: SUCCESS;
+- artifact ID: `10818495299`;
+- outer SHA-256: `6cd590229ea205ac64bd027490b738166cb33846e8cacfefb70f6f92433bb58d`;
+- installable ZIP SHA-256: `df37908276eb9938a87d3d401a01bbe607bf295cc477288b25e48bbddbfd2a7a`;
+- installable ZIP integrity: PASS;
+- packaged version: 0.1.42.
+
 Purpose: experimentally verify the KOReader 2026.07.1 persisted Finished signal before implementing any Reader archive PATCH.
 
 Source candidate: `doc_settings.summary.status == "complete"`.
