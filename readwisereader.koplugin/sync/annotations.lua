@@ -63,6 +63,7 @@ function AnnotationSync:scanPath(local_path)
         authoritative = scan.authoritative == true,
         status = scan.status,
         malformed = scan.malformed or 0,
+        normalize_exceptions = scan.normalize_exceptions or 0,
         highlights = 0,
         notes = 0,
         new = 0,
