@@ -100,7 +100,11 @@ function Installer:install(content, final_path)
     if not write_ok then
         pcall(file.close, file)
         self.deps.remove(temp_path)
-        return nil, ioError("write", "Could not write temporary document: " .. tostring(write_err or "unknown error"))
+        return nil, ioError(
+            "write",
+            "Could not write temporary document: " .. tostring(write_err or "unknown error"),
+            classifyOpenError(write_err)
+        )
     end
 
     local sync_ok, sync_err = pcall(self.deps.fsync_opened_file, file)
