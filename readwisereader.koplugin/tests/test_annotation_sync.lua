@@ -112,6 +112,8 @@ return function()
     assert(first.changed == 0)
     assert(first.deleted == 0)
     assert(first.sample.local_annotation_id == "ko-ann-1")
+    assert(#first.annotations == 1)
+    assert(first.annotations[1].local_annotation_id == "ko-ann-1")
     assert(annotations.rows["ko-ann-1"].sync_state == "local_only")
 
     local second = assert(syncer:scanPath("/Readwise/a.epub"))
@@ -255,5 +257,7 @@ return function()
         assert(degraded_repo.rows["provisional-after-text-edit"] == nil,
             "degraded identity must reuse the first-seen ID for one unambiguous locator")
         assert(degraded_repo.rows["provisional-first"].last_text_hash == "text-edited")
+        assert(edited_degraded.annotations[1].local_annotation_id == "provisional-first",
+            "backlog handoff must receive the reconciled degraded identity")
     end
 end
