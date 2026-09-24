@@ -901,7 +901,7 @@ conflict
 
 Após reiniciar o KOReader, a fila deve continuar consistente.
 
-No PW3 alvo, flags locais de Wi-Fi/online não são autoridade suficiente para liberar escrita remota: o Gate 13 demonstrou estado local falso-positivo em Airplane Mode. O Sync deve persistir a anotação local primeiro e exigir um probe remoto **somente leitura** bem-sucedido antes de processar a fila. Falha do probe mantém a fila local e não executa escrita remota.
+No PW3 alvo, flags locais de Wi-Fi/online não são autoridade suficiente para liberar escrita remota: o Gate 13 demonstrou estado local falso-positivo em Airplane Mode. O Sync deve primeiro descobrir/registrar novos highlights em todos os documentos Reader gerenciados que estejam realmente presentes localmente, persistir a fila, e só então exigir um probe remoto **somente leitura** bem-sucedido antes de processá-la. Falha do probe mantém a fila local e não executa escrita remota. Updates de nota e deletes permanecem limitados ao documento atual nesta fase para não ampliar silenciosamente o escopo destrutivo.
 
 ---
 
@@ -1318,7 +1318,7 @@ Não:
 Concluir a **Phase O / Gate 13** na baseline física já adotada: PW3 + KOReader v2026.07.1.
 
 Ordem:
-1. validar a build 0.1.36 com Airplane Mode/no internet: anotação deve entrar na fila local e nenhuma escrita remota pode ocorrer;
+1. validar a build 0.1.37 com Airplane Mode/no internet: anotação deve entrar na fila local e nenhuma escrita remota pode ocorrer;
 2. reiniciar KOReader com a fila pendente;
 3. reconectar Wi-Fi fora do plugin;
 4. sincronizar e provar entrega exatamente uma vez;
