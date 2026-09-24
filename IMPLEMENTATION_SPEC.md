@@ -2508,10 +2508,11 @@ Physical deletion-ON close on build 0.1.32: the tombstoned target disappeared re
 ## Phase O — offline queue hardening — IMPLEMENTED, GATE 13 PENDING
 
 ### O1 — offline create / restart / reconnect
-Implemented in build 0.1.34 (queue core introduced in 0.1.33; Kindle airplane-mode detection corrected in 0.1.34):
+Queue core implemented in 0.1.33. Automatic Kindle offline detection remains under physical validation: both 0.1.33 and 0.1.34 entered the online path on the target after native Airplane Mode was enabled. Build 0.1.35 is a read-only signal spike before any further behavioral change:
 - ordinary **Sync now** no longer rejects Wi-Fi-off operation; full rescan still requires network;
-- on Kindle, native `com.lab126.cmd airplaneMode` is authoritative: if set, Sync now must use offline/local-queue mode even if KOReader's generic online test returns true;
+- do **not** assume a single Kindle LIPC property is authoritative until validated on the target; 0.1.34's `com.lab126.cmd airplaneMode` assumption failed physically;
 - the UI passes explicit network availability into the worker and never controls Wi-Fi itself;
+- build 0.1.35 exposes a read-only diagnostic for native Kindle `airplaneMode`, `wirelessEnable`, `wifid enable`, KOReader network signals, and the plugin-derived decision;
 - generic KOReader `NetworkMgr:isOnline()` must not be treated as equivalent to Kindle Airplane Mode; official KOReader 2026.07.1 source implements it as hostname-resolution reachability and the Kindle backend supports Wi-Fi restore;
 - current managed sidecar annotations are scanned and durable create intents are queued **before any remote document request**;
 - offline mode performs local sidecar → DB → queue work and returns without network access or watermark advancement;
@@ -2549,7 +2550,7 @@ Implemented:
 - zero/ambiguous match never guesses and never blind retries;
 - non-create stale operations retain generic pending recovery semantics for later phases.
 
-### Gate 13 — physical validation pending
+### Gate 13 — physical validation blocked on network-state spike
 Automated O2/O3 fault injection is complete. Physical validation on the target PW3 must prove the real persistence boundary:
 1. with Wi-Fi OFF, create one fresh unique highlight/note in a clean managed article;
 2. close/reopen to flush the sidecar and run ordinary Sync now offline;
@@ -2773,3 +2774,8 @@ Physical Gate 12D attempt 1 on build 0.1.31 was blocked safely: 1 local deletion
 
 
 Gate 12D final note: the destructive-run summary was not photographed after the successful 0.1.32 attempt, so the canonical record does not invent those counters. Gate closure is based on the observed remote target disappearance, preserved control highlight, setting returned OFF, and the subsequent clean reconciliation sync with no pending deletion.
+
+Gate 13 network-state spike requirement:
+- no further automatic network-state rule may be adopted from documentation alone;
+- physical ON/OFF diagnostic observations from the target PW3 are required;
+- if no stable target-visible signal preserves the user's native Airplane Mode intent after KOReader startup, use an explicit **local queue only** action/mode rather than guessing or controlling Wi-Fi.
