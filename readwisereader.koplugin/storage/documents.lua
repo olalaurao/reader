@@ -161,6 +161,27 @@ function Documents:listManaged()
     return documents
 end
 
+function Documents:listManagedLocal()
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare(
+        "SELECT " .. SELECT_COLUMNS
+        .. " FROM documents"
+        .. " WHERE is_managed = 1"
+        .. " AND is_local_present = 1"
+        .. " AND local_path IS NOT NULL"
+        .. " AND local_path <> ''"
+        .. " ORDER BY reader_id;"
+    )
+    local documents = {}
+    while true do
+        local row = stmt:step()
+        if not row then break end
+        documents[#documents + 1] = rowToDocument(row)
+    end
+    stmt:close()
+    return documents
+end
+
 function Documents:count()
     return tonumber(self.db:getConnection():rowexec("SELECT count(*) FROM documents;")) or 0
 end
