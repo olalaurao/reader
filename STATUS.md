@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase O IMPLEMENTED — GATE 13 PHYSICAL VALIDATION PENDING on PW3 / KOReader 2026.07.1; build 0.1.34 airplane-mode hotfix**
+**Phase O IMPLEMENTED — GATE 13 BLOCKED ON PW3 NETWORK-STATE SPIKE; diagnostic build 0.1.35**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Phase N / Gate 12 is complete and merged to `main` through PR #15 as `54509c84bb731cfa0507865d6cc8fb300859647d`. Current work is **Phase O / Gate 13 offline queue hardening** on build 0.1.34 after physical testing showed KOReader's generic `isOnline()` check does not respect Kindle Airplane Mode reliably. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Phase N / Gate 12 is complete and merged to `main` through PR #15 as `54509c84bb731cfa0507865d6cc8fb300859647d`. Current work is **Phase O / Gate 13 offline queue hardening**. Builds 0.1.33 and 0.1.34 both entered the online path after the user enabled native Kindle Airplane Mode. Build 0.1.35 is a read-only compatibility spike to measure the target PW3's actual native and KOReader network signals before changing logic again. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -2029,3 +2029,34 @@ Conclusion:
 - CI #513 on `77192203fe62cd9b9c7adb90d215de690e3f56a2`: **SUCCESS**.
 
 Gate 13A must be repeated on build 0.1.34 before reboot/reconnect testing.
+
+### Gate 13A attempt on build 0.1.34 — FAIL / diagnostic spike required
+
+Physical result on target PW3 / KOReader v2026.07.1:
+- native Kindle Airplane Mode was enabled by the user;
+- sync still ran in incremental/online mode;
+- `Metadata pages: 1`;
+- current-document highlights scanned: **3**;
+- highlights created: **1**;
+- highlights already linked: **2**;
+- highlight creates queued durably: **1**;
+- create queue items processed: **1**;
+- create queue waiting after sync: **0**;
+- no annotation block/error was reported.
+
+Therefore the 0.1.34 assumption that `com.lab126.cmd airplaneMode` would reliably expose user Airplane Mode on this target is **not accepted**.
+
+Next gate action is a read-only spike, not another sync:
+- build **0.1.35** adds **Readwise Reader → Inspect network state (Gate 13)**;
+- it reads native Kindle `airplaneMode`, `wirelessEnable`, `wifid enable`;
+- it reads KOReader interface/Wi-Fi/connected/online and cached state;
+- it shows the plugin's derived network decision;
+- **Remote requests: none**;
+- **Remote writes: none**.
+
+Required physical observations:
+1. run the diagnostic with native Kindle Airplane Mode **ON**;
+2. run it again with Airplane Mode **OFF** and Wi-Fi connected;
+3. compare the two screens before changing Gate 13 logic.
+
+CI #526 on diagnostic functional HEAD `2848c239619d70ce8200ad254d18e016fd96d168`: **SUCCESS**.
