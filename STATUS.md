@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase Q / Gate 15 — Q1-A + Q2 ARTICLE PASSED; Q1-B PDF COMPLETE; EPUB RAW PHYSICAL COVERAGE IS THE ONLY REMAINING GATE 15 BLOCKER**
+**Phase Q / Gate 15 — Q1-A + Q2 ARTICLE PASSED; Q1-B PDF COMPLETE; EPUB BASELINE PASSED; EPUB METADATA-REVISION PRESERVATION IS THE ONLY REMAINING GATE 15 BLOCKER**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
@@ -4156,3 +4156,73 @@ Conclusion:
 - package layout verification: PASS;
 - artifact upload: PASS;
 - no production plugin file changed in the PDF-closeout / EPUB-handoff documentation commit.
+
+
+## Gate 15 Q1-B original EPUB baseline — PHYSICAL PASS
+
+User confirmed the already-local plugin-managed original EPUB passed the complete pre-revision Gate 15 diagnostic baseline.
+
+Accepted criteria:
+- category: epub;
+- local format: epub;
+- local file present: yes;
+- remote probe: passed;
+- visible-text comparison: `not_attempted_raw`;
+- V1 refresh decision: `defer_raw_keep_local`;
+- automatic replacement allowed: no;
+- remote writes: none;
+- local writes: none;
+- no local preservation problem was reported.
+
+Conclusion:
+- Q1-B EPUB baseline is **PASSED**;
+- article Q1-A/Q2 and PDF Q1-B remain closed;
+- only the EPUB title-only same-ID revision + post-Sync preservation proof remains before Gate 15 can close;
+- Phase R / Gate 16 remains blocked.
+
+### Work completed off-device in this continuation
+- re-inspected actual branch/PR HEAD and canonical STATUS/spec/plan before changing anything;
+- confirmed CI #1020 on prior handoff was SUCCESS;
+- re-verified automated Q1-B raw coverage already includes both PDF and EPUB retention across repeated reconciliation with zero replacement GETs;
+- re-verified explicit `defer_raw_keep_local` decision coverage exists for both `pdf/pdf` and `epub/epub`;
+- no production code change is warranted before the remaining physical EPUB revision test.
+
+### Files altered
+- `STATUS.md`;
+- `IMPLEMENTATION_SPEC.md`;
+- `PLAN.md`;
+- `docs/DEVICE_TESTS.md`.
+- no production plugin Lua file changed.
+
+### Exact next physical action — EPUB metadata-only revision
+1. In Readwise Reader, change **only the title** of this exact same EPUB.
+2. Do not delete/re-add, re-save, move, replace, annotate, or otherwise alter the EPUB.
+3. Return to Kindle with Wi-Fi ON.
+4. Run ordinary **Sync now exactly once**.
+5. Require for this EPUB revision:
+   - `Content refresh pending review >= 1`;
+   - `Raw PDF/EPUB revisions retained >= 1`;
+   - `Refresh articles compared = 0` for this raw fixture;
+   - `Metadata-only revisions acknowledged = 0` for this raw fixture;
+   - `Content pages = 0`;
+   - `Refresh remote read errors = 0`;
+   - `Errors = 0`;
+   - no replacement content download/install.
+6. Reopen the same EPUB and verify it still opens/reflows and sidecar/progress/highlights/notes remain intact.
+7. Run **Inspect content refresh safety (Gate 15)** again and require:
+   - refresh pending: yes;
+   - current Reader revision = DB remote revision;
+   - comparison: `not_attempted_raw`;
+   - decision: `defer_raw_keep_local`;
+   - automatic replacement allowed: no;
+   - remote/local writes: none.
+8. Return the Sync report + diagnostic result.
+
+### Gate status
+- Gates 0–14: PASSED.
+- Gate 15 Q1-A article: PASSED.
+- Gate 15 Q2 article: PASSED.
+- Gate 15 Q1-B PDF: PASSED.
+- Gate 15 Q1-B EPUB baseline: PASSED.
+- Gate 15 Q1-B EPUB revision preservation: PENDING.
+- Gate 16: BLOCKED by Gate 15.

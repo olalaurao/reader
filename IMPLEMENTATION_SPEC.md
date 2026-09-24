@@ -2831,6 +2831,18 @@ This physically authorizes Q2 to acknowledge only the exact pending revision who
 ### Q1-B raw fixtures
 
 PDF physical result: **PASS COMPLETE** on the target PW3 / KOReader v2026.07.1 / build 0.1.46.
+
+EPUB baseline physical result: **PASS** on the same target/build.
+- existing plugin-managed original EPUB identified and opened;
+- diagnostic reported raw EPUB semantics (`category=epub`, `local_format=epub`);
+- local file present;
+- remote probe passed;
+- visible-text comparison was `not_attempted_raw`;
+- decision was `defer_raw_keep_local`;
+- automatic replacement remained disabled;
+- remote/local writes were none.
+
+The remaining EPUB proof is the same-ID title-only revision + one Sync + post-Sync preservation/diagnostic validation.
 - existing plugin-managed original PDF identified and opened;
 - diagnostic reported raw PDF semantics (`category=pdf`, `local_format=pdf`);
 - remote probe passed;
@@ -3072,17 +3084,15 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Validate the **remaining Gate 15 Q1-B EPUB preservation** on build 0.1.46. Article Q1-A/Q2 and raw PDF coverage are already physically passed.
+Complete the **last Gate 15 Q1-B EPUB preservation step** on build 0.1.46. EPUB baseline is already physically passed.
 
 1. keep firmware, KOReader and plugin build unchanged;
-2. locate the **already-local plugin-managed original EPUB** used for Gate 6, if it still exists;
-3. open it and run read-only **Inspect content refresh safety (Gate 15)** before changing Reader metadata;
-4. require baseline `category=epub`, `local_format=epub`, local file present, remote probe passed, comparison `not_attempted_raw`, decision `defer_raw_keep_local`, replacement=no, remote/local writes=none;
-5. change **only the title** of that exact same EPUB in Reader;
-6. run ordinary Sync once;
-7. require the raw EPUB revision to remain pending/deferred, `Content pages = 0`, no replacement download/install, no refresh remote-read error and no fatal Sync error;
-8. reopen the EPUB and verify it still opens/reflows with sidecar/progress/highlights/notes intact;
-9. run Gate 15 diagnostic again and require refresh pending=yes, current Reader revision=DB revision, comparison `not_attempted_raw`, decision `defer_raw_keep_local`, replacement=no, remote/local writes=none;
-10. if the original EPUB fixture no longer exists locally, record that limitation instead of creating a new replacement fixture;
-11. close Gate 15 only after EPUB coverage/scope is resolved;
-12. do not begin Phase R / Gate 16 before Gate 15 closes.
+2. on the exact already-local original EPUB used for the baseline, change **only the title** in Reader;
+3. do not delete/re-add/re-save/move/replace the EPUB or alter annotations;
+4. run ordinary Sync exactly once;
+5. require raw EPUB revision retained/pending, `Refresh articles compared = 0` for this raw item, `Metadata-only revisions acknowledged = 0` for it, `Content pages = 0`, no replacement download/install, no refresh remote-read error, and no fatal Sync error;
+6. reopen the same EPUB and verify open/reflow plus sidecar/progress/highlights/notes remain intact;
+7. run read-only Gate 15 diagnostic again; require refresh pending=yes, current Reader revision=DB revision, comparison `not_attempted_raw`, decision `defer_raw_keep_local`, replacement=no, remote/local writes=none;
+8. return the Sync report + diagnostic result;
+9. if this passes, Gate 15 may close and Phase R / Gate 16 becomes unblocked;
+10. do not begin Gate 16 before recording the physical EPUB result.

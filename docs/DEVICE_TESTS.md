@@ -2786,3 +2786,33 @@ Expected baseline:
 - Local writes: none.
 
 Do not rename the EPUB in Reader until this baseline is confirmed. If the original EPUB no longer exists locally, report that instead.
+
+
+### Gate 15 Q1-B original EPUB baseline — PASS
+
+User confirmed the existing plugin-managed original EPUB passed the Gate 15 baseline diagnostic:
+- category epub;
+- local format epub;
+- local file present;
+- remote probe passed;
+- visible-text comparison `not_attempted_raw`;
+- decision `defer_raw_keep_local`;
+- replacement not allowed;
+- remote writes none;
+- local writes none.
+
+### Final Gate 15 device step — EPUB title-only revision
+
+1. Change **only the title** of this same EPUB in Reader.
+2. Run **Sync now once**.
+3. Return the full report.
+4. Reopen the EPUB and verify it still opens/reflows with sidecar/progress/highlights/notes intact.
+5. Run **Inspect content refresh safety (Gate 15)** again and return that screen.
+
+Expected:
+- raw EPUB revision retained/pending;
+- no article comparison or metadata-only acknowledgement for the raw item;
+- content pages 0;
+- no replacement download/install;
+- no Sync errors;
+- post-Sync diagnostic: refresh pending yes, current Reader revision=DB revision, `not_attempted_raw`, `defer_raw_keep_local`, replacement no, remote/local writes none.
