@@ -172,8 +172,13 @@ local function newUI(SyncUI, state, watermark, report, ui_options)
                     annotation_documents_scanned = 3,
                     annotation_documents_authoritative = 2,
                     annotation_documents_skipped = 1,
-                    annotation_scan_errors = 0,
-                    annotation_queue_errors = 0,
+                    annotation_scan_errors = 1,
+                    annotation_scan_exceptions = 1,
+                    annotation_queue_errors = 1,
+                    annotation_queue_exceptions = 1,
+                    annotation_repository_source = "managed_fallback",
+                    annotation_repository_fallback = true,
+                    annotation_current_status = "ok",
                     annotation_scanned = 4,
                     postprocess = {
                         {
@@ -190,6 +195,11 @@ end
 
 return function()
     withStubbedSyncUI(function(SyncUI, state)
+        assert(SyncUI._errorText({
+            kind = "worker",
+            stage = "annotation_backlog",
+        }):find("stage: annotation_backlog", 1, true))
+
         local ui = newUI(SyncUI, state, "2026-09-22T20:00:00Z")
         ui:syncNow(false)
         assert(state.wrap_calls == 1)
@@ -208,6 +218,13 @@ return function()
         assert(state.shown[#state.shown].text:find("Managed annotation documents scanned: 3", 1, true))
         assert(state.shown[#state.shown].text:find("Authoritative annotation sidecars: 2", 1, true))
         assert(state.shown[#state.shown].text:find("Annotation documents skipped safely: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("Annotation scan errors: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("Annotation scan exceptions isolated: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("Annotation queue errors: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("Annotation queue exceptions isolated: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("Annotation repository source: managed_fallback", 1, true))
+        assert(state.shown[#state.shown].text:find("Annotation repository fallback: yes", 1, true))
+        assert(state.shown[#state.shown].text:find("Current annotation document status: ok", 1, true))
         assert(state.shown[#state.shown].text:find("Managed-document highlights scanned: 4", 1, true))
         assert(state.shown[#state.shown].text:find("Highlights created: 0", 1, true))
         assert(state.shown[#state.shown].text:find("Notes updated: 0", 1, true))
