@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase Q / Gate 15 — Q1-A ARTICLE SAFETY PASSED; Q2 first physical Sync safety PASS but acknowledgement counters were cropped; first-acknowledgement recovery evidence is pending before the second Sync**
+**Phase Q / Gate 15 — Q1-A ARTICLE SAFETY PASSED; Q2 first acknowledgement PROVEN via read-only recovery diagnostic; unchanged second Sync idempotency is the immediate physical blocker**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
@@ -3923,3 +3923,59 @@ Interpretation:
   - Metadata-only revisions acknowledged;
   - Changed-content revisions retained.
 - if the existing report can no longer be recovered, use the read-only Gate 15 diagnostic fallback already recorded in this STATUS/spec.
+
+
+### Gate 15 Q2 first acknowledgement — PASS via read-only recovery diagnostic
+
+Physical recovery diagnostic was run on the same Q1-A article after the already-authorized first 0.1.46 Q2 Sync, without running another Sync.
+
+Observed:
+- category: article;
+- local format: html;
+- download strategy: reader_html;
+- local file present: yes;
+- sidecar present: yes;
+- sidecar percent_finished: **0.1538**;
+- sidecar annotations: **6**;
+- last XPointer present: **yes**;
+- partial file checksum present: yes;
+- reading state at risk: yes;
+- DB remote revision: `2026-09-24T18:00:45.318557+00:00`;
+- materialized remote revision: unavailable (expected legacy baseline);
+- **Refresh pending: no**;
+- pending remote revision: unavailable;
+- current Reader revision: `2026-09-24T18:00:45.318557+00:00`;
+- current Reader revision equals DB remote revision;
+- remote revision state: `materialized_baseline_unknown`;
+- **Remote probe: passed**;
+- **Visible-text comparison: same**;
+- local HTML bytes: 27733;
+- remote HTML bytes: 27477;
+- V1 refresh decision: `same_visible_text_keep_local`;
+- **Automatic replacement allowed: no**;
+- **Remote writes: none**;
+- **Local writes: none**.
+
+Interpretation:
+- the exact pending Q1-A metadata-only revision is no longer pending after the first Q2 Sync;
+- because 0.1.46 only clears that durable marker on exact-revision + same-visible-text reconciliation, the cropped first-report acknowledgement is now recovered without mutating the fixture again;
+- local document bytes were not replaced;
+- sidecar reading state remains present with the same 0.1538 progress, 6 annotations and XPointer evidence;
+- first Q2 acknowledgement is therefore **PASSED**;
+- Gate 15 remains open only for the unchanged second-Sync idempotency proof and raw PDF/EPUB coverage/scope resolution.
+
+Immediate next physical action:
+1. make no changes to the article/title/highlights/notes/reading position;
+2. run ordinary **Sync now exactly once**;
+3. require for this Q1-A revision:
+   - Content refresh pending review = 0;
+   - Refresh pending examined = 0;
+   - Refresh articles compared = 0;
+   - Metadata-only revisions acknowledged = 0;
+   - Changed-content revisions retained = 0;
+   - Raw PDF/EPUB revisions retained = 0 unless an unrelated raw fixture is already pending;
+   - Unverified/race/remote-read-error refresh counters = 0;
+   - Content pages = 0;
+   - Errors = 0;
+4. verify the same article still preserves progress/position, highlights and notes;
+5. return the full Sync report before making any raw-format test changes.

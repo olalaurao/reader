@@ -2662,3 +2662,25 @@ If the original report is no longer recoverable, use the same Q1-A article and r
 - local writes: none.
 
 If refresh pending is still yes, stop and return the screen; do not run the second Sync. Only after first-acknowledgement evidence and local progress/highlight/note preservation are confirmed may the unchanged second Sync be run.
+
+
+### Gate 15 Q2 first acknowledgement recovery diagnostic — PASS
+
+After the first 0.1.46 Q2 Sync report was cropped at the acknowledgement counters, the same Q1-A article was inspected with the read-only Gate 15 diagnostic instead of running another Sync.
+
+Observed:
+- local file present: yes;
+- sidecar present: yes;
+- percent_finished: 0.1538;
+- sidecar annotations: 6;
+- last XPointer present: yes;
+- refresh pending: **no**;
+- DB remote revision = current Reader revision: `2026-09-24T18:00:45.318557+00:00`;
+- remote probe: passed;
+- visible-text comparison: same;
+- decision: `same_visible_text_keep_local`;
+- automatic replacement allowed: no;
+- remote writes: none;
+- local writes: none.
+
+Result: first metadata-only Q2 acknowledgement is accepted. The next required test is one unchanged ordinary Sync proving zero repeated refresh work for this revision.
