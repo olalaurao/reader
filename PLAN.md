@@ -1315,23 +1315,32 @@ Não:
 
 ## 46. Próximo passo
 
-A **Phase P / Gate 14 está concluída** na baseline física PW3 + KOReader v2026.07.1.
+A **Phase P / Gate 14 está concluída e mergeada** em `main` pelo PR #17 (`5d7c954d051e491c1b11344057c59df7e2cf9656`).
 
-Próxima fase: **Phase Q / Gate 15 — content refresh safety**.
+Fase atual: **Phase Q / Gate 15 — content refresh safety**.
 
-Objetivo:
-- provar como atualizações remotas de conteúdo afetam um documento local já lido/anotado;
-- impedir qualquer substituição automática que possa perder posição, highlights, notas ou configurações do sidecar;
-- tratar HTML/artigo e raw PDF/EPUB separadamente se o risco for diferente.
+Decisão conservadora da V1:
+- um arquivo local já existente **não é substituído automaticamente** enquanto a estabilidade de posições/sidecar não estiver provada por formato;
+- revisão remota nova fica persistente como `content refresh pending`;
+- metadata/location/tags podem atualizar sem trocar os bytes do documento;
+- artigo HTML pode ser comparado read-only por texto visível;
+- PDF/EPUB original sempre fica deferido nesta fase;
+- sidecar nunca é substituído.
 
-Ordem:
-1. inspecionar o comportamento atual do materializador/update path;
-2. preparar spike seguro para artigo já parcialmente lido com highlight/nota;
-3. medir atualização remota sem presumir que substituir arquivo seja seguro;
-4. preparar spike separado para PDF/EPUB;
-5. implementar política conservadora:
-   - auto-refresh apenas quando comprovadamente seguro;
-   - deferir/bloquear refresh arriscado mantendo o arquivo atual;
-   - preservar sidecar sempre;
-6. Gate 15 físico: nenhuma perda de progresso/anotação após remote content update;
-7. somente depois iniciar Phase R / Gate 16.
+Build 0.1.44 implementa Q1:
+1. schema v2 para persistir materialized revision + refresh pending;
+2. migration não inventa baseline para arquivos legados;
+3. pending não desaparece num Sync posterior;
+4. diagnóstico **Inspect content refresh safety (Gate 15)** mostra risco de sidecar/progresso/anotações e compara HTML local/remoto sem exibir conteúdo;
+5. replacement automático está hard-disabled.
+
+Próximo gate físico:
+1. artigo Reader gerenciado com progresso + highlight/nota;
+2. diagnóstico baseline;
+3. alterar apenas o título no Reader para criar revisão determinística;
+4. Sync;
+5. confirmar arquivo/progresso/highlight/nota intactos;
+6. diagnóstico pós-revisão deve mostrar pending + visible text same + replacement no;
+7. quando possível repetir em PDF e EPUB originais, esperando `defer_raw_keep_local`;
+8. depois implementar Q2 para limpar apenas revision metadata-only comprovada;
+9. somente após Gate 15 PASS iniciar Phase R / Gate 16.
