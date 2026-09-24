@@ -328,3 +328,26 @@ Safe response pattern:
 6. only then choose reconciliation, retry, or a narrower fix.
 
 When diagnosing hard child exits, persist only a coarse non-sensitive stage string. Do not persist tokens, notes, selected text, Reader IDs, signed URLs, or raw response bodies merely to obtain crash breadcrumbs.
+
+
+## 18. Separate fetch memory from matcher memory
+
+The 0.1.39 reconnect probe physically advanced through queue snapshot, auth and exact-marker scan, then hard-exited after entering `parent_reads`.
+
+Do not collapse that evidence into "the API fetch crashed" or "the matcher crashed": the stage contained both.
+
+The current matching path has two independently memory-sensitive boundaries:
+- Reader `withHtmlContent=true` must buffer and JSON-decode the parent response;
+- `TextMatch.visibleText` historically lowercases the whole HTML and builds a Lua output table while normalized stages can build per-unit mapping tables.
+
+On a constrained PW3, either boundary can be fatal without a Lua traceback.
+
+Diagnostic rule:
+1. metadata-only parent GET first;
+2. bounded HTML parent GET second;
+3. persist sanitized result after each boundary;
+4. run **no matcher** until HTML fetch survival is proven;
+5. if HTML fetch is safe, then optimize/probe matcher separately;
+6. if HTML exceeds a conservative diagnostic cap, treat that as a production hardening requirement rather than increasing the cap blindly.
+
+Never solve a hard-exit ambiguity by moving a remote POST earlier in the sequence.
