@@ -8,7 +8,9 @@ reader_id, parent_id, category, location, title, author, site_name, source_url,
 local_path, local_format, download_strategy, remote_updated_at, remote_saved_at,
 remote_last_moved_at, local_content_hash, remote_content_fingerprint,
 raw_source_available, is_managed, is_local_present, last_materialized_at,
-last_seen_remote_at, last_sync_error
+last_seen_remote_at, last_sync_error, materialized_remote_updated_at,
+content_refresh_pending, content_refresh_remote_updated_at,
+content_refresh_detected_at
 ]]
 
 local function rowToDocument(row)
@@ -38,6 +40,10 @@ local function rowToDocument(row)
         last_materialized_at = row[20],
         last_seen_remote_at = row[21],
         last_sync_error = row[22],
+        materialized_remote_updated_at = row[23],
+        content_refresh_pending = tonumber(row[24]) == 1,
+        content_refresh_remote_updated_at = row[25],
+        content_refresh_detected_at = row[26],
     }
 end
 
@@ -122,7 +128,11 @@ function Documents:setLocalState(reader_id, state)
             remote_content_fingerprint = ?,
             is_local_present = ?,
             last_materialized_at = ?,
-            last_sync_error = ?
+            last_sync_error = ?,
+            materialized_remote_updated_at = ?,
+            content_refresh_pending = ?,
+            content_refresh_remote_updated_at = ?,
+            content_refresh_detected_at = ?
         WHERE reader_id = ?;
     ]])
     stmt:bind(
@@ -134,9 +144,65 @@ function Documents:setLocalState(reader_id, state)
         state.is_local_present and 1 or 0,
         state.last_materialized_at,
         state.last_sync_error,
+        state.materialized_remote_updated_at,
+        state.content_refresh_pending and 1 or 0,
+        state.content_refresh_remote_updated_at,
+        state.content_refresh_detected_at,
         reader_id
     ):step()
     stmt:close()
+end
+
+function Documents:markContentRefreshPending(reader_id, remote_updated_at, detected_at)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        UPDATE documents SET
+            content_refresh_pending = 1,
+            content_refresh_remote_updated_at = ?,
+            content_refresh_detected_at = ?
+        WHERE reader_id = ?;
+    ]])
+    stmt:bind(remote_updated_at, detected_at, reader_id):step()
+    stmt:close()
+    return self:getById(reader_id)
+end
+
+function Documents:clearContentRefreshPending(reader_id)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        UPDATE documents SET
+            content_refresh_pending = 0,
+            content_refresh_remote_updated_at = NULL,
+            content_refresh_detected_at = NULL
+        WHERE reader_id = ?;
+    ]])
+    stmt:bind(reader_id):step()
+    stmt:close()
+    return self:getById(reader_id)
+end
+
+function Documents:countContentRefreshPending()
+    local conn = self.db:getConnection()
+    return tonumber(conn:rowexec(
+        "SELECT count(*) FROM documents WHERE content_refresh_pending = 1;"
+    )) or 0
+end
+
+function Documents:listContentRefreshPending()
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare(
+        "SELECT " .. SELECT_COLUMNS
+        .. " FROM documents WHERE content_refresh_pending = 1"
+        .. " ORDER BY content_refresh_detected_at, reader_id;"
+    )
+    local documents = {}
+    while true do
+        local row = stmt:step()
+        if not row then break end
+        documents[#documents + 1] = rowToDocument(row)
+    end
+    stmt:close()
+    return documents
 end
 
 function Documents:setLocation(reader_id, location)
