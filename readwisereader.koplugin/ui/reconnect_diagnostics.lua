@@ -23,7 +23,11 @@ local function itemLine(index, item)
         "parent_meta=" .. tostring(item.parent_metadata or "not_run"),
         "parent_html=" .. tostring(item.parent_html or "not_run"),
         "html_bytes=" .. tostring(item.parent_html_bytes or 0),
+        "match=" .. tostring(item.match_status or "not_run"),
     }
+    if item.match_mode then
+        parts[#parts + 1] = "mode=" .. tostring(item.match_mode)
+    end
     if item.error_kind then
         parts[#parts + 1] = "error=" .. tostring(item.error_kind)
     end
@@ -64,7 +68,11 @@ local function reportLines(report, title)
     end
 
     lines[#lines + 1] = ""
-    lines[#lines + 1] = _("Text matching: not run in this build")
+    if report.parent_probe_mode == "bounded_fetch_and_pure_lua_match" then
+        lines[#lines + 1] = _("Text matching: enabled (pure-Lua NFC fallback)")
+    else
+        lines[#lines + 1] = _("Text matching: not run in this build")
+    end
     lines[#lines + 1] = _("Remote writes: none")
     return lines
 end
@@ -98,7 +106,7 @@ function UI:run()
             return self.worker:run()
         end, _([[Inspecting Gate 13 reconnect state…
 
-Tap to cancel. This diagnostic is read-only remotely. Parent HTML reads are capped and text matching is disabled in this build. It never creates, updates, or deletes a remote annotation.]]))
+Tap to cancel. This diagnostic is read-only remotely. Parent HTML reads are capped and matching uses the pure-Lua normalization path. It never creates, updates, or deletes a remote annotation.]]))
 
         if not completed then
             UIManager:show(InfoMessage:new{
