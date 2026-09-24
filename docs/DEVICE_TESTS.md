@@ -1872,3 +1872,44 @@ Observed:
 - Wi-Fi remained OFF.
 
 Use this controlled KOReader-offline state for the 0.1.38 Gate 13A retry. Do not rely on native Kindle Airplane Mode alone and do not create another highlight.
+
+
+### Gate 13A build 0.1.38 — PASS
+
+Controlled KOReader-offline physical result:
+- Remote preflight: `unknown`;
+- Annotation sync: `queued_offline_partial`;
+- managed documents scanned: 801;
+- authoritative sidecars: 13;
+- skipped safely: 788;
+- scan/normalize/queue exceptions: 0;
+- repository source: `managed_local`;
+- repository fallback: no;
+- current annotation document status: `ok`;
+- managed-document highlights scanned: 12;
+- highlights created: 0;
+- queued durably: 3;
+- queue processed: 0;
+- queue waiting: 3;
+- metadata pages: 0;
+- content pages: 0;
+- errors: 0.
+
+Gate 13A passes because the target current document was authoritative, all three create intents remained durable, no remote queue item was processed, and no document sync request advanced while offline.
+
+### Gate 13B — reboot persistence
+
+1. Keep KOReader **Restore Wi-Fi connection on resume** OFF.
+2. Keep Wi-Fi OFF.
+3. Fully restart KOReader.
+4. Reopen the same article and confirm the existing Gate 13 highlight/note survived locally.
+5. Still offline, run **Sync now** once.
+6. Required:
+   - created 0;
+   - processed 0;
+   - waiting 3;
+   - current annotation document status `ok`;
+   - metadata pages 0;
+   - content pages 0.
+7. Return the full report + local-survival result.
+8. Do not reconnect Wi-Fi yet.
