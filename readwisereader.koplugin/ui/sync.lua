@@ -117,6 +117,10 @@ local function summaryText(report)
         string.format(_("Reader propagation misses: %d"), report.reader_note_propagation_misses or 0),
         string.format(_("Reader v3 repair PATCHes: %d"), report.reader_v3_note_repairs or 0),
         string.format(_("Reader note repairs completed: %d"), report.reader_note_repairs or 0),
+        string.format(_("Delete cross-API identity verified: %d"), report.delete_cross_api_identity_verified or 0),
+        string.format(_("Reader delete verification reads: %d"), report.reader_delete_verification_reads or 0),
+        string.format(_("Reader deletions verified: %d"), report.reader_deletions_verified or 0),
+        string.format(_("Delete verification pending: %d"), report.delete_verification_pending or 0),
         string.format(_("Annotation remote errors: %d"), report.annotation_remote_errors or 0),
     }
 
