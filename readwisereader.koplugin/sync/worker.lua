@@ -166,6 +166,10 @@ function Worker:run(options)
         sync_report.reader_note_propagation_misses = 0
         sync_report.reader_v3_note_repairs = 0
         sync_report.reader_note_repairs = 0
+        sync_report.delete_cross_api_identity_verified = 0
+        sync_report.reader_delete_verification_reads = 0
+        sync_report.reader_deletions_verified = 0
+        sync_report.delete_verification_pending = 0
         sync_report.annotation_sync_status = "no_current_document"
 
         if type(options.current_path) == "string" and options.current_path ~= "" then
@@ -259,6 +263,14 @@ function Worker:run(options)
                                 mutation_report.reader_v3_note_repairs or 0
                             sync_report.reader_note_repairs =
                                 mutation_report.reader_note_repairs or 0
+                            sync_report.delete_cross_api_identity_verified =
+                                mutation_report.delete_cross_api_identity_verified or 0
+                            sync_report.reader_delete_verification_reads =
+                                mutation_report.reader_delete_verification_reads or 0
+                            sync_report.reader_deletions_verified =
+                                mutation_report.reader_deletions_verified or 0
+                            sync_report.delete_verification_pending =
+                                mutation_report.delete_verification_pending or 0
                         end
                     end
                 end
