@@ -239,6 +239,32 @@ local function testQueue()
         50
     )
     assertEqual(blocked.status, "blocked")
+
+    local auth_pending = queue:markPendingError(
+        "create_highlight:ann-1",
+        "preflight_auth",
+        "token rejected before POST",
+        51
+    )
+    assertEqual(auth_pending.status, "pending")
+    assertEqual(auth_pending.attempts, 1, "queue error state must not invent a new attempt")
+
+    local waiting = queue:markRetryWait(
+        "create_highlight:ann-1",
+        "preflight_rate_limit",
+        "retry later",
+        100,
+        52
+    )
+    assertEqual(waiting.status, "retry_wait")
+    assertEqual(waiting.available_after, 100)
+    assertEqual(#queue:listCreateWork(99), 0, "retry_wait item must not run early")
+    local due = queue:listCreateWork(100)
+    assertEqual(#due, 1)
+    assertEqual(due[1].status, "pending")
+    assertEqual(due[1].available_after, nil)
+    assertEqual(queue:countCreateWaiting(), 1)
+
     local succeeded = queue:markSucceeded("create_highlight:ann-1", "remote-1", 60)
     assertEqual(succeeded.status, "succeeded")
     assertEqual(succeeded.reader_highlight_document_id, "remote-1")
