@@ -2933,6 +2933,23 @@ No local annotation/progress loss caused by remote content update/revision. Exis
 - rollback;
 - debug log review for secrets.
 
+### Deterministic/off-device hardening — PASS on 0.1.47 candidate
+
+Before physical RC installation, CI now covers the Phase R order:
+- 5,000-document / 50-page Reader traversal with cursor and duplicate guards;
+- low-space raw preflight plus ENOSPC cleanup/classification for streamed raw and processed HTML writes;
+- malformed-record isolation, including a fully malformed page followed by a valid cursor page;
+- bounded Reader JSON/content responses and processed HTML size;
+- Unicode filenames and multilingual HTML;
+- bounded/cancellable 429 Retry-After behavior;
+- partial metadata scan timeout recovery without watermark advance or duplicate materialization;
+- file-backed queue persistence across process reopen/reboot semantics, including stale ambiguous create blocking;
+- real file-backed v1→v2 migration backup and transaction rollback;
+- schema-v2 compatibility with the known-good 0.1.46 rollback build;
+- static and runtime token/signed-URL/log redaction tripwires.
+
+No physical Gate 16 pass is implied by these tests.
+
 ### Gate 16
 Release candidate stable on target PW3.
 
@@ -3091,25 +3108,23 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Begin **Phase R / Gate 16 hardening** from the merged Gate 15 baseline.
+Run the **0.1.47 Gate 16 release-candidate smoke on the target PW3** using `docs/GATE16_HARDENING.md`.
 
-Order is mandatory:
-1. large library;
-2. low disk;
-3. malformed document;
-4. huge document;
-5. Unicode;
-6. 429 / Retry-After;
-7. intermittent Wi-Fi / retryable network failure;
-8. force-close recovery;
-9. reboot recovery;
-10. migration;
-11. rollback;
-12. debug-log review for secrets.
+Preconditions:
+1. keep Kindle firmware 5.16.2.1.1 and KOReader v2026.07.1 unchanged;
+2. back up the working 0.1.46 plugin, Readwise settings/SQLite DB and relevant documents/sidecars with KOReader closed;
+3. install only the 0.1.47 plugin directory and restart KOReader.
 
-Rules:
-- implement and automate deterministic cases before asking for PW3 physical testing;
-- preserve existing documents, sidecars, annotations, queue and watermarks;
-- no automatic destructive cleanup;
-- no firmware/KOReader update;
-- do not mark Gate 16 passed until the release-candidate hardening sequence is physically stable on the target PW3.
+Physical sequence:
+1. plugin/settings/token smoke;
+2. preserved existing article reading state;
+3. one normal Wi-Fi-on Sync across the real library;
+4. one unchanged no-op Sync;
+5. offline local highlight/note -> durable queue with no remote write;
+6. KOReader restart while pending -> reconnect -> Sync exactly once, no duplicate;
+7. second restart/persistence check;
+8. local crash.log secret review.
+
+Do not deliberately fill storage or manufacture malformed/huge private documents on-device; those cases are deterministic CI coverage.
+
+Gate 16 remains **OPEN** until this RC sequence is physically stable. If 0.1.47 is unstable, follow the plugin-only rollback procedure in `docs/GATE16_HARDENING.md`.
