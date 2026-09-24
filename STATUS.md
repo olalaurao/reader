@@ -4146,3 +4146,13 @@ Conclusion:
 8. Run Gate 15 diagnostic again; require refresh pending=yes, current Reader revision=DB revision, comparison=`not_attempted_raw`, decision=`defer_raw_keep_local`, replacement=no, remote/local writes=none.
 9. Return the Sync report + diagnostic result.
 10. If the original Gate 6 EPUB fixture no longer exists locally, report that fact instead of downloading/re-saving a new destructive fixture; the scope decision must then be recorded before closing Gate 15.
+
+
+### Final CI for this handoff
+- workflow #1018 on `198ee0e562d8c96c5679ef8827ab44287e6ed474`: **SUCCESS**;
+- development checks: PASS;
+- full Lua unit suite: PASS;
+- installable ZIP build: PASS;
+- package layout verification: PASS;
+- artifact upload: PASS;
+- no production plugin file changed in the PDF-closeout / EPUB-handoff documentation commit.
