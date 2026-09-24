@@ -2254,3 +2254,74 @@ Expected after state:
 - local writes: none.
 
 Return both before/after screens. Do not run a new Phase P archive mutation build until this signal spike passes.
+
+
+### Gate 14 P0 finished-signal physical result — PASS
+
+Target: PW3 / KOReader v2026.07.1 / plugin 0.1.42.
+
+Before marking Finished:
+- managed Reader document yes;
+- local file yes;
+- Reader location in local DB `new`;
+- sidecar yes;
+- sidecar summary.status `reading`;
+- sidecar summary.modified `2026-09-23`;
+- sidecar percent_finished `0.1538`;
+- BookList status `reading`;
+- runtime summary.status `reading`;
+- candidate no;
+- remote requests/writes none;
+- local writes none.
+
+After **Book status → Finished**:
+- local DB Reader location still `new`;
+- sidecar yes;
+- sidecar summary.status **`complete`**;
+- sidecar summary.modified `2026-09-24`;
+- sidecar percent_finished still **`0.1538`**;
+- BookList status **`complete`**;
+- runtime summary.status **`complete`**;
+- candidate yes;
+- remote requests/writes none;
+- local writes none.
+
+Result: **PASS**. Canonical Gate 14 signal is persisted `summary.status == "complete"`. Never infer it from percent_finished.
+
+### Gate 14 P1 — build 0.1.43 physical archive test
+
+0.1.43 implements durable/idempotent Finished → Archive.
+
+First Sync:
+1. install 0.1.43 preserving DB/settings/documents/sidecars;
+2. leave the same fixture Finished;
+3. ensure **Settings → Finished documents → Archive in Reader** is checked;
+4. Wi-Fi/internet ON;
+5. run **Sync now exactly once**;
+6. return the whole report;
+7. verify in Reader that the document location is Archive;
+8. on Kindle verify:
+   - local file still exists and opens;
+   - sidecar still exists;
+   - reading progress remains;
+   - existing highlights remain;
+   - existing notes remain.
+
+Expected first-report archive fields:
+- Finished status detected >= 1;
+- Archive intents queued durably >= 1 (unless already archived is safely reconciled);
+- Archive queue items processed >= 1;
+- Reader documents archived = 1 **or** Archive state reconciled remotely = 1;
+- Archive operations blocked safely = 0;
+- Archive queue waiting after sync = 0;
+- Archive remote errors = 0.
+
+Do **not** run the second Sync until the first result is reviewed.
+
+Second unchanged Sync:
+- Reader documents archived = 0;
+- Archive queue items processed = 0;
+- Archive queue waiting after sync = 0;
+- no archive error;
+- Reader remains Archive;
+- local file/sidecar/progress/annotations remain unchanged.
