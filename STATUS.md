@@ -4671,3 +4671,16 @@ If queued/waiting is zero, remote preflight passed, or any remote create occurre
 - Artifact upload: PASS.
 - No production plugin code/schema/package behavior changed in the checkpoint-2 handoff.
 - Current blocker remains only the controlled offline durable-queue physical checkpoint described above.
+
+
+### Checkpoint 2/offline-handoff CI
+- Handoff head before this STATUS-only closeout: `b3de7324df0e454406454628e52e58c24d6e8d73`.
+- Workflow #1091: **SUCCESS**.
+- Development checks: PASS.
+- Full Lua unit suite: PASS.
+- Installable ZIP build: PASS.
+- Package layout verification: PASS.
+- Artifact upload: PASS.
+- No production code/schema/package change occurred for checkpoint 2; installed RC remains 0.1.47.
+- PR #19 remains draft/mergeable.
+- Exact blocker: controlled offline durable-queue physical checkpoint; restart/reconnect remains forbidden until that report passes.
