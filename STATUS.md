@@ -1530,14 +1530,21 @@ The first physical 0.1.37 run then exposed a robustness gap not represented in C
 
 ## Blockers
 
-Immediate blocker: **physical Gate 13A retry on build 0.1.38**.
+Immediate blocker: **establish a stable physical offline state, then retry Gate 13A on build 0.1.38**.
 
 Physical 0.1.37 result:
-- Airplane Mode/no internet was active;
+- native Kindle Airplane Mode had been enabled before the test;
 - the fresh Gate 13 fixture existed locally;
 - ordinary Sync now produced no summary report;
 - UI showed only `Document sync failed safely`;
 - reboot/reconnect was correctly not attempted.
+
+New physical observation after that attempt:
+- when native Kindle Airplane Mode is enabled and KOReader/Readwise Reader is entered, Wi-Fi can be found ON again after leaving the plugin;
+- therefore native Kindle Airplane Mode is **not currently a reliable persisted offline fixture on this target**;
+- this does not prove the Readwise Reader plugin itself turns Wi-Fi on;
+- current plugin code has no explicit `turnOnWifi`, `restoreWifiAsync`, `runWhenOnline`, or `beforeWifiAction` call;
+- KOReader's Kindle backend does support Wi-Fi restoration, so Gate 13 must first isolate KOReader restore behavior from plugin behavior before judging the 0.1.38 offline path.
 
 Everything possible without the physical Kindle is now complete for 0.1.38:
 - durable create queue / idempotency / retry_wait / stale-in-flight recovery;
@@ -1563,11 +1570,16 @@ Gate 13 remains **OPEN**. Do not begin Phase P / Gate 14 and do not merge PR #16
 
 1. Install **0.1.38**; preserve settings/database/documents/sidecars.
 2. **Do not create a new highlight.** Reuse the exact Gate 13 fixture already created for the failed 0.1.37 attempt.
-3. Keep native Kindle Airplane Mode ON / no internet.
-4. Open the same managed article; do not edit/recreate the highlight or note.
-5. Close/reopen once if needed to ensure the sidecar is flushed; leave it open.
-6. Run ordinary **Sync now** once.
-7. Gate 13A passes if:
+3. Before Sync, establish a stable offline state inside KOReader:
+   - disable KOReader **Restore Wi-Fi connection on resume**;
+   - while already inside KOReader, turn Wi-Fi OFF using KOReader's own Network menu;
+   - do not rely only on native Kindle Airplane Mode for this retry.
+4. Open/close the Readwise Reader menu once **without pressing Sync** and verify Wi-Fi remains OFF.
+5. If Wi-Fi turns itself back ON merely from opening/closing the plugin, stop: this becomes a plugin-load/KOReader-network-manager isolation spike, not Gate 13A.
+6. If Wi-Fi stays OFF, open the same managed article; do not edit/recreate the highlight or note.
+7. Close/reopen once if needed to ensure the sidecar is flushed; leave it open.
+8. Run ordinary **Sync now** once.
+9. Gate 13A passes if:
    - a full report appears;
    - Mode = `offline / local queue`;
    - Remote preflight = `offline`, `timeout`, `tls`, or `unknown`;
@@ -1581,11 +1593,11 @@ Gate 13 remains **OPEN**. Do not begin Phase P / Gate 14 and do not merge PR #16
    - Metadata pages = **0**;
    - Content pages = **0**;
    - target fixture is still absent from Reader.
-8. `queued_offline_partial` and nonzero isolated-exception/skip counters are acceptable only when the **current annotation document status is ok**, the target remains waiting durably, and no remote work ran.
-9. If the worker still fails globally, return the new message containing `stage: <...>`; do not reboot.
-10. If Gate 13A passes, stop after the report. Then the next required gate action is restart KOReader while the same item remains pending.
-11. After restart, verify local highlight/note survived, reconnect Wi-Fi outside the plugin, run Sync once for exactly-one create/reconcile, then a second unchanged Sync for zero creates/duplicates.
-12. Only then record Gate 13 PASS, mark Phase O complete, make PR #16 ready/merge normally, and proceed to Phase P / Gate 14.
+10. `queued_offline_partial` and nonzero isolated-exception/skip counters are acceptable only when the **current annotation document status is ok**, the target remains waiting durably, and no remote work ran.
+11. If the worker still fails globally, return the new message containing `stage: <...>`; do not reboot.
+12. If Gate 13A passes, stop after the report. Then the next required gate action is restart KOReader while the same item remains pending.
+13. After restart, verify local highlight/note survived, reconnect Wi-Fi outside the plugin, run Sync once for exactly-one create/reconcile, then a second unchanged Sync for zero creates/duplicates.
+14. Only then record Gate 13 PASS, mark Phase O complete, make PR #16 ready/merge normally, and proceed to Phase P / Gate 14.
 
 ## Existing architectural decisions still in force
 
@@ -2301,3 +2313,24 @@ Do not advance to Phase P / Gate 14 until this Gate 13 persistence/reconnect seq
 
 ### Blocker
 - one physical action: retry Gate 13A on 0.1.38 using the **same existing fixture** and return the whole report (or the new worker stage if it still fails).
+
+
+### Gate 13 offline-state persistence observation
+
+New physical evidence on the target PW3:
+- user enables native Kindle Airplane Mode;
+- enters KOReader / Readwise Reader;
+- after leaving the plugin, Wi-Fi is observed ON again, meaning native Airplane Mode is no longer effectively holding the radio offline.
+
+Interpretation:
+- do not assume this is a hardware defect;
+- do not attribute it to Readwise Reader without isolation;
+- current Readwise Reader code does not explicitly invoke KOReader Wi-Fi enable/restore helpers;
+- KOReader Kindle networking itself supports Wi-Fi restoration and has separate restore/user-intent state;
+- the next physical action is therefore an **offline-state isolation check** before retrying 0.1.38:
+  1. disable KOReader Restore Wi-Fi connection on resume;
+  2. turn Wi-Fi OFF from KOReader while already inside KOReader;
+  3. open/close Readwise Reader without Sync;
+  4. check whether Wi-Fi remains OFF.
+- if it remains OFF, use that state for Gate 13A;
+- if opening Readwise Reader alone turns it ON, stop and investigate eager NetworkMgr/plugin-load interaction before any further Gate 13 sync.
