@@ -71,6 +71,22 @@ local function testDocuments()
     assertEqual(by_path.reader_id, "doc-1")
     assertEqual(docs:getByLocalPath("/mnt/us/documents/Readwise/Articles/missing.html"), nil)
 
+    local local_managed = docs:listManagedLocal()
+    assertEqual(#local_managed, 1)
+    assertEqual(local_managed[1].reader_id, "doc-1")
+
+    docs:upsertRemote({
+        id = "doc-2",
+        category = "article",
+        location = "new",
+        title = "Remote only",
+        updated_at = "2026-09-22T13:30:00Z",
+        raw_source_available = false,
+    }, 201)
+    assertEqual(#docs:listManaged(), 2)
+    assertEqual(#docs:listManagedLocal(), 1,
+        "annotation backlog query must not load remote-only documents")
+
     local conn = db:getConnection()
     local raw_url_count = tonumber(conn:rowexec([[
         SELECT count(*) FROM documents
