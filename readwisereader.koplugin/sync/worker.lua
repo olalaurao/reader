@@ -128,6 +128,133 @@ function Worker:run(options)
             config = config,
         }
 
+        -- Phase O: local annotation discovery and durable queueing happen
+        -- before any remote document request. This makes Sync now useful while
+        -- offline and guarantees a reboot cannot erase a queued annotation.
+        queue_repository:recoverStaleInFlight(os.time())
+
+        local adapter = KOReaderAnnotations:new{ hasher = Hash }
+        local scanner = AnnotationSync:new{
+            documents = repository,
+            annotations = annotations_repository,
+            adapter = adapter,
+        }
+        local uploader = AnnotationUpload:new{
+            documents = repository,
+            annotations = annotations_repository,
+            queue = queue_repository,
+            adapter = adapter,
+            reader = reader,
+            hasher = Hash,
+        }
+
+        local annotation_sync_status = "no_current_document"
+        local local_queue_report = {
+            scanned = 0,
+            queued = 0,
+            already_linked = 0,
+            unmatched = 0,
+            blocked = 0,
+        }
+        local current_managed = false
+        local current_scan_authoritative = false
+
+        if type(options.current_path) == "string" and options.current_path ~= "" then
+            local current = repository:getByLocalPath(options.current_path)
+            if current and current.is_managed == true and current.is_local_present == true then
+                current_managed = true
+                local scan_report, annotation_scan_err = scanner:scanPath(options.current_path)
+                if not scan_report then
+                    annotation_sync_status = "scan_error"
+                    local_queue_report.last_error_kind = annotation_scan_err
+                        and annotation_scan_err.kind or "unknown"
+                elseif not scan_report.authoritative then
+                    annotation_sync_status = scan_report.status or "sidecar_not_authoritative"
+                else
+                    current_scan_authoritative = true
+                    local queued, queue_err = uploader:queuePath(options.current_path)
+                    if not queued then
+                        annotation_sync_status = "queue_error"
+                        local_queue_report.last_error_kind = queue_err
+                            and queue_err.kind or "unknown"
+                    else
+                        annotation_sync_status = queued.status or "ok"
+                        local_queue_report = queued
+                    end
+                end
+            else
+                annotation_sync_status = "current_document_not_managed"
+            end
+        end
+
+        local function applyAnnotationDefaults(sync_report)
+            sync_report.annotation_scanned = local_queue_report.scanned or 0
+            sync_report.highlights_created = 0
+            sync_report.highlights_reconciled = 0
+            sync_report.highlights_already_linked =
+                local_queue_report.already_linked or 0
+            sync_report.highlights_unmatched = local_queue_report.unmatched or 0
+            sync_report.highlight_creates_blocked = local_queue_report.blocked or 0
+            sync_report.highlight_marker_verified = 0
+            sync_report.highlight_creates_queued = local_queue_report.queued or 0
+            sync_report.highlight_queue_processed = 0
+            sync_report.highlight_create_deferred = 0
+            sync_report.highlight_create_auth_waiting = 0
+            sync_report.highlight_queue_waiting =
+                queue_repository:countCreateWaiting()
+            sync_report.notes_updated = 0
+            sync_report.notes_reconciled = 0
+            sync_report.note_conflicts = 0
+            sync_report.annotation_mutations_blocked = 0
+            sync_report.local_deletions_detected = 0
+            sync_report.remote_deletions = 0
+            sync_report.deletions_retained = 0
+            sync_report.annotation_remote_errors = 0
+            sync_report.legacy_annotation_links_accepted = 0
+            sync_report.durable_link_without_marker_accepted = 0
+            sync_report.v2_annotation_pages_scanned = 0
+            sync_report.v2_annotation_mappings_resolved = 0
+            sync_report.v2_remote_note_reads = 0
+            sync_report.v2_note_updates = 0
+            sync_report.reader_note_verification_reads = 0
+            sync_report.reader_note_propagation_misses = 0
+            sync_report.reader_v3_note_repairs = 0
+            sync_report.reader_note_repairs = 0
+            sync_report.delete_cross_api_identity_verified = 0
+            sync_report.reader_delete_verification_reads = 0
+            sync_report.reader_deletions_verified = 0
+            sync_report.delete_verification_pending = 0
+            sync_report.annotation_sync_status = annotation_sync_status
+        end
+
+        if options.network_available == false then
+            local offline_report = {
+                mode = "offline",
+                errors = 0,
+                metadata_pages = 0,
+                content_pages = 0,
+                duplicates_ignored = 0,
+                postprocess = {},
+                watermark_advanced = false,
+                network_available = false,
+                storage_available_before =
+                    storage_before and storage_before.available or nil,
+            }
+            applyAnnotationDefaults(offline_report)
+            if current_scan_authoritative then
+                offline_report.annotation_sync_status = "queued_offline"
+            end
+            local storage_after = util.diskUsage(config:getDownloadDirectory())
+            offline_report.storage_available_after =
+                storage_after and storage_after.available or nil
+            return offline_report
+        end
+
+        -- Process every durable create, including work left by a previous
+        -- KOReader process, before the document feed. New local work from the
+        -- current sidecar was already queued above.
+        local queue_report = uploader:processQueue()
+
         local sync_report, sync_err = syncer:sync{
             full_rescan = options.full_rescan == true,
             defer_watermark = true,
@@ -136,146 +263,80 @@ function Worker:run(options)
             return nil, sync_err
         end
 
-        -- Phase L intentionally scans only the currently-open managed Reader
-        -- document. This keeps manual Sync now responsive on the PW3 and avoids
-        -- unexpectedly uploading historical local highlights from the whole
-        -- library. Durable queued creates are reconciled before any retry.
-        queue_repository:recoverStaleInFlight(os.time())
-        sync_report.annotation_scanned = 0
-        sync_report.highlights_created = 0
-        sync_report.highlights_reconciled = 0
-        sync_report.highlights_already_linked = 0
-        sync_report.highlights_unmatched = 0
-        sync_report.highlight_creates_blocked = 0
-        sync_report.highlight_marker_verified = 0
-        sync_report.notes_updated = 0
-        sync_report.notes_reconciled = 0
-        sync_report.note_conflicts = 0
-        sync_report.annotation_mutations_blocked = 0
-        sync_report.local_deletions_detected = 0
-        sync_report.remote_deletions = 0
-        sync_report.deletions_retained = 0
-        sync_report.annotation_remote_errors = 0
-        sync_report.legacy_annotation_links_accepted = 0
-        sync_report.durable_link_without_marker_accepted = 0
-        sync_report.v2_annotation_pages_scanned = 0
-        sync_report.v2_annotation_mappings_resolved = 0
-        sync_report.v2_remote_note_reads = 0
-        sync_report.v2_note_updates = 0
-        sync_report.reader_note_verification_reads = 0
-        sync_report.reader_note_propagation_misses = 0
-        sync_report.reader_v3_note_repairs = 0
-        sync_report.reader_note_repairs = 0
-        sync_report.delete_cross_api_identity_verified = 0
-        sync_report.reader_delete_verification_reads = 0
-        sync_report.reader_deletions_verified = 0
-        sync_report.delete_verification_pending = 0
-        sync_report.annotation_sync_status = "no_current_document"
+        applyAnnotationDefaults(sync_report)
+        sync_report.highlights_created = queue_report.created or 0
+        sync_report.highlights_reconciled = queue_report.reconciled or 0
+        sync_report.highlights_unmatched =
+            sync_report.highlights_unmatched + (queue_report.unmatched or 0)
+        sync_report.highlight_creates_blocked =
+            sync_report.highlight_creates_blocked + (queue_report.blocked or 0)
+        sync_report.highlight_marker_verified = queue_report.marker_verified or 0
+        sync_report.highlight_queue_processed = queue_report.processed or 0
+        sync_report.highlight_create_deferred = queue_report.deferred or 0
+        sync_report.highlight_create_auth_waiting = queue_report.auth_waiting or 0
+        sync_report.highlight_queue_waiting = queue_report.waiting_after
+            or queue_repository:countCreateWaiting()
+        sync_report.annotation_remote_errors = queue_report.remote_errors or 0
 
-        if type(options.current_path) == "string" and options.current_path ~= "" then
-            local current = repository:getByLocalPath(options.current_path)
-            if current and current.is_managed == true and current.is_local_present == true then
-                local adapter = KOReaderAnnotations:new{ hasher = Hash }
-                local scanner = AnnotationSync:new{
-                    documents = repository,
-                    annotations = annotations_repository,
-                    adapter = adapter,
-                }
-                local scan_report, annotation_scan_err = scanner:scanPath(options.current_path)
-                if not scan_report then
-                    sync_report.annotation_sync_status = "scan_error"
-                    sync_report.annotation_error_kind = annotation_scan_err
-                        and annotation_scan_err.kind or "unknown"
-                elseif not scan_report.authoritative then
-                    sync_report.annotation_sync_status = scan_report.status or "sidecar_not_authoritative"
-                else
-                    local uploader = AnnotationUpload:new{
-                        documents = repository,
-                        annotations = annotations_repository,
-                        queue = queue_repository,
-                        adapter = adapter,
-                        reader = reader,
-                        hasher = Hash,
-                    }
-                    local upload_report, upload_err = uploader:syncPath(options.current_path)
-                    if not upload_report then
-                        sync_report.annotation_sync_status = "upload_error"
-                        sync_report.annotation_error_kind = upload_err
-                            and upload_err.kind or "unknown"
-                    else
-                        sync_report.annotation_sync_status = upload_report.status or "ok"
-                        sync_report.annotation_scanned = upload_report.scanned or 0
-                        sync_report.highlights_created = upload_report.created or 0
-                        sync_report.highlights_reconciled = upload_report.reconciled or 0
-                        sync_report.highlights_already_linked = upload_report.already_linked or 0
-                        sync_report.highlights_unmatched = upload_report.unmatched or 0
-                        sync_report.highlight_creates_blocked = upload_report.blocked or 0
-                        sync_report.highlight_marker_verified = upload_report.marker_verified or 0
-                        sync_report.annotation_remote_errors = upload_report.remote_errors or 0
-
-                        local mutations = AnnotationMutations:new{
-                            documents = repository,
-                            annotations = annotations_repository,
-                            adapter = adapter,
-                            reader = reader,
-                            readwise = readwise,
-                            propagate_deletions = config:getPropagateHighlightDeletions(),
-                        }
-                        local mutation_report, mutation_err = mutations:syncPath(options.current_path)
-                        if not mutation_report then
-                            sync_report.annotation_sync_status = "mutation_error"
-                            sync_report.annotation_error_kind = mutation_err
-                                and mutation_err.kind or "unknown"
-                            sync_report.annotation_remote_errors =
-                                sync_report.annotation_remote_errors + 1
-                        else
-                            sync_report.notes_updated = mutation_report.notes_updated or 0
-                            sync_report.notes_reconciled = mutation_report.notes_reconciled or 0
-                            sync_report.note_conflicts = mutation_report.conflicts or 0
-                            sync_report.annotation_mutations_blocked = mutation_report.blocked or 0
-                            sync_report.local_deletions_detected =
-                                mutation_report.deletions_detected or 0
-                            sync_report.remote_deletions =
-                                (mutation_report.deletions_remote or 0)
-                                + (mutation_report.deletions_already_remote or 0)
-                            sync_report.deletions_retained =
-                                mutation_report.deletions_retained or 0
-                            sync_report.annotation_remote_errors =
-                                sync_report.annotation_remote_errors
-                                + (mutation_report.remote_errors or 0)
-                            sync_report.legacy_annotation_links_accepted =
-                                mutation_report.legacy_identity_accepted or 0
-                            sync_report.durable_link_without_marker_accepted =
-                                mutation_report.durable_link_identity_accepted or 0
-                            sync_report.v2_annotation_pages_scanned =
-                                mutation_report.v2_pages_scanned or 0
-                            sync_report.v2_annotation_mappings_resolved =
-                                mutation_report.v2_mappings_resolved or 0
-                            sync_report.v2_remote_note_reads =
-                                mutation_report.v2_remote_note_reads or 0
-                            sync_report.v2_note_updates =
-                                mutation_report.v2_note_updates or 0
-                            sync_report.reader_note_verification_reads =
-                                mutation_report.reader_note_verification_reads or 0
-                            sync_report.reader_note_propagation_misses =
-                                mutation_report.reader_note_propagation_misses or 0
-                            sync_report.reader_v3_note_repairs =
-                                mutation_report.reader_v3_note_repairs or 0
-                            sync_report.reader_note_repairs =
-                                mutation_report.reader_note_repairs or 0
-                            sync_report.delete_cross_api_identity_verified =
-                                mutation_report.delete_cross_api_identity_verified or 0
-                            sync_report.reader_delete_verification_reads =
-                                mutation_report.reader_delete_verification_reads or 0
-                            sync_report.reader_deletions_verified =
-                                mutation_report.reader_deletions_verified or 0
-                            sync_report.delete_verification_pending =
-                                mutation_report.delete_verification_pending or 0
-                        end
-                    end
-                end
+        if current_managed and current_scan_authoritative then
+            local mutations = AnnotationMutations:new{
+                documents = repository,
+                annotations = annotations_repository,
+                adapter = adapter,
+                reader = reader,
+                readwise = readwise,
+                propagate_deletions = config:getPropagateHighlightDeletions(),
+            }
+            local mutation_report, mutation_err = mutations:syncPath(options.current_path)
+            if not mutation_report then
+                sync_report.annotation_sync_status = "mutation_error"
+                sync_report.annotation_error_kind = mutation_err
+                    and mutation_err.kind or "unknown"
+                sync_report.annotation_remote_errors =
+                    sync_report.annotation_remote_errors + 1
             else
-                sync_report.annotation_sync_status = "current_document_not_managed"
+                sync_report.notes_updated = mutation_report.notes_updated or 0
+                sync_report.notes_reconciled = mutation_report.notes_reconciled or 0
+                sync_report.note_conflicts = mutation_report.conflicts or 0
+                sync_report.annotation_mutations_blocked = mutation_report.blocked or 0
+                sync_report.local_deletions_detected =
+                    mutation_report.deletions_detected or 0
+                sync_report.remote_deletions =
+                    (mutation_report.deletions_remote or 0)
+                    + (mutation_report.deletions_already_remote or 0)
+                sync_report.deletions_retained =
+                    mutation_report.deletions_retained or 0
+                sync_report.annotation_remote_errors =
+                    sync_report.annotation_remote_errors
+                    + (mutation_report.remote_errors or 0)
+                sync_report.legacy_annotation_links_accepted =
+                    mutation_report.legacy_identity_accepted or 0
+                sync_report.durable_link_without_marker_accepted =
+                    mutation_report.durable_link_identity_accepted or 0
+                sync_report.v2_annotation_pages_scanned =
+                    mutation_report.v2_pages_scanned or 0
+                sync_report.v2_annotation_mappings_resolved =
+                    mutation_report.v2_mappings_resolved or 0
+                sync_report.v2_remote_note_reads =
+                    mutation_report.v2_remote_note_reads or 0
+                sync_report.v2_note_updates =
+                    mutation_report.v2_note_updates or 0
+                sync_report.reader_note_verification_reads =
+                    mutation_report.reader_note_verification_reads or 0
+                sync_report.reader_note_propagation_misses =
+                    mutation_report.reader_note_propagation_misses or 0
+                sync_report.reader_v3_note_repairs =
+                    mutation_report.reader_v3_note_repairs or 0
+                sync_report.reader_note_repairs =
+                    mutation_report.reader_note_repairs or 0
+                sync_report.delete_cross_api_identity_verified =
+                    mutation_report.delete_cross_api_identity_verified or 0
+                sync_report.reader_delete_verification_reads =
+                    mutation_report.reader_delete_verification_reads or 0
+                sync_report.reader_deletions_verified =
+                    mutation_report.reader_deletions_verified or 0
+                sync_report.delete_verification_pending =
+                    mutation_report.delete_verification_pending or 0
             end
         end
 
