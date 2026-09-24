@@ -1,5 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
+local Constants = require("constants")
+
 local FirstArticle = {}
 FirstArticle.__index = FirstArticle
 
@@ -16,6 +18,10 @@ function FirstArticle:new(options)
         hasher = assert(options.hasher, "hasher is required"),
         koreader_documents = assert(options.koreader_documents, "koreader_documents is required"),
         download_root = assert(options.download_root, "download_root is required"),
+        max_html_bytes = tonumber(options.max_html_bytes)
+            or Constants.MAX_PROCESSED_HTML_BYTES,
+        max_document_response_bytes = tonumber(options.max_document_response_bytes)
+            or Constants.MAX_READER_DOCUMENT_RESPONSE_BYTES,
         now = options.now or os.time,
         file_exists = options.file_exists or function(path)
             return require("libs/libkoreader-lfs").attributes(path, "mode") == "file"
@@ -49,7 +55,12 @@ function FirstArticle:listCandidates(limit)
 end
 
 function FirstArticle:fetchDocument(reader_id)
-    local document, err = self.reader:getDocument(reader_id, true, false)
+    local document, err = self.reader:getDocument(
+        reader_id,
+        true,
+        false,
+        self.max_document_response_bytes
+    )
     if not document then
         return nil, err
     end
@@ -116,7 +127,12 @@ function FirstArticle:fetchFormatDocument(reader_id, category)
             message = "Unsupported raw format category.",
         }
     end
-    local document, err = self.reader:getDocument(reader_id, true, true)
+    local document, err = self.reader:getDocument(
+        reader_id,
+        true,
+        true,
+        self.max_document_response_bytes
+    )
     if not document then return nil, err end
     if document.parent_id ~= nil or document.category ~= category then
         return nil, {
@@ -196,6 +212,16 @@ function FirstArticle:_installHtml(document, strategy)
             kind = "content",
             retryable = false,
             message = "Reader did not provide usable processed HTML content for this document.",
+        }
+    end
+    if #document.html_content > self.max_html_bytes then
+        return nil, {
+            kind = "content",
+            stage = "html_size",
+            detail = "too_large",
+            retryable = false,
+            limit = self.max_html_bytes,
+            message = "Reader processed HTML exceeds the safe device limit.",
         }
     end
 

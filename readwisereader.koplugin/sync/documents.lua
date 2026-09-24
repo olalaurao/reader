@@ -1,5 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
+local Constants = require("constants")
+
 local DocumentsSync = {}
 DocumentsSync.__index = DocumentsSync
 
@@ -287,6 +289,7 @@ function DocumentsSync:_fullMaterialization(filters, report, seen_at)
                     limit = HTML_PAGE_LIMIT,
                     with_html_content = true,
                     with_raw_source_url = category == "pdf" or category == "epub",
+                    max_body_bytes = Constants.MAX_READER_CONTENT_PAGE_BYTES,
                 }, function(document)
                     if document.parent_id ~= nil or seen[document.id] then return end
                     seen[document.id] = true
@@ -318,7 +321,12 @@ function DocumentsSync:_incrementalMaterialization(filters, pending_new, report,
     for _, reader_id in ipairs(sortedKeys(pending_new)) do
         local category = pending_new[reader_id]
         local wants_raw = category == "pdf" or category == "epub"
-        local document, err = self.reader:getDocument(reader_id, true, wants_raw)
+        local document, err = self.reader:getDocument(
+            reader_id,
+            true,
+            wants_raw,
+            Constants.MAX_READER_DOCUMENT_RESPONSE_BYTES
+        )
         if not document then
             report.errors = report.errors + 1
             self.repository:setLastSyncError(reader_id, err and err.kind or "unknown")

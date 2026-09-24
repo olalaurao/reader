@@ -11,6 +11,12 @@ return {
     MAX_ARTICLE_IMAGE_BYTES = 8 * 1024 * 1024,
     MAX_IMAGES_PER_ARTICLE = 20,
     MAX_RAW_SOURCE_BYTES = 64 * 1024 * 1024,
+    -- Processed Reader HTML is held in Lua memory before CRengine opens it.
+    -- Keep a conservative per-document ceiling and cap JSON LIST/get bodies
+    -- separately so pathological responses fail before unbounded accumulation.
+    MAX_PROCESSED_HTML_BYTES = 8 * 1024 * 1024,
+    MAX_READER_DOCUMENT_RESPONSE_BYTES = 10 * 1024 * 1024,
+    MAX_READER_CONTENT_PAGE_BYTES = 16 * 1024 * 1024,
     GATE13_PARENT_PROBE_MAX_BYTES = 1 * 1024 * 1024,
     GATE15_LOCAL_HTML_PROBE_MAX_BYTES = 4 * 1024 * 1024,
     GATE15_REMOTE_HTML_PROBE_MAX_BYTES = 4 * 1024 * 1024,

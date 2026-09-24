@@ -84,6 +84,8 @@ local function newCoordinator(options)
             end,
         },
         download_root = "/root/Readwise",
+        max_html_bytes = options.max_html_bytes,
+        max_document_response_bytes = options.max_document_response_bytes,
         now = function() return 123 end,
         file_exists = options.file_exists or function() return false end,
     }
@@ -180,6 +182,29 @@ return function()
         assert(rows["article-1"].local_path == result.path)
         assert(#metadata == 1)
         assert(metadata[1].id == "article-1")
+    end
+
+    do
+        local coordinator, _, states, installs = newCoordinator{
+            max_html_bytes = 16,
+        }
+        local result, err = coordinator:installDocument{
+            id = "huge-html",
+            title = "Huge",
+            category = "article",
+            location = "new",
+            updated_at = "u1",
+            html_content = string.rep("x", 17),
+        }
+        assert(result == nil)
+        assert(err.kind == "content")
+        assert(err.stage == "html_size")
+        assert(err.detail == "too_large")
+        assert(err.retryable == false)
+        assert(err.limit == 16)
+        assert(#installs == 0)
+        assert(states["huge-html"].is_local_present == false)
+        assert(states["huge-html"].last_sync_error == "content")
     end
 
     do
