@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase N IN PROGRESS — Gate 12A NOTE UPDATE + 12B CONFLICT + 12C DELETE-OFF PASSED PHYSICALLY on PW3 / KOReader 2026.07.1; Gate 12D deliberate delete pending; build 0.1.31**
+**Phase N IN PROGRESS — Gate 12A NOTE UPDATE + 12B CONFLICT + 12C DELETE-OFF PASSED; Gate 12D deliberate delete hotfix ready for physical retest on build 0.1.32**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Current work is **Phase N / Gate 12**. The linked note-update subgate now **passes physically on build 0.1.31** using deterministic Readwise v2 conflict/update plus Reader v3 end-to-end verification/repair. Conflict handling and opt-in deletion remain physically pending. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Current work is **Phase N / Gate 12**. Note update, conflict handling, and deletion-OFF have passed physically. The first deliberate deletion attempt on 0.1.31 was blocked safely because Reader did not expose the expected source marker. Build 0.1.32 replaces that unreliable marker requirement with cross-API Reader+v2 identity and post-DELETE verification. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -1533,7 +1533,7 @@ Safety rules:
 - `last_synced_note` advances only after Reader visibility is proven;
 - local text mutation is not propagated;
 - conflicts never use silent last-writer-wins;
-- deletion remains destructive opt-in only and still requires the exact per-annotation ownership marker.
+- deletion remains destructive opt-in only and requires cross-API identity: exact Reader child + expected parent/category + exact Readwise v2 `external_id` mapping; Reader source marker is no longer authoritative.
 
 Later hard gates remain:
 - Gate 13 full offline queue/retry hardening;
@@ -1919,3 +1919,31 @@ After deleting only the target highlight locally with propagation OFF:
 This physically proves the default-safe tombstone behavior: local disappearance is detected and retained durably without destructive remote action while propagation is OFF.
 
 Next: Gate 12D deliberate opt-in deletion of exactly that linked target; control highlight must remain.
+
+
+### Gate 12D attempt 1 — build 0.1.31 — BLOCKED SAFELY / fixed in 0.1.32
+
+Observed on target PW3 / KOReader v2026.07.1:
+- current-document highlights scanned: **1**;
+- highlights already linked: **1**;
+- local highlight deletions detected: **1**;
+- remote highlight deletions: **0**;
+- deletion retained remotely (propagation off): **0**;
+- annotation mutations blocked safely: **1**;
+- annotation remote errors: **0**;
+- the target remained in Reader.
+
+Root cause:
+- the destructive path still required the exact Reader `source/saved_using` marker;
+- physical production Reader data did not expose that marker reliably, even for the legitimate target.
+
+0.1.32 fix:
+- destructive identity now requires the exact durable Reader child id;
+- the child must belong to the expected parent and be `category=highlight`;
+- the exact Readwise v2 highlight must map back with `external_id == Reader child id`;
+- zero/ambiguous/mismatched cross-API identity blocks the DELETE;
+- after Reader DELETE acknowledgement, the plugin polls the exact Reader child and clears the durable link only after the child is confirmed gone;
+- new diagnostics expose cross-API identity verification and post-delete Reader verification;
+- code CI #475 on `e6fca05b24f90254087b7111dc1346e255f76a8f`: **SUCCESS**.
+
+Gate 12D remains physically pending on build 0.1.32.
