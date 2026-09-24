@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase O IMPLEMENTED — GATE 13 BLOCKED ON PW3 NETWORK-STATE SPIKE; diagnostic build 0.1.35**
+**Phase O IMPLEMENTED — GATE 13 PENDING PHYSICAL RETEST; build 0.1.36 replaces unreliable local network detection with a read-only Readwise reachability gate**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Phase N / Gate 12 is complete and merged to `main` through PR #15 as `54509c84bb731cfa0507865d6cc8fb300859647d`. Current work is **Phase O / Gate 13 offline queue hardening**. Builds 0.1.33 and 0.1.34 both entered the online path after the user enabled native Kindle Airplane Mode. Build 0.1.35 is a read-only compatibility spike to measure the target PW3's actual native and KOReader network signals before changing logic again. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Phase N / Gate 12 is complete and merged to `main` through PR #15 as `54509c84bb731cfa0507865d6cc8fb300859647d`. Current work is **Phase O / Gate 13 offline queue hardening**. Builds 0.1.33 and 0.1.34 both entered the online path after the user enabled native Kindle Airplane Mode. The 0.1.35 read-only spike then proved that all three attempted native Kindle properties were unavailable on this PW3 while KOReader still reported Wi-Fi/connected/online=true with no internet. Build 0.1.36 therefore no longer lets local network flags authorize remote writes: it queues local annotations first and then requires the existing read-only Readwise auth GET to succeed before queue processing, annotation mutations, or document sync. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -2064,3 +2064,68 @@ CI #526 on diagnostic functional HEAD `2848c239619d70ce8200ad254d18e016fd96d168`
 - artifact ID: `10786643587`
 - artifact name: `readwisereader-koplugin-bb0b5a44498fc6737813d4223e82376b88bc10ba`
 - artifact digest: `sha256:e56cb003c69ee59c30c224a3c0b753a3a465bacea549618f712e1a73ea35f44b`
+
+
+### Gate 13 network-state spike — build 0.1.35 physical result
+
+Target: PW3 / firmware 5.16.2.1.1 / KOReader v2026.07.1.
+State under test: user reported **no internet / native Airplane Mode**.
+
+Read-only diagnostic observed:
+- Kindle: **true**;
+- native `airplaneMode`: **unavailable**;
+- native `wirelessEnable`: **unavailable**;
+- native `wifid enable`: **unavailable**;
+- KOReader interface: `wlan0`;
+- KOReader `isWifiOn`: **true**;
+- KOReader `isConnected`: **true**;
+- KOReader `isOnline`: **true**;
+- KOReader cached Wi-Fi: **true**;
+- KOReader cached connected: **unavailable**;
+- plugin-derived local `network_available`: **true**;
+- plugin reason: `online`;
+- diagnostic remote requests: **none**;
+- diagnostic remote writes: **none**.
+
+Conclusion:
+- none of the attempted native LIPC properties is usable as the authoritative Airplane Mode signal on this physical target;
+- KOReader's local Wi-Fi/connected/online state is also insufficient as a write-safety authority on this target;
+- this is the exact cause of the 0.1.33/0.1.34 false-online behavior;
+- do not add another guessed device property before a new spike proves it.
+
+### 0.1.36 reachability contract
+
+Implementation changed after the physical 0.1.35 evidence:
+- current managed sidecar is scanned and any create intent is persisted to SQLite **before any remote request**;
+- local KOReader/Kindle network flags are now advisory only and do not authorize remote mutation;
+- the cancellable worker performs the existing read-only `GET /api/v2/auth/` as the authoritative remote reachability/auth probe;
+- only a successful 204 probe permits create-queue processing, note/delete mutation, or document sync;
+- probe failure performs **zero remote writes**, keeps the durable queue waiting, does not advance the document watermark, and reports either `offline / local queue` for network-class failures or `local queue / remote unavailable` for auth/rate-limit/server-class failures;
+- no Wi-Fi enable/disable action was added;
+- the 0.1.35 local signal diagnostic remains available but is explicitly labeled advisory.
+
+Files changed for 0.1.36:
+- `readwisereader.koplugin/sync/worker.lua`;
+- `readwisereader.koplugin/ui/sync.lua`;
+- `readwisereader.koplugin/ui/network_diagnostics.lua`;
+- `readwisereader.koplugin/tests/test_worker.lua`;
+- `readwisereader.koplugin/tests/test_sync_ui.lua`;
+- `readwisereader.koplugin/tests/test_network_diagnostics_ui.lua`;
+- `readwisereader.koplugin/constants.lua`;
+- `readwisereader.koplugin/_meta.lua`;
+- `CHANGELOG.md`;
+- `IMPLEMENTATION_SPEC.md`;
+- `PLAN.md`;
+- `docs/DEVICE_TESTS.md`;
+- `STATUS.md`.
+
+Gate 13 remains **OPEN**. Exact next physical step after CI/artifact:
+1. install build 0.1.36;
+2. with native Airplane Mode/no internet, create **one new unique** Gate 13 highlight/note;
+3. close/reopen the article once;
+4. run ordinary Sync now;
+5. require: mode `offline / local queue`, remote preflight network failure, `Highlights created: 0`, `Create queue items processed: 0`, queued/waiting >=1, metadata/content pages 0;
+6. only after that passes, restart KOReader while the same item remains pending;
+7. reconnect Wi-Fi and prove exactly-once delivery + no-op second sync.
+
+Do not advance to Phase P / Gate 14 until this Gate 13 persistence/reconnect sequence passes physically.
