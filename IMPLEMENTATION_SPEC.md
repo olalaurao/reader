@@ -2706,16 +2706,15 @@ Therefore V1 Finished detection is **exactly `summary.status == "complete"`**. D
 
 No schema migration is required: the existing generic durable queue already supports document operations.
 
-### Gate 14
-Physical validation still required for 0.1.43:
-1. use the same finished managed fixture;
-2. run **Sync now** once;
-3. require exactly one Reader archive mutation or safe already-archive reconciliation;
-4. confirm Reader location is Archive;
-5. confirm local file remains;
-6. confirm sidecar, progress, highlights and notes remain;
-7. run a second unchanged Sync;
-8. require zero new archive PATCHes / queue waiting zero / no duplicate side effect.
+### Gate 14 — PASSED on build 0.1.43
+Physical result:
+- canonical Finished signal was proven as persisted `summary.status == "complete"`;
+- first Sync moved the managed document to Reader Archive;
+- local file remained present/openable;
+- sidecar, progress, highlights and notes were preserved;
+- unchanged second Sync produced no repeated archive side effect and the queue remained empty.
+
+Phase P is complete.
 
 ## Phase Q — content refresh safety
 
@@ -2902,17 +2901,14 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Complete **Phase P / Gate 14** with build 0.1.43 on the same physically-proven Finished fixture.
+Begin **Phase Q / Gate 15 — content refresh safety** from the merged Phase P baseline.
 
-1. install 0.1.43 preserving settings/database/documents/sidecars;
-2. keep **Finished documents → Archive in Reader** enabled;
-3. keep Wi-Fi/internet available;
-4. do not edit/delete the fixture's annotations;
-5. run ordinary **Sync now exactly once**;
-6. return the full Sync report;
-7. verify Reader location became Archive;
-8. verify the local file still opens and the sidecar/progress/highlights/notes remain intact;
-9. do not run the second Sync until the first report/Reader/local state are reviewed;
-10. then run one unchanged second Sync and require no repeated archive mutation and archive queue waiting = 0;
-11. only after Gate 14 passes begin Phase Q / Gate 15.
+1. inspect the current document materialization/update code and the KOReader 2026.07.1 sidecar/progress model;
+2. perform the required experimental spikes before enabling any destructive content replacement:
+   - article update after local progress + highlight/note;
+   - PDF/EPUB replacement implications;
+3. measure exactly which local file bytes/path/revision fields change today and whether KOReader sidecar positions remain valid;
+4. implement a conservative refresh policy only after the risk boundary is demonstrated;
+5. Gate 15 must prove that a remote content update causes **no local annotation/progress loss**;
+6. do not begin Phase R / Gate 16 until Gate 15 passes physically.
 
