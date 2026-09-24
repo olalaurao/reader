@@ -446,6 +446,36 @@ local function timeoutNoMatchNeverRetriesCase()
     assert(state.creates == 1, "ambiguous timeout must never be blindly retried")
 end
 
+local function serverErrorNoBlindRetryCase()
+    local state = newState()
+    local reader = {
+        getDocument = function(_, id, with_html)
+            if id == "doc-1" and with_html then
+                return { id = id, html_content = "<p>Selected text</p>" }
+            end
+        end,
+        createHighlight = function()
+            state.creates = state.creates + 1
+            return nil, { kind = "server", retryable = true, message = "server error" }
+        end,
+        iterateDocuments = function()
+            return { pages = 1 }
+        end,
+    }
+    local uploader = Upload:new(baseOptions(state, reader))
+    local first = assert(uploader:syncPath("/Readwise/a.html"))
+    local item = state.queue[Upload.queueKey("ann-1")]
+    assert(first.blocked == 1)
+    assert(item.status == "blocked")
+    assert(item.last_error_kind == "create_server")
+    assert(state.creates == 1)
+
+    local second = uploader:processQueue()
+    assert(second.blocked == 1)
+    assert(state.creates == 1, "5xx outcome must reconcile before any later write")
+    assert(item.last_error_kind == "reconcile_not_found")
+end
+
 local function authBeforePostSurvivesCase()
     local state = newState()
     local authorized = false
@@ -523,6 +553,7 @@ return function()
     rateLimitThenSafeRetryCase()
     timeoutThenReconcileCase()
     timeoutNoMatchNeverRetriesCase()
+    serverErrorNoBlindRetryCase()
     authBeforePostSurvivesCase()
     ambiguousTextBlocksWithoutWriteCase()
 end
