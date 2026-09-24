@@ -219,6 +219,10 @@ function Archive:queueAll()
                 report.last_error_kind = scan_err and scan_err.kind or "sidecar"
             elseif not local_status.sidecar_present then
                 report.skipped = report.skipped + 1
+            elseif local_status.status_known ~= true then
+                -- Unknown/missing summary status is not evidence that a prior
+                -- Finished intent should be cancelled.
+                report.skipped = report.skipped + 1
             elseif local_status.finished == true then
                 report.finished_detected = report.finished_detected + 1
                 local reopen = existing
@@ -301,6 +305,14 @@ function Archive:processQueue()
                     "archive_" .. tostring(status_err and status_err.kind or "sidecar"),
                     status_err and status_err.message
                         or "KOReader Finished status could not be read safely.",
+                    self.now()
+                )
+                report.blocked = report.blocked + 1
+            elseif local_status.status_known ~= true then
+                self.queue:markBlocked(
+                    key,
+                    "archive_unknown_local_status",
+                    "KOReader summary.status is missing or unknown; archive was not sent.",
                     self.now()
                 )
                 report.blocked = report.blocked + 1
