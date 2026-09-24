@@ -5,5 +5,5 @@ local _ = require("gettext")
 return {
     name = "readwisereader",
     fullname = _("Readwise Reader"),
-    description = _([[Synchronize Readwise Reader content with KOReader. Experimental 0.1.45 fixes the Gate 15 v1→v2 backup crash, removes native hashing from the diagnostic, and contains preflight failures while keeping content replacement disabled.]]),
+    description = _([[Synchronize Readwise Reader content with KOReader. Experimental 0.1.46 adds Gate 15 Q2 metadata-only revision acknowledgement after physical article safety validation, while changed/unverified/raw content remains pending and local bytes are never replaced.]]),
 }
