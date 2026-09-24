@@ -3044,3 +3044,32 @@ Remaining evidence before the second Sync:
 4. only after that verification, run one unchanged second Sync to prove idempotency.
 
 Gate 13C is **not yet closed** until Reader-side exactly-one delivery and the unchanged second Sync both pass.
+
+
+### Gate 13C Reader-side exactly-once verification — PASS
+
+User verified after the first controlled reconnect Sync on build 0.1.41:
+- all **3** pending highlights appeared in the correct original Reader documents;
+- each appeared **exactly once**;
+- expected notes were present on the corresponding highlights;
+- no duplicate was observed.
+
+Conclusion:
+- first reconnect delivery is physically proven end-to-end;
+- plugin-side queue drain and Reader-side exactly-one result agree;
+- Gate 13C now has only one remaining requirement: an unchanged second Sync must be a no-op for creates.
+
+Final Gate 13C step:
+1. do not create/edit/delete any annotation;
+2. keep Wi-Fi ON;
+3. run ordinary **Sync now** once more;
+4. require:
+   - Highlights created = **0**;
+   - Create queue items processed = **0**;
+   - Create queue waiting after sync = **0**;
+   - Highlights unmatched/ambiguous = **0**;
+   - no blocked create/retry/auth wait;
+   - errors = **0**;
+   - Reader still contains exactly one copy of each of the 3 Gate 13 highlights/notes.
+5. return the full report.
+6. If this passes, Gate 13 / Phase O can be closed and the branch may advance toward merge before Phase P / Gate 14.
