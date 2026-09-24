@@ -2636,16 +2636,38 @@ Final physical result: Gate 13 **PASSED**.
 
 Phase O is complete.
 
-## Phase P — finished/archive
+## Phase P — finished/archive — SIGNAL SPIKE IMPLEMENTED, GATE 14 OPEN
 
-### P1
-- canonical finished detection;
-- queue archive;
-- Reader PATCH;
-- local keep.
+### P0 — canonical finished-signal spike
+
+Official KOReader v2026.07.1 source establishes the candidate contract:
+- BookStatusWidget maps **Finished** to status value `complete`;
+- ReaderStatus `markBook()` sets `doc_settings.summary.status = "complete"` and updates `summary.modified`;
+- BookList maps `complete` to Finished and identifies its source as `doc_settings.summary.status`.
+
+Do not treat source inspection alone as the production proof. Build 0.1.42 adds a local-only diagnostic for one currently-open Reader-managed document:
+- persisted sidecar `summary.status`;
+- persisted `summary.modified`;
+- persisted `percent_finished`;
+- BookList status;
+- current runtime summary status;
+- local DB Reader location.
+
+The diagnostic performs no network request and no local/remote write.
+
+**Stop condition:** do not implement P1 archive mutation until the target PW3 confirms that using KOReader's Finished control persists `summary.status = "complete"` in the managed document sidecar.
+
+### P1 — after P0 passes
+- canonical finished detection using the experimentally-proven signal;
+- durable archive intent before network mutation;
+- Reader parent PATCH `location=archive`;
+- exactly-once/idempotent processing;
+- local file keep;
+- sidecar/progress/highlights/notes keep;
+- remote archive never implies local deletion.
 
 ### Gate 14
-Finished → archive exactly once; local file/sidecar remain intact.
+Finished → archive exactly once; local file/sidecar/progress/annotations remain intact; unchanged second Sync performs no duplicate archive mutation.
 
 ## Phase Q — content refresh safety
 
