@@ -4575,3 +4575,16 @@ Conclusion:
 - package layout verification: PASS;
 - artifact upload: PASS;
 - no production plugin file changed in the checkpoint-1 documentation commit.
+
+
+### Checkpoint 1 closeout CI
+- Branch HEAD before this STATUS-only closeout: `9bdb9c4f1ff597cb128372cb1e6f42520cf04e66`.
+- Workflow #1087 on that head: **SUCCESS**.
+- Development checks: PASS.
+- Full Lua unit suite: PASS.
+- Installable ZIP build: PASS.
+- Package layout verification: PASS.
+- Artifact upload: PASS.
+- PR #19 remains draft and mergeable; branch is 31 commits ahead / 0 behind `main`.
+- No production code/schema/package change is authorized between the passed first RC smoke and the unchanged-second-Sync checkpoint.
+- Exact next action remains: run one unchanged `Sync now`, return the full report, then stop before offline queue/restart testing.
