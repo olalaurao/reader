@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase Q / Gate 15 — PASSED COMPLETE; Phase R / Gate 16 hardening is now unblocked**
+**Phase R / Gate 16 — deterministic hardening PASS on candidate 0.1.47; PW3 release-candidate smoke is the current blocker**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
@@ -4338,3 +4338,156 @@ Accepted physical result:
 - branch Phase R from merged `main`;
 - harden in spec order: large library, low disk, malformed document, huge document, Unicode, 429, intermittent Wi-Fi, force-close, reboot, migration, rollback, debug-log secret review;
 - do all deterministic/off-device tests first; stop only when the next item genuinely requires a PW3 physical test.
+
+
+## Phase R / Gate 16 deterministic hardening handoff — 0.1.47 RC
+
+### Milestone atual
+- Phase Q / Gate 15 is merged to `main` as `3a37df88bae65407d3faaa638c7536ad47fe5744`.
+- Phase R / Gate 16 is active.
+- Deterministic/off-device hardening is **PASS** for the 0.1.47 release-candidate code.
+- Gate 16 remains **OPEN** until the release-candidate smoke is physically stable on the target PW3.
+
+### Branch / HEAD
+- Branch: `phase-r/hardening-gate16`.
+- Draft PR: #19.
+- Base: merged Gate 15 `main` at `3a37df88bae65407d3faaa638c7536ad47fe5744`.
+- Candidate version: **0.1.47**.
+- Production/test/docs head before this STATUS closeout: `2daf8ff18a4642f355fef8c79268bb09ba411188`.
+- Branch was 25 commits ahead / 0 behind `main` at that head.
+- This STATUS-only handoff commit follows that validated implementation/docs head.
+
+### Arquivos alterados em Phase R até este handoff
+Production/plugin:
+- `readwisereader.koplugin/_meta.lua`;
+- `readwisereader.koplugin/constants.lua`;
+- `readwisereader.koplugin/api/http.lua`;
+- `readwisereader.koplugin/api/reader.lua`;
+- `readwisereader.koplugin/content/installer.lua`;
+- `readwisereader.koplugin/sync/documents.lua`;
+- `readwisereader.koplugin/sync/first_article.lua`;
+- `readwisereader.koplugin/ui/sync.lua`.
+
+Tests/quality:
+- `readwisereader.koplugin/tests/test_document_sync.lua`;
+- `readwisereader.koplugin/tests/test_filenames.lua`;
+- `readwisereader.koplugin/tests/test_first_article.lua`;
+- `readwisereader.koplugin/tests/test_html.lua`;
+- `readwisereader.koplugin/tests/test_http.lua`;
+- `readwisereader.koplugin/tests/test_installer.lua`;
+- `readwisereader.koplugin/tests/test_raw_source.lua`;
+- `readwisereader.koplugin/tests/test_reader_pagination.lua`;
+- `readwisereader.koplugin/tests/test_storage_db.lua`;
+- `readwisereader.koplugin/tests/test_storage_repositories.lua`;
+- `scripts/dev-check.sh`.
+
+Docs:
+- `README.md`;
+- `docs/GATE16_HARDENING.md`;
+- `IMPLEMENTATION_SPEC.md`;
+- `PLAN.md`;
+- `STATUS.md`.
+
+### O que foi implementado / hardened
+1. **Large library**
+   - deterministic 5,000-document / 50-page Reader traversal;
+   - cursor repetition/empty-page guards and ID dedupe remain enforced;
+   - callback path is exercised at scale above the current physical library.
+2. **Low disk**
+   - raw preflight rejects free space below reserve and accepts the exact boundary;
+   - streamed ENOSPC removes temp data and never exposes a partial final raw file;
+   - processed-HTML ENOSPC now preserves retryable `no_space` classification, removes `.tmp`, and exposes no partial final HTML.
+3. **Malformed document**
+   - malformed records are isolated/countable without poisoning valid neighbors;
+   - a page containing only malformed records may continue through a valid next cursor instead of being misclassified as an empty-page loop.
+4. **Huge document**
+   - Reader LIST/get response bodies are bounded;
+   - processed HTML has an 8 MiB device-safe ceiling;
+   - content LIST pages and single-document responses use explicit body caps before materialization.
+5. **Unicode**
+   - filename tests cover multilingual/combining/CJK/Arabic/emoji cases and UTF-8-safe truncation;
+   - multilingual HTML preservation is covered.
+6. **429**
+   - numeric `Retry-After` is honored;
+   - missing/invalid value uses bounded fallback;
+   - long waits remain cancellable.
+7. **Intermittent network**
+   - timeout/offline is never treated as success;
+   - partial incremental metadata work keeps the previous watermark;
+   - the next Sync rediscovers/materializes the same item safely instead of stranding/duplicating it.
+8. **Force-close / reboot**
+   - file-backed SQLite queue survives process reopen;
+   - stale ambiguous highlight creates become blocked rather than blind POST retries;
+   - durable retry deadlines survive an additional reopen.
+9. **Migration**
+   - real file-backed v1→v2 migration is tested;
+   - pre-migration `.bak` retains old schema/data;
+   - transaction failure rolls back.
+10. **Rollback**
+   - 0.1.47 intentionally remains schema v2;
+   - test asserts schema compatibility with known-good 0.1.46;
+   - plugin-only rollback procedure is documented in `docs/GATE16_HARDENING.md`.
+11. **Secrets/redaction**
+   - dev-check tripwires reject committed token-like values and signed credential URLs in production files;
+   - production logger sensitive-field tripwire added;
+   - API log URLs strip query and fragment;
+   - Authorization header/token is verified absent from logged output.
+
+### Testes executados / resultados
+- CI #1051 on early Phase R hardening head `94b3d4ce...`: **SUCCESS**.
+- CI #1063 after processed-HTML ENOSPC coverage: **SUCCESS**.
+- CI #1069 on 0.1.47 version/metadata head `bcf1bbdec5980a32d2ffd47cfaf262d404927ac3`: **SUCCESS**.
+- Development syntax/quality checks: PASS.
+- Full Lua unit suite: PASS.
+- Installable ZIP build: PASS.
+- Package layout verification: PASS.
+- Artifact upload: PASS.
+- Final documentation-head CI is still required after this STATUS closeout and must be recorded before handing the RC to the device.
+
+### Gates concluídos
+- Gates 0–15: **PASSED**.
+- Gate 16 deterministic/off-device hardening: **PASSED**.
+- Gate 16 physical release-candidate stability: **PENDING**.
+- Phase S / V1 acceptance: **BLOCKED by Gate 16**.
+
+### Teste físico pendente
+Follow `docs/GATE16_HARDENING.md` on the target PW3:
+1. with KOReader closed, back up working 0.1.46 plugin + Readwise settings/SQLite DB + relevant documents/sidecars;
+2. install only the 0.1.47 plugin directory and restart KOReader;
+3. confirm plugin loads/settings-token survive and an existing managed article preserves reading state;
+4. run one normal Wi-Fi-on Sync over the real library; require no fatal error, duplicate, or unexpected replacement;
+5. run one unchanged second Sync; require no duplicate/repeated settled work;
+6. turn connectivity off outside the plugin, create one harmless local highlight/note, Sync once; require durable local queue and no remote write;
+7. restart KOReader while still pending, restore connectivity, Sync once; require exactly one remote highlight/note and no duplicate;
+8. restart once more and confirm plugin/Bookshelf/document reading state persist;
+9. inspect the resulting `crash.log` locally for token/Authorization/signed URL/private payload leakage.
+
+Do **not** deliberately fill the Kindle filesystem or manufacture corrupt/huge private fixtures for Gate 16; those are deterministic CI tests.
+
+### Bugs / falhas encontrados
+- No unresolved production hardening bug remains from deterministic tests.
+- Found and fixed: processed HTML write-time ENOSPC lacked the specific `no_space` detail even though streamed raw writes already classified it.
+- Found and fixed: an all-malformed Reader page with a valid cursor could be mistaken for an impossible empty page.
+- Network interruption tests confirm no watermark loss/duplicate recovery regression.
+
+### Decisões técnicas
+- Keep schema at v2 for 0.1.47 so plugin rollback to 0.1.46 does not require DB downgrade.
+- Keep existing-document automatic content replacement disabled.
+- Treat malformed individual Reader records as isolated skips; structural pagination corruption still fails the scan.
+- Bound pathological Reader/HTML bodies before device materialization.
+- Do not retry an ambiguous stale highlight create blindly after process death.
+- Physical low-disk/malformed/huge destructive scenarios are intentionally not manufactured on the PW3 because deterministic tests exercise those failure contracts more safely.
+
+### Desvios da spec
+- None. The Phase R order was followed; force-close and reboot share the same file-backed persistence/recovery contract but remain separate physical observations in the RC smoke.
+
+### Blockers
+- Only the PW3 physical 0.1.47 release-candidate smoke.
+- Gate 16 cannot close and Phase S cannot begin until that sequence passes.
+
+### Próximos passos exatos
+1. wait for final CI on this handoff head and record artifact details;
+2. install 0.1.47 on the target PW3 only after the backup in `docs/GATE16_HARDENING.md`;
+3. execute the RC physical sequence in order;
+4. if any step fails, stop Gate 16, preserve evidence and use the documented 0.1.46 plugin-only rollback if needed;
+5. if all steps pass, close Gate 16 in STATUS/spec/plan/device tests, merge PR #19, then begin Phase S / full V1 acceptance.
