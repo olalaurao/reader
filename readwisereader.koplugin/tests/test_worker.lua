@@ -55,4 +55,19 @@ return function()
     })
     assert(unknown == false)
     assert(unknown_err.kind == "unknown")
+
+    assert(Worker._annotationQueueStatus({
+        documents_authoritative = 1,
+    }, true) == "queued_offline")
+    assert(Worker._annotationQueueStatus({
+        documents_authoritative = 1,
+        documents_skipped = 1,
+    }, true) == "queued_offline_partial")
+    assert(Worker._annotationQueueStatus({
+        documents_authoritative = 1,
+        queue_errors = 1,
+    }, false) == "queued_remote_unavailable_partial")
+    assert(Worker._annotationQueueStatus({
+        documents_authoritative = 0,
+    }, true) == nil)
 end
