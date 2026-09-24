@@ -2510,7 +2510,7 @@ Physical deletion-OFF evidence on build 0.1.31: 2 fresh highlights were created;
 
 Physical deletion-ON close on build 0.1.32: the tombstoned target disappeared remotely, the control highlight remained, deletion propagation was returned OFF, and the follow-up OFF sync showed 0 local deletions, 0 remote deletions, 0 mutation blocks, 0 remote errors. Gate 12 is closed and Phase O / Gate 13 is unblocked.
 
-## Phase O — offline queue hardening — IMPLEMENTED, GATE 13 PENDING
+## Phase O — offline queue hardening — COMPLETE, GATE 13 PASSED
 
 ### O1 — offline create / restart / reconnect / backlog discovery
 Queue core implemented in 0.1.33. Physical builds 0.1.33 and 0.1.34 proved that target-device local network state cannot safely authorize writes. The 0.1.35 read-only diagnostic then observed, while the user had no internet/native Airplane Mode, that `airplaneMode`, `wirelessEnable` and `wifid enable` were all unavailable while KOReader still reported `isWifiOn/isConnected/isOnline=true`.
@@ -2564,7 +2564,7 @@ Implemented:
 - zero/ambiguous match never guesses and never blind retries;
 - non-create stale operations retain generic pending recovery semantics for later phases.
 
-### Gate 13 — physical validation pending on pure-Lua matcher diagnostic build 0.1.41
+### Gate 13 — PASSED on build 0.1.41
 Automated O2/O3 fault injection and managed-document backlog discovery coverage are complete. The 0.1.35 network-state spike is also complete and invalidated local-state authorization.
 
 Physical 0.1.37 Gate 13A result: **FAIL SAFE / no report**. With Airplane Mode/no internet, ordinary Sync displayed only `Document sync failed safely`. No reboot/reconnect step was attempted. Because 0.1.37 introduced broad local sidecar traversal, 0.1.38 adds per-document exception containment, annotation-normalization containment, repository-query fallback, and worker-stage diagnostics without weakening the pre-write remote gate.
@@ -2626,6 +2626,15 @@ Next physical step:
 6. then run one unchanged second Sync and prove created=0 / waiting=0 / no duplicate.
 
 Gate 13 closes only after no duplicate and no lost annotation are physically proven across offline → reboot → reconnect.
+
+Final physical result: Gate 13 **PASSED**.
+- offline queue held 3 creates with zero remote work;
+- queue and local highlight/note survived KOReader restart;
+- matcher hardening was physically validated;
+- reconnect created exactly 3 pending highlights, queue drained to zero, and Reader contained exactly one copy of each with expected notes;
+- unchanged second Sync created 0, processed 0, waiting 0, and produced no duplicate.
+
+Phase O is complete.
 
 ## Phase P — finished/archive
 
@@ -2823,15 +2832,24 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Continue **Phase O / Gate 13** from the merged Gate 12 baseline.
+Begin **Phase P / Gate 14 — Finished → Archive** from the merged Phase O baseline.
 
-1. finish CI/package validation for build 0.1.37;
-2. physically retest ordinary Sync now with native Airplane Mode/no internet using one new unique local highlight;
-3. require the read-only remote preflight to fail safely before any remote write, with the annotation remaining durably queued and no document watermark advance;
-4. restart KOReader while that same queue item is pending;
-5. reconnect Wi-Fi outside the plugin and run Sync now;
-6. prove exactly one remote highlight/note is created or reconciled, then a second unchanged sync creates zero duplicates;
-7. record Gate 13 only after local survival + reboot persistence + exactly-once remote delivery all pass;
-8. do not begin Phase P / Gate 14 before Gate 13 closes.
+1. inspect the current KOReader 2026.07.1 sidecar/status representation for a canonical finished signal;
+2. perform the spec-required spike before assuming which field/event means "finished";
+3. implement only after the signal is demonstrated:
+   - detect the managed document's canonical finished state;
+   - persist/queue archive intent durably;
+   - PATCH the Reader parent document location to `archive` exactly once;
+   - preserve the local document file;
+   - preserve the KOReader sidecar;
+   - preserve progress/highlights/notes;
+   - never infer local deletion from remote archive;
+4. add deterministic idempotency/retry tests;
+5. physically validate Gate 14 on the target PW3:
+   - mark one managed document finished;
+   - Sync;
+   - Reader location becomes archive exactly once;
+   - local file + sidecar + reading state remain intact;
+   - unchanged second Sync performs no duplicate archive mutation;
+6. do not begin Phase Q / Gate 15 until Gate 14 passes.
 
-Physical evidence from build 0.1.35: with no internet/native Airplane Mode, all attempted Kindle LIPC network properties were unavailable while KOReader still reported Wi-Fi/connected/online=true. Therefore local network flags are advisory only; build 0.1.37 uses the existing read-only Readwise auth GET as the authoritative pre-write reachability gate.
