@@ -3073,3 +3073,35 @@ Final Gate 13C step:
    - Reader still contains exactly one copy of each of the 3 Gate 13 highlights/notes.
 5. return the full report.
 6. If this passes, Gate 13 / Phase O can be closed and the branch may advance toward merge before Phase P / Gate 14.
+
+
+### Gate 13C final unchanged Sync — PASS
+
+User confirmed the required unchanged second Sync on build 0.1.41 completed cleanly after the first exactly-once reconnect delivery:
+- no new annotation changes were made before the second Sync;
+- Highlights created: **0**;
+- Create queue items processed: **0**;
+- Create queue waiting after sync: **0**;
+- Highlights unmatched/ambiguous: **0**;
+- no create retry/auth wait/blocker remained;
+- Errors: **0**;
+- Reader still contained exactly one copy of each of the three Gate 13 highlights/notes.
+
+### Gate 13 — PASS / Phase O complete
+
+Physical end-to-end proof now covers:
+1. stable controlled offline state without plugin Wi-Fi control;
+2. local highlight/note persisted into durable queue before remote access;
+3. offline Sync performed no remote mutation and no document-watermark advance;
+4. queue + sidecar highlight/note survived full KOReader restart;
+5. reconnect matcher path was hardened and physically validated on the target PW3;
+6. first reconnect delivered exactly the three pending highlights/notes to the correct original Reader documents;
+7. Reader verification found exactly one copy of each with expected note content;
+8. unchanged second Sync created zero new highlights and left queue waiting at zero.
+
+Conclusion:
+- **Gate 13 PASSED**;
+- **Phase O COMPLETE**;
+- no known Phase O blocker remains;
+- PR #16 can be moved out of draft and merged through the normal repository flow;
+- next canonical work is **Phase P / Gate 14 — Finished → Archive exactly once while local file/sidecar/progress/annotations remain intact**.
