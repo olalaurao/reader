@@ -69,6 +69,9 @@ local function testDocuments()
     assertEqual(second.raw_source_available, true)
     local by_path = docs:getByLocalPath("/mnt/us/documents/Readwise/Articles/old.html")
     assertEqual(by_path.reader_id, "doc-1")
+    local archived = docs:setLocation("doc-1", "archive")
+    assertEqual(archived.location, "archive")
+    assertEqual(docs:getById("doc-1").location, "archive")
     assertEqual(docs:getByLocalPath("/mnt/us/documents/Readwise/Articles/missing.html"), nil)
 
     local local_managed = docs:listManagedLocal()
@@ -247,6 +250,44 @@ local function testQueue()
     conn:exec("UPDATE queue SET status='in_flight' WHERE id=" .. tostring(generic.id) .. ";")
     queue:recoverStaleInFlight(41)
     assertEqual(queue:getByKey("archive:doc-2").status, "pending")
+
+    local archive_item = queue:prepareArchive({
+        idempotency_key = "archive_document:doc-3",
+        operation = "archive_document",
+        entity_type = "document",
+        reader_document_id = "doc-3",
+        payload_json = "{\"location\":\"archive\"}",
+        payload_hash = "archive-hash-1",
+        created_at = 42,
+        updated_at = 42,
+    }, false)
+    assertEqual(archive_item.status, "pending")
+    assertEqual(queue:countArchiveWaiting(), 3)
+    local archive_work = queue:listArchiveWork(42)
+    assertEqual(#archive_work, 3)
+
+    local cancelled = queue:markCancelled(
+        "archive_document:doc-3",
+        "local no longer finished",
+        43
+    )
+    assertEqual(cancelled.status, "cancelled")
+    assertEqual(cancelled.attempts, 0)
+    assertEqual(queue:countArchiveWaiting(), 2)
+
+    local reopened = queue:prepareArchive({
+        idempotency_key = "archive_document:doc-3",
+        operation = "archive_document",
+        entity_type = "document",
+        reader_document_id = "doc-3",
+        payload_json = "{\"location\":\"archive\",\"again\":true}",
+        payload_hash = "archive-hash-2",
+        created_at = 44,
+        updated_at = 44,
+    }, false)
+    assertEqual(reopened.status, "pending")
+    assertEqual(reopened.payload_hash, "archive-hash-2")
+    assertEqual(queue:countArchiveWaiting(), 3)
 
     local blocked = queue:markBlocked(
         "create_highlight:ann-1",
