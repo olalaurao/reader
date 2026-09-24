@@ -5,5 +5,5 @@ local _ = require("gettext")
 return {
     name = "readwisereader",
     fullname = _("Readwise Reader"),
-    description = _([[Synchronize Readwise Reader content with KOReader. Experimental 0.1.43 adds durable, idempotent Finished-to-Archive synchronization after the canonical KOReader Finished signal passed physically on the target PW3.]]),
+    description = _([[Synchronize Readwise Reader content with KOReader. Experimental 0.1.44 starts Gate 15 with durable content-refresh deferral and a read-only sidecar/content-comparison diagnostic; existing local content is never auto-replaced.]]),
 }
