@@ -1530,7 +1530,7 @@ The first physical 0.1.37 run then exposed a robustness gap not represented in C
 
 ## Blockers
 
-Immediate blocker: **confirm local highlight/note visibility after reboot; queue persistence itself passed Gate 13B**.
+Immediate blocker: **Gate 13C reconnect / exactly-once delivery on build 0.1.38**.
 
 Physical 0.1.37 result:
 - native Kindle Airplane Mode had been enabled before the test;
@@ -2531,3 +2531,43 @@ If local annotation visibility is confirmed, Gate 13B passes and the next physic
 4. require exactly the pending creates/reconciliations to drain the queue without duplicates;
 5. verify Reader contains exactly one copy of each expected new highlight/note;
 6. then run one unchanged second Sync and require created=0, waiting=0.
+
+
+### Gate 13B — PASS
+
+Physical confirmation received:
+- same local Gate 13 highlight survived the KOReader restart;
+- same local note survived the KOReader restart;
+- durable create queue remained at **3 waiting** after restart;
+- offline post-reboot Sync created **0** remote highlights;
+- queue processed **0** items;
+- metadata/content pages remained **0**;
+- current annotation document remained `ok`.
+
+Conclusion:
+- **Gate 13B PASSED**;
+- local sidecar annotation state and durable queue both survive a KOReader process restart while offline;
+- no duplicate or remote side effect occurred during the persistence check.
+
+### Gate 13C — reconnect / exactly-once delivery
+
+Next physical action:
+1. keep build **0.1.38** installed;
+2. do not create, edit, or delete any Gate 13 fixture;
+3. enable Wi-Fi **outside the plugin**, from KOReader's Network menu;
+4. confirm KOReader has internet;
+5. run ordinary **Sync now** exactly once;
+6. require:
+   - remote preflight = `passed`;
+   - create queue items processed > 0;
+   - create queue waiting after sync = **0**;
+   - no create remains blocked/ambiguous;
+   - each previously-pending local highlight/note appears under the correct original Reader document exactly once;
+   - no local highlight/note disappears.
+7. return the full report and verify Reader-side copy count.
+8. then run **Sync now** a second time with no changes:
+   - Highlights created = **0**;
+   - Create queue waiting after sync = **0**;
+   - exactly one Reader copy of each expected highlight/note;
+   - local highlight/note still present.
+9. Gate 13 closes only after both reconnect sync and unchanged second sync pass.
