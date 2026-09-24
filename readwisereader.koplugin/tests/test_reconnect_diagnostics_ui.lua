@@ -76,7 +76,7 @@ return function()
                         marker_scan_pages = 1,
                         marker_matches_total = 1,
                         parent_probe_max_bytes = 1048576,
-                        parent_probe_mode = "bounded_fetch_only",
+                        parent_probe_mode = "bounded_fetch_and_pure_lua_match",
                         items = {
                             {
                                 status = "pending",
@@ -86,7 +86,8 @@ return function()
                                 parent_metadata = "ok",
                                 parent_html = "ok",
                                 parent_html_bytes = 1200,
-                                match_status = "not_run",
+                                match_status = "matched",
+                                match_mode = "exact",
                             },
                             {
                                 status = "in_flight",
@@ -115,7 +116,9 @@ return function()
         assert(shown[1].text:find("marker_matches=1", 1, true))
         assert(shown[1].text:find("parent_html=too_large", 1, true))
         assert(shown[1].text:find("Parent probe body cap: 1048576 bytes", 1, true))
-        assert(shown[1].text:find("Text matching: not run in this build", 1, true))
+        assert(shown[1].text:find("match=matched", 1, true))
+        assert(shown[1].text:find("mode=exact", 1, true))
+        assert(shown[1].text:find("Text matching: enabled (pure-Lua NFC fallback)", 1, true))
         assert(shown[1].text:find("Remote writes: none", 1, true))
     end)
 
@@ -138,7 +141,7 @@ return function()
                         marker_scan_pages = 1,
                         marker_matches_total = 1,
                         parent_probe_max_bytes = 1048576,
-                        parent_probe_mode = "bounded_fetch_only",
+                        parent_probe_mode = "bounded_fetch_and_pure_lua_match",
                         items = {
                             {
                                 status = "pending",
