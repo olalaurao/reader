@@ -901,6 +901,8 @@ conflict
 
 Após reiniciar o KOReader, a fila deve continuar consistente.
 
+No PW3 alvo, flags locais de Wi-Fi/online não são autoridade suficiente para liberar escrita remota: o Gate 13 demonstrou estado local falso-positivo em Airplane Mode. O Sync deve persistir a anotação local primeiro e exigir um probe remoto **somente leitura** bem-sucedido antes de processar a fila. Falha do probe mantém a fila local e não executa escrita remota.
+
 ---
 
 ## 31. Retry e rate limit
@@ -1313,4 +1315,12 @@ Não:
 
 ## 46. Próximo passo
 
-Finalizar a **Phase F / Gate 4** em KOReader 2025.04. Depois do Gate 4, executar a migração controlada de `docs/KOREADER_UPGRADE.md`: backup -> KOReader oficial v2026.07.1 (`kindlepw2`) -> regressão do Readwise Reader -> Bookshelf v5.1.4 -> teste de coexistência. Só então seguir para imagens, formatos e sidecars/anotações.
+Concluir a **Phase O / Gate 13** na baseline física já adotada: PW3 + KOReader v2026.07.1.
+
+Ordem:
+1. validar a build 0.1.36 com Airplane Mode/no internet: anotação deve entrar na fila local e nenhuma escrita remota pode ocorrer;
+2. reiniciar KOReader com a fila pendente;
+3. reconectar Wi-Fi fora do plugin;
+4. sincronizar e provar entrega exatamente uma vez;
+5. rodar segundo sync sem mudanças e confirmar zero duplicatas;
+6. somente depois iniciar **Phase P / Gate 14 (Finished → Archive)**.
