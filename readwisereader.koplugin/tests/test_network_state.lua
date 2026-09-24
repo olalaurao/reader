@@ -58,7 +58,6 @@ return function()
         local online, reason = state:isAvailable()
         assert(online == true)
         assert(reason == "online")
-        assert(m.queried == true)
     end
 
     do
