@@ -1703,6 +1703,14 @@ A second 0.1.35 online screenshot is no longer required before implementing the 
 
 ### Build 0.1.36 — Gate 13A retest
 
+Automated/package validation:
+- draft PR #16;
+- CI run #553 on implementation/package HEAD `f89204dd098a3e530990b8ced0e050b0e106d33d`: **SUCCESS**;
+- development checks, Lua unit tests, ZIP build, package layout and artifact upload all passed;
+- artifact ID: `10786469934`;
+- artifact name: `readwisereader-koplugin-475dc29fd1fd180b40c0e9091c39f81b1532c901`;
+- artifact digest: `sha256:7944e764ed09815ec51b1739769254b2578c2dcc8df19a832b45056215b1fb76`.
+
 0.1.36 no longer uses those local flags as permission to write remotely. Ordinary Sync now queues the local annotation first and then performs a **read-only Readwise auth GET** inside the cancellable worker. No create/update/delete/document sync is allowed unless that probe succeeds.
 
 Use a **new unique** local highlight/note; do not reuse fixtures already uploaded by 0.1.33/0.1.34.
