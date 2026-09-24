@@ -271,8 +271,17 @@ function Worker:run(options)
             }
             applyAnnotationDefaults(local_report)
             if (local_queue_report.documents_authoritative or 0) > 0 then
-                local_report.annotation_sync_status =
-                    offline and "queued_offline" or "queued_remote_unavailable"
+                local partial = (local_queue_report.scan_errors or 0) > 0
+                    or (local_queue_report.queue_errors or 0) > 0
+                    or (local_queue_report.documents_skipped or 0) > 0
+                if offline then
+                    local_report.annotation_sync_status =
+                        partial and "queued_offline_partial" or "queued_offline"
+                else
+                    local_report.annotation_sync_status =
+                        partial and "queued_remote_unavailable_partial"
+                        or "queued_remote_unavailable"
+                end
             end
             local storage_after = util.diskUsage(config:getDownloadDirectory())
             local_report.storage_available_after =
