@@ -1315,31 +1315,24 @@ Não:
 
 ## 46. Próximo passo
 
-A **Phase Q / Gate 15 passou completa** e a matriz determinística da **Phase R / Gate 16** está coberta off-device na candidata **0.1.47**.
+A candidata **0.1.47** já passou o primeiro smoke físico do Gate 16 no PW3:
+- plugin inicia;
+- settings/token persistem;
+- artigo gerenciado preserva posição/progresso/highlights/notas;
+- primeiro Sync Wi-Fi-on completa sem erro fatal, duplicata ou replacement inesperado.
 
-Hardening automatizado já cobre, na ordem canônica:
-- biblioteca de 5.000 documentos / 50 páginas;
-- pouco espaço e ENOSPC sem arquivo parcial;
-- registros malformados;
-- respostas/documentos enormes com limites;
-- Unicode;
-- 429 / Retry-After;
-- perda de rede durante scan incremental sem avançar watermark;
-- fila persistente em force-close/reboot;
-- migration/transaction rollback;
-- compatibilidade de rollback para 0.1.46;
-- redaction/tripwires de token e URLs assinadas.
+Próximo checkpoint físico: **segundo Sync sem nenhuma mudança**.
+- não alterar Reader/local state de propósito;
+- rodar `Sync now` uma vez;
+- confirmar no-op/idempotência: sem duplicata, sem replacement/download inesperado e sem novo acknowledgement de revisão já resolvida.
 
-Próximo passo físico: **smoke de release candidate 0.1.47 no PW3**, seguindo `docs/GATE16_HARDENING.md`:
-1. backup da 0.1.46 + settings/DB/documentos/sidecars;
-2. instalar somente a 0.1.47;
-3. smoke de plugin/estado local;
-4. Sync normal e segundo Sync no-op;
-5. criar highlight/nota offline e confirmar fila durável;
-6. reiniciar KOReader com item pendente, reconectar e sincronizar sem duplicata;
-7. novo restart/persistência;
-8. revisão local do crash.log por segredos.
+Somente depois desse PASS seguir para:
+1. highlight/nota local offline;
+2. fila durável sem remote write;
+3. restart do KOReader com item pendente;
+4. reconnect + Sync exatamente uma vez;
+5. ausência de duplicata;
+6. novo restart/persistência;
+7. revisão local do crash.log por token/Authorization/URL assinada/private payload.
 
-Não testar low-disk/malformed/huge enchendo o Kindle ou fabricando conteúdo privado; esses riscos ficam nos testes determinísticos.
-
-**Gate 16 continua aberto** até a 0.1.47 ficar fisicamente estável no PW3. Só depois iniciar Phase S / aceite final V1.
+Gate 16 continua aberto; Phase S continua bloqueada.

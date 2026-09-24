@@ -2852,3 +2852,29 @@ Current physical checkpoint:
 Do not deliberately fill the Kindle filesystem or manufacture malformed/giant private fixtures. Low-disk, malformed, huge-document, Unicode, 429, interrupted-network, restart persistence, migration/rollback and secret-redaction failure modes are covered deterministically off-device before this build is installed.
 
 If the first RC smoke passes, continue the remaining no-op/offline-queue/reboot/reconnect/log-review sequence in `docs/GATE16_HARDENING.md`.
+
+
+## Gate 16 — 0.1.47 RC checkpoint 1 — PASS
+
+User confirmed the requested initial RC smoke passed on the target PW3:
+- plugin 0.1.47 loads;
+- settings/token remain usable;
+- existing managed article preserves reading state and annotations;
+- first ordinary Wi-Fi-on Sync succeeds;
+- no fatal error, duplicate or unexpected content replacement observed.
+
+### Next device checkpoint — unchanged second Sync
+
+1. Make no intentional Reader/local changes.
+2. Keep normal connectivity available.
+3. Run **Sync now exactly once**.
+4. Return the full report.
+
+Expected:
+- no fatal errors;
+- no duplicate document/highlight;
+- no unexpected content download/replacement;
+- no new metadata-only acknowledgement for revisions already settled;
+- no unexpected queue/archive mutation.
+
+Stop after this report. The offline highlight/queue/restart test comes only after this no-op checkpoint passes.

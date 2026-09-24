@@ -44,6 +44,16 @@ Do not copy the token/settings file into Git or chat.
 
 ## 0.1.47 PW3 release-candidate smoke
 
+### Physical progress
+
+Checkpoint 1 — **PASS** on target PW3:
+- 0.1.47 loads after restart;
+- existing settings/token remain usable;
+- existing managed article preserves position/progress/highlights/notes;
+- first ordinary Wi-Fi-on Sync completes without fatal errors, duplicates or unexpected replacement.
+
+Current checkpoint: step 4, unchanged second Sync. Do not proceed to the offline queue/restart steps until that report is reviewed.
+
 After installing only the new plugin directory and restarting KOReader:
 
 1. Readwise Reader loads and existing settings/token remain usable.

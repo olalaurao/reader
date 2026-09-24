@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase R / Gate 16 — deterministic hardening PASS on candidate 0.1.47; PW3 release-candidate smoke is the current blocker**
+**Phase R / Gate 16 — 0.1.47 RC initial PW3 smoke PASSED; unchanged second Sync is the current physical checkpoint**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
@@ -4513,3 +4513,55 @@ Do **not** deliberately fill the Kindle filesystem or manufacture corrupt/huge p
 - Packaged `constants.VERSION`: `0.1.47`.
 - Packaged metadata describes the Gate 16 0.1.47 hardening candidate.
 - This is the exact package to use for the pending PW3 physical RC smoke.
+
+
+## Gate 16 0.1.47 RC physical smoke — checkpoint 1 PASS
+
+User confirmed the exact first physical block requested for candidate 0.1.47 passed on the target PW3.
+
+Accepted result:
+- backup/pre-install checkpoint completed before replacing the plugin;
+- 0.1.47 loaded successfully after KOReader restart;
+- existing Readwise Reader settings/token remained usable;
+- one previously-managed article opened with position/progress, highlights and notes intact;
+- first ordinary Wi-Fi-on `Sync now` across the real library completed successfully;
+- no fatal error was reported;
+- no duplicate document/highlight was observed;
+- no unexpected existing-document content replacement was observed;
+- local reading state remained intact after the Sync.
+
+Conclusion:
+- Gate 16 RC steps 1–3 are **PASSED physically**;
+- no production-code change is justified by this checkpoint;
+- the next physical checkpoint is only the **unchanged second Sync** for no-op/idempotency;
+- offline queue/restart/reconnect testing remains blocked until that second Sync is reviewed;
+- Gate 16 overall remains OPEN.
+
+### Work completed off-device after checkpoint 1
+- re-read current `STATUS.md`, `IMPLEMENTATION_SPEC.md` and `PLAN.md` from branch HEAD;
+- confirmed PR #19 remains draft/mergeable;
+- confirmed final pre-device CI #1083 was SUCCESS;
+- confirmed the packaged/installed RC remains 0.1.47 with schema v2 and existing automatic content replacement disabled;
+- no code or schema change is needed between RC checkpoint 1 and the no-op Sync.
+
+### Gates
+- Gates 0–15: PASSED.
+- Gate 16 deterministic hardening: PASSED.
+- Gate 16 RC initial startup/state/first-Sync smoke: **PASSED**.
+- Gate 16 RC unchanged second Sync: **PENDING**.
+- Gate 16 offline queue/restart/reconnect: BLOCKED by the second-Sync checkpoint.
+- Gate 16 final restart/log-secret review: BLOCKED.
+- Phase S: BLOCKED by Gate 16.
+
+### Exact next physical step
+1. Do not change Reader documents, tags, locations, highlights, notes or local reading progress intentionally between runs.
+2. Keep normal connectivity available.
+3. Run ordinary **Sync now exactly once** on the already-installed 0.1.47.
+4. Require:
+   - Sync completes without fatal errors;
+   - no duplicate document/highlight;
+   - no new download/replacement caused by unchanged content;
+   - no new metadata-only acknowledgement for already-settled article revisions;
+   - no unexpected queue/archive mutation.
+5. Return the complete Sync report or confirm all criteria passed.
+6. Do **not** create the offline test highlight/note yet; that is the following checkpoint.

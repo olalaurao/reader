@@ -3108,23 +3108,27 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Run the **0.1.47 Gate 16 release-candidate smoke on the target PW3** using `docs/GATE16_HARDENING.md`.
+Continue the **0.1.47 Gate 16 PW3 release-candidate smoke** from the physically passed initial checkpoint.
 
-Preconditions:
-1. keep Kindle firmware 5.16.2.1.1 and KOReader v2026.07.1 unchanged;
-2. back up the working 0.1.46 plugin, Readwise settings/SQLite DB and relevant documents/sidecars with KOReader closed;
-3. install only the 0.1.47 plugin directory and restart KOReader.
+Already physically passed on the target PW3:
+- 0.1.47 plugin/startup;
+- existing settings/token preserved;
+- existing managed article reading state preserved;
+- first ordinary Wi-Fi-on Sync completed without fatal error, duplicate or unexpected replacement.
 
-Physical sequence:
-1. plugin/settings/token smoke;
-2. preserved existing article reading state;
-3. one normal Wi-Fi-on Sync across the real library;
-4. one unchanged no-op Sync;
-5. offline local highlight/note -> durable queue with no remote write;
-6. KOReader restart while pending -> reconnect -> Sync exactly once, no duplicate;
-7. second restart/persistence check;
-8. local crash.log secret review.
+Next checkpoint — unchanged no-op Sync only:
+1. make no intentional Reader/local content or annotation changes;
+2. keep connectivity available;
+3. run ordinary `Sync now` exactly once;
+4. require no fatal error, no duplicate, no unexpected replacement/download and no new metadata-only acknowledgement for already-settled article revisions;
+5. review that report before continuing.
 
-Do not deliberately fill storage or manufacture malformed/huge private documents on-device; those cases are deterministic CI coverage.
+Only after this checkpoint passes:
+- create one harmless local highlight/note while connectivity is actually unavailable;
+- Sync once and require durable local queue/no remote write;
+- restart KOReader while pending;
+- reconnect and Sync exactly once;
+- verify one remote create and no duplicate;
+- perform final restart/state/log-redaction checks.
 
-Gate 16 remains **OPEN** until this RC sequence is physically stable. If 0.1.47 is unstable, follow the plugin-only rollback procedure in `docs/GATE16_HARDENING.md`.
+Do not mark Gate 16 passed until the whole RC sequence is physically stable.
