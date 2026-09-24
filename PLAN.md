@@ -1315,32 +1315,23 @@ Não:
 
 ## 46. Próximo passo
 
-A **Phase O / Gate 13 está concluída e mergeada** em `main` pelo PR #16 (`b7c8977b89cf572bec1280e3490a033341af4375`).
+A **Phase P / Gate 14 está concluída** na baseline física PW3 + KOReader v2026.07.1.
 
-Fase atual: **Phase P / Gate 14 — Finished → Archive**.
+Próxima fase: **Phase Q / Gate 15 — content refresh safety**.
 
-O spike físico 0.1.42 **PASSOU** no PW3:
-- antes: sidecar/BookList/runtime = `reading`;
-- depois de **Book status → Finished**: sidecar/BookList/runtime = `complete`;
-- `summary.modified` mudou para 2026-09-24;
-- `percent_finished` permaneceu 0.1538, provando que porcentagem não é o sinal;
-- o diagnóstico não fez request nem write.
+Objetivo:
+- provar como atualizações remotas de conteúdo afetam um documento local já lido/anotado;
+- impedir qualquer substituição automática que possa perder posição, highlights, notas ou configurações do sidecar;
+- tratar HTML/artigo e raw PDF/EPUB separadamente se o risco for diferente.
 
-Build 0.1.43 implementa a política V1:
-1. **Archive in Reader** default ON;
-2. detectar exatamente `summary.status=complete` em documentos Reader gerenciados presentes localmente;
-3. persistir intenção `archive_document` antes da rede;
-4. GET remoto antes de PATCH/retry para reconciliar outcome ambíguo;
-5. PATCH individual `location=archive`;
-6. atualizar DB/Collection local para Archive, mantendo arquivo/sidecar/progresso/highlights/notas;
-7. nunca deletar arquivo local por archive remoto;
-8. segundo Sync sem mudanças não reenvia archive.
-
-Próximo gate físico:
-1. instalar 0.1.43;
-2. com o mesmo documento já Finished e Wi-Fi ON, rodar **Sync now uma vez**;
-3. conferir relatório completo;
-4. confirmar no Reader que foi para Archive;
-5. confirmar no Kindle que arquivo, sidecar, progresso, highlights e notas continuam;
-6. depois rodar segundo Sync no-op;
-7. somente após PASS iniciar Phase Q / Gate 15.
+Ordem:
+1. inspecionar o comportamento atual do materializador/update path;
+2. preparar spike seguro para artigo já parcialmente lido com highlight/nota;
+3. medir atualização remota sem presumir que substituir arquivo seja seguro;
+4. preparar spike separado para PDF/EPUB;
+5. implementar política conservadora:
+   - auto-refresh apenas quando comprovadamente seguro;
+   - deferir/bloquear refresh arriscado mantendo o arquivo atual;
+   - preservar sidecar sempre;
+6. Gate 15 físico: nenhuma perda de progresso/anotação após remote content update;
+7. somente depois iniciar Phase R / Gate 16.
