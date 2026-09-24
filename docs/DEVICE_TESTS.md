@@ -2545,3 +2545,21 @@ Next:
 - run **Inspect content refresh safety (Gate 15)** again;
 - expect refresh pending yes / visible text same / decision same_visible_text_keep_local / replacement no.
 Do not run another ordinary Sync yet.
+
+
+### Gate 15 Q1-A post-revision article safety — PASS
+
+After the title-only revision:
+- local article opens;
+- progress/position unchanged;
+- highlights unchanged;
+- notes unchanged;
+- refresh pending yes;
+- reading state at risk yes;
+- remote probe passed;
+- visible-text comparison same;
+- decision `same_visible_text_keep_local`;
+- replacement no;
+- remote/local writes none.
+
+Q1-A is physically passed. Q2 may now clear only same-visible-text metadata-only article revisions without replacing local bytes.
