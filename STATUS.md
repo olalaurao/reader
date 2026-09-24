@@ -1530,7 +1530,7 @@ The first physical 0.1.37 run then exposed a robustness gap not represented in C
 
 ## Blockers
 
-Immediate blocker: **Gate 13B physical reboot-persistence check on build 0.1.38**.
+Immediate blocker: **confirm local highlight/note visibility after reboot; queue persistence itself passed Gate 13B**.
 
 Physical 0.1.37 result:
 - native Kindle Airplane Mode had been enabled before the test;
@@ -2476,3 +2476,58 @@ Conclusion:
    - Content pages = **0**.
 7. Return the whole report and whether the local highlight/note survived.
 8. Do **not** reconnect Wi-Fi until Gate 13B is confirmed.
+
+
+### Gate 13B reboot-persistence report — queue persistence PASS / local annotation visibility pending user confirmation
+
+Physical target: PW3 / KOReader v2026.07.1 / build 0.1.38.
+
+After a full KOReader restart with Wi-Fi still OFF, ordinary Sync now reported:
+- Remote preflight: `unknown`;
+- Annotation sync: `queued_offline_partial`;
+- Managed annotation documents scanned: **801**;
+- Authoritative annotation sidecars: **13**;
+- Annotation documents skipped safely: **788**;
+- Annotation scan errors: **0**;
+- Annotation scan exceptions isolated: **0**;
+- Annotation normalize exceptions isolated: **0**;
+- Annotation queue errors: **0**;
+- Annotation queue exceptions isolated: **0**;
+- Annotation repository source: `managed_local`;
+- Annotation repository fallback: **no**;
+- Current annotation document status: `ok`;
+- Managed-document highlights scanned: **12**;
+- Highlights created: **0**;
+- Highlights reconciled safely: **0**;
+- Highlights already linked: **9**;
+- Highlights unmatched/ambiguous: **0**;
+- Highlight creates blocked safely: **0**;
+- Highlight creates queued durably: **3**;
+- Create queue items processed: **0**;
+- Create retries deferred: **0**;
+- Create auth waits: **0**;
+- Create queue waiting after sync: **3**;
+- Reconciliation markers verified: **0**;
+- Notes updated: **0**;
+- Remote highlight deletions: **0**;
+- Metadata pages: **0**;
+- Content pages: **0**;
+- Errors: **0**.
+
+Conclusion from the report:
+- durable create queue **survived the KOReader process restart**;
+- no queued create was processed while offline;
+- no remote document work progressed;
+- no duplicate/reconciliation side effect occurred;
+- current document remained authoritative after restart.
+
+Remaining Gate 13B evidence:
+- user confirmation that the same local highlight + note were still visible after restart.
+
+If local annotation visibility is confirmed, Gate 13B passes and the next physical step is Gate 13C:
+1. enable Wi-Fi from KOReader outside the plugin;
+2. keep the same queue/fixtures; create nothing new;
+3. run Sync now once;
+4. require exactly the pending creates/reconciliations to drain the queue without duplicates;
+5. verify Reader contains exactly one copy of each expected new highlight/note;
+6. then run one unchanged second Sync and require created=0, waiting=0.
