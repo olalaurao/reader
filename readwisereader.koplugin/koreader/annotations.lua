@@ -194,9 +194,18 @@ function KOReaderAnnotations:scan(local_path, reader_document_id)
 
     local normalized = {}
     local malformed = 0
+    local normalize_exceptions = 0
     for _, annotation in ipairs(annotations) do
-        local item, reason = self:normalize(reader_document_id, annotation)
-        if item then
+        local normalize_ok, item, reason = pcall(
+            self.normalize,
+            self,
+            reader_document_id,
+            annotation
+        )
+        if not normalize_ok then
+            malformed = malformed + 1
+            normalize_exceptions = normalize_exceptions + 1
+        elseif item then
             normalized[#normalized + 1] = item
         elseif reason ~= "not_highlight" then
             malformed = malformed + 1
@@ -215,6 +224,7 @@ function KOReaderAnnotations:scan(local_path, reader_document_id)
         source_candidate = settings.source_candidate,
         annotations = normalized,
         malformed = malformed,
+        normalize_exceptions = normalize_exceptions,
     }
 end
 
