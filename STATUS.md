@@ -623,6 +623,8 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - 0.1.36 artifact ID: `10786469934`
 - artifact name: `readwisereader-koplugin-475dc29fd1fd180b40c0e9091c39f81b1532c901`
 - artifact digest: `sha256:7944e764ed09815ec51b1739769254b2578c2dcc8df19a832b45056215b1fb76`
+- verified installable inner ZIP SHA-256: `5be016c319586d9ca72512c82e4d98aa1ba02b505d92dc1aafd126a3901d381e`
+- local verification: outer artifact SHA matched GitHub digest; inner `readwisereader.koplugin.zip` passed `unzip -t` with no errors.
 - Artifact workflow run: `35947882140` / run #553.
 - Documentation-only commits after `f89204d...` do not change packaged plugin bytes; the physical build remains version **0.1.36**.
 - Annotation/retry invariants: `docs/ANNOTATION_SYNC_LESSONS.md`, now including the Gate 13 pre-write reachability boundary.
