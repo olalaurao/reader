@@ -62,6 +62,7 @@ function Worker:run(options)
     local DocumentsSync = require("sync/documents")
     local AnnotationSync = require("sync/annotations")
     local AnnotationUpload = require("sync/annotation_upload")
+    local AnnotationBacklog = require("sync/annotation_backlog")
     local AnnotationMutations = require("sync/annotation_mutations")
     local KOReaderAnnotations = require("koreader/annotations")
     local logger = require("logger")
@@ -171,46 +172,32 @@ function Worker:run(options)
             hasher = Hash,
         }
 
-        local annotation_sync_status = "no_current_document"
-        local local_queue_report = {
-            scanned = 0,
-            queued = 0,
-            already_linked = 0,
-            unmatched = 0,
-            blocked = 0,
+        -- Phase O closes the staging limitation from Phases L/N: discover
+        -- new create work across every locally-present Reader-managed document,
+        -- not only whichever document happens to be open when Sync now runs.
+        -- Destructive/note mutations remain bounded to the current document.
+        local backlog = AnnotationBacklog:new{
+            documents = repository,
+            scanner = scanner,
+            uploader = uploader,
         }
-        local current_managed = false
-        local current_scan_authoritative = false
-
-        if type(options.current_path) == "string" and options.current_path ~= "" then
-            local current = repository:getByLocalPath(options.current_path)
-            if current and current.is_managed == true and current.is_local_present == true then
-                current_managed = true
-                local scan_report, annotation_scan_err = scanner:scanPath(options.current_path)
-                if not scan_report then
-                    annotation_sync_status = "scan_error"
-                    local_queue_report.last_error_kind = annotation_scan_err
-                        and annotation_scan_err.kind or "unknown"
-                elseif not scan_report.authoritative then
-                    annotation_sync_status = scan_report.status or "sidecar_not_authoritative"
-                else
-                    current_scan_authoritative = true
-                    local queued, queue_err = uploader:queuePath(options.current_path)
-                    if not queued then
-                        annotation_sync_status = "queue_error"
-                        local_queue_report.last_error_kind = queue_err
-                            and queue_err.kind or "unknown"
-                    else
-                        annotation_sync_status = queued.status or "ok"
-                        local_queue_report = queued
-                    end
-                end
-            else
-                annotation_sync_status = "current_document_not_managed"
-            end
-        end
+        local local_queue_report = backlog:queueAll(options.current_path)
+        local annotation_sync_status = local_queue_report.status or "ok"
+        local current_managed = local_queue_report.current_managed == true
+        local current_scan_authoritative =
+            local_queue_report.current_scan_authoritative == true
 
         local function applyAnnotationDefaults(sync_report)
+            sync_report.annotation_documents_scanned =
+                local_queue_report.documents_seen or 0
+            sync_report.annotation_documents_authoritative =
+                local_queue_report.documents_authoritative or 0
+            sync_report.annotation_documents_skipped =
+                local_queue_report.documents_skipped or 0
+            sync_report.annotation_scan_errors =
+                local_queue_report.scan_errors or 0
+            sync_report.annotation_queue_errors =
+                local_queue_report.queue_errors or 0
             sync_report.annotation_scanned = local_queue_report.scanned or 0
             sync_report.highlights_created = 0
             sync_report.highlights_reconciled = 0
@@ -268,7 +255,7 @@ function Worker:run(options)
                     storage_before and storage_before.available or nil,
             }
             applyAnnotationDefaults(local_report)
-            if current_scan_authoritative then
+            if (local_queue_report.documents_authoritative or 0) > 0 then
                 local_report.annotation_sync_status =
                     offline and "queued_offline" or "queued_remote_unavailable"
             end
@@ -293,8 +280,8 @@ function Worker:run(options)
         end
 
         -- Process every durable create, including work left by a previous
-        -- KOReader process, before the document feed. New local work from the
-        -- current sidecar was already queued above.
+        -- KOReader process, before the document feed. New local work from all
+        -- authoritative managed sidecars was already queued above.
         local queue_report = uploader:processQueue()
 
         local sync_report, sync_err = syncer:sync{
