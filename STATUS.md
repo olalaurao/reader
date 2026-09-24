@@ -606,7 +606,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Branch: `phase-o/offline-queue-gate13`
 - Draft PR: **#16** — keep draft / do not merge until Gate 13 passes physically.
 - Base/integrated `main`: `54509c84bb731cfa0507865d6cc8fb300859647d` (PR #15 merge / Phase N + Gate 12 passed)
-- Current pre-final-STATUS branch HEAD: `219e0bd2fe6c77f44c7f6648b3d6446ba63bfd61`; final STATUS/PR documentation commits follow this SHA.
+- Current pre-final-STATUS branch HEAD: `fc34257890e9577395ab6eff99bb414bf2843be6`; this final STATUS-only handoff commit follows it.
 - Build version under physical diagnosis: **0.1.41**.
 - Gate 13A: **PASSED** on 0.1.38.
 - Gate 13B: **PASSED** on 0.1.38.
