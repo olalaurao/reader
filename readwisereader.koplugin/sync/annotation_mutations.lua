@@ -494,11 +494,28 @@ function Mutations:_syncDeletion(document, link, report)
         return
     end
 
-    local child, child_err = self:_verifyChild(document, link)
+    -- Destructive identity is cross-API: the exact durable Reader child must
+    -- belong to the expected parent/category, and the exact Readwise v2
+    -- highlight must map back via external_id == Reader child id.
+    local child, child_err = self:_verifyChild(
+        document,
+        link,
+        { allow_durable_link_without_source = true }
+    )
     if not child then
         if isNotFound(child_err) then
-            self.annotations:markRemoteDeleted(link.local_annotation_id)
-            report.deletions_already_remote = report.deletions_already_remote + 1
+            local v2, v2_err = self:_getV2Highlight(link, report)
+            if not v2 and isNotFound(v2_err) then
+                self.annotations:markRemoteDeleted(link.local_annotation_id)
+                report.deletions_already_remote = report.deletions_already_remote + 1
+                return
+            end
+            self.annotations:setSyncState(
+                link.local_annotation_id,
+                "local_deleted",
+                v2_err and v2_err.kind or "delete_reader_missing_v2_present"
+            )
+            report.blocked = report.blocked + 1
             return
         end
         self.annotations:setSyncState(
@@ -514,6 +531,36 @@ function Mutations:_syncDeletion(document, link, report)
         return
     end
 
+    local v2, v2_err = self:_getV2Highlight(link, report)
+    if not v2 then
+        self.annotations:setSyncState(
+            link.local_annotation_id,
+            "local_deleted",
+            v2_err and v2_err.kind or "delete_v2_identity"
+        )
+        if v2_err and (
+            v2_err.kind == "v2_mapping"
+            or v2_err.kind == "v2_mapping_ambiguous"
+            or v2_err.kind == "remote_identity"
+        ) then
+            report.blocked = report.blocked + 1
+        else
+            report.remote_errors = report.remote_errors + 1
+        end
+        return
+    end
+    if v2.external_id ~= child.id then
+        self.annotations:setSyncState(
+            link.local_annotation_id,
+            "local_deleted",
+            "delete_cross_api_identity"
+        )
+        report.blocked = report.blocked + 1
+        return
+    end
+    report.delete_cross_api_identity_verified =
+        report.delete_cross_api_identity_verified + 1
+
     local deleted, delete_err = self.reader:deleteDocument(child.id)
     if not deleted then
         self.annotations:setSyncState(
@@ -525,8 +572,41 @@ function Mutations:_syncDeletion(document, link, report)
         return
     end
 
+    local gone = false
+    local last_verify_err
+    for attempt = 1, self.reader_verify_attempts do
+        local after, after_err = self.reader:getDocument(child.id, false, false)
+        report.reader_delete_verification_reads =
+            report.reader_delete_verification_reads + 1
+        if not after and isNotFound(after_err) then
+            gone = true
+            break
+        end
+        last_verify_err = after_err or err(
+            "delete_not_visible",
+            "Reader child still existed after DELETE acknowledgement.",
+            true
+        )
+        if attempt < self.reader_verify_attempts then
+            self.sleep(self.reader_verify_delay)
+        end
+    end
+
+    if not gone then
+        self.annotations:setSyncState(
+            link.local_annotation_id,
+            "local_deleted",
+            last_verify_err and last_verify_err.kind or "delete_verify"
+        )
+        report.delete_verification_pending =
+            report.delete_verification_pending + 1
+        report.remote_errors = report.remote_errors + 1
+        return
+    end
+
     self.annotations:markRemoteDeleted(link.local_annotation_id)
     report.deletions_remote = report.deletions_remote + 1
+    report.reader_deletions_verified = report.reader_deletions_verified + 1
 end
 
 function Mutations:syncPath(local_path)
@@ -564,6 +644,10 @@ function Mutations:syncPath(local_path)
         reader_note_propagation_misses = 0,
         reader_v3_note_repairs = 0,
         reader_note_repairs = 0,
+        delete_cross_api_identity_verified = 0,
+        reader_delete_verification_reads = 0,
+        reader_deletions_verified = 0,
+        delete_verification_pending = 0,
     }
     if not scan.authoritative then return report end
 
