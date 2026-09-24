@@ -2730,9 +2730,9 @@ Physical result:
 
 Phase P is complete.
 
-## Phase Q — content refresh safety — Q1 SPIKE IMPLEMENTED IN 0.1.44, GATE 15 OPEN
+## Phase Q — content refresh safety — Q1 SPIKE FIXED IN 0.1.45, GATE 15 OPEN
 
-### Q1 — build 0.1.44 read-only / no-replacement spike
+### Q1 — build 0.1.45 read-only / no-replacement spike
 
 Implementation:
 - schema v2 adds:
@@ -2760,14 +2760,14 @@ KOReader risk signals exposed read-only:
 - current document must be Reader-managed;
 - local HTML read capped at 4 MiB;
 - Reader HTML response capped at 4 MiB;
-- compares SHA-256 of normalized **visible text only**; no private text is displayed/logged;
+- compares normalized **visible text only** by direct Lua string equality; no native hashing/FFI is required and no private text is displayed/logged;
 - raw PDF/EPUB source is not downloaded by the diagnostic;
 - reports V1 decision;
 - automatic replacement is hard-disabled;
 - remote writes: none;
 - local writes: none.
 
-Decisions in 0.1.44:
+Decisions in 0.1.45:
 - `same_visible_text_keep_local`;
 - `defer_changed_text_reading_state`;
 - `defer_changed_text_unproven`;
@@ -2775,6 +2775,26 @@ Decisions in 0.1.44:
 - `defer_unverified_keep_local`;
 - `block_local_missing`;
 - never `replace`.
+
+### Q1 attempt 1 — 0.1.44 physical FAIL / corrected in 0.1.45
+
+The first physical diagnostic tap exited KOReader back to the launcher before any Gate 15 result was shown.
+
+Root cause:
+- Q1 introduced the first database schema migration (v1 → v2);
+- KOReader `ffiUtil.copyFile(from, to)` returns **nil on success** and an error string on failure;
+- the 0.1.44 pre-migration backup path incorrectly interpreted nil as failure and raised before the SQL migration transaction began;
+- the parent menu preflight did not contain that exception.
+
+0.1.45 correction:
+- treat nil from KOReader `copyFile` as successful backup;
+- treat any non-nil return as backup failure;
+- regression-test the exact KOReader copy contract;
+- wrap parent-process DB and sidecar preflight calls so future failures show a safe UI message rather than escaping the menu callback;
+- remove unnecessary `ffi/sha2` use from the diagnostic and compare normalized text directly;
+- content replacement remains disabled.
+
+Because the failure occurs before `Migrations.apply` begins its transaction, the original v1 database should remain unchanged. A successful `.bak` copy may have been created.
 
 ### Q1 physical spike required
 
@@ -2979,9 +2999,9 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Run **Phase Q / Gate 15 Q1** on validated build 0.1.44.
+Run **Phase Q / Gate 15 Q1** on corrected build 0.1.45.
 
-1. install 0.1.44; schema v1→v2 must backup/migrate automatically;
+1. install 0.1.45; schema v1→v2 must backup/migrate automatically using KOReader's nil-on-success copy contract;
 2. open a managed article that already has progress + highlight/note;
 3. run **Inspect content refresh safety (Gate 15)** and capture baseline;
 4. in Reader, change only the article title (harmless metadata-only same-ID revision);
