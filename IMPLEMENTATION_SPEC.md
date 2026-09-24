@@ -2439,7 +2439,7 @@ verify in the user's real Obsidian vault:
 
 No new Kindle build was required. The user's real export configuration passed all criteria: correct article/highlight, note present, literal `[[Foucault]]`, preserved `#pesquisar`, and a functioning Obsidian internal wikilink. Gate 11 is closed and Phase N / Gate 12 is unblocked.
 
-## Phase N — update/delete annotations — IMPLEMENTED, GATE 12A NOTE UPDATE + 12B CONFLICT + 12C DELETE-OFF PASSED; 12D RETEST PENDING ON 0.1.32
+## Phase N — update/delete annotations — COMPLETE, GATE 12 PASSED
 
 Gate 8 physically proved on the target account/device that the linked Reader v3 highlight child accepted a note PATCH and reflected it in Reader. The current public Reader API page contains wording that is more restrictive for highlight-note updates, so **the physically observed Gate 8 contract remains the project contract and Gate 12 revalidates it in the production path**. Do not generalize beyond this tested linked-highlight workflow.
 
@@ -2488,14 +2488,14 @@ Automated tests cover:
 - explicit confirmation before enabling deletion;
 - existing storage state transitions and Sync summary counters.
 
-### Gate 12 — partial physical pass
+### Gate 12 — PASSED
 On the target PW3 / KOReader v2026.07.1:
 1. **PASS on build 0.1.31:** linked Kindle note edit reaches Reader exactly, with Reader-visible end-to-end verification/repair before durable success;
 2. **PASS on build 0.1.31:** simultaneous local+Reader note edit is reported as conflict and neither side is overwritten;
 3. **PASS on build 0.1.31:** with deletion propagation OFF, deleting one linked KOReader test highlight leaves Reader unchanged and records exactly one retained tombstone;
 4. enable deletion only after the OFF sync reports exactly one pending local deletion for the clean test article;
-5. **retest on build 0.1.32:** sync again and prove only that linked target is deleted remotely using cross-API identity and post-delete verification;
-6. disable deletion propagation again after the test.
+5. **PASS on build 0.1.32:** deliberate opt-in deletion removes only the linked target remotely using cross-API identity and post-delete verification;
+6. **PASS:** deletion propagation was disabled again after the test.
 
 Physical note-update evidence on build 0.1.31: 2 linked highlights scanned; 1 note updated; 1 reconciled; 0 conflicts; 0 mutation blocks; 2 v2 remote-note reads; 1 v2 note update; 6 Reader verification reads; 1 propagation miss; 2 v3 repair PATCHes; 2 completed repairs; 0 remote errors; user visually confirmed the final Reader note.
 
@@ -2503,7 +2503,7 @@ Physical conflict evidence on build 0.1.31: one linked highlight scanned; 1 conf
 
 Physical deletion-OFF evidence on build 0.1.31: 2 fresh highlights were created; one was deleted only on KOReader; the OFF sync reported 1 local deletion detected, 1 retained remotely, 0 remote deletions, 0 mutation blocks, 0 remote errors; the user confirmed both Reader highlights still exist.
 
-Gate 12 closes only after the deliberate deletion-ON observation also passes. Do not proceed to Phase O / Gate 13 first.
+Physical deletion-ON close on build 0.1.32: the tombstoned target disappeared remotely, the control highlight remained, deletion propagation was returned OFF, and the follow-up OFF sync showed 0 local deletions, 0 remote deletions, 0 mutation blocks, 0 remote errors. Gate 12 is closed and Phase O / Gate 13 is unblocked.
 
 ## Phase O — offline queue hardening
 
@@ -2733,3 +2733,6 @@ Complete **Phase F / Gate 4** on the existing KOReader `v2025.04` baseline:
 
 
 Physical Gate 12D attempt 1 on build 0.1.31 was blocked safely: 1 local deletion detected, 0 remote deletions, 1 mutation block, 0 remote errors, target still present. This invalidated the exact-source-marker requirement for production destructive identity. Build 0.1.32 replaces that field with exact Reader child + exact Readwise v2 external-id mapping and verifies Reader disappearance before success.
+
+
+Gate 12D final note: the destructive-run summary was not photographed after the successful 0.1.32 attempt, so the canonical record does not invent those counters. Gate closure is based on the observed remote target disappearance, preserved control highlight, setting returned OFF, and the subsequent clean reconciliation sync with no pending deletion.
