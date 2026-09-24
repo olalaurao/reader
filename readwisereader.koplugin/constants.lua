@@ -11,6 +11,7 @@ return {
     MAX_ARTICLE_IMAGE_BYTES = 8 * 1024 * 1024,
     MAX_IMAGES_PER_ARTICLE = 20,
     MAX_RAW_SOURCE_BYTES = 64 * 1024 * 1024,
+    GATE13_PARENT_PROBE_MAX_BYTES = 1 * 1024 * 1024,
     MIN_RAW_SOURCE_FREE_BYTES = 128 * 1024 * 1024,
     AUTH_URL = "https://readwise.io/api/v2/auth/",
     READER_LIST_URL = "https://readwise.io/api/v3/list/",
