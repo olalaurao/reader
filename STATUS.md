@@ -4565,3 +4565,13 @@ Conclusion:
    - no unexpected queue/archive mutation.
 5. Return the complete Sync report or confirm all criteria passed.
 6. Do **not** create the offline test highlight/note yet; that is the following checkpoint.
+
+
+### CI after RC checkpoint 1 documentation
+- workflow #1085 on `1d13a0fca3ca637054b7c2b7bd3b232605f6439a`: **SUCCESS**;
+- development checks: PASS;
+- full Lua unit suite: PASS;
+- installable ZIP build: PASS;
+- package layout verification: PASS;
+- artifact upload: PASS;
+- no production plugin file changed in the checkpoint-1 documentation commit.
