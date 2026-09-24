@@ -245,6 +245,50 @@ function Queue:listCreateWork(now)
     return items
 end
 
+function Queue:listCreateDiagnostics(limit)
+    limit = math.max(1, math.min(tonumber(limit) or 10, 50))
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        SELECT
+            id, idempotency_key, operation, entity_type, local_annotation_id,
+            reader_document_id, reader_highlight_document_id,
+            readwise_v2_highlight_id, payload_json, payload_hash, status,
+            attempts, available_after, last_attempt_at, last_error_kind,
+            last_error_message, created_at, updated_at
+        FROM queue
+        WHERE operation = 'create_highlight'
+        ORDER BY updated_at DESC, id DESC
+        LIMIT ?;
+    ]])
+    stmt:bind(limit)
+    local items = {}
+    while true do
+        local row = stmt:step()
+        if not row then break end
+        items[#items + 1] = rowToItem(row)
+    end
+    stmt:close()
+    return items
+end
+
+function Queue:countCreateStatuses()
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        SELECT status, count(*)
+        FROM queue
+        WHERE operation = 'create_highlight'
+        GROUP BY status;
+    ]])
+    local counts = {}
+    while true do
+        local row = stmt:step()
+        if not row then break end
+        counts[tostring(row[1])] = tonumber(row[2]) or 0
+    end
+    stmt:close()
+    return counts
+end
+
 function Queue:countCreateWaiting()
     local conn = self.db:getConnection()
     local stmt = conn:prepare([[
