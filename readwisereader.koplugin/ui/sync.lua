@@ -2,8 +2,6 @@
 
 local ConfirmBox = require("ui/widget/confirmbox")
 local InfoMessage = require("ui/widget/infomessage")
-local NetworkMgr = require("ui/network/manager")
-local NetworkState = require("platform/network_state")
 local Trapper = require("ui/trapper")
 local UIManager = require("ui/uimanager")
 local Worker = require("sync/worker")
@@ -59,6 +57,8 @@ local function summaryText(report)
         mode = _("full")
     elseif report.mode == "offline" then
         mode = _("offline / local queue")
+    elseif report.mode == "remote_unavailable" then
+        mode = _("local queue / remote unavailable")
     else
         mode = _("incremental")
     end
@@ -100,6 +100,7 @@ local function summaryText(report)
         string.format(_("Content pages: %d"), report.content_pages or 0),
         string.format(_("Duplicate API records ignored: %d"), report.duplicates_ignored or 0),
         "",
+        string.format(_("Remote preflight: %s"), report.remote_preflight or _("not run")),
         string.format(_("Annotation sync: %s"), report.annotation_sync_status or _("not run")),
         string.format(_("Current-document highlights scanned: %d"), report.annotation_scanned or 0),
         string.format(_("Highlights created: %d"), report.highlights_created or 0),
@@ -156,9 +157,6 @@ function SyncUI:new(options)
         koreader_documents = assert(options.koreader_documents, "koreader_documents is required"),
         get_current_path = options.get_current_path or function() return nil end,
         worker = options.worker or Worker,
-        network_state = options.network_state or NetworkState:new{
-            network_mgr = NetworkMgr,
-        },
     }, self)
 end
 
@@ -192,36 +190,21 @@ function SyncUI:getStatusMenuItem()
     }
 end
 
-function SyncUI:_preflight(require_online)
+function SyncUI:_preflight()
     if not self.config:hasAccessToken() then
         UIManager:show(InfoMessage:new{ text = _("No access token is configured.") })
-        return false
-    end
-    -- V1 never controls Wi-Fi. Ordinary Sync now is allowed offline so local
-    -- sidecars can be scanned and outbound work can be queued durably.
-    local online = self.network_state:isAvailable()
-    if require_online and not online then
-        UIManager:show(InfoMessage:new{
-            text = _("No internet connection. Full document sync requires Wi-Fi, but ordinary Sync now can queue local annotations offline."),
-        })
         return false
     end
     return true
 end
 
 function SyncUI:syncNow(full_rescan)
-    if not self:_preflight(false) then
+    if not self:_preflight() then
         return
     end
 
-    local online = self.network_state:isAvailable()
     if full_rescan then
         self:confirmAndRun(true)
-        return
-    end
-
-    if not online then
-        self:_run(false, false)
         return
     end
 
@@ -229,11 +212,11 @@ function SyncUI:syncNow(full_rescan)
         self:confirmAndRun(false)
         return
     end
-    self:_run(false, true)
+    self:_run(false)
 end
 
 function SyncUI:confirmAndRun(full_rescan)
-    if not self:_preflight(true) then
+    if not self:_preflight() then
         return
     end
     local text
@@ -257,21 +240,17 @@ Continue?]])
     })
 end
 
-function SyncUI:_run(full_rescan, network_available)
-    if network_available == nil then
-        network_available = self.network_state:isAvailable()
-    end
+function SyncUI:_run(full_rescan)
     local current_path = self.get_current_path()
     Trapper:wrap(function()
         local completed, report, err = Trapper:dismissableRunInSubprocess(function()
             return self.worker:run{
                 full_rescan = full_rescan == true,
                 current_path = current_path,
-                network_available = network_available == true,
             }
         end, _([[Syncing Reader documents…
 
-Tap to cancel. Completed files are installed atomically; the incremental watermark is committed only after a successful sync.]]))
+Tap to cancel. Local annotations are queued first. Readwise reachability is then verified read-only before any remote write; the incremental watermark is committed only after a successful remote sync.]]))
 
         if not completed then
             UIManager:show(InfoMessage:new{
