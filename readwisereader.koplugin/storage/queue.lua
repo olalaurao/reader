@@ -197,12 +197,13 @@ function Queue:markCancelled(idempotency_key, reason, updated_at)
     local stmt = conn:prepare([[
         UPDATE queue SET
             status = 'cancelled',
+            attempts = 0,
             available_after = NULL,
+            last_attempt_at = NULL,
             last_error_kind = 'cancelled',
             last_error_message = ?,
             updated_at = ?
-        WHERE idempotency_key = ?
-          AND attempts = 0;
+        WHERE idempotency_key = ?;
     ]])
     stmt:bind(reason, updated_at, idempotency_key):step()
     stmt:close()
