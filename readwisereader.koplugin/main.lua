@@ -6,6 +6,8 @@ local TextMatchDiagnosticsUI = require("ui/text_match_diagnostics")
 local NetworkDiagnosticsUI = require("ui/network_diagnostics")
 local ReconnectDiagnosticsUI = require("ui/reconnect_diagnostics")
 local FinishedDiagnosticsUI = require("ui/finished_diagnostics")
+local ContentRefreshDiagnosticsUI = require("ui/content_refresh_diagnostics")
+local ContentRefreshProbeWorker = require("sync/content_refresh_probe_worker")
 local ApiInteropUI = require("ui/api_interop")
 local Config = require("config")
 local Constants = require("constants")
@@ -154,6 +156,14 @@ function ReadwiseReader:init()
     self.reconnect_diagnostics_ui = ReconnectDiagnosticsUI:new{
         config = self.config,
     }
+    self.content_refresh_diagnostics_ui = ContentRefreshDiagnosticsUI:new{
+        documents = self.documents_repository,
+        status = self.koreader_status,
+        worker = ContentRefreshProbeWorker,
+        get_current_path = function()
+            return self.ui and self.ui.document and self.ui.document.file or nil
+        end,
+    }
     self.finished_diagnostics_ui = FinishedDiagnosticsUI:new{
         documents = self.documents_repository,
         status = self.koreader_status,
@@ -189,6 +199,7 @@ function ReadwiseReader:addToMainMenu(menu_items)
             self.network_diagnostics_ui:getMenuItem(),
             self.reconnect_diagnostics_ui:getMenuItem(),
             self.finished_diagnostics_ui:getMenuItem(),
+            self.content_refresh_diagnostics_ui:getMenuItem(),
             self.settings_ui:getSettingsMenu(),
         },
     }
