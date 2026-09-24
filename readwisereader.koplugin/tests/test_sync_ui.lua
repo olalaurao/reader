@@ -7,6 +7,7 @@ local function withStubbedSyncUI(run, options)
         "ui/widget/confirmbox",
         "ui/widget/infomessage",
         "ui/network/manager",
+        "platform/network_state",
         "ui/trapper",
         "ui/uimanager",
         "sync/worker",
@@ -22,6 +23,7 @@ local function withStubbedSyncUI(run, options)
     local state = {
         shown = {},
         online = options.online ~= false,
+        airplane_mode = options.airplane_mode == true,
         wrap_calls = 0,
         subprocess_calls = 0,
         refresh_calls = 0,
@@ -42,7 +44,26 @@ local function withStubbedSyncUI(run, options)
         return { new = function(_, value) value.kind = "confirm" return value end }
     end
     package.preload["ui/network/manager"] = function()
-        return { isOnline = function() return state.online end }
+        return {
+            isOnline = function() return state.online end,
+            isWifiOn = function() return state.online end,
+            isConnected = function() return state.online end,
+            queryNetworkState = function() end,
+        }
+    end
+    package.preload["platform/network_state"] = function()
+        return {
+            new = function()
+                return {
+                    isAvailable = function()
+                        if state.airplane_mode then
+                            return false, "kindle_airplane_mode"
+                        end
+                        return state.online, state.online and "online" or "not_online"
+                    end,
+                }
+            end,
+        }
     end
     package.preload["ui/uimanager"] = function()
         return {
@@ -240,6 +261,23 @@ return function()
         assert(next(state.meta_writes) == nil)
         assert(state.shown[#state.shown].text:find("cancelled", 1, true))
     end, { cancelled = true })
+
+    withStubbedSyncUI(function(SyncUI, state)
+        local ui = newUI(SyncUI, state, "watermark", {
+            mode = "offline",
+            errors = 0,
+            annotation_sync_status = "queued_offline",
+            annotation_scanned = 1,
+            highlight_creates_queued = 1,
+            highlight_queue_waiting = 1,
+            postprocess = {},
+        })
+        ui:syncNow(false)
+        assert(#state.worker_calls == 1)
+        assert(state.worker_calls[1].network_available == false,
+            "Kindle airplane mode must override NetworkMgr:isOnline()")
+        assert(state.shown[#state.shown].text:find("Mode: offline / local queue", 1, true))
+    end, { online = true, airplane_mode = true })
 
     withStubbedSyncUI(function(SyncUI, state)
         local ui = newUI(SyncUI, state, "watermark", {
