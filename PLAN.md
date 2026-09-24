@@ -1315,17 +1315,23 @@ Não:
 
 ## 46. Próximo passo
 
-A **Phase O / Gate 13 está concluída** na baseline física PW3 + KOReader v2026.07.1.
+A **Phase O / Gate 13 está concluída e mergeada** em `main` pelo PR #16 (`b7c8977b89cf572bec1280e3490a033341af4375`).
 
-Próxima fase: **Phase P / Gate 14 — Finished → Archive**.
+Fase atual: **Phase P / Gate 14 — Finished → Archive**.
 
-Ordem:
-1. validar experimentalmente qual é o sinal canônico de `finished` no KOReader 2026.07.1; não assumir campo/evento;
-2. detectar apenas documentos Reader gerenciados;
-3. transformar finished local em intenção durável de archive;
-4. atualizar o documento-pai no Reader para `location=archive` exatamente uma vez;
+O source spike no KOReader oficial v2026.07.1 encontrou um candidato canônico forte:
+- BookStatusWidget: Finished = `complete`;
+- ReaderStatus `markBook()`: grava `summary.status = "complete"` e atualiza `summary.modified`;
+- BookList: `complete` = Finished e o status vem de `doc_settings.summary.status`.
+
+Mas a regra do projeto exige validação física antes de depender disso em produção. Portanto a ordem é:
+
+1. build 0.1.42: rodar o diagnóstico local/read-only **Inspect finished status (Gate 14)** antes e depois de marcar um documento Reader gerenciado como Finished;
+2. exigir que o sidecar persistido mostre `summary.status=complete`, comparando também runtime e BookList;
+3. só depois implementar a intenção durável de archive;
+4. PATCH do documento-pai no Reader para `location=archive` exatamente uma vez;
 5. manter arquivo local, sidecar, progresso, highlights e notas;
-6. não propagar archive como delete local;
+6. archive remoto nunca implica delete local;
 7. testar retry/idempotência;
-8. Gate 14 físico: marcar finished → Sync → Reader archive → arquivo/sidecar intactos → segundo Sync no-op;
+8. Gate 14 físico: Finished → Sync → Reader archive → arquivo/sidecar intactos → segundo Sync no-op;
 9. somente depois iniciar Phase Q / Gate 15.
