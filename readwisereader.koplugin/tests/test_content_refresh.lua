@@ -50,6 +50,13 @@ return function()
 
     assert(Refresh.decide{
         local_present = true,
+        category = "epub",
+        local_format = "epub",
+        pending = true,
+    } == "defer_raw_keep_local")
+
+    assert(Refresh.decide{
+        local_present = true,
         category = "article",
         local_format = "html",
         comparison = "same",
