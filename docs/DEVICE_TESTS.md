@@ -1842,3 +1842,20 @@ Automated/package validation:
    provided **Current annotation document status = ok**, the target fixture is waiting durably, and no remote work ran.
 8. If the generic failure still occurs, report the new message including `stage: ...`; do not reboot.
 9. If the report passes, stop and return the whole screen. Only then proceed to Gate 13B reboot with the same pending queue item.
+
+
+### Gate 13 offline-state isolation before 0.1.38 Sync
+
+New physical observation:
+- native Kindle Airplane Mode does not remain a trustworthy offline fixture after returning to KOReader/Readwise Reader; Wi-Fi is observed ON again.
+
+Before running 0.1.38 Sync:
+1. In KOReader, open **Settings (gear) → Network**.
+2. Disable **Restore Wi-Fi connection on resume**.
+3. While still inside KOReader, turn **Wi-Fi connection OFF** from KOReader's own Network menu.
+4. Open **Readwise Reader**, then close its menu **without running Sync**.
+5. Check KOReader's Wi-Fi state.
+6. If Wi-Fi is still OFF: proceed with the existing 0.1.38 Gate 13A instructions using the same existing highlight fixture.
+7. If Wi-Fi turned ON merely by opening/closing Readwise Reader: **stop and report that result**. Do not run Sync and do not create another highlight.
+
+Purpose: distinguish KOReader's own restore behavior from a possible plugin-load interaction before evaluating offline queue semantics.
