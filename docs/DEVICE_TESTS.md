@@ -1701,7 +1701,7 @@ This is sufficient to reject both prior detection strategies:
 
 A second 0.1.35 online screenshot is no longer required before implementing the safer contract because the offline observation alone proves the false-positive safety failure.
 
-### Build 0.1.36 — Gate 13A retest
+### Build 0.1.36 — pre-write reachability fix (superseded before physical retest)
 
 Automated/package validation:
 - draft PR #16;
@@ -1713,23 +1713,35 @@ Automated/package validation:
 - verified installable inner ZIP SHA-256: `5be016c319586d9ca72512c82e4d98aa1ba02b505d92dc1aafd126a3901d381e`;
 - inner ZIP integrity: `unzip -t` **PASS**, no errors.
 
-0.1.36 no longer uses those local flags as permission to write remotely. Ordinary Sync now queues the local annotation first and then performs a **read-only Readwise auth GET** inside the cancellable worker. No create/update/delete/document sync is allowed unless that probe succeeds.
+0.1.36 no longer used those local flags as permission to write remotely. Before the physical retest, repository review against the canonical Phase L/N handoff found one remaining Phase O gap: create discovery was still limited to the currently-open document. That non-device work was completed in 0.1.37, so 0.1.36 is preserved as implementation history but is no longer the build to test physically.
+
+### Build 0.1.37 — Gate 13A retest
+
+Additional automated contract in 0.1.37:
+- manual Sync discovers new create-highlight work across every **locally-present managed Reader document**, prioritizing the currently-open document;
+- remote-only documents are excluded before sidecar IO;
+- missing/non-authoritative sidecars and per-document scan failures are skipped safely;
+- authoritative sidecars update durable annotation identity first, then queue those exact candidates without a second sidecar read;
+- the read-only Readwise auth GET still gates every remote write;
+- note update/delete mutation remains bounded to the current document for this gate.
 
 Use a **new unique** local highlight/note; do not reuse fixtures already uploaded by 0.1.33/0.1.34.
 
-1. Install 0.1.36, preserving DB/settings/documents/sidecars.
+1. Install 0.1.37, preserving DB/settings/documents/sidecars.
 2. Enable native Kindle Airplane Mode / ensure there is no internet.
 3. Open a clean managed article.
 4. Create one unique highlight with:
    `gate13 probe [[Foucault]]`
    and next line:
-   `#queue-test-0136`
+   `#queue-test-0137`
 5. Close/reopen once to flush the sidecar; leave article open.
 6. Run ordinary **Sync now**.
 7. Required result:
    - Mode: **offline / local queue**;
    - Remote preflight: `offline`, `timeout`, `tls` or `unknown` is acceptable for this no-internet state;
-   - Current-document highlights scanned: >=1;
+   - Managed annotation documents scanned: >=1;
+   - Authoritative annotation sidecars: >=1;
+   - Managed-document highlights scanned: >=1;
    - Highlight creates queued durably: >=1;
    - Highlights created: **0**;
    - Create queue items processed: **0**;
