@@ -2834,3 +2834,21 @@ User confirmed the final raw EPUB preservation sequence passed:
 ### Gate 15 — PASS COMPLETE
 
 Article Q1-A/Q2, original PDF and original EPUB preservation are all physically passed on the target PW3. Phase R / Gate 16 hardening is unblocked.
+
+
+## Gate 16 — Phase R hardening / 0.1.47
+
+The complete canonical device procedure is in `docs/GATE16_HARDENING.md`.
+
+Current physical checkpoint:
+1. with KOReader closed, back up the working 0.1.46 plugin, Readwise settings/SQLite DB and relevant Reader documents/sidecars;
+2. install only the 0.1.47 plugin directory;
+3. keep Kindle firmware, jailbreak, KOReader v2026.07.1 and Bookshelf unchanged;
+4. restart KOReader and confirm Readwise Reader/settings load;
+5. open one previously-managed article and confirm existing reading state;
+6. with real internet available, run ordinary **Sync now once** and return the complete report;
+7. stop there until the report is reviewed.
+
+Do not deliberately fill the Kindle filesystem or manufacture malformed/giant private fixtures. Low-disk, malformed, huge-document, Unicode, 429, interrupted-network, restart persistence, migration/rollback and secret-redaction failure modes are covered deterministically off-device before this build is installed.
+
+If the first RC smoke passes, continue the remaining no-op/offline-queue/reboot/reconnect/log-review sequence in `docs/GATE16_HARDENING.md`.

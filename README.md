@@ -29,6 +29,7 @@ Do not update Kindle firmware/jailbreak for this project. The KOReader update is
 - [STATUS.md](STATUS.md) — resumable implementation ledger and exact current next steps.
 - [docs/DEVICE_TESTS.md](docs/DEVICE_TESTS.md) — physical test procedures and results.
 - [docs/KOREADER_UPGRADE.md](docs/KOREADER_UPGRADE.md) — post-Gate-4 KOReader v2026.07.1 + Bookshelf migration/rollback gate.
+- [docs/GATE16_HARDENING.md](docs/GATE16_HARDENING.md) — Phase R deterministic hardening matrix, PW3 RC smoke and plugin-only rollback.
 
 If code and the implementation spec diverge, either the code must be fixed or the spec must be deliberately updated in the same work and the reason recorded in `STATUS.md`.
 
