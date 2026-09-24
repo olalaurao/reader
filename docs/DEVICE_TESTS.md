@@ -2006,3 +2006,16 @@ If the subprocess ends without a report, the UI reads a tiny local durable stage
 `Last durable stage: <stage>`.
 
 Do not resume mutation until this read-only evidence is reviewed.
+
+
+### Build 0.1.39 physical reconnect diagnostic — parent_reads hard exit
+
+With Wi-Fi ON and **without running Sync now**:
+- **Inspect reconnect queue (Gate 13)** was run once;
+- diagnostic ended without a report;
+- durable last stage: `parent_reads`;
+- UI explicitly reported `Remote writes: none`.
+
+This proves the diagnostic passed its earlier queue/auth/marker stages and died only after entering the parent-content phase. It does not distinguish parent HTTP/JSON fetch from text matching yet.
+
+Do not run normal Sync. Next diagnostic must isolate parent fetch from matching and retain sanitized partial evidence even if the child dies.
