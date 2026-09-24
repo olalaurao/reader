@@ -123,6 +123,30 @@ return function()
     end
 
     do
+        -- A malformed record inside an otherwise-valid LIST page must be
+        -- isolated during iteration, while valid neighbors continue.
+        local reader = sequenceReader({
+            {
+                results = {
+                    { id = "good-1" },
+                    { title = "missing id" },
+                    { id = "good-2" },
+                },
+            },
+        })
+        local ids = {}
+        local report, err = reader:iterateDocuments({}, function(document)
+            ids[#ids + 1] = document.id
+        end)
+        assert(err == nil)
+        assert(report.pages == 1)
+        assert(report.received == 2)
+        assert(report.unique == 2)
+        assert(report.malformed == 1)
+        assert(table.concat(ids, ",") == "good-1,good-2")
+    end
+
+    do
         local reader = sequenceReader({
             {
                 results = { { id = "a" } },

@@ -240,7 +240,11 @@ return function()
                     callback(doc("a", "new", "Alpha", "u1"))
                     callback(doc("b", "later", "Beta", "u1"))
                 end
-                return { pages = 1, duplicates = 0 }
+                return {
+                    pages = 1,
+                    duplicates = 0,
+                    malformed = options.with_html_content and 1 or 2,
+                }
             end,
         }
         local syncer, repository, meta, installs = newSync{ reader = reader }
@@ -248,6 +252,9 @@ return function()
         assert(err == nil)
         assert(report.mode == "full")
         assert(report.downloaded == 2)
+        -- metadata scan skips 2 malformed records; each of the two
+        -- location/content scans skips 1 more.
+        assert(report.malformed_documents == 4)
         assert(#installs == 2)
         assert(repository.rows.a.local_path == "/Readwise/a.html")
         assert(repository.rows.b.local_path == "/Readwise/b.html")

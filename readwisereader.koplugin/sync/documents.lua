@@ -272,6 +272,7 @@ function DocumentsSync:_scanMetadata(watermark, filters, managed_by_id, pending_
     if not scan then return nil, err end
     report.metadata_pages = report.metadata_pages + scan.pages
     report.duplicates_ignored = report.duplicates_ignored + scan.duplicates
+    report.malformed_documents = report.malformed_documents + (scan.malformed or 0)
     return true
 end
 
@@ -304,6 +305,7 @@ function DocumentsSync:_fullMaterialization(filters, report, seen_at)
                 if not scan then return nil, err end
                 report.content_pages = report.content_pages + scan.pages
                 report.duplicates_ignored = report.duplicates_ignored + scan.duplicates
+                report.malformed_documents = report.malformed_documents + (scan.malformed or 0)
             end
         else
             report.unsupported_categories = report.unsupported_categories + 1
@@ -378,6 +380,7 @@ function DocumentsSync:sync(options)
         metadata_seen = 0,
         child_records = 0,
         duplicates_ignored = 0,
+        malformed_documents = 0,
         downloaded = 0,
         unchanged = 0,
         image_candidates = 0,

@@ -114,6 +114,7 @@ local function summaryText(report)
         string.format(_("Metadata pages: %d"), report.metadata_pages or 0),
         string.format(_("Content pages: %d"), report.content_pages or 0),
         string.format(_("Duplicate API records ignored: %d"), report.duplicates_ignored or 0),
+        string.format(_("Malformed API records skipped safely: %d"), report.malformed_documents or 0),
         "",
         string.format(_("Remote preflight: %s"), report.remote_preflight or _("not run")),
         string.format(_("Annotation sync: %s"), report.annotation_sync_status or _("not run")),
