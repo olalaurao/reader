@@ -2564,7 +2564,7 @@ Implemented:
 - zero/ambiguous match never guesses and never blind retries;
 - non-create stale operations retain generic pending recovery semantics for later phases.
 
-### Gate 13 — physical validation pending on bounded reconnect diagnostic build 0.1.40
+### Gate 13 — physical validation pending on pure-Lua matcher diagnostic build 0.1.41
 Automated O2/O3 fault injection and managed-document backlog discovery coverage are complete. The 0.1.35 network-state spike is also complete and invalidated local-state authorization.
 
 Physical 0.1.37 Gate 13A result: **FAIL SAFE / no report**. With Airplane Mode/no internet, ordinary Sync displayed only `Document sync failed safely`. No reboot/reconnect step was attempted. Because 0.1.37 introduced broad local sidecar traversal, 0.1.38 adds per-document exception containment, annotation-normalization containment, repository-query fallback, and worker-stage diagnostics without weakening the pre-write remote gate.
@@ -2582,24 +2582,35 @@ Gate 13C reconnect attempt on 0.1.38: **FAIL SAFE / no report**.
 
 Build 0.1.39 was therefore a **read-only reconnect spike**. Physical result: it again ended without a serialized report, but its durable breadcrumb was `parent_reads`. Because the worker only advances to that stage after queue snapshot, auth and marker scan, the crash boundary is now parent content retrieval and/or text matching.
 
-Build 0.1.40 narrows that boundary without mutation:
-- keeps the queue/auth/exact-marker stages read-only;
-- persists a sanitized partial diagnostic snapshot after every completed stage so queue/marker evidence survives a child hard exit;
-- splits each active parent into a metadata-only fetch and an HTML-content fetch;
-- caps each diagnostic parent LIST response body at **1 MiB** using the existing HTTP sink limit;
-- does **not** invoke `TextMatch.findExactSubstring` at all;
-- records only parent fetch status and HTML byte count, never the content itself;
-- continues to expose no token, note text, highlight text, Reader IDs, signed URLs or raw response bodies;
-- performs no POST/PATCH/DELETE and does not promote/mutate queue rows.
+Build 0.1.40 physically completed the bounded parent probe:
+- auth passed;
+- queue remained pending=3 / in_flight=0 / blocked=0;
+- exact-marker scan passed across 11 pages with **0 active marker matches**;
+- all three pending parents returned metadata + HTML successfully;
+- parent HTML sizes were only **9,851 / 27,477 / 8,564 bytes**;
+- no remote writes occurred.
+
+That evidence rules out the parent LIST/JSON/HTML retrieval boundary for these three queued creates. The only 0.1.39 work removed by 0.1.40 was text matching/normalization.
+
+Implementation review found a plausible hard-exit mechanism in the matcher: it loaded KOReader's native `ffi/utf8proc` and called `normalize_NFC` during normalized matching. Native FFI faults are not recoverable by Lua `pcall`. Build 0.1.41 therefore changes the matcher conservatively:
+- exact matching remains first and unchanged;
+- whitespace and punctuation normalization semantics remain unchanged;
+- native NFC FFI is removed from annotation matching entirely;
+- the Unicode fallback composes only the explicitly-supported Latin base+combining sequences in pure Lua;
+- unsupported normalization cases fail safely as unmatched rather than invoking native code;
+- the reconnect diagnostic now executes the **real matcher** for each pending item;
+- durable stages record `validate`, `visible_text`, `exact`, `unicode`, `whitespace`, `punctuation`, and per-item completion;
+- parent reads remain bounded at 1 MiB;
+- no queue mutation/promotion and no POST/PATCH/DELETE.
 
 Next physical step:
-1. install 0.1.40 preserving DB/settings/documents/sidecars;
+1. install 0.1.41 preserving DB/settings/documents/sidecars;
 2. keep Wi-Fi ON; do not create/edit/delete any Gate 13 fixture;
 3. **do not run Sync now**;
 4. run **Readwise Reader → Inspect reconnect queue (Gate 13)** once;
 5. return the whole diagnostic screen;
-6. if the child still dies, the UI must recover the latest sanitized snapshot plus a precise stage such as `parent_1_html_fetch`;
-7. only after parent-fetch-vs-matcher is physically isolated may Gate 13C mutation resume.
+6. if all three pending items finish matching without a hard exit, the same pure-Lua matcher is physically cleared for a controlled Gate 13C mutation retry;
+7. if the child still exits, the recovered snapshot/last stage identifies the exact matcher phase to isolate next.
 
 Gate 13 closes only after no duplicate and no lost annotation are physically proven across offline → reboot → reconnect.
 
