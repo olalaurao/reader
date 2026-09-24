@@ -82,8 +82,13 @@ function Archive:_prepare(document, local_status, reopen_succeeded)
 end
 
 function Archive:_persistArchived(item, document, report, reconciled)
-    self.queue:markSucceeded(item.idempotency_key, nil, self.now())
+    -- Persist the parent document state before closing the queue item. If the
+    -- process dies between these two local writes, the next discovery sees
+    -- location=archive and safely closes the still-pending/in-flight intent.
+    -- The reverse order could strand a succeeded queue row with stale local
+    -- location when archive is excluded from the normal Reader LIST filters.
     self.documents:setLocation(document.reader_id, "archive")
+    self.queue:markSucceeded(item.idempotency_key, nil, self.now())
     report.location_updates[#report.location_updates + 1] = {
         path = document.local_path,
         location = "archive",
