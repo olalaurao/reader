@@ -285,6 +285,27 @@ local function testQueue()
     assertEqual(succeeded.status, "succeeded")
     assertEqual(succeeded.reader_highlight_document_id, "remote-1")
 
+    queue:prepare({
+        idempotency_key = "create_highlight:ann-2",
+        operation = "create_highlight",
+        entity_type = "annotation",
+        local_annotation_id = "ann-2",
+        reader_document_id = "doc-2",
+        payload_json = "{\"content\":\"two\"}",
+        payload_hash = "create-hash-2",
+        created_at = 70,
+        updated_at = 70,
+    })
+    local diagnostics = queue:listCreateDiagnostics(10)
+    assertEqual(#diagnostics, 2)
+    assertEqual(diagnostics[1].local_annotation_id, "ann-2",
+        "diagnostic rows must be newest-first without mutating queue state")
+    local counts = queue:countCreateStatuses()
+    assertEqual(counts.pending, 1)
+    assertEqual(counts.succeeded, 1)
+    assertEqual(queue:getByKey("create_highlight:ann-2").status, "pending",
+        "read-only diagnostics must not promote or mutate queue rows")
+
     db:close()
 end
 
