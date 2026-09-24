@@ -189,6 +189,7 @@ local function newArchive(state, reader_override)
                 sidecar_status = state.local_finished and "complete" or "reading",
                 sidecar_modified = "2026-09-24",
                 percent_finished = 0.1538,
+                status_known = true,
                 finished = state.local_finished,
             }
         end,
