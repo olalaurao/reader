@@ -2515,8 +2515,11 @@ Physical deletion-ON close on build 0.1.32: the tombstoned target disappeared re
 ### O1 — offline create / restart / reconnect / backlog discovery
 Queue core implemented in 0.1.33. Physical builds 0.1.33 and 0.1.34 proved that target-device local network state cannot safely authorize writes. The 0.1.35 read-only diagnostic then observed, while the user had no internet/native Airplane Mode, that `airplaneMode`, `wirelessEnable` and `wifid enable` were all unavailable while KOReader still reported `isWifiOn/isConnected/isOnline=true`.
 
-Build 0.1.36 changed the pre-write authority contract, and build 0.1.37 closes the earlier current-document-only discovery staging limitation:
+Build 0.1.36 changed the pre-write authority contract. Build 0.1.37 closed the earlier current-document-only discovery staging limitation, but its first physical Gate 13A run failed safely before producing a report. Build 0.1.38 hardens that multi-sidecar discovery boundary:
 - every manual Sync discovers new create-highlight work across **all locally-present Reader-managed documents**, with the currently open document prioritized;
+- a real Lua exception from one document's sidecar scan or queue preparation is isolated to that document and cannot abort the whole worker;
+- one malformed annotation normalization inside an otherwise-readable sidecar is counted/skipped rather than aborting that sidecar;
+- if the optimized local-managed repository query raises on the device, discovery falls back to the existing managed-document query, then to the current document as a last local-only fallback;
 - only locally-present managed rows are loaded for the backlog pass; remote-only rows are excluded before sidecar IO;
 - missing files, missing/non-authoritative sidecars and per-document scan failures are skipped safely and never imply deletion;
 - authoritative sidecars reconcile `annotation_links` first, then pass those exact adjusted local identities into durable create queueing without reading the same sidecar twice;
@@ -2561,16 +2564,21 @@ Implemented:
 - zero/ambiguous match never guesses and never blind retries;
 - non-create stale operations retain generic pending recovery semantics for later phases.
 
-### Gate 13 — physical validation pending on build 0.1.37
-Automated O2/O3 fault injection and managed-document backlog discovery coverage are complete. The 0.1.35 network-state spike is also complete and invalidated local-state authorization. Physical validation on the target PW3 must now prove the 0.1.37 local-backlog + read-only reachability gate plus the real persistence boundary:
-1. with Wi-Fi OFF, create one fresh unique highlight/note in a clean managed article;
-2. close/reopen to flush the sidecar and run ordinary Sync now offline;
-3. confirm the report says offline/local queue, `Highlight creates queued durably >= 1`, `Create queue waiting after sync >= 1`, and `Highlights created = 0`;
-4. fully restart KOReader while the item is still pending;
-5. enable Wi-Fi outside the plugin;
-6. run Sync now and confirm exactly one highlight/note reaches the original Reader document;
-7. run Sync now again and confirm `Highlights created = 0` and queue waiting becomes 0;
-8. confirm Reader contains exactly one copy and the local highlight/note survived throughout.
+### Gate 13 — physical validation pending on build 0.1.38
+Automated O2/O3 fault injection and managed-document backlog discovery coverage are complete. The 0.1.35 network-state spike is also complete and invalidated local-state authorization.
+
+Physical 0.1.37 Gate 13A result: **FAIL SAFE / no report**. With Airplane Mode/no internet, ordinary Sync displayed only `Document sync failed safely`. No reboot/reconnect step was attempted. Because 0.1.37 introduced broad local sidecar traversal, 0.1.38 adds per-document exception containment, annotation-normalization containment, repository-query fallback, and worker-stage diagnostics without weakening the pre-write remote gate.
+
+Physical validation on the target PW3 must now reuse the same 0.1.37 local fixture and prove the 0.1.38 local-backlog + read-only reachability gate plus the real persistence boundary:
+1. install 0.1.38 while preserving DB/settings/documents/sidecars; **do not create another fixture**;
+2. keep Wi-Fi/Airplane Mode OFFLINE and reuse the exact highlight/note created for the failed 0.1.37 attempt;
+3. close/reopen if needed to ensure the sidecar remains flushed, then run ordinary Sync now offline;
+4. confirm the report says offline/local queue (or queued-offline-partial only if a non-current sidecar was safely isolated), current annotation document status is `ok`, `Highlight creates queued durably >= 1`, `Create queue waiting after sync >= 1`, and `Highlights created = 0`;
+5. fully restart KOReader while the item is still pending;
+6. enable Wi-Fi outside the plugin;
+7. run Sync now and confirm exactly one highlight/note reaches the original Reader document;
+8. run Sync now again and confirm `Highlights created = 0` and queue waiting becomes 0;
+9. confirm Reader contains exactly one copy and the local highlight/note survived throughout.
 
 Gate 13 closes only after no duplicate and no lost annotation are physically proven across offline → reboot → reconnect.
 
