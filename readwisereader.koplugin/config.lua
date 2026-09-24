@@ -103,6 +103,17 @@ function Config:getDownloadImages()
     return value == true
 end
 
+function Config:getArchiveFinished()
+    local value = self.settings:readSetting("archive_finished")
+    if value == nil then return true end
+    return value == true
+end
+
+function Config:setArchiveFinished(enabled)
+    self.settings:saveSetting("archive_finished", enabled == true)
+    self.settings:flush()
+end
+
 function Config:getPropagateHighlightDeletions()
     return self.settings:readSetting("propagate_highlight_deletions") == true
 end

@@ -155,6 +155,26 @@ local function summaryText(report)
         string.format(_("Reader deletions verified: %d"), report.reader_deletions_verified or 0),
         string.format(_("Delete verification pending: %d"), report.delete_verification_pending or 0),
         string.format(_("Annotation remote errors: %d"), report.annotation_remote_errors or 0),
+        "",
+        string.format(
+            _("Archive finished documents: %s"),
+            report.archive_enabled == false and _("off") or _("on")
+        ),
+        string.format(_("Finished documents scanned: %d"), report.archive_documents_scanned or 0),
+        string.format(_("Finished status detected: %d"), report.archive_finished_detected or 0),
+        string.format(_("Archive intents queued durably: %d"), report.archive_intents_queued or 0),
+        string.format(_("Archive queue items processed: %d"), report.archive_queue_processed or 0),
+        string.format(_("Reader documents archived: %d"), report.documents_archived or 0),
+        string.format(_("Archive state reconciled remotely: %d"), report.archive_reconciled or 0),
+        string.format(_("Already archived locally known: %d"), report.archive_already_archived or 0),
+        string.format(_("Archive intents cancelled safely: %d"), report.archive_cancelled or 0),
+        string.format(_("Archive documents skipped safely: %d"), report.archive_documents_skipped or 0),
+        string.format(_("Archive status scan errors: %d"), report.archive_scan_errors or 0),
+        string.format(_("Archive operations blocked safely: %d"), report.archive_blocked or 0),
+        string.format(_("Archive retries deferred: %d"), report.archive_deferred or 0),
+        string.format(_("Archive auth waits: %d"), report.archive_auth_waiting or 0),
+        string.format(_("Archive queue waiting after sync: %d"), report.archive_queue_waiting or 0),
+        string.format(_("Archive remote errors: %d"), report.archive_remote_errors or 0),
     }
 
     if report.errors and report.errors > 0 then

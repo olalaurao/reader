@@ -5,6 +5,7 @@ local AnnotationDiagnosticsUI = require("ui/annotation_diagnostics")
 local TextMatchDiagnosticsUI = require("ui/text_match_diagnostics")
 local NetworkDiagnosticsUI = require("ui/network_diagnostics")
 local ReconnectDiagnosticsUI = require("ui/reconnect_diagnostics")
+local FinishedDiagnosticsUI = require("ui/finished_diagnostics")
 local ApiInteropUI = require("ui/api_interop")
 local Config = require("config")
 local Constants = require("constants")
@@ -22,6 +23,7 @@ local RawSource = require("content/raw_source")
 local KOReaderCollections = require("koreader/collections")
 local KOReaderDocuments = require("koreader/documents")
 local KOReaderAnnotations = require("koreader/annotations")
+local KOReaderStatus = require("koreader/status")
 local Reader = require("api/reader")
 local Metadata = require("sync/metadata")
 local AnnotationSync = require("sync/annotations")
@@ -62,6 +64,7 @@ function ReadwiseReader:init()
     self.koreader_annotations = KOReaderAnnotations:new{
         hasher = Hash,
     }
+    self.koreader_status = KOReaderStatus:new()
     self.koreader_collections = KOReaderCollections:new()
     self.annotation_scanner = AnnotationSync:new{
         documents = self.documents_repository,
@@ -151,6 +154,19 @@ function ReadwiseReader:init()
     self.reconnect_diagnostics_ui = ReconnectDiagnosticsUI:new{
         config = self.config,
     }
+    self.finished_diagnostics_ui = FinishedDiagnosticsUI:new{
+        documents = self.documents_repository,
+        status = self.koreader_status,
+        get_current_path = function()
+            return self.ui and self.ui.document and self.ui.document.file or nil
+        end,
+        get_runtime_summary = function()
+            if self.ui and self.ui.doc_settings then
+                return self.ui.doc_settings:readSetting("summary")
+            end
+            return nil
+        end,
+    }
     self.ui.menu:registerToMainMenu(self)
 end
 
@@ -172,6 +188,7 @@ function ReadwiseReader:addToMainMenu(menu_items)
             self.api_interop_ui:getMenuItem(),
             self.network_diagnostics_ui:getMenuItem(),
             self.reconnect_diagnostics_ui:getMenuItem(),
+            self.finished_diagnostics_ui:getMenuItem(),
             self.settings_ui:getSettingsMenu(),
         },
     }

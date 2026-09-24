@@ -11,7 +11,13 @@ local function withStubbedSettings(run)
         "gettext",
     }
     local loaded, preload = {}, {}
-    local state = { shown = {}, enabled = false, writes = 0 }
+    local state = {
+        shown = {},
+        enabled = false,
+        writes = 0,
+        archive_finished = true,
+        archive_writes = 0,
+    }
     for _, name in ipairs(names) do
         loaded[name] = package.loaded[name]
         preload[name] = package.preload[name]
@@ -43,6 +49,11 @@ local function withStubbedSettings(run)
     local ok, failure = pcall(function()
         local SettingsUI = require("ui/settings")
         local config = {
+            getArchiveFinished = function() return state.archive_finished end,
+            setArchiveFinished = function(_, value)
+                state.archive_finished = value == true
+                state.archive_writes = state.archive_writes + 1
+            end,
             getPropagateHighlightDeletions = function() return state.enabled end,
             setPropagateHighlightDeletions = function(_, value)
                 state.enabled = value == true
@@ -90,5 +101,20 @@ return function()
         deletion.callback()
         assert(state.enabled == false, "disabling deletion should be immediate")
         assert(state.writes == 2)
+
+        local finished
+        for _, item in ipairs(menu.sub_item_table) do
+            if item.text == "Finished documents" then finished = item end
+        end
+        assert(finished)
+        local archive = finished.sub_item_table[1]
+        assert(archive.text == "Archive in Reader")
+        assert(archive.checked_func() == true)
+        archive.callback()
+        assert(state.archive_finished == false)
+        assert(state.archive_writes == 1)
+        archive.callback()
+        assert(state.archive_finished == true)
+        assert(state.archive_writes == 2)
     end)
 end

@@ -2205,3 +2205,163 @@ Confirmed:
 **Gate 13 PASSED. Phase O complete.**
 
 Next physical gate: Gate 14 / Finished → Archive.
+
+
+### Phase P / Gate 14 P0 — build 0.1.42 finished-signal spike
+
+Automated/package validation:
+- draft PR #17;
+- CI #810 caught an unterminated metadata string before tests/package; fixed immediately;
+- CI #812 on corrected 0.1.42: **SUCCESS**;
+- full Lua suite: SUCCESS;
+- package/layout: SUCCESS;
+- artifact ID: `10818495299`;
+- outer SHA-256: `6cd590229ea205ac64bd027490b738166cb33846e8cacfefb70f6f92433bb58d`;
+- installable ZIP SHA-256: `df37908276eb9938a87d3d401a01bbe607bf295cc477288b25e48bbddbfd2a7a`;
+- installable ZIP integrity: PASS;
+- packaged version: 0.1.42.
+
+Purpose: experimentally verify the KOReader 2026.07.1 persisted Finished signal before implementing any Reader archive PATCH.
+
+Source candidate: `doc_settings.summary.status == "complete"`.
+
+0.1.42 diagnostic guarantees:
+- current document must be Reader-managed;
+- sidecar/runtime/BookList values are read only;
+- remote requests: none;
+- remote writes: none;
+- local writes: none.
+
+Physical sequence:
+1. Install 0.1.42 preserving DB/settings/documents/sidecars.
+2. Open one Reader-managed local document that can be used for this gate.
+3. Run **Readwise Reader → Inspect finished status (Gate 14)**.
+4. Capture the complete **before** screen.
+5. Open KOReader **Book status** and choose **Finished**.
+6. Close Book status so settings can flush.
+7. Run **Inspect finished status (Gate 14)** again.
+8. Capture the complete **after** screen.
+
+Expected after state:
+- Managed Reader document: yes;
+- Local file present: yes;
+- Sidecar present: yes;
+- Sidecar `summary.status: complete`;
+- BookList status: `complete`;
+- Runtime `summary.status: complete`;
+- Canonical finished candidate: yes;
+- remote requests/writes: none;
+- local writes: none.
+
+Return both before/after screens. Do not run a new Phase P archive mutation build until this signal spike passes.
+
+
+### Gate 14 P0 finished-signal physical result — PASS
+
+Target: PW3 / KOReader v2026.07.1 / plugin 0.1.42.
+
+Before marking Finished:
+- managed Reader document yes;
+- local file yes;
+- Reader location in local DB `new`;
+- sidecar yes;
+- sidecar summary.status `reading`;
+- sidecar summary.modified `2026-09-23`;
+- sidecar percent_finished `0.1538`;
+- BookList status `reading`;
+- runtime summary.status `reading`;
+- candidate no;
+- remote requests/writes none;
+- local writes none.
+
+After **Book status → Finished**:
+- local DB Reader location still `new`;
+- sidecar yes;
+- sidecar summary.status **`complete`**;
+- sidecar summary.modified `2026-09-24`;
+- sidecar percent_finished still **`0.1538`**;
+- BookList status **`complete`**;
+- runtime summary.status **`complete`**;
+- candidate yes;
+- remote requests/writes none;
+- local writes none.
+
+Result: **PASS**. Canonical Gate 14 signal is persisted `summary.status == "complete"`. Never infer it from percent_finished.
+
+### Gate 14 P1 — build 0.1.43 physical archive test
+
+0.1.43 implements durable/idempotent Finished → Archive.
+
+First Sync:
+1. install 0.1.43 preserving DB/settings/documents/sidecars;
+2. leave the same fixture Finished;
+3. ensure **Settings → Finished documents → Archive in Reader** is checked;
+4. Wi-Fi/internet ON;
+5. run **Sync now exactly once**;
+6. return the whole report;
+7. verify in Reader that the document location is Archive;
+8. on Kindle verify:
+   - local file still exists and opens;
+   - sidecar still exists;
+   - reading progress remains;
+   - existing highlights remain;
+   - existing notes remain.
+
+Expected first-report archive fields:
+- Finished status detected >= 1;
+- Archive intents queued durably >= 1 (unless already archived is safely reconciled);
+- Archive queue items processed >= 1;
+- Reader documents archived = 1 **or** Archive state reconciled remotely = 1;
+- Archive operations blocked safely = 0;
+- Archive queue waiting after sync = 0;
+- Archive remote errors = 0.
+
+Do **not** run the second Sync until the first result is reviewed.
+
+Second unchanged Sync:
+- Reader documents archived = 0;
+- Archive queue items processed = 0;
+- Archive queue waiting after sync = 0;
+- no archive error;
+- Reader remains Archive;
+- local file/sidecar/progress/annotations remain unchanged.
+
+
+### Gate 14 P1 first archive local-preservation check — PASS
+
+After the first 0.1.43 Sync archived the target in Reader, Kindle-side verification confirmed:
+- local file still exists;
+- document still opens;
+- reading progress/position preserved;
+- existing highlights preserved;
+- existing notes preserved.
+
+The first half of Gate 14 P1 therefore passes end-to-end: remote archive occurred without destructive local effects.
+
+Proceed to the final unchanged second Sync:
+- make no changes;
+- Wi-Fi ON;
+- run Sync now once;
+- require archived=0 / archive processed=0 / archive waiting=0 / archive remote errors=0;
+- Reader remains Archive;
+- local state remains intact.
+
+
+### Gate 14 final idempotency — PASS
+
+After the first 0.1.43 Sync archived the target and the Kindle-side preservation check passed, one unchanged second Sync was run.
+
+Confirmed:
+- no repeated archive mutation;
+- archive queue remained empty;
+- Reader document remained in Archive;
+- local document still exists and opens;
+- sidecar remains intact;
+- reading progress remains intact;
+- highlights remain intact;
+- notes remain intact;
+- no annotation regression or fatal error.
+
+**Gate 14 PASSED. Phase P complete.**
+
+Next physical gate: Gate 15 / content refresh safety.

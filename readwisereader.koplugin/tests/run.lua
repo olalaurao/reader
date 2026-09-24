@@ -24,6 +24,7 @@ local tests = {
     "tests.test_text_match_diagnostics_ui",
     "tests.test_annotation_upload",
     "tests.test_annotation_mutations",
+    "tests.test_archive",
     "tests.test_api_interop",
     "tests.test_filenames",
     "tests.test_html",
@@ -32,6 +33,7 @@ local tests = {
     "tests.test_installer",
     "tests.test_first_article",
     "tests.test_koreader_annotations",
+    "tests.test_koreader_status",
     "tests.test_koreader_documents",
     "tests.test_collections",
     "tests.test_document_sync",
@@ -41,6 +43,7 @@ local tests = {
     "tests.test_network_diagnostics_ui",
     "tests.test_reconnect_probe_worker",
     "tests.test_reconnect_diagnostics_ui",
+    "tests.test_finished_diagnostics_ui",
     "tests.test_storage_db",
     "tests.test_storage_repositories",
 }

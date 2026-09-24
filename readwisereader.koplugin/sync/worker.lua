@@ -79,7 +79,9 @@ function Worker:run(options)
     local AnnotationUpload = require("sync/annotation_upload")
     local AnnotationBacklog = require("sync/annotation_backlog")
     local AnnotationMutations = require("sync/annotation_mutations")
+    local Archive = require("sync/archive")
     local KOReaderAnnotations = require("koreader/annotations")
+    local KOReaderStatus = require("koreader/status")
     local logger = require("logger")
     local util = require("util")
 
@@ -174,6 +176,30 @@ function Worker:run(options)
         -- offline and guarantees a reboot cannot erase a queued annotation.
         queue_repository:recoverStaleInFlight(os.time())
 
+        local archive_enabled = config:getArchiveFinished()
+        local archive_status = KOReaderStatus:new()
+        local archiver = Archive:new{
+            documents = repository,
+            queue = queue_repository,
+            status = archive_status,
+            reader = reader,
+            hasher = Hash,
+        }
+        local archive_local_report = {
+            status = archive_enabled and "not_run" or "disabled",
+            documents_seen = 0,
+            finished_detected = 0,
+            queued = 0,
+            already_archived = 0,
+            cancelled = 0,
+            skipped = 0,
+            scan_errors = 0,
+        }
+        if archive_enabled then
+            stage = "archive_discovery"
+            archive_local_report = archiver:queueAll()
+        end
+
         local adapter = KOReaderAnnotations:new{ hasher = Hash }
         local scanner = AnnotationSync:new{
             documents = repository,
@@ -265,6 +291,31 @@ function Worker:run(options)
             sync_report.reader_deletions_verified = 0
             sync_report.delete_verification_pending = 0
             sync_report.annotation_sync_status = annotation_sync_status
+
+            sync_report.archive_enabled = archive_enabled
+            sync_report.archive_documents_scanned =
+                archive_local_report.documents_seen or 0
+            sync_report.archive_finished_detected =
+                archive_local_report.finished_detected or 0
+            sync_report.archive_intents_queued =
+                archive_local_report.queued or 0
+            sync_report.archive_already_archived =
+                archive_local_report.already_archived or 0
+            sync_report.archive_cancelled =
+                archive_local_report.cancelled or 0
+            sync_report.archive_documents_skipped =
+                archive_local_report.skipped or 0
+            sync_report.archive_scan_errors =
+                archive_local_report.scan_errors or 0
+            sync_report.archive_queue_processed = 0
+            sync_report.documents_archived = 0
+            sync_report.archive_reconciled = 0
+            sync_report.archive_blocked = 0
+            sync_report.archive_deferred = 0
+            sync_report.archive_auth_waiting = 0
+            sync_report.archive_remote_errors = 0
+            sync_report.archive_queue_waiting =
+                queue_repository:countArchiveWaiting()
         end
 
         local function localQueueOnlyReport(preflight_err)
@@ -402,6 +453,28 @@ function Worker:run(options)
                     mutation_report.reader_deletions_verified or 0
                 sync_report.delete_verification_pending =
                     mutation_report.delete_verification_pending or 0
+            end
+        end
+
+        if archive_enabled then
+            stage = "archive_queue_processing"
+            local archive_report = archiver:processQueue()
+            sync_report.archive_queue_processed = archive_report.processed or 0
+            sync_report.documents_archived = archive_report.archived or 0
+            sync_report.archive_reconciled = archive_report.already_archived or 0
+            sync_report.archive_cancelled =
+                sync_report.archive_cancelled + (archive_report.cancelled or 0)
+            sync_report.archive_blocked = archive_report.blocked or 0
+            sync_report.archive_deferred = archive_report.deferred or 0
+            sync_report.archive_auth_waiting = archive_report.auth_waiting or 0
+            sync_report.archive_remote_errors = archive_report.remote_errors or 0
+            sync_report.archive_queue_waiting = archive_report.waiting_after
+                or queue_repository:countArchiveWaiting()
+
+            for _, update in ipairs(archive_report.location_updates or {}) do
+                if type(update.path) == "string" and update.path ~= "" then
+                    postprocess(update.path).location = update.location
+                end
             end
         end
 

@@ -101,6 +101,46 @@ function Queue:prepare(item)
     return self:getByKey(item.idempotency_key)
 end
 
+-- Archive operations are idempotent state assignments, so a never-attempted
+-- cancelled row may be reopened. A previously-succeeded row may also be
+-- reopened only when the caller has fresh evidence that Reader is no longer
+-- archived while the local canonical status is still Finished.
+function Queue:prepareArchive(item, reopen_succeeded)
+    local existing = self:enqueue(item)
+    local reusable = existing
+        and existing.attempts == 0
+        and (
+            existing.status == "pending"
+            or existing.status == "cancelled"
+            or (reopen_succeeded == true and existing.status == "succeeded")
+        )
+    if reusable then
+        local conn = self.db:getConnection()
+        local stmt = conn:prepare([[
+            UPDATE queue SET
+                payload_json = ?,
+                payload_hash = ?,
+                status = 'pending',
+                attempts = 0,
+                available_after = NULL,
+                last_attempt_at = NULL,
+                last_error_kind = NULL,
+                last_error_message = NULL,
+                updated_at = ?
+            WHERE idempotency_key = ?
+              AND attempts = 0;
+        ]])
+        stmt:bind(
+            item.payload_json,
+            item.payload_hash,
+            item.updated_at or item.created_at,
+            item.idempotency_key
+        ):step()
+        stmt:close()
+    end
+    return self:getByKey(item.idempotency_key)
+end
+
 function Queue:getByKey(idempotency_key)
     local conn = self.db:getConnection()
     local stmt = conn:prepare([[
@@ -148,6 +188,24 @@ function Queue:markSucceeded(idempotency_key, remote_id, updated_at)
         WHERE idempotency_key = ?;
     ]])
     stmt:bind(remote_id, updated_at, idempotency_key):step()
+    stmt:close()
+    return self:getByKey(idempotency_key)
+end
+
+function Queue:markCancelled(idempotency_key, reason, updated_at)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        UPDATE queue SET
+            status = 'cancelled',
+            attempts = 0,
+            available_after = NULL,
+            last_attempt_at = NULL,
+            last_error_kind = 'cancelled',
+            last_error_message = ?,
+            updated_at = ?
+        WHERE idempotency_key = ?;
+    ]])
+    stmt:bind(reason, updated_at, idempotency_key):step()
     stmt:close()
     return self:getByKey(idempotency_key)
 end
@@ -243,6 +301,43 @@ function Queue:listCreateWork(now)
     end
     stmt:close()
     return items
+end
+
+function Queue:listArchiveWork(now)
+    self:promoteAvailable(now)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        SELECT
+            id, idempotency_key, operation, entity_type, local_annotation_id,
+            reader_document_id, reader_highlight_document_id,
+            readwise_v2_highlight_id, payload_json, payload_hash, status,
+            attempts, available_after, last_attempt_at, last_error_kind,
+            last_error_message, created_at, updated_at
+        FROM queue
+        WHERE operation = 'archive_document'
+          AND status IN ('pending', 'in_flight')
+        ORDER BY id;
+    ]])
+    local items = {}
+    while true do
+        local row = stmt:step()
+        if not row then break end
+        items[#items + 1] = rowToItem(row)
+    end
+    stmt:close()
+    return items
+end
+
+function Queue:countArchiveWaiting()
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        SELECT count(*) FROM queue
+        WHERE operation = 'archive_document'
+          AND status IN ('pending', 'retry_wait', 'in_flight', 'blocked');
+    ]])
+    local row = stmt:step()
+    stmt:close()
+    return row and (tonumber(row[1]) or 0) or 0
 end
 
 function Queue:listCreateDiagnostics(limit)
