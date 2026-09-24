@@ -4226,3 +4226,85 @@ Conclusion:
 - Gate 15 Q1-B EPUB baseline: PASSED.
 - Gate 15 Q1-B EPUB revision preservation: PENDING.
 - Gate 16: BLOCKED by Gate 15.
+
+
+## Session handoff — EPUB baseline closeout
+
+### Milestone atual
+- Phase Q / Gate 15.
+- Article Q1-A/Q2: PASS.
+- Raw PDF Q1-B: PASS complete.
+- Raw EPUB Q1-B baseline: PASS.
+- Remaining Gate 15 work: one title-only same-ID EPUB revision + preservation proof.
+
+### Branch / implementation HEAD
+- Branch: `phase-q/content-refresh-gate15`.
+- Implementation/documentation HEAD validated by CI in this session: `c36e5bed6b6a10de04ff1c33e0078dd521af0295`.
+- Base `main`: Gate 14 merge `5d7c954d051e491c1b11344057c59df7e2cf9656`.
+- PR #18 remains draft and mergeable.
+- Production plugin code remains build 0.1.46; no production Lua file changed in this session.
+- This STATUS-only handoff commit follows the validated head above.
+
+### Arquivos alterados nesta sessão
+- `STATUS.md`;
+- `IMPLEMENTATION_SPEC.md`;
+- `PLAN.md`;
+- `docs/DEVICE_TESTS.md`.
+- No production plugin Lua file changed.
+
+### Implementado / registrado
+- recorded the physical PASS of the already-local original EPUB baseline;
+- aligned canonical spec, V1 plan, device-test ledger and resumability status to the same Gate 15 state;
+- preserved the conservative V1 rule: raw PDF/EPUB revisions remain pending/deferred and existing bytes are never auto-replaced;
+- confirmed no legitimate Phase R implementation may begin before the remaining EPUB physical revision proof closes Gate 15.
+
+### Testes executados / resultados
+- prior full CI #1020 on the PDF closeout/handoff: SUCCESS;
+- full CI #1022 on `c36e5bed6b6a10de04ff1c33e0078dd521af0295`: SUCCESS;
+- development checks: PASS;
+- full Lua unit suite: PASS;
+- installable ZIP build: PASS;
+- package layout verification: PASS;
+- artifact upload: PASS;
+- automated raw reconciliation coverage includes both PDF and EPUB retention across repeated runs with zero replacement GETs;
+- explicit raw decision coverage includes both `pdf/pdf` and `epub/epub` -> `defer_raw_keep_local`.
+
+### Gates concluídos
+- Gates 0–14: PASS.
+- Gate 15 Q1-A article safety: PASS.
+- Gate 15 Q2 article acknowledgement/idempotency: PASS.
+- Gate 15 Q1-B PDF: PASS complete.
+- Gate 15 Q1-B EPUB baseline: PASS.
+- Gate 15 overall: OPEN.
+
+### Teste físico pendente
+Only one Gate 15 physical sequence remains:
+1. change only the title of the same already-local original EPUB in Reader;
+2. ordinary Sync once;
+3. require raw EPUB revision retained/pending, no article comparison/acknowledgement for that raw item, content pages 0, no replacement install and no Sync error;
+4. reopen and verify reflow + sidecar/progress/highlights/notes intact;
+5. run Gate 15 diagnostic again and require pending=yes, Reader revision=DB revision, `not_attempted_raw`, `defer_raw_keep_local`, replacement=no, remote/local writes none.
+
+### Bugs / falhas encontrados
+- No new production bug in this session.
+- No failed automated test.
+- No loss/duplication/replacement behavior observed.
+
+### Decisões técnicas
+- No production change before the EPUB revision proof because the exact raw path already has deterministic automated coverage and PDF physical evidence.
+- Do not manufacture/re-download a replacement EPUB fixture; use the existing managed original already proven in Gate 6/baseline.
+- Automatic replacement remains disabled.
+
+### Desvios da spec
+- None.
+
+### Blocker
+- Physical EPUB title-only revision/preservation proof.
+- Gate 16 remains blocked until Gate 15 is explicitly closed after that result.
+
+### Próximos passos exatos
+1. run the EPUB title-only revision sequence above;
+2. record the Sync report and post-Sync diagnostic;
+3. if PASS, close Gate 15 in STATUS/spec/plan/device tests;
+4. merge/close Phase Q as appropriate;
+5. only then begin Phase R / Gate 16 hardening in canonical order.
