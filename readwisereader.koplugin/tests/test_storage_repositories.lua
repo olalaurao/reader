@@ -47,6 +47,8 @@ local function testDocuments()
         local_content_hash = "local-hash",
         is_local_present = true,
         last_materialized_at = 101,
+        materialized_remote_updated_at = "2026-09-22T12:00:00Z",
+        content_refresh_pending = false,
     })
 
     local second = docs:upsertRemote({
@@ -67,6 +69,31 @@ local function testDocuments()
     assertEqual(second.local_path, "/mnt/us/documents/Readwise/Articles/old.html", "remote metadata upsert must preserve local state")
     assertEqual(second.local_content_hash, "local-hash")
     assertEqual(second.raw_source_available, true)
+    assertEqual(second.materialized_remote_updated_at, "2026-09-22T12:00:00Z")
+    assertEqual(second.content_refresh_pending, false)
+
+    local pending = docs:markContentRefreshPending(
+        "doc-1",
+        "2026-09-22T13:00:00Z",
+        202
+    )
+    assertEqual(pending.content_refresh_pending, true)
+    assertEqual(
+        pending.content_refresh_remote_updated_at,
+        "2026-09-22T13:00:00Z"
+    )
+    assertEqual(pending.content_refresh_detected_at, 202)
+    assertEqual(docs:countContentRefreshPending(), 1)
+    local pending_rows = docs:listContentRefreshPending()
+    assertEqual(#pending_rows, 1)
+    assertEqual(pending_rows[1].reader_id, "doc-1")
+
+    local cleared = docs:clearContentRefreshPending("doc-1")
+    assertEqual(cleared.content_refresh_pending, false)
+    assertEqual(cleared.content_refresh_remote_updated_at, nil)
+    assertEqual(cleared.content_refresh_detected_at, nil)
+    assertEqual(docs:countContentRefreshPending(), 0)
+
     local by_path = docs:getByLocalPath("/mnt/us/documents/Readwise/Articles/old.html")
     assertEqual(by_path.reader_id, "doc-1")
     local archived = docs:setLocation("doc-1", "archive")
