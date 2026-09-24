@@ -242,3 +242,32 @@ This closes the destructive identity lesson:
 - do verify an unrelated control survives.
 
 Future destructive annotation work must preserve both halves of Gate 12: safe retention while OFF and exact-target deletion while deliberately ON.
+
+
+## 14. Network reachability is a pre-write safety boundary
+
+Gate 13 physical testing on the target PW3 exposed a device-specific but architecturally important rule.
+
+Builds 0.1.33/0.1.34 trusted local network state too much. Build 0.1.35 then measured the target while the user had no internet/native Airplane Mode:
+- attempted Kindle `airplaneMode`, `wirelessEnable`, and `wifid enable` properties were unavailable;
+- KOReader still reported Wi-Fi on, connected, and online.
+
+Therefore **local network state must not authorize a remote annotation write** on this target.
+
+Production ordering from 0.1.36 onward:
+
+```text
+read KOReader sidecar
+→ persist annotation/link + durable queue intent
+→ read-only Readwise auth/reachability probe
+→ only on probe success: reconcile/process create queue and other remote mutations
+```
+
+If the probe fails:
+- keep the queue/link state;
+- do not POST/PATCH/DELETE;
+- do not advance the document watermark;
+- do not toggle Wi-Fi;
+- surface the probe class in diagnostics.
+
+This is distinct from ambiguous-write recovery: a failed **pre-write read-only probe** proves no mutation was attempted, while a timeout/5xx **after POST begins** must still use the existing reconciliation-only rules and must never become a blind retry.
