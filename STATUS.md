@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase O IMPLEMENTED — GATE 13 PENDING PHYSICAL RETEST; build 0.1.38 hardens real-device backlog exceptions after the 0.1.37 safe failure**
+**Phase O IMPLEMENTED — GATE 13A/B PASSED; GATE 13C reconnect blocked on read-only diagnostic build 0.1.39**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -1530,7 +1530,7 @@ The first physical 0.1.37 run then exposed a robustness gap not represented in C
 
 ## Blockers
 
-Immediate blocker: **Gate 13C reconnect / exactly-once delivery on build 0.1.38**.
+Immediate blocker: **run the 0.1.39 read-only reconnect diagnostic before any further Gate 13C mutation**.
 
 Physical 0.1.37 result:
 - native Kindle Airplane Mode had been enabled before the test;
@@ -2571,3 +2571,65 @@ Next physical action:
    - exactly one Reader copy of each expected highlight/note;
    - local highlight/note still present.
 9. Gate 13 closes only after both reconnect sync and unchanged second sync pass.
+
+
+### Gate 13C attempt 1 — FAIL SAFE on 0.1.38
+
+After Gate 13A/B passed physically:
+- Wi-Fi was re-enabled from KOReader outside Readwise Reader;
+- ordinary Sync now was run once;
+- UI showed only `Document sync failed safely`;
+- no normal report was returned;
+- no second Sync was run.
+
+Important interpretation:
+- KOReader v2026.07.1 `Trapper:dismissableRunInSubprocess` serializes multiple task returns and returns them to the parent when the child exits normally;
+- therefore the generic no-report result is **not** explained by losing the worker's second `err` return;
+- the observed UI is consistent with the child ending without usable serialized output (for example hard process exit or serialization failure);
+- the exact failure stage is not yet proven;
+- because create operations may have side effects before a child dies, **do not retry Sync blindly**.
+
+### 0.1.39 read-only reconnect spike
+
+Implemented before any additional remote mutation:
+- `storage/queue.lua` adds read-only create-queue snapshot/status queries that do not promote or mutate queue rows;
+- new `sync/reconnect_probe_worker.lua`;
+- new `ui/reconnect_diagnostics.lua`;
+- menu action: **Inspect reconnect queue (Gate 13)**;
+- worker stages are persisted as one non-sensitive local string:
+  - `queue_snapshot`;
+  - `auth_probe`;
+  - `marker_scan`;
+  - `parent_reads`;
+  - `done`;
+- diagnostic runs Reader auth in the same child-process model as Sync;
+- diagnostic scans remote Reader highlights for exact KOReader ownership markers for active queue rows;
+- diagnostic fetches parent documents and performs matching read-only;
+- no POST/PATCH/DELETE;
+- displayed queue items contain status/attempt/error/marker/match metadata only — no token, note text, selected text, Reader IDs or signed URLs.
+
+Files changed for 0.1.39:
+- `readwisereader.koplugin/storage/queue.lua`;
+- `readwisereader.koplugin/sync/reconnect_probe_worker.lua` (new);
+- `readwisereader.koplugin/ui/reconnect_diagnostics.lua` (new);
+- `readwisereader.koplugin/main.lua`;
+- `readwisereader.koplugin/tests/test_storage_repositories.lua`;
+- `readwisereader.koplugin/tests/test_reconnect_probe_worker.lua` (new);
+- `readwisereader.koplugin/tests/test_reconnect_diagnostics_ui.lua` (new);
+- `readwisereader.koplugin/tests/run.lua`;
+- `readwisereader.koplugin/constants.lua`;
+- `readwisereader.koplugin/_meta.lua`;
+- `CHANGELOG.md`;
+- `IMPLEMENTATION_SPEC.md`;
+- `PLAN.md`;
+- `docs/DEVICE_TESTS.md`;
+- `STATUS.md`.
+
+Exact next physical action:
+1. install 0.1.39 preserving DB/settings/documents/sidecars;
+2. keep Wi-Fi ON;
+3. do not create/edit/delete Gate 13 fixtures;
+4. **do not run Sync now**;
+5. run **Readwise Reader → Inspect reconnect queue (Gate 13)** once;
+6. return the whole screen;
+7. only then decide whether reconnect resumes with reconciliation, a code fix, or another narrower spike.
