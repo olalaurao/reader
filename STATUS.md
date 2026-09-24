@@ -4353,9 +4353,9 @@ Accepted physical result:
 - Draft PR: #19.
 - Base: merged Gate 15 `main` at `3a37df88bae65407d3faaa638c7536ad47fe5744`.
 - Candidate version: **0.1.47**.
-- Production/test/docs head before this STATUS closeout: `2daf8ff18a4642f355fef8c79268bb09ba411188`.
-- Branch was 25 commits ahead / 0 behind `main` at that head.
-- This STATUS-only handoff commit follows that validated implementation/docs head.
+- Production/test/docs head validated for device handoff: `f0406e8f29b54b9a3c15787fd0b1f7910b752c7b`.
+- Branch was 27 commits ahead / 0 behind `main` at that head.
+- This STATUS-only closeout follows that fully validated implementation/docs head.
 
 ### Arquivos alterados em Phase R até este handoff
 Production/plugin:
@@ -4383,6 +4383,8 @@ Tests/quality:
 
 Docs:
 - `README.md`;
+- `CHANGELOG.md`;
+- `docs/DEVICE_TESTS.md`;
 - `docs/GATE16_HARDENING.md`;
 - `IMPLEMENTATION_SPEC.md`;
 - `PLAN.md`;
@@ -4437,12 +4439,16 @@ Docs:
 - CI #1051 on early Phase R hardening head `94b3d4ce...`: **SUCCESS**.
 - CI #1063 after processed-HTML ENOSPC coverage: **SUCCESS**.
 - CI #1069 on 0.1.47 version/metadata head `bcf1bbdec5980a32d2ffd47cfaf262d404927ac3`: **SUCCESS**.
+- CI #1075 on canonical spec/plan/STATUS RC handoff head `2daf8ff18a4642f355fef8c79268bb09ba411188`: **SUCCESS**.
+- CI #1079 on final device-handoff docs head `f0406e8f29b54b9a3c15787fd0b1f7910b752c7b`: **SUCCESS**.
 - Development syntax/quality checks: PASS.
 - Full Lua unit suite: PASS.
 - Installable ZIP build: PASS.
 - Package layout verification: PASS.
 - Artifact upload: PASS.
-- Final documentation-head CI is still required after this STATUS closeout and must be recorded before handing the RC to the device.
+- Gate 16 RC artifact ID: `10839315642` (`readwisereader-koplugin-fd4dc5cd3d83cb77becaab62953392a94f0f3eb5`).
+- Outer artifact digest reported by GitHub: `sha256:0f65232fa694631fbed30f900e25707cd5962e2a467a041266474bcca6232615`.
+- No production code changed after the CI #1079 validated head.
 
 ### Gates concluídos
 - Gates 0–15: **PASSED**.
@@ -4486,8 +4492,13 @@ Do **not** deliberately fill the Kindle filesystem or manufacture corrupt/huge p
 - Gate 16 cannot close and Phase S cannot begin until that sequence passes.
 
 ### Próximos passos exatos
-1. wait for final CI on this handoff head and record artifact details;
-2. install 0.1.47 on the target PW3 only after the backup in `docs/GATE16_HARDENING.md`;
-3. execute the RC physical sequence in order;
-4. if any step fails, stop Gate 16, preserve evidence and use the documented 0.1.46 plugin-only rollback if needed;
-5. if all steps pass, close Gate 16 in STATUS/spec/plan/device tests, merge PR #19, then begin Phase S / full V1 acceptance.
+1. install 0.1.47 on the target PW3 only after the backup in `docs/GATE16_HARDENING.md`;
+2. execute the RC physical sequence in order, beginning with plugin/startup + one normal Wi-Fi-on Sync and return that report before proceeding;
+3. if any step fails, stop Gate 16, preserve evidence and use the documented 0.1.46 plugin-only rollback if needed;
+4. if all steps pass, close Gate 16 in STATUS/spec/plan/device tests, merge PR #19, then begin Phase S / full V1 acceptance.
+
+
+### Final Gate 16 off-device handoff CI
+- Final non-STATUS implementation/docs head: `f0406e8f29b54b9a3c15787fd0b1f7910b752c7b`.
+- Workflow #1079: **SUCCESS**.
+- Gate 16 deterministic hardening is complete off-device; the only blocker is the PW3 0.1.47 physical RC sequence.
