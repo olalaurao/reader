@@ -606,32 +606,20 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Branch: `phase-o/offline-queue-gate13`
 - Draft PR: **#16** — keep draft / do not merge until Gate 13 passes physically.
 - Base/integrated `main`: `54509c84bb731cfa0507865d6cc8fb300859647d` (PR #15 merge / Phase N + Gate 12 passed)
-- Current pre-handoff branch HEAD: `03ba428e99dcf9af560ba37da3e4beaa37ef7d8f`; the STATUS handoff commit follows this SHA.
-- Build version under physical retest: **0.1.38**.
-- 0.1.38 functional hardening commits:
-  - `e001b239720764364aad030ecfb65286009cf2e6` — isolate per-document sidecar/queue failures and repository-query fallback;
-  - `10023d355c758348dd433a14a1ac1d43517661b6` — coarse worker failure stage diagnostics;
-  - `ef6349dca4edbbb9d62d4b3c6fc47d05ba98cbdb` — UI backlog/worker diagnostics;
-  - `a9eec2ff9c7cfeca146be7c381603e071073785a` — isolate malformed annotation normalization;
-  - `599903c8944b1d69d00aebcee2ac026900e9cf1a` / `cfe62d873c4626377e155159ba0f378c4972b01b` / `46c883ad89299eb3b35e71040ee0a66b6437eca9` / `d3a8eef6f0e4b1454556557d4f84cdb260d24cb3` — propagate isolation diagnostics;
-  - `59331c8be0c77228d7a7b8ef7211faded52615aa`, `f93c0d0576beed133516f44366aa356eaff27c8f`, `880dada912d30b72c16e24e7f0cbc5c67420fc92`, `4417049ebbcab8f669c889286667084f2c5d5cbb`, `9b6c6254567e7b9251602b07e803b89b95c4777b` — exception/fallback/UI/status unit coverage.
-- CI run **#611** after initial per-document exception isolation: **SUCCESS**.
-- CI run **#640** on the complete 0.1.38 code/package + canonical docs through `99cd78a0a83f606c8415f04091b47b7f58be42a7`: **SUCCESS**.
-  - development checks: SUCCESS;
-  - full Lua unit suite: SUCCESS;
-  - installable ZIP build: SUCCESS;
-  - package layout: SUCCESS;
-  - artifact upload: SUCCESS.
-- Validated 0.1.38 artifact:
-  - workflow run: `36008098262` / run #640;
-  - artifact ID: `10810568961`;
-  - artifact name: `readwisereader-koplugin-f2d4c98d4b24d29446635d9c368e02e10b10b654`;
-  - outer artifact SHA-256: `96d8dd7d9246cbb8aa7b387034d9724113308a11d2263a5c4b90214952df316e`;
-  - installable inner `readwisereader.koplugin.zip` SHA-256: `e7fbb5006d228d9ba5166e6265ed42c9464b0f1c9630f4d7dfe5324b5ed0e582`;
-  - inner ZIP `unzip -t`: **PASS**, no errors;
-  - packaged `constants.lua`: version **0.1.38**;
-  - packaged ZIP contains no `tests/` entries.
-- Annotation/retry invariants: `docs/ANNOTATION_SYNC_LESSONS.md`, including Gate 13 pre-write reachability, broad-discovery scope, and real-device exception containment.
+- Current pre-artifact branch HEAD: `0c0883a64d107b5f2d67b4a180b3e49ee929dc4d`; final CI/artifact/documentation commits follow this SHA.
+- Build version under physical diagnosis: **0.1.39**.
+- Gate 13A: **PASSED** on 0.1.38.
+- Gate 13B: **PASSED** on 0.1.38.
+- Gate 13C attempt 1 on 0.1.38: **FAIL SAFE / no usable report** after reconnect; no second Sync was run.
+- 0.1.39 reconnect-spike implementation:
+  - `cc88e67af26f54beb03448820e66b036241ded76` — read-only queue snapshots/counts;
+  - `d9def9e2bdc3e48a8c50708c9fc6be52b12782eb` — reconnect probe worker with durable coarse stages;
+  - `35389486ba86ca1dc0b7bf4b1af1a095c07057a9` — read-only reconnect UI;
+  - `9c69cc5742a0c2194b6682fd8f31868c83feac12` — menu wiring;
+  - `41f3c882cde31c182784ecf939b0d8d967acfaf2`, `0a78031435f9e319b40a0bc6fc88773c9f458e3b`, `cd5ffa96bbb4871c7c63deb0e7a01398864fc53f`, `498b242d80e235400c1740b8d864391bce084773` — deterministic repository/worker/UI test coverage;
+  - `0ff91d25ac67e563b26c1e37815c5855b79ae157` — version 0.1.39.
+- 0.1.39 diagnostic remote operations are GET/LIST only. It performs no POST/PATCH/DELETE and no queue mutation/promotion.
+- Annotation/retry invariants: `docs/ANNOTATION_SYNC_LESSONS.md`.
 
 ## Target environment
 
@@ -1530,74 +1518,44 @@ The first physical 0.1.37 run then exposed a robustness gap not represented in C
 
 ## Blockers
 
-Immediate blocker: **run the 0.1.39 read-only reconnect diagnostic before any further Gate 13C mutation**.
+Immediate blocker: **physical 0.1.39 read-only reconnect diagnostic**.
 
-Physical 0.1.37 result:
-- native Kindle Airplane Mode had been enabled before the test;
-- the fresh Gate 13 fixture existed locally;
-- ordinary Sync now produced no summary report;
-- UI showed only `Document sync failed safely`;
-- reboot/reconnect was correctly not attempted.
+Already physically proven:
+- Gate 13A: offline durable queue safety — **PASS**;
+- Gate 13B: queue + local highlight/note survive full KOReader restart offline — **PASS**.
 
-New physical observation after that attempt:
-- when native Kindle Airplane Mode is enabled and KOReader/Readwise Reader is entered, Wi-Fi can be found ON again after leaving the plugin;
-- therefore native Kindle Airplane Mode is **not currently a reliable persisted offline fixture on this target**;
-- this does not prove the Readwise Reader plugin itself turns Wi-Fi on;
-- current plugin code has no explicit `turnOnWifi`, `restoreWifiAsync`, `runWhenOnline`, or `beforeWifiAction` call;
-- KOReader's Kindle backend does support Wi-Fi restoration, so Gate 13 must first isolate KOReader restore behavior from plugin behavior before judging the 0.1.38 offline path.
+Gate 13C attempt 1 on 0.1.38 failed safely after Wi-Fi reconnect with no usable sync report. Because that attempt may have reached an ambiguous create boundary, ordinary Sync must not be repeated until local queue state and exact Reader marker state are measured.
 
-Everything possible without the physical Kindle is now complete for 0.1.38:
-- durable create queue / idempotency / retry_wait / stale-in-flight recovery;
-- timeout/5xx ambiguity reconciliation without blind POST retry;
-- 429/auth retry safety;
-- read-only remote reachability gate before any write;
-- create backlog discovery across all locally-present managed Reader documents;
-- optimized local-managed query with safe fallback;
-- per-document scan exception isolation;
-- per-document queue exception isolation;
-- per-annotation normalization exception isolation;
-- current-document prioritization;
-- remote-only row exclusion before sidecar IO;
-- no second sidecar read between identity reconciliation and queue preparation;
-- worker-stage diagnostics for any remaining global failure;
-- diagnostic counters for query fallback and isolated exception classes;
-- full automated suite/package build;
-- installable 0.1.38 ZIP integrity/version/layout verified.
+Everything possible without the physical Kindle is implemented for the diagnostic:
+- read-only queue snapshot without state promotion;
+- child-process auth probe;
+- read-only exact-marker scan;
+- read-only parent-document GET + text matching;
+- durable non-sensitive stage marker for hard child exits;
+- no token/text/note/Reader IDs displayed;
+- no remote write endpoint called by the diagnostic.
 
-Gate 13 remains **OPEN**. Do not begin Phase P / Gate 14 and do not merge PR #16 before the real-device offline → restart → reconnect sequence passes.
+Gate 13 remains **OPEN**. Gate 14+ remains blocked. PR #16 stays draft.
 
 ## Exact next steps
 
-1. Install **0.1.38**; preserve settings/database/documents/sidecars.
-2. **Do not create a new highlight.** Reuse the exact Gate 13 fixture already created for the failed 0.1.37 attempt.
-3. Before Sync, establish a stable offline state inside KOReader:
-   - disable KOReader **Restore Wi-Fi connection on resume**;
-   - while already inside KOReader, turn Wi-Fi OFF using KOReader's own Network menu;
-   - do not rely only on native Kindle Airplane Mode for this retry.
-4. Open/close the Readwise Reader menu once **without pressing Sync** and verify Wi-Fi remains OFF.
-5. If Wi-Fi turns itself back ON merely from opening/closing the plugin, stop: this becomes a plugin-load/KOReader-network-manager isolation spike, not Gate 13A.
-6. If Wi-Fi stays OFF, open the same managed article; do not edit/recreate the highlight or note.
-7. Close/reopen once if needed to ensure the sidecar is flushed; leave it open.
-8. Run ordinary **Sync now** once.
-9. Gate 13A passes if:
-   - a full report appears;
-   - Mode = `offline / local queue`;
-   - Remote preflight = `offline`, `timeout`, `tls`, or `unknown`;
-   - Current annotation document status = `ok`;
-   - Managed annotation documents scanned >= **1**;
-   - Authoritative annotation sidecars >= **1**;
-   - Managed-document highlights scanned >= **1**;
-   - Highlights created = **0**;
-   - Create queue items processed = **0**;
-   - Create queue waiting after sync >= **1**;
-   - Metadata pages = **0**;
-   - Content pages = **0**;
-   - target fixture is still absent from Reader.
-10. `queued_offline_partial` and nonzero isolated-exception/skip counters are acceptable only when the **current annotation document status is ok**, the target remains waiting durably, and no remote work ran.
-11. If the worker still fails globally, return the new message containing `stage: <...>`; do not reboot.
-12. If Gate 13A passes, stop after the report. Then the next required gate action is restart KOReader while the same item remains pending.
-13. After restart, verify local highlight/note survived, reconnect Wi-Fi outside the plugin, run Sync once for exactly-one create/reconcile, then a second unchanged Sync for zero creates/duplicates.
-14. Only then record Gate 13 PASS, mark Phase O complete, make PR #16 ready/merge normally, and proceed to Phase P / Gate 14.
+1. Install **0.1.39** preserving settings/database/documents/sidecars.
+2. Keep Wi-Fi **ON** and internet available.
+3. Do **not** create, edit, or delete any Gate 13 fixture.
+4. Do **not** run ordinary **Sync now**.
+5. Run **Readwise Reader → Inspect reconnect queue (Gate 13)** exactly once.
+6. Return the entire diagnostic screen.
+7. Review:
+   - child-process auth status;
+   - queue `pending/retry_wait/in_flight/blocked/succeeded` counts;
+   - active exact-marker matches already present in Reader;
+   - parent-read/text-match status;
+   - or, if no report is returned, the durable `Last stage`.
+8. Only after this read-only evidence is known:
+   - reconcile any remotely-created item without duplicate POST;
+   - correct the failing stage if needed;
+   - resume Gate 13C exactly-once delivery.
+9. Gate 13 closes only after reconnect delivery succeeds and a second unchanged Sync proves created=0 / waiting=0 / exactly one remote copy.
 
 ## Existing architectural decisions still in force
 
