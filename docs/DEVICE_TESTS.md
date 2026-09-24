@@ -2120,3 +2120,31 @@ Physical instructions:
 5. run **Inspect reconnect queue (Gate 13)** exactly once;
 6. return the whole diagnostic screen;
 7. if the child exits, return the recovered partial snapshot and exact last durable stage.
+
+
+### Build 0.1.41 physical matcher result — PASS
+
+Read-only Gate 13 reconnect diagnostic:
+- stage `done_match_probe`;
+- auth passed;
+- queue pending 3;
+- retry_wait 0;
+- in_flight 0;
+- blocked 0;
+- succeeded 11;
+- marker scan passed across 11 pages;
+- active marker matches 0;
+- item #1: HTML 9,851 bytes, matched exact;
+- item #2: HTML 27,477 bytes, matched whitespace;
+- item #3: HTML 8,564 bytes, matched whitespace;
+- all three remain attempts=0 / remote_id=no;
+- remote writes none.
+
+This physically clears the optimized production matcher on the target PW3 for these pending create fixtures.
+
+Proceed to controlled Gate 13C mutation:
+1. keep 0.1.41 and Wi-Fi ON;
+2. do not alter annotations;
+3. run **Sync now once**;
+4. return full report before any second Sync;
+5. verify Reader contains exactly one copy of each expected new highlight/note.
