@@ -2,7 +2,7 @@
 
 local Migrations = {}
 
-Migrations.SCHEMA_VERSION = 1
+Migrations.SCHEMA_VERSION = 2
 
 Migrations.SCHEMA_V1 = [[
 CREATE TABLE IF NOT EXISTS documents (
@@ -84,6 +84,15 @@ CREATE INDEX IF NOT EXISTS idx_queue_status_available ON queue(status, available
 CREATE INDEX IF NOT EXISTS idx_queue_document ON queue(reader_document_id);
 ]]
 
+Migrations.SCHEMA_V2 = [[
+ALTER TABLE documents ADD COLUMN materialized_remote_updated_at TEXT;
+ALTER TABLE documents ADD COLUMN content_refresh_pending INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE documents ADD COLUMN content_refresh_remote_updated_at TEXT;
+ALTER TABLE documents ADD COLUMN content_refresh_detected_at INTEGER;
+CREATE INDEX IF NOT EXISTS idx_documents_refresh_pending
+    ON documents(content_refresh_pending);
+]]
+
 function Migrations.currentVersion(conn)
     return tonumber(conn:rowexec("PRAGMA user_version;")) or 0
 end
@@ -105,6 +114,9 @@ function Migrations.apply(conn, from_version)
     local ok, err = pcall(function()
         if from_version < 1 then
             conn:exec(Migrations.SCHEMA_V1)
+        end
+        if from_version < 2 then
+            conn:exec(Migrations.SCHEMA_V2)
         end
         conn:exec(string.format("PRAGMA user_version=%d;", Migrations.SCHEMA_VERSION))
     end)

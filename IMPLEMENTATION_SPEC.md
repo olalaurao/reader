@@ -1003,17 +1003,31 @@ Do not re-scrape `source_url` unless Reader content is unavailable and a future 
 
 ## 11.4 Updated remote documents
 
-Do not automatically replace a locally annotated file until the "content replacement + sidecar position stability" spike has been completed.
+Do not automatically replace an existing local file until the "content replacement + sidecar position stability" spike has been completed for that format.
 
-Initial safe policy:
-- if remote content changed but local document has annotations/progress:
-  - update metadata/location;
-  - mark content refresh pending;
-  - do not replace content silently.
-- if no local annotations/progress:
-  - safe replacement may proceed.
+Phase Q evidence/constraints:
+- Reader's public Document UPDATE endpoint does **not** accept `html`/body content;
+- Reader's parsing FAQ says a normally-saved article is preserved as originally parsed and manual refresh is delete + re-save, which also destroys its Reader highlight/note context;
+- Reader's 2026-09-18 changelog nevertheless documents server-side **reparsed documents**, so an existing Reader ID can still surface new body content through service-side repair;
+- therefore same-ID content change is a real case but is not deterministically triggerable through the public UPDATE API for a routine device gate.
 
-Later, if testing proves stable, relax per format.
+V1 conservative policy:
+- **never automatically replace any already-existing local document in Phase Q until format-specific target-device stability is proven**;
+- a Reader revision change on an existing local document is persisted durably as content-refresh-pending before metadata state can hide it;
+- metadata/location/tag projection may continue;
+- article/HTML candidates may be fetched **read-only** and compared by normalized visible text;
+- same visible text means metadata/non-text revision: keep the local file; after physical validation a later build may acknowledge/clear that pending marker without replacing bytes;
+- different visible text means keep the current local file and retain refresh pending;
+- original PDF/EPUB revisions remain pending/deferred without downloading/replacing the current raw file;
+- unknown/unavailable comparison remains pending;
+- sidecar is never replaced by this policy.
+
+For existing pre-schema-v2 local files, do not invent a materialized revision during migration. Their materialized revision baseline remains unknown until a future remote revision/read-only comparison provides evidence.
+
+References:
+- Reader API: https://readwise.io/reader_api
+- Reader parsing FAQ: https://docs.readwise.io/reader/docs/faqs/parsing
+- Reader changelog (reparsed documents, 2026-09-18): https://docs.readwise.io/changelog
 
 ---
 
@@ -2716,17 +2730,193 @@ Physical result:
 
 Phase P is complete.
 
-## Phase Q — content refresh safety
+## Phase Q — content refresh safety — GATE 15 PASSED COMPLETE
 
-### Q1
-- test article update after progress/highlights;
-- test PDF/EPUB replacement implications.
+### Q1 — build 0.1.45 read-only / no-replacement spike
 
-### Q2
-- implement conservative refresh policy.
+Implementation:
+- schema v2 adds:
+  - `materialized_remote_updated_at`;
+  - `content_refresh_pending`;
+  - `content_refresh_remote_updated_at`;
+  - `content_refresh_detected_at`;
+- migration from v1 deliberately leaves `materialized_remote_updated_at = NULL` for legacy local files rather than falsely claiming the latest metadata revision is what their bytes contain;
+- every new materialization records the exact Reader `updated_at` revision that produced its local bytes;
+- when metadata discovery sees a newer Reader revision for an existing local file, it durably marks refresh pending **before/while** metadata is advanced;
+- later no-op syncs cannot erase the pending signal;
+- normal Sync never calls the materializer for an already-existing local file;
+- Sync summary exposes durable pending count.
+
+KOReader risk signals exposed read-only:
+- sidecar presence;
+- `percent_finished`;
+- annotation count;
+- `last_xpointer` presence for reflowable content;
+- `last_page` presence for paged content;
+- `partial_md5_checksum` presence;
+- aggregate `has_reading_state`.
+
+**Inspect content refresh safety (Gate 15)**:
+- current document must be Reader-managed;
+- local HTML read capped at 4 MiB;
+- Reader HTML response capped at 4 MiB;
+- compares normalized **visible text only** by direct Lua string equality; no native hashing/FFI is required and no private text is displayed/logged;
+- raw PDF/EPUB source is not downloaded by the diagnostic;
+- reports V1 decision;
+- automatic replacement is hard-disabled;
+- remote writes: none;
+- local writes: none.
+
+Decisions in 0.1.45:
+- `same_visible_text_keep_local`;
+- `defer_changed_text_reading_state`;
+- `defer_changed_text_unproven`;
+- `defer_raw_keep_local`;
+- `defer_unverified_keep_local`;
+- `block_local_missing`;
+- never `replace`.
+
+### Q1 attempt 1 — 0.1.44 physical FAIL / corrected in 0.1.45
+
+The first physical diagnostic tap exited KOReader back to the launcher before any Gate 15 result was shown.
+
+Root cause:
+- Q1 introduced the first database schema migration (v1 → v2);
+- KOReader `ffiUtil.copyFile(from, to)` returns **nil on success** and an error string on failure;
+- the 0.1.44 pre-migration backup path incorrectly interpreted nil as failure and raised before the SQL migration transaction began;
+- the parent menu preflight did not contain that exception.
+
+0.1.45 correction:
+- treat nil from KOReader `copyFile` as successful backup;
+- treat any non-nil return as backup failure;
+- regression-test the exact KOReader copy contract;
+- wrap parent-process DB and sidecar preflight calls so future failures show a safe UI message rather than escaping the menu callback;
+- remove unnecessary `ffi/sha2` use from the diagnostic and compare normalized text directly;
+- content replacement remains disabled.
+
+Because the failure occurs before `Migrations.apply` begins its transaction, the original v1 database should remain unchanged. A successful `.bak` copy may have been created.
+
+### Q1-A article physical result — PASS on 0.1.45
+
+Real PW3 fixture:
+- managed local article / HTML / `reader_html`;
+- sidecar present;
+- `percent_finished = 0.1538`;
+- 6 annotations;
+- last XPointer present;
+- partial file checksum present;
+- reading state at risk = yes.
+
+After a Reader **title-only** same-ID revision and one Sync:
+- `Content refresh pending review = 1`;
+- metadata pages = 1;
+- content pages = **0**;
+- errors = 0;
+- no annotation create/update/delete regression;
+- local article still opened;
+- progress/position, highlights and notes were unchanged.
+
+Post-revision diagnostic:
+- refresh pending = yes;
+- pending remote revision equals current Reader revision;
+- remote probe passed;
+- visible-text comparison = **same**;
+- decision = `same_visible_text_keep_local`;
+- automatic replacement = no;
+- remote writes none;
+- local writes none.
+
+This physically authorizes Q2 to acknowledge only the exact pending revision whose fetched visible text is proven equivalent to the current local bytes.
+
+### Q1-B raw fixtures
+
+PDF physical result: **PASS COMPLETE** on the target PW3 / KOReader v2026.07.1 / build 0.1.46.
+
+EPUB physical result: **PASS COMPLETE** on the same target/build.
+- existing plugin-managed original EPUB identified and opened;
+- diagnostic reported raw EPUB semantics (`category=epub`, `local_format=epub`);
+- local file present;
+- remote probe passed;
+- visible-text comparison was `not_attempted_raw`;
+- decision was `defer_raw_keep_local`;
+- automatic replacement remained disabled;
+- remote/local writes were none.
+
+The same-ID title-only EPUB revision + one Sync + post-Sync preservation/diagnostic validation also passed physically:
+- raw EPUB revision remained pending/deferred;
+- no replacement content download/install occurred;
+- EPUB reopened/reflowed normally;
+- sidecar/progress/highlights/notes remained intact;
+- post-Sync diagnostic remained `not_attempted_raw` + `defer_raw_keep_local`, pending=yes, replacement disabled, remote/local writes none.
+
+Therefore **Gate 15 is PASSED COMPLETE**. Phase R / Gate 16 is unblocked.
+- existing plugin-managed original PDF identified and opened;
+- diagnostic reported raw PDF semantics (`category=pdf`, `local_format=pdf`);
+- remote probe passed;
+- visible-text comparison was `not_attempted_raw`;
+- decision was `defer_raw_keep_local`;
+- automatic replacement remained disabled;
+- remote/local writes were none.
+- title-only same-ID Reader revision then produced the required durable raw-pending path;
+- normal Sync performed no replacement content download/install;
+- local PDF remained usable and sidecar/progress/annotations remained intact;
+- post-revision diagnostic still reported `not_attempted_raw` + `defer_raw_keep_local` with replacement disabled.
+
+Raw fixtures:
+1. use an already-downloaded original PDF and EPUB when available;
+2. create a harmless same-ID Reader metadata revision;
+3. Sync;
+4. diagnostic must return `defer_raw_keep_local`;
+5. local raw file/sidecar remains untouched.
+
+The public API cannot deterministically mutate an existing document's body for this gate. The `different` body branch is therefore covered by deterministic automated fixtures and the production invariant "existing file is never materialized/replaced"; a naturally/server-reparsed document may additionally validate it when available.
+
+### Q2 — IMPLEMENTED in build 0.1.46
+
+Normal Sync now reconciles durable refresh-pending rows after the normal document metadata pass:
+- process at most **5 pending HTML articles per Sync** to protect PW3 responsiveness/rate limits;
+- read local HTML under the existing 4 MiB cap;
+- GET the same Reader document read-only with HTML under the same cap;
+- require fetched Reader `updated_at` to equal the exact durable `content_refresh_remote_updated_at`; a revision race is retained pending;
+- compare normalized visible text directly in Lua;
+- when visible text is `same`:
+  - clear only the durable refresh-pending marker;
+  - do **not** replace/rewrite local document bytes;
+  - do **not** write sidecar/progress/annotations;
+  - do **not** issue a remote mutation;
+- when visible text is `different`, retain pending;
+- when read/compare is unavailable, retain pending;
+- raw PDF/EPUB revisions remain pending and are not fetched as replacement bytes;
+- local missing files remain pending and are reported;
+- Reader read failures are non-destructive and leave the revision pending.
+
+A legacy row may keep `materialized_remote_updated_at = NULL` even after a metadata-only revision is acknowledged. That field means the revision that literally produced the local bytes; Q2 does not falsify it. Future Reader revisions are still detected from the metadata row's `remote_updated_at` and produce a new pending revision.
+
+Sync report adds:
+- refresh pending examined;
+- refresh articles compared;
+- metadata-only revisions acknowledged;
+- changed-content revisions retained;
+- raw PDF/EPUB revisions retained;
+- unverified revisions retained;
+- local files missing;
+- revision races retained;
+- remote read errors;
+- final pending count.
+
+Automatic byte replacement remains disabled in V1 unless a later explicit format stability spike changes this spec.
+
+### Q2 physical article result — PASS
+On the target PW3 / KOReader v2026.07.1 / build 0.1.46:
+- the first Q2 Sync acknowledged the previously-pending title-only article revision without replacing local bytes;
+- because the report's acknowledgement lines were cropped, a read-only Gate 15 diagnostic recovered the evidence: refresh pending=no, current Reader revision=DB revision, visible text=same, replacement=no, remote/local writes=none;
+- the unchanged second Sync was then confirmed as a no-op for that revision;
+- local progress/position, highlights and notes remained intact.
+
+Therefore article Q2 acknowledgement and idempotency are physically passed. The only remaining Gate 15 coverage is Q1-B for already-local original PDF/EPUB revisions.
 
 ### Gate 15
-No local annotation/progress loss caused by remote content update.
+No local annotation/progress loss caused by remote content update/revision. Existing local bytes and sidecar must remain intact for every changed/unverified/raw case; metadata-only article revisions may be acknowledged without replacing bytes after Q1 passes.
 
 ## Phase R — hardening
 
@@ -2901,14 +3091,25 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Begin **Phase Q / Gate 15 — content refresh safety** from the merged Phase P baseline.
+Begin **Phase R / Gate 16 hardening** from the merged Gate 15 baseline.
 
-1. inspect the current document materialization/update code and the KOReader 2026.07.1 sidecar/progress model;
-2. perform the required experimental spikes before enabling any destructive content replacement:
-   - article update after local progress + highlight/note;
-   - PDF/EPUB replacement implications;
-3. measure exactly which local file bytes/path/revision fields change today and whether KOReader sidecar positions remain valid;
-4. implement a conservative refresh policy only after the risk boundary is demonstrated;
-5. Gate 15 must prove that a remote content update causes **no local annotation/progress loss**;
-6. do not begin Phase R / Gate 16 until Gate 15 passes physically.
+Order is mandatory:
+1. large library;
+2. low disk;
+3. malformed document;
+4. huge document;
+5. Unicode;
+6. 429 / Retry-After;
+7. intermittent Wi-Fi / retryable network failure;
+8. force-close recovery;
+9. reboot recovery;
+10. migration;
+11. rollback;
+12. debug-log review for secrets.
 
+Rules:
+- implement and automate deterministic cases before asking for PW3 physical testing;
+- preserve existing documents, sidecars, annotations, queue and watermarks;
+- no automatic destructive cleanup;
+- no firmware/KOReader update;
+- do not mark Gate 16 passed until the release-candidate hardening sequence is physically stable on the target PW3.

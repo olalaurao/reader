@@ -6,33 +6,32 @@
 
 ## Current milestone
 
-**Phase P COMPLETE — GATE 14 PASSED; ready to merge PR #17 and begin Phase Q / Gate 15**
+**Phase Q / Gate 15 — PASSED COMPLETE; Phase R / Gate 16 hardening is now unblocked**
 
-Phase O / Gate 13 is complete and merged to `main` through PR #16 as `b7c8977b89cf572bec1280e3490a033341af4375`.
+Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
-Gate 14 P0 physically proved the canonical KOReader Finished signal on the target PW3 / KOReader v2026.07.1:
-- before: sidecar/BookList/runtime status = `reading`;
-- after **Book status → Finished**: sidecar/BookList/runtime status = `complete`;
-- persisted `summary.modified` advanced from 2026-09-23 to 2026-09-24;
-- persisted `percent_finished` remained **0.1538**, proving percentage is not the Finished authority;
-- sidecar remained present;
-- diagnostic performed no plugin network request, remote write, or local write.
+Gate 15 Q1-A physical result on PW3 / KOReader v2026.07.1 / build 0.1.45:
+- 0.1.44 crash was fixed in 0.1.45;
+- baseline article had `percent_finished=0.1538`, 6 annotations, XPointer and checksum;
+- Reader title-only same-ID revision produced `Content refresh pending review: 1`;
+- Sync downloaded **0 content pages** for the existing file;
+- local progress/position, highlights and notes remained intact;
+- post-revision diagnostic: pending yes, remote probe passed, visible-text comparison **same**, decision `same_visible_text_keep_local`, replacement no;
+- remote/local diagnostic writes: none.
 
-Canonical V1 rule: **Finished iff persisted KOReader `summary.status == "complete"`**. Do not infer from reading percentage/end position.
+Therefore Q1-A article safety **PASSED** and Q2 was authorized.
 
-Build 0.1.43 implements the production archive path:
-- **Finished documents → Archive in Reader** setting, default ON;
-- local canonical finished discovery across Reader-managed locally-present documents;
-- durable `archive_document:<reader_id>` intent before remote reachability/mutation;
-- read-only Reader GET reconciliation before every PATCH/retry;
-- individual Reader PATCH `{"location":"archive"}`;
-- idempotent recovery after timeout/process death;
-- local document-row location persisted to `archive` before queue success for crash safety;
-- parent-side move to plugin-managed `Readwise: Archive` Collection;
-- local file, sidecar, progress, highlights and notes are never deleted/rewritten by archive;
-- no reverse/unarchive behavior in V1.
+Build 0.1.46 implements Q2 without enabling replacement:
+- normal Sync examines up to 5 pending HTML articles per cycle;
+- local/Reader HTML reads are bounded to 4 MiB;
+- only the exact durable pending `updated_at` revision may be acknowledged;
+- normalized visible-text equality clears only the pending marker;
+- local document bytes and sidecar/progress/annotations are never rewritten;
+- changed/unverified/raced article revisions remain pending;
+- raw PDF/EPUB revisions remain pending and are not replacement-downloaded;
+- automatic byte replacement remains disabled.
 
-Gate 14 **PASSED** physically on build 0.1.43.
+Gate 15 remains **OPEN** only until raw-format coverage/scope is closed. Article Q2 acknowledgement and unchanged-second-Sync idempotency are now physically passed.
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -625,31 +624,33 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 
 ## Current branch / commit
 
-- Branch: `phase-p/finished-archive-gate14`
-- Draft PR: **#17** — keep draft / do not merge until Gate 14 passes physically.
-- Base/integrated `main`: `b7c8977b89cf572bec1280e3490a033341af4375` (PR #16 merge / Phase O + Gate 13 passed)
-- Validated 0.1.43 code/package state: `bf3698a0ef1e6368aa6081d3ad499c6d676506c0`.
-- Pre-final documentation/status HEAD: `9066f96f133e590cd8343eca3e25812cbd5197e7`; this final STATUS-only handoff commit follows it.
-- Build version for physical Gate 14 P1: **0.1.43**.
-- Gate 14 P0 signal spike: **PASSED physically**.
-- CI run **#865** on the validated 0.1.43 code/package state: **SUCCESS**.
+- Branch: `phase-q/content-refresh-gate15`
+- Draft PR: **#18** — keep draft / do not merge until Gate 15 passes physically.
+- Base/integrated `main`: `5d7c954d051e491c1b11344057c59df7e2cf9656` (PR #17 merge / Phase P + Gate 14 passed)
+- Validated 0.1.46 code/package head: `2fe649de11ed4acb5b3914386e7f98e52f81646b`.
+- Validated pre-final handoff HEAD: `56307e13fac7745c9493f24ead1350fcf53c3712`; this final STATUS-only handoff commit follows it.
+- Build version for physical Gate 15 Q2: **0.1.46**.
+- Database schema: **v2**.
+- CI run **#984** on 0.1.46 code/package head: **SUCCESS**.
   - development checks: SUCCESS;
   - full Lua unit suite: SUCCESS;
   - installable ZIP build: SUCCESS;
   - package layout validation: SUCCESS;
   - artifact upload: SUCCESS.
-- Validated 0.1.43 artifact:
-  - workflow run: `36025625389` / run #865;
-  - artifact ID: `10819258366`;
-  - artifact name: `readwisereader-koplugin-d62120d76d0f9e7455e04b07434047ca03a5a6a7`;
-  - outer artifact SHA-256: `694cd120f8de707c4e38403806c993553ed0efc49526e7cdba8fe8a1a083f0e4`;
-  - installable inner `readwisereader.koplugin.zip` SHA-256: `479358fa86d85dcde16e22aee2e1195521366a205e14f3708c754a16299bd067`;
+- Validated 0.1.46 artifact:
+  - workflow run: `36039445357` / run #984;
+  - artifact ID: `10826561188`;
+  - artifact name: `readwisereader-koplugin-0dad9ec6c32778662f0b0bf7a11ca99ae2cdade5`;
+  - outer artifact SHA-256: `4149d57aa00b6500c6b6ec96a39b85977df2d3109f3cfb5c4785506bb97716cf`;
+  - installable inner `readwisereader.koplugin.zip` SHA-256: `9e9b0d61eb2d13911c80d4a937524679d9f11a935a23cafa624ac6e0cacc9c1f`;
   - inner ZIP `unzip -t`: **PASS**, no errors;
-  - packaged `constants.lua`: version **0.1.43**;
-  - packaged archive/status/diagnostic modules present;
+  - packaged version: **0.1.46**;
+  - `sync/content_refresh_reconcile.lua` present;
   - packaged ZIP contains no `tests/` entries.
-- Final pre-handoff CI run **#867** on `9066f96f133e590cd8343eca3e25812cbd5197e7`: **SUCCESS** across development checks, full Lua suite, package/layout, and artifact upload.
-- PR #17 remains draft until Gate 14 completes physically.
+- 0.1.44 is superseded and must not be used.
+- 0.1.45 remains the Q1-A physical proof build; 0.1.46 is the Q2 validation build.
+- Pre-final handoff CI run **#992** on `56307e13fac7745c9493f24ead1350fcf53c3712`: **SUCCESS** across development checks, full Lua suite, package/layout and artifact upload.
+- The final STATUS-only commit does not change installable plugin bytes.
 
 ## Target environment
 
@@ -659,7 +660,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Jailbreak/KUAL functional
 - KOReader historical Gate 0–4 baseline: `2025.04`
 - canonical physical V1 baseline from Gate 4A-1 onward: official KOReader `v2026.07.1`, `kindlepw2` package
-- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase P / Gate 14 Finished → Archive
+- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase Q / Gate 15 content-refresh safety
 
 ## Phase A result
 
@@ -1548,52 +1549,60 @@ The first physical 0.1.37 run then exposed a robustness gap not represented in C
 
 ## Blockers
 
-Immediate blocker: **none in Phase P; merge PR #17, then begin Phase Q / Gate 15 content-refresh safety**.
+Immediate blocker: **physical Gate 15 Q2 validation on build 0.1.46 using the already-pending Q1-A article revision**.
 
-Everything possible without the Kindle is complete:
-- P0 canonical Finished signal physically proven;
-- archive setting implemented;
-- durable queue state implemented without schema migration;
-- offline/local discovery happens before remote preflight;
-- remote archive reconciliation-before-PATCH implemented;
-- retry/timeout/process-death idempotency implemented;
-- local-file-preservation guard implemented;
-- DB location + Collection postprocess implemented;
-- deterministic tests cover first archive, second-sync no-op, already-archive adoption, timeout reconciliation without duplicate PATCH, local Finished reversal before PATCH, and missing-local-file blocking;
-- storage/config/UI tests updated;
-- full CI/package validation passed.
+Everything possible without the target device is complete:
+- Q1-A article safety passed physically;
+- Q2 metadata-only acknowledgement implemented;
+- reconciliation is bounded to 5 pending HTML articles per Sync;
+- exact pending revision equality is required before clearing;
+- visible-text comparison uses pure Lua and does not expose document text;
+- same-text acknowledgement clears DB pending state only;
+- changed/unverified/raced article revisions remain pending;
+- raw PDF/EPUB revisions remain pending without replacement downloads;
+- automatic content replacement remains hard-disabled;
+- deterministic tests cover same-text acknowledge, changed retain, raw retain/no fetch, revision race, remote read failure, and per-Sync bound;
+- Sync UI reports every Q2 bucket;
+- CI/package/artifact validation passed.
 
-### Deviations / technical decisions
-- Section 5.8's old conceptual sequence listed remote preflight before finished detection. Gate 13 proved local network flags cannot authorize writes and established the safer pattern used here: **detect/persist local intent before the read-only remote preflight; perform no remote mutation until preflight passes**. The canonical Phase P spec is updated accordingly.
-- No DB schema migration was added because the existing generic queue already has all fields required by `archive_document`.
-- `percent_finished` is explicitly not used: physical evidence showed a Finished document at 0.1538.
+### Bugs / failures found
+- pre-Phase-Q deferral was not durable; schema v2 fixed it.
+- 0.1.44 DB migration backup misread KOReader `copyFile` nil-success semantics; 0.1.45 fixed it.
+- 0.1.44/0.1.45 diagnostic initially used unnecessary native hashing; 0.1.45 removed it.
+- no current public Reader UPDATE request can deterministically mutate an existing document body, so the changed-body production branch is covered by deterministic tests + no-replacement invariant and may receive opportunistic physical evidence from a future server reparse.
+
+### Technical decisions / spec deviations
+- The earlier initial policy "safe replacement may proceed when no local annotations/progress" is superseded for V1: **no existing local document is auto-replaced**.
+- Q2 acknowledges a metadata-only revision by clearing only `content_refresh_pending`; it deliberately does **not** rewrite `materialized_remote_updated_at` for a legacy file, because that field describes the Reader revision that literally produced its bytes.
+- Future Reader revisions are still detected from metadata `remote_updated_at`, so an acknowledged legacy row can safely become pending again.
+- Raw PDF/EPUB stays deferred until format-specific evidence supports anything less conservative.
 
 ## Exact next steps
 
-1. Install **0.1.43** preserving settings/database/documents/sidecars.
-2. Keep the same test document marked **Finished**.
-3. Confirm **Settings → Finished documents → Archive in Reader** is checked.
-4. Keep Wi-Fi/internet available.
-5. Do not alter/delete the fixture's highlights or notes.
-6. Run ordinary **Sync now exactly once**.
-7. Return the **entire Sync report**.
-8. Verify in Reader that the document location is **Archive**.
-9. On Kindle verify:
-   - local document still exists and opens;
-   - sidecar still exists;
-   - reading progress is preserved;
-   - existing highlights are preserved;
-   - existing notes are preserved.
-10. Do **not** run the second Sync until the first report + Reader/local preservation are reviewed.
-11. After first-half PASS, run one unchanged second Sync.
-12. Require second Sync:
-   - Reader documents archived = **0**;
-   - Archive queue items processed = **0**;
-   - Archive queue waiting after sync = **0**;
-   - Archive remote errors = **0**;
-   - Reader remains Archive;
-   - local file/sidecar/progress/highlights/notes remain intact.
-13. Only after that close Gate 14 / Phase P and begin Phase Q / Gate 15.
+### Q2 article acknowledgement
+1. Install **0.1.46** preserving settings/database/documents/sidecars.
+2. Do **not** change the already-pending Q1-A article, title, highlights, notes or reading position before the test.
+3. Keep Wi-Fi/internet available.
+4. Run ordinary **Sync now exactly once**.
+5. Return the full Sync report.
+6. Required for the Q1-A fixture:
+   - `Refresh pending examined >= 1`;
+   - `Refresh articles compared >= 1`;
+   - `Metadata-only revisions acknowledged = 1`;
+   - `Content refresh pending review = 0` unless unrelated pending rows already exist;
+   - `Content pages = 0`;
+   - changed/raw/unverified/race/remote-read-error counters = 0 for this fixture.
+7. Reopen the article and verify progress/position, highlights and notes remain intact.
+8. Do not alter anything; run one unchanged second Sync.
+9. Require no repeated acknowledgement/work for the same revision and pending remains 0.
+
+### Q1-B raw formats
+10. If an already-managed original PDF and/or EPUB fixture exists locally, use a harmless Reader title-only revision.
+11. Sync and require raw revision retained / no replacement download / local sidecar-position-annotations intact.
+12. If no suitable raw fixture exists, record that physical coverage limitation explicitly rather than manufacturing a destructive fixture.
+
+13. Gate 15 closes only after article Q2 idempotency and raw-format coverage/scope are resolved.
+14. Do **not** begin Phase R / Gate 16 before Gate 15 closes.
 
 ## Existing architectural decisions still in force
 
@@ -3176,17 +3185,15 @@ This is strong source evidence, but the canonical spec requires an experimental 
 Physical blocker remains the before/after Finished signal spike; no later Phase P mutation is authorized yet.
 
 
-### Remaining V1 path after Gate 13
+### Remaining V1 path after Gate 14
 
 Numbered gates:
-- Gates 0–13: **14 of 17 numbered gates passed**.
-- Gate 14: current Phase P / Finished → Archive.
-- Gate 15: content refresh safety.
+- Gates 0–14: **15 of 17 numbered gates passed**.
+- Gate 15: current Phase Q / content-refresh safety.
 - Gate 16: release-candidate hardening.
 - After Gate 16: execute the complete V1 acceptance script and tag `v1.0.0` only if it passes.
 
-The largest remaining technical uncertainty is Gate 15 because remote content replacement must not invalidate local progress/highlights, especially across HTML versus original EPUB/PDF materializations.
-
+The main remaining technical uncertainty is Gate 15 raw-format coverage. Article Q1-A passed physically and 0.1.46 Q2 is ready for exact metadata-only acknowledgement testing; replacement remains disabled.
 
 ## Phase P 0.1.43 archive implementation handoff
 
@@ -3417,3 +3424,917 @@ Conclusion:
 - **Phase P COMPLETE**;
 - PR #17 can be moved out of draft and merged through the normal repository flow;
 - next canonical work is **Phase Q / Gate 15 — content refresh safety**.
+
+
+## Phase Q 0.1.44 content-refresh safety handoff
+
+### Milestone
+- Phase P / Gate 14: **PASSED and merged** at `5d7c954d051e491c1b11344057c59df7e2cf9656`.
+- Phase Q / Gate 15 Q1: **IMPLEMENTED / PHYSICAL TEST PENDING**.
+- Phase Q Q2 and Phase R are blocked.
+
+### Files altered
+- `readwisereader.koplugin/storage/migrations.lua`
+- `readwisereader.koplugin/storage/documents.lua`
+- `readwisereader.koplugin/sync/first_article.lua`
+- `readwisereader.koplugin/sync/documents.lua`
+- `readwisereader.koplugin/sync/worker.lua`
+- `readwisereader.koplugin/sync/content_refresh.lua` (new)
+- `readwisereader.koplugin/sync/content_refresh_probe_worker.lua` (new)
+- `readwisereader.koplugin/koreader/status.lua`
+- `readwisereader.koplugin/ui/content_refresh_diagnostics.lua` (new)
+- `readwisereader.koplugin/ui/sync.lua`
+- `readwisereader.koplugin/main.lua`
+- `readwisereader.koplugin/constants.lua`
+- `readwisereader.koplugin/_meta.lua`
+- `readwisereader.koplugin/tests/test_content_refresh.lua` (new)
+- `readwisereader.koplugin/tests/test_content_refresh_probe_worker.lua` (new)
+- `readwisereader.koplugin/tests/test_content_refresh_diagnostics_ui.lua` (new)
+- `readwisereader.koplugin/tests/test_document_sync.lua`
+- `readwisereader.koplugin/tests/test_first_article.lua`
+- `readwisereader.koplugin/tests/test_storage_db.lua`
+- `readwisereader.koplugin/tests/test_storage_repositories.lua`
+- `readwisereader.koplugin/tests/test_koreader_status.lua`
+- `readwisereader.koplugin/tests/test_sync_ui.lua`
+- `readwisereader.koplugin/tests/run.lua`
+- `CHANGELOG.md`
+- `IMPLEMENTATION_SPEC.md`
+- `PLAN.md`
+- `docs/DEVICE_TESTS.md`
+- `STATUS.md`
+
+### What was implemented
+- safe schema v2 migration and migration test;
+- materialized-remote-revision baseline for new local downloads;
+- durable refresh-pending revision state for existing local documents;
+- no-op Sync persistence of pending state;
+- hard no-replacement invariant for existing local bytes;
+- KOReader reading-state risk detection;
+- bounded, read-only article visible-text comparison;
+- raw PDF/EPUB no-download deferral policy;
+- Gate 15 diagnostic UI;
+- Sync summary pending count.
+
+### Tests executed / results
+- unit coverage added for:
+  - v1→v2 migration;
+  - legacy baseline remains unknown;
+  - storage pending mark/list/count/clear;
+  - initial materialized revision;
+  - remote revision → durable pending;
+  - pending survives subsequent no-op Sync;
+  - KOReader progress/annotation/XPointer/page/checksum signals;
+  - conservative refresh decisions;
+  - bounded local-file reads;
+  - Gate 15 diagnostic UI;
+  - Sync pending-count output.
+- CI #917 on `e491c7ed6096513d623f6ac6129e4ad73de56705`: **SUCCESS**.
+- artifact outer SHA-256: `c73318305a728292e4b1c90c0c9da5c86c66de1899a37ad6b02601fc60b77459`.
+- installable ZIP SHA-256: `6371f5d49656bb7fad201494a81f29bdc6df2e60cb895e39750a103ef84828b6`.
+- ZIP integrity/version/layout: PASS.
+- no test files in installable package.
+
+### Gate status
+- Gates 0–14: **PASSED**.
+- Gate 15: **OPEN — Q1 physical spike required**.
+- Gate 16: blocked.
+- V1 acceptance: blocked.
+
+### Physical blocker
+Run the 0.1.44 article before/title-change/Sync/after diagnostic sequence. Raw PDF/EPUB coverage follows only when suitable already-local original-format fixtures exist.
+
+
+### Session closeout — Gate 15 Q1 ready for device
+
+- Phase P / PR #17 merged successfully to main at `5d7c954d051e491c1b11344057c59df7e2cf9656`.
+- Phase Q branch/PR created: `phase-q/content-refresh-gate15` / draft PR #18.
+- 0.1.44 implementation, tests, canonical spec, PLAN and device runbook are synchronized.
+- validated package remains the #917 artifact with installable SHA-256 `6371f5d49656bb7fad201494a81f29bdc6df2e60cb895e39750a103ef84828b6`.
+- final pre-handoff CI #921 is green.
+- no Gate 15 Q2 content acknowledgement or replacement code has been implemented ahead of the required PW3 evidence.
+- next action is exactly the Q1-A article baseline → Reader title-only revision → Sync → preservation → post-revision diagnostic sequence documented above.
+
+
+### Gate 15 Q1 attempt 1 — 0.1.44 physical FAIL
+
+User tapped **Inspect content refresh safety (Gate 15)** and KOReader exited back to the launcher before any diagnostic result appeared.
+
+Root cause was identified without requiring another device action:
+- 0.1.44 was the first build to trigger DB schema v1→v2 migration;
+- the diagnostic's parent preflight lazily opens the DB;
+- KOReader `ffiUtil.copyFile` returns **nil on successful copy**;
+- `DB:_backupBeforeMigration` incorrectly treated that nil as a failed backup;
+- the resulting Lua error escaped the menu callback;
+- migration SQL had not started yet, so the original v1 DB should remain unchanged;
+- a valid `readwisereader.sqlite3.bak` may have been created before the erroneous failure.
+
+0.1.45 fixes/hardens:
+- nil from KOReader copyFile = success;
+- non-nil string = copy error;
+- regression coverage models the real KOReader contract;
+- parent DB/sidecar preflight errors are contained with `pcall`;
+- normalized visible text comparison no longer uses `ffi/sha2`; it uses direct Lua string equality;
+- existing local content replacement remains hard-disabled.
+
+Next physical action: install 0.1.45, open the same managed article, tap Gate 15 once, and return the full diagnostic screen. If KOReader exits again, stop immediately and preserve the newest `koreader/crash.log`.
+
+
+### Gate 15 Q1-A baseline on 0.1.45 — PASS
+
+Physical PW3 result after installing corrected build 0.1.45:
+- Gate 15 diagnostic opened normally; no KOReader/KUAL exit;
+- category: `article`;
+- local format: `html`;
+- download strategy: `reader_html`;
+- local file present: **yes**;
+- sidecar present: **yes**;
+- `percent_finished = 0.1538`;
+- sidecar annotations: **6**;
+- last XPointer present: **yes**;
+- last page present: **no**;
+- partial file checksum present: **yes**;
+- reading state at risk: **yes**;
+- DB remote revision: `2026-09-24T16:36:08.800974+00:00`;
+- materialized remote revision: **unavailable** (expected for legacy pre-v2 materialization);
+- refresh pending: **no**;
+- pending remote revision: unavailable;
+- current Reader revision equals DB remote revision;
+- remote revision state: `materialized_baseline_unknown`;
+- remote probe: **passed**;
+- visible-text comparison: **same**;
+- local HTML bytes: **27733**;
+- remote HTML bytes: **27477**;
+- V1 refresh decision: `same_visible_text_keep_local`;
+- automatic replacement allowed: **no**;
+- remote writes: **none**;
+- local writes: **none**.
+
+Interpretation:
+- 0.1.45 fixes the 0.1.44 crash path on the target;
+- schema migration/open path is now functional;
+- legacy materialization baseline being unknown is expected and safe;
+- the article has real progress + annotations and therefore is a valid Q1-A preservation fixture;
+- baseline text comparison is stable despite wrapper/markup byte-count differences;
+- no replacement/write occurred.
+
+Next physical action:
+1. in Reader, change **only the title** of this same document;
+2. do not delete/re-save or edit body content;
+3. after Reader persists the rename, run ordinary **Sync now** once on Kindle;
+4. return the complete Sync report;
+5. do not run a second Sync yet;
+6. then reopen the article and verify progress/position + highlights/notes remain before the post-revision Gate 15 diagnostic.
+
+
+### Gate 15 Q1-A title-only revision Sync — PASS PARTIAL
+
+Physical target: PW3 / KOReader v2026.07.1 / build 0.1.45.
+
+After the user changed **only the Reader document title** for the baseline article, one ordinary Sync was run.
+
+Visible report evidence:
+- Content refresh pending review: **1**;
+- Metadata documents seen: **1**;
+- Filtered out: **0**;
+- Retryable item errors: **0**;
+- Retryable stages: none;
+- Errors: **0**;
+- Metadata write errors: **0**;
+- Collection write errors: **0**;
+- Metadata pages: **1**;
+- Content pages: **0**;
+- Duplicate API records ignored: **0**;
+- Remote preflight: **passed**;
+- Annotation sync: `scan_partial`;
+- Managed annotation documents scanned: **802**;
+- Authoritative annotation sidecars: **13**;
+- Annotation documents skipped safely: **789**;
+- Annotation scan/normalize/queue exceptions: **0**;
+- Current annotation document status: **ok**;
+- Managed-document highlights scanned: **12**;
+- Highlights created: **0**;
+- Highlights already linked: **12**;
+- Highlights unmatched/ambiguous: **0**;
+- Create queue items processed: **0**;
+- Create queue waiting after sync: **0**;
+- Notes updated: **0**;
+- remote highlight deletions: **0**;
+- annotation remote errors: **0**.
+
+Interpretation:
+- the title-only same-ID Reader revision was detected and is now durably pending review;
+- no content page/download was performed for the existing local document;
+- no annotation duplication/regression is visible in the Sync report;
+- no remote/content replacement error occurred;
+- this proves the 0.1.45 no-replacement path is active for the deterministic metadata-only revision.
+
+Gate 15 Q1-A is not complete yet. Required next evidence:
+1. reopen the same local article;
+2. verify reading position/progress unchanged;
+3. verify its existing highlight(s) remain;
+4. verify note(s) remain;
+5. run **Inspect content refresh safety (Gate 15)** again;
+6. require:
+   - Refresh pending: yes;
+   - remote probe: passed;
+   - Visible-text comparison: same;
+   - Reading state at risk: yes;
+   - decision: `same_visible_text_keep_local`;
+   - Automatic replacement allowed: no;
+   - remote writes none / local writes none.
+7. Do not run another ordinary Sync until this post-revision diagnostic is reviewed.
+
+
+### Gate 15 Q1-A post-revision diagnostic — PASS
+
+After the title-only Reader revision and first Sync, the user verified:
+- local article still opens;
+- reading position/progress unchanged;
+- existing highlights unchanged;
+- existing notes unchanged.
+
+Post-revision Gate 15 diagnostic on build 0.1.45:
+- category: article;
+- local format: html;
+- download strategy: reader_html;
+- local file present: yes;
+- sidecar present: yes;
+- percent_finished: **0.1538**;
+- sidecar annotations: **6**;
+- last XPointer present: **yes**;
+- last page present: no;
+- partial file checksum present: yes;
+- reading state at risk: **yes**;
+- DB remote revision: `2026-09-24T18:00:45.318557+00:00`;
+- materialized remote revision: unavailable (legacy baseline, expected);
+- refresh pending: **yes**;
+- pending remote revision equals current Reader revision;
+- remote revision state: `materialized_baseline_unknown`;
+- remote probe: **passed**;
+- visible-text comparison: **same**;
+- local HTML bytes: **27733**;
+- remote HTML bytes: **27477**;
+- V1 refresh decision: **`same_visible_text_keep_local`**;
+- automatic replacement allowed: **no**;
+- remote writes: none;
+- local writes: none.
+
+Conclusion:
+- Q1-A article safety **PASSED physically**;
+- a real same-ID metadata-only Reader revision was detected durably;
+- local bytes were not replaced;
+- KOReader progress/highlights/notes survived;
+- normalized visible content remained equivalent;
+- Q2 is now authorized to acknowledge/clear only these proven same-visible-text article revisions without touching local bytes or sidecar.
+
+
+## Phase Q 0.1.46 Q2 implementation handoff
+
+### Physical evidence carried forward
+Q1-A on 0.1.45 passed:
+- title-only Reader revision;
+- durable pending = 1;
+- content pages = 0;
+- local progress/highlights/notes preserved;
+- post-revision visible text = same;
+- replacement = no.
+
+### Files altered for Q2
+- `readwisereader.koplugin/sync/content_refresh_reconcile.lua` (new)
+- `readwisereader.koplugin/sync/worker.lua`
+- `readwisereader.koplugin/ui/sync.lua`
+- `readwisereader.koplugin/constants.lua`
+- `readwisereader.koplugin/tests/test_content_refresh_reconcile.lua` (new)
+- `readwisereader.koplugin/tests/test_sync_ui.lua`
+- `readwisereader.koplugin/tests/run.lua`
+- `readwisereader.koplugin/_meta.lua`
+- `CHANGELOG.md`
+- `IMPLEMENTATION_SPEC.md`
+- `PLAN.md`
+- `docs/DEVICE_TESTS.md`
+- `STATUS.md`
+
+### What was implemented
+- max 5 pending HTML comparisons per normal Sync;
+- bounded local + Reader HTML reads;
+- exact durable revision equality check;
+- same visible text → clear pending marker only;
+- different/unverified/race/error → retain pending;
+- raw PDF/EPUB → retain pending without remote replacement fetch;
+- detailed Sync report counters;
+- no content/sidecar replacement path.
+
+### Tests executed
+Deterministic Q2 tests cover:
+- same-text metadata-only acknowledgement;
+- changed text retained;
+- PDF/EPUB retained and no GET issued;
+- newer Reader revision race retained;
+- Reader timeout retained;
+- per-Sync article comparison cap;
+- Q2 Sync summary fields.
+
+Automated/package validation:
+- CI #984: **SUCCESS**;
+- outer artifact SHA-256: `4149d57aa00b6500c6b6ec96a39b85977df2d3109f3cfb5c4785506bb97716cf`;
+- installable ZIP SHA-256: `9e9b0d61eb2d13911c80d4a937524679d9f11a935a23cafa624ac6e0cacc9c1f`;
+- ZIP integrity/version/layout: PASS.
+
+### Gates
+- Gates 0–14: PASSED.
+- Gate 15 Q1-A: **PASSED physically**.
+- Gate 15 Q2: **IMPLEMENTED / PHYSICAL TEST PENDING**.
+- Gate 15 Q1-B raw coverage: pending when suitable fixtures are available.
+- Gate 16: blocked.
+- V1 acceptance: blocked.
+
+### Blocker
+One 0.1.46 ordinary Sync on the existing pending Q1-A article, preservation verification, then one unchanged Sync.
+
+
+### Gate 15 Q2 0.1.46 first physical Sync — PARTIAL PASS / top counters cropped
+
+User ran the required first ordinary Sync on build 0.1.46 using the already-pending Q1-A article revision.
+
+Visible report evidence:
+- Raw PDF/EPUB revisions retained: **0**;
+- Unverified refresh revisions retained: **0**;
+- Refresh local files missing: **0**;
+- Refresh revision races retained: **0**;
+- Refresh remote read errors: **0**;
+- Filtered out: **0**;
+- Metadata documents seen: **1**;
+- Retryable item errors: **0**;
+- Retryable stages: none;
+- Errors: **0**;
+- Metadata write errors: **0**;
+- Collection write errors: **0**;
+- Metadata pages: **1**;
+- Content pages: **0**;
+- Duplicate API records ignored: **0**;
+- Remote preflight: **passed**;
+- Annotation sync: `scan_partial`;
+- Managed annotation documents scanned: **802**;
+- Authoritative annotation sidecars: **13**;
+- Annotation documents skipped safely: **789**;
+- annotation scan/normalize/queue exceptions: **0**;
+- Current annotation document status shown as `current_document_not_managed` for this Sync context;
+- Managed-document highlights scanned: **12**;
+- Highlights created: **0**;
+- Highlights already linked: **12**;
+- Highlights unmatched/ambiguous: **0**;
+- Create queue items processed: **0**;
+- Create queue waiting after sync: **0**;
+- Notes updated: **0**;
+- local/remote highlight deletions: **0**.
+
+Interpretation:
+- Q2 Sync completed without content download/replacement and without visible annotation regression;
+- all visible safety/error buckets are zero;
+- however the photograph starts at `Raw PDF/EPUB revisions retained` and crops the decisive Q2 counters immediately above it.
+
+Still required before marking this first Q2 Sync PASS:
+- `Content refresh pending review`;
+- `Refresh pending examined`;
+- `Refresh articles compared`;
+- `Metadata-only revisions acknowledged`;
+- `Changed-content revisions retained`.
+
+Do not run a second Sync until those counters from this same first Q2 report are captured/reviewed.
+
+
+## 2026-09-24 continuation audit — Gate 15 Q2 physical blocker
+
+### Current milestone
+- Phase Q / Gate 15 remains **OPEN**.
+- Q1-A article safety remains **PASSED physically**.
+- The first 0.1.46 Q2 Sync has already run once and all visible safety/error counters passed, but the five acknowledgement counters at the top of that same report were cropped.
+- Phase R / Gate 16 remains blocked.
+
+### Branch / HEAD
+- Branch: `phase-q/content-refresh-gate15`.
+- Base `main`: `5d7c954d051e491c1b11344057c59df7e2cf9656`.
+- Draft PR: #18; still draft and mergeable.
+- Production 0.1.46 code/package head remains `2fe649de11ed4acb5b3914386e7f98e52f81646b`.
+- Test head before this documentation closeout: `bfa7af39cebfd3f3470ddea4ce03503d78bba55d`.
+- No production plugin file changed after the validated 0.1.46 code/package head; the later diff contains only canonical docs/device-test notes and `tests/test_content_refresh_reconcile.lua`.
+- This documentation-only closeout commit follows `bfa7af39...`.
+
+### Files altered in this continuation
+- `readwisereader.koplugin/tests/test_content_refresh_reconcile.lua`;
+- `IMPLEMENTATION_SPEC.md`;
+- `docs/DEVICE_TESTS.md`;
+- `STATUS.md`.
+- `PLAN.md` was read completely and did not require a scope change.
+
+### What was implemented / verified
+- re-read `STATUS.md`, `IMPLEMENTATION_SPEC.md` and `PLAN.md` completely before changing the repository;
+- re-inspected PR #18, current branch/base and the actual Q2 production path;
+- verified Q2 production still requires exact pending Reader revision equality, clears only the pending marker for same visible text, retains changed/unverified/raced/raw revisions, and never replaces local bytes/sidecars;
+- added explicit automated idempotency coverage proving that after one metadata-only acknowledgement a second reconcile sees zero pending work, issues no extra Reader GET and acknowledges nothing;
+- added automated coverage proving repeated raw reconciliation keeps raw revisions pending and performs no replacement GET;
+- added automated coverage proving a missing local article remains pending and performs no remote comparison;
+- corrected the test harness so `listContentRefreshPending()` models the real SQL query and returns only pending rows;
+- documented a read-only recovery path for the already-cropped first Q2 report so the fixture is not mutated merely to recreate evidence.
+
+### Tests executed / results
+- pre-change branch HEAD `376e6dd...`: workflow #998 **SUCCESS**; development checks, full Lua suite, ZIP build, package layout and artifact upload all passed;
+- first expanded-test run #1002: **FAILED only in the new test harness** because the fake pending-list method returned an acknowledged row that the real SQL query filters out; production code was unchanged;
+- harness corrected in `bfa7af39...`;
+- workflow #1004 on `bfa7af39...`: **SUCCESS**; development checks, full Lua suite, ZIP build, package layout and artifact upload all passed;
+- compare from production head `2fe649de...` through `bfa7af39...` shows no production plugin-file changes after 0.1.46.
+
+### Gates
+- Gates 0–14: **PASSED**.
+- Gate 15 Q1-A: **PASSED physically**.
+- Gate 15 Q2: **first Sync executed; visible safety portion passed; acknowledgement proof still pending because the top counters were cropped**.
+- Gate 15 Q1-B raw coverage: still pending when/if suitable already-local original PDF/EPUB fixtures remain available.
+- Gate 16: **BLOCKED by Gate 15**.
+
+### Physical tests pending
+1. **Do not run another ordinary Sync yet.**
+2. If the first Q2 report is still available, capture the five acknowledgement counters at its top.
+3. If that report is gone/cannot be recovered, open the same Q1-A article and run **Inspect content refresh safety (Gate 15)** once. Require pending=no, current Reader revision=DB revision, remote probe passed, visible text same, replacement no, remote writes none, local writes none.
+4. If that diagnostic says pending=yes, stop; do not run a second Sync.
+5. Confirm the article still has the same progress/position, highlights and notes.
+6. Only after the first acknowledgement is established, run one unchanged second Sync and require zero acknowledgement/work for the same revision and pending=0.
+7. Then use already-local original PDF/EPUB fixtures for harmless title-only Q1-B revisions if they still exist; do not manufacture a destructive fixture.
+
+### Bugs / failures found
+- No production Q2 defect was found in this continuation.
+- The only new automated failure was the deliberately-added test harness semantics; CI exposed it and the harness was corrected.
+- The physical report layout/capture can hide the Q2 acknowledgement lines. This is a test-evidence problem, not evidence of a Q2 content-safety failure.
+
+### Technical decisions / spec deviations
+- No product-scope change and no production behavior change.
+- Gate 15 validation now explicitly permits a read-only diagnostic recovery when the one authorized first Q2 report was cropped/dismissed. This avoids mutating the fixture merely to recreate a report.
+- This is a validation-procedure refinement from physical UI evidence, not a relaxation of Gate 15: pending must still be proven cleared, local state must remain intact, and the unchanged second Sync must still be idempotent.
+- No firmware/KOReader update, Wi-Fi control, credential handling change, destructive remote behavior or replacement path was added.
+
+### Blocker
+The only immediate blocker is **physical first-acknowledgement evidence for the Q2 Sync that already happened**. No further code or Gate 16 work is authorized before that evidence is resolved.
+
+### Exact next steps
+1. Recover the five counters from the existing first Q2 report if possible; otherwise use the read-only Gate 15 diagnostic fallback above.
+2. Verify local progress/position/highlights/notes.
+3. Run the unchanged second Sync only after steps 1–2 pass.
+4. Resolve Q1-B original PDF/EPUB coverage/scope.
+5. Close Gate 15 only when article Q2 idempotency and raw-format evidence/scope are both documented.
+6. Only then start Phase R / Gate 16.
+
+
+### Gate 15 Q2 first-report lower-half photo — safety evidence confirmed, acknowledgement lines still above viewport
+
+New physical photo received from the same already-authorized first 0.1.46 Q2 Sync report.
+
+Visible lower-half evidence:
+- annotation documents skipped safely: 789;
+- annotation scan errors: 0;
+- annotation scan exceptions isolated: 0;
+- annotation normalize exceptions isolated: 0;
+- annotation queue errors: 0;
+- annotation queue exceptions isolated: 0;
+- annotation repository source: managed_local;
+- annotation repository fallback: no;
+- current annotation document status: current_document_not_managed;
+- managed-document highlights scanned: 12;
+- highlights created/reconciled/unmatched/blocked/queued: 0;
+- highlights already linked: 12;
+- create queue processed/waiting: 0;
+- notes updated/conflicts/mutation blocks: 0;
+- local/remote highlight deletions: 0;
+- annotation remote errors: 0;
+- finished documents scanned: 802;
+- finished status detected: 0;
+- archive intents queued/processed: 0;
+- Reader documents archived: 0;
+- archive queue waiting after sync: 0;
+- archive remote errors: 0;
+- incremental watermark updated.
+
+Interpretation:
+- this strengthens the already-recorded first-Q2 safety evidence: no annotation or archive side effect/regression is visible and the Sync completed successfully;
+- it still does **not** expose the five decisive Q2 acknowledgement counters because the viewport is lower in the report;
+- do not run another Sync;
+- keep the existing report open and scroll upward to capture:
+  - Content refresh pending review;
+  - Refresh pending examined;
+  - Refresh articles compared;
+  - Metadata-only revisions acknowledged;
+  - Changed-content revisions retained.
+- if the existing report can no longer be recovered, use the read-only Gate 15 diagnostic fallback already recorded in this STATUS/spec.
+
+
+### Gate 15 Q2 first acknowledgement — PASS via read-only recovery diagnostic
+
+Physical recovery diagnostic was run on the same Q1-A article after the already-authorized first 0.1.46 Q2 Sync, without running another Sync.
+
+Observed:
+- category: article;
+- local format: html;
+- download strategy: reader_html;
+- local file present: yes;
+- sidecar present: yes;
+- sidecar percent_finished: **0.1538**;
+- sidecar annotations: **6**;
+- last XPointer present: **yes**;
+- partial file checksum present: yes;
+- reading state at risk: yes;
+- DB remote revision: `2026-09-24T18:00:45.318557+00:00`;
+- materialized remote revision: unavailable (expected legacy baseline);
+- **Refresh pending: no**;
+- pending remote revision: unavailable;
+- current Reader revision: `2026-09-24T18:00:45.318557+00:00`;
+- current Reader revision equals DB remote revision;
+- remote revision state: `materialized_baseline_unknown`;
+- **Remote probe: passed**;
+- **Visible-text comparison: same**;
+- local HTML bytes: 27733;
+- remote HTML bytes: 27477;
+- V1 refresh decision: `same_visible_text_keep_local`;
+- **Automatic replacement allowed: no**;
+- **Remote writes: none**;
+- **Local writes: none**.
+
+Interpretation:
+- the exact pending Q1-A metadata-only revision is no longer pending after the first Q2 Sync;
+- because 0.1.46 only clears that durable marker on exact-revision + same-visible-text reconciliation, the cropped first-report acknowledgement is now recovered without mutating the fixture again;
+- local document bytes were not replaced;
+- sidecar reading state remains present with the same 0.1538 progress, 6 annotations and XPointer evidence;
+- first Q2 acknowledgement is therefore **PASSED**;
+- Gate 15 remains open only for the unchanged second-Sync idempotency proof and raw PDF/EPUB coverage/scope resolution.
+
+Immediate next physical action:
+1. make no changes to the article/title/highlights/notes/reading position;
+2. run ordinary **Sync now exactly once**;
+3. require for this Q1-A revision:
+   - Content refresh pending review = 0;
+   - Refresh pending examined = 0;
+   - Refresh articles compared = 0;
+   - Metadata-only revisions acknowledged = 0;
+   - Changed-content revisions retained = 0;
+   - Raw PDF/EPUB revisions retained = 0 unless an unrelated raw fixture is already pending;
+   - Unverified/race/remote-read-error refresh counters = 0;
+   - Content pages = 0;
+   - Errors = 0;
+4. verify the same article still preserves progress/position, highlights and notes;
+5. return the full Sync report before making any raw-format test changes.
+
+
+## Gate 15 Q2 article idempotency — PHYSICAL PASS
+
+User confirmed the required unchanged second ordinary Sync on build 0.1.46 passed all requested Q2 criteria and the article remained intact.
+
+Accepted physical result:
+- no repeated content-refresh work for the acknowledged Q1-A revision;
+- content-refresh pending for that article remained cleared;
+- no repeated metadata-only acknowledgement;
+- no changed/unverified/race/remote-read-error refresh result for that fixture;
+- content pages remained zero;
+- Sync completed without errors;
+- the same local article preserved reading position/progress, highlights and notes.
+
+Combined with the preceding read-only recovery diagnostic (pending=no, exact Reader revision=DB revision, visible text same, replacement no, remote/local writes none), **Q2 article acknowledgement + idempotency are PASSED**.
+
+### Off-device raw hardening in this continuation
+- `test_content_refresh_reconcile.lua` already proves both original PDF and EPUB pending revisions are retained across repeated reconciliation and issue zero replacement GETs;
+- missing-local article retention remains covered without remote comparison;
+- `test_content_refresh.lua` now explicitly covers both `pdf/pdf` and `epub/epub` returning `defer_raw_keep_local`;
+- CI #1012 on `49bbfd1a359aaa3b5f36b2d9145db912bcf44edf`: **SUCCESS** across development checks, full Lua suite, package/layout and artifact upload;
+- no production plugin file changed after the validated 0.1.46 production head.
+
+### Current branch / HEAD
+- Branch: `phase-q/content-refresh-gate15`.
+- Base/integrated `main`: `5d7c954d051e491c1b11344057c59df7e2cf9656`.
+- Draft PR: #18.
+- Production 0.1.46 code/package head: `2fe649de11ed4acb5b3914386e7f98e52f81646b`.
+- Test hardening head: `49bbfd1a359aaa3b5f36b2d9145db912bcf44edf`.
+- This documentation closeout commit follows that test head.
+
+### Gates
+- Gates 0–14: PASSED.
+- Gate 15 Q1-A article safety: PASSED physically.
+- Gate 15 Q2 article acknowledgement/idempotency: **PASSED physically**.
+- Gate 15 Q1-B raw PDF/EPUB: **PENDING PHYSICAL COVERAGE**.
+- Gate 16: blocked until Gate 15 closes.
+
+### Physical blocker / exact next steps
+1. Do not change firmware, KOReader or plugin build.
+2. Use an **already-local, plugin-managed original PDF** from the earlier Gate 6 proof if it still exists.
+3. Open that PDF in KOReader and run **Inspect content refresh safety (Gate 15)** before making any Reader change.
+4. Required baseline: category=pdf, local format=pdf, local file present=yes, remote probe=passed, visible-text comparison=`not_attempted_raw`, decision=`defer_raw_keep_local`, replacement=no, remote/local writes=none. Record sidecar/progress/annotation evidence shown.
+5. Only after that baseline is confirmed, change **only the title** of that same PDF in Reader, Sync once, and require the raw revision to remain pending with no replacement download/content page and local state intact.
+6. Repeat the same sequence for an already-local original EPUB if it still exists.
+7. If one or both original Gate 6 fixtures no longer exist locally, record that limitation rather than creating a destructive replacement fixture.
+8. Gate 15 closes only after raw coverage/scope is resolved; only then may Phase R / Gate 16 begin.
+
+### Bugs / decisions
+- No production defect was found by the Q2 idempotency closeout.
+- No scope deviation: V1 still forbids automatic existing-document replacement.
+- No secrets/private content were added to tests/docs.
+- No firmware/KOReader update, Wi-Fi control or destructive remote behavior was introduced.
+
+
+### Gate 15 Q1-B original PDF baseline — PHYSICAL PASS
+
+User confirmed the already-local plugin-managed original PDF passed the complete pre-revision Gate 15 diagnostic baseline.
+
+Accepted criteria:
+- category: pdf;
+- local format: pdf;
+- local file present: yes;
+- remote probe: passed;
+- visible-text comparison: `not_attempted_raw`;
+- V1 refresh decision: `defer_raw_keep_local`;
+- automatic replacement allowed: no;
+- remote writes: none;
+- local writes: none;
+- no local preservation problem was reported.
+
+Conclusion:
+- Q1-B PDF baseline is **PASSED**;
+- the raw diagnostic does not fetch/compare replacement body bytes;
+- the same PDF is now authorized for a harmless same-ID metadata-only revision test;
+- Gate 15 remains open; no Gate 16 work is authorized yet.
+
+### Exact next physical action — PDF metadata-only revision
+1. In Readwise Reader, change **only the title** of this exact same PDF.
+2. Do not re-save, delete/re-add, move, annotate, or otherwise alter the PDF.
+3. Return to Kindle with Wi-Fi ON.
+4. Run ordinary **Sync now exactly once**.
+5. Require:
+   - `Content refresh pending review >= 1` for the PDF revision;
+   - `Raw PDF/EPUB revisions retained >= 1`;
+   - `Refresh articles compared = 0` for this raw fixture;
+   - `Metadata-only revisions acknowledged = 0` for this raw fixture;
+   - `Content pages = 0`;
+   - `Refresh remote read errors = 0`;
+   - `Errors = 0`;
+   - no replacement download/content install.
+6. Reopen the same PDF and confirm local file opens and its sidecar/progress/annotations remain intact.
+7. Run **Inspect content refresh safety (Gate 15)** again and require:
+   - refresh pending: yes;
+   - current Reader revision = DB remote revision;
+   - comparison: `not_attempted_raw`;
+   - decision: `defer_raw_keep_local`;
+   - automatic replacement allowed: no;
+   - remote/local writes: none.
+8. Return the Sync report + diagnostic result before changing the EPUB fixture.
+
+
+## Gate 15 Q1-B original PDF metadata revision — PHYSICAL PASS
+
+User confirmed the complete PDF Q1-B sequence passed on the already-local plugin-managed original PDF using build 0.1.46.
+
+Accepted result against the previously documented criteria:
+- only the Reader title was changed for the same PDF identity;
+- one ordinary Sync completed successfully;
+- the raw PDF revision was retained/deferred rather than acknowledged as an HTML metadata-only revision;
+- no replacement content page/download/install occurred;
+- no refresh remote-read error or fatal Sync error was reported;
+- the same local PDF remained openable;
+- local sidecar/progress/annotations remained intact;
+- post-Sync Gate 15 diagnostic remained on raw semantics (`not_attempted_raw` / `defer_raw_keep_local`);
+- automatic replacement remained disabled;
+- diagnostic remote/local writes remained none.
+
+Conclusion:
+- **Q1-B PDF is COMPLETE / PASSED physically**;
+- article Q1-A + Q2 and raw PDF coverage are now closed;
+- the only remaining Gate 15 blocker is equivalent physical coverage for an already-local original EPUB, if the Gate 6 EPUB fixture still exists;
+- Phase R / Gate 16 remains blocked until this is resolved.
+
+### Files altered in this continuation
+- `STATUS.md`;
+- `IMPLEMENTATION_SPEC.md`;
+- `PLAN.md`;
+- `docs/DEVICE_TESTS.md`.
+- no production plugin Lua file changed.
+
+### Implementation / tests
+- no production implementation change was necessary after the PDF pass;
+- existing automated raw reconciler tests already cover both PDF and EPUB retention across repeated reconciliation with zero replacement GETs;
+- explicit `defer_raw_keep_local` decision coverage exists for both PDF and EPUB;
+- CI #1012 passed after EPUB decision coverage was added;
+- CI #1014 passed after the Q2 article closeout;
+- CI #1016 passed after the PDF-baseline documentation update;
+- a final documentation-only CI is required after this handoff commit.
+
+### Gates
+- Gates 0–14: PASSED.
+- Gate 15 Q1-A article safety: PASSED physically.
+- Gate 15 Q2 article acknowledgement/idempotency: PASSED physically.
+- Gate 15 Q1-B PDF: **PASSED physically**.
+- Gate 15 Q1-B EPUB: **PENDING physical coverage**.
+- Gate 16: BLOCKED by Gate 15.
+
+### Bugs / failures / decisions
+- no new production bug was found;
+- raw PDF retention behaved exactly as the conservative V1 policy requires;
+- no spec deviation: automatic replacement of an existing raw document remains disabled;
+- no firmware/KOReader/plugin upgrade is required for the EPUB test;
+- no credentials, signed URLs or private document content were added to Git.
+
+### Blocker / exact next steps
+1. Use the **already-local plugin-managed original EPUB** from Gate 6 if it still exists.
+2. Open it in KOReader and run **Inspect content refresh safety (Gate 15)** before changing Reader metadata.
+3. Baseline must show: category=epub, local format=epub, local file present=yes, remote probe=passed, comparison=`not_attempted_raw`, decision=`defer_raw_keep_local`, replacement=no, remote/local writes=none.
+4. If baseline passes, change **only the title** of that same EPUB in Reader.
+5. Run ordinary **Sync now exactly once**.
+6. Require the EPUB revision to remain raw/pending with no replacement content page/download/install and no Sync error.
+7. Reopen the EPUB; verify reflow/open, sidecar/progress/highlights/notes remain intact.
+8. Run Gate 15 diagnostic again; require refresh pending=yes, current Reader revision=DB revision, comparison=`not_attempted_raw`, decision=`defer_raw_keep_local`, replacement=no, remote/local writes=none.
+9. Return the Sync report + diagnostic result.
+10. If the original Gate 6 EPUB fixture no longer exists locally, report that fact instead of downloading/re-saving a new destructive fixture; the scope decision must then be recorded before closing Gate 15.
+
+
+### Final CI for this handoff
+- workflow #1018 on `198ee0e562d8c96c5679ef8827ab44287e6ed474`: **SUCCESS**;
+- development checks: PASS;
+- full Lua unit suite: PASS;
+- installable ZIP build: PASS;
+- package layout verification: PASS;
+- artifact upload: PASS;
+- no production plugin file changed in the PDF-closeout / EPUB-handoff documentation commit.
+
+
+## Gate 15 Q1-B original EPUB baseline — PHYSICAL PASS
+
+User confirmed the already-local plugin-managed original EPUB passed the complete pre-revision Gate 15 diagnostic baseline.
+
+Accepted criteria:
+- category: epub;
+- local format: epub;
+- local file present: yes;
+- remote probe: passed;
+- visible-text comparison: `not_attempted_raw`;
+- V1 refresh decision: `defer_raw_keep_local`;
+- automatic replacement allowed: no;
+- remote writes: none;
+- local writes: none;
+- no local preservation problem was reported.
+
+Conclusion:
+- Q1-B EPUB baseline is **PASSED**;
+- article Q1-A/Q2 and PDF Q1-B remain closed;
+- only the EPUB title-only same-ID revision + post-Sync preservation proof remains before Gate 15 can close;
+- Phase R / Gate 16 remains blocked.
+
+### Work completed off-device in this continuation
+- re-inspected actual branch/PR HEAD and canonical STATUS/spec/plan before changing anything;
+- confirmed CI #1020 on prior handoff was SUCCESS;
+- re-verified automated Q1-B raw coverage already includes both PDF and EPUB retention across repeated reconciliation with zero replacement GETs;
+- re-verified explicit `defer_raw_keep_local` decision coverage exists for both `pdf/pdf` and `epub/epub`;
+- no production code change is warranted before the remaining physical EPUB revision test.
+
+### Files altered
+- `STATUS.md`;
+- `IMPLEMENTATION_SPEC.md`;
+- `PLAN.md`;
+- `docs/DEVICE_TESTS.md`.
+- no production plugin Lua file changed.
+
+### Exact next physical action — EPUB metadata-only revision
+1. In Readwise Reader, change **only the title** of this exact same EPUB.
+2. Do not delete/re-add, re-save, move, replace, annotate, or otherwise alter the EPUB.
+3. Return to Kindle with Wi-Fi ON.
+4. Run ordinary **Sync now exactly once**.
+5. Require for this EPUB revision:
+   - `Content refresh pending review >= 1`;
+   - `Raw PDF/EPUB revisions retained >= 1`;
+   - `Refresh articles compared = 0` for this raw fixture;
+   - `Metadata-only revisions acknowledged = 0` for this raw fixture;
+   - `Content pages = 0`;
+   - `Refresh remote read errors = 0`;
+   - `Errors = 0`;
+   - no replacement content download/install.
+6. Reopen the same EPUB and verify it still opens/reflows and sidecar/progress/highlights/notes remain intact.
+7. Run **Inspect content refresh safety (Gate 15)** again and require:
+   - refresh pending: yes;
+   - current Reader revision = DB remote revision;
+   - comparison: `not_attempted_raw`;
+   - decision: `defer_raw_keep_local`;
+   - automatic replacement allowed: no;
+   - remote/local writes: none.
+8. Return the Sync report + diagnostic result.
+
+### Gate status
+- Gates 0–14: PASSED.
+- Gate 15 Q1-A article: PASSED.
+- Gate 15 Q2 article: PASSED.
+- Gate 15 Q1-B PDF: PASSED.
+- Gate 15 Q1-B EPUB baseline: PASSED.
+- Gate 15 Q1-B EPUB revision preservation: PENDING.
+- Gate 16: BLOCKED by Gate 15.
+
+
+## Session handoff — EPUB baseline closeout
+
+### Milestone atual
+- Phase Q / Gate 15.
+- Article Q1-A/Q2: PASS.
+- Raw PDF Q1-B: PASS complete.
+- Raw EPUB Q1-B baseline: PASS.
+- Remaining Gate 15 work: one title-only same-ID EPUB revision + preservation proof.
+
+### Branch / implementation HEAD
+- Branch: `phase-q/content-refresh-gate15`.
+- Implementation/documentation HEAD validated by CI in this session: `c36e5bed6b6a10de04ff1c33e0078dd521af0295`.
+- Base `main`: Gate 14 merge `5d7c954d051e491c1b11344057c59df7e2cf9656`.
+- PR #18 remains draft and mergeable.
+- Production plugin code remains build 0.1.46; no production Lua file changed in this session.
+- This STATUS-only handoff commit follows the validated head above.
+
+### Arquivos alterados nesta sessão
+- `STATUS.md`;
+- `IMPLEMENTATION_SPEC.md`;
+- `PLAN.md`;
+- `docs/DEVICE_TESTS.md`.
+- No production plugin Lua file changed.
+
+### Implementado / registrado
+- recorded the physical PASS of the already-local original EPUB baseline;
+- aligned canonical spec, V1 plan, device-test ledger and resumability status to the same Gate 15 state;
+- preserved the conservative V1 rule: raw PDF/EPUB revisions remain pending/deferred and existing bytes are never auto-replaced;
+- confirmed no legitimate Phase R implementation may begin before the remaining EPUB physical revision proof closes Gate 15.
+
+### Testes executados / resultados
+- prior full CI #1020 on the PDF closeout/handoff: SUCCESS;
+- full CI #1022 on `c36e5bed6b6a10de04ff1c33e0078dd521af0295`: SUCCESS;
+- development checks: PASS;
+- full Lua unit suite: PASS;
+- installable ZIP build: PASS;
+- package layout verification: PASS;
+- artifact upload: PASS;
+- automated raw reconciliation coverage includes both PDF and EPUB retention across repeated runs with zero replacement GETs;
+- explicit raw decision coverage includes both `pdf/pdf` and `epub/epub` -> `defer_raw_keep_local`.
+
+### Gates concluídos
+- Gates 0–14: PASS.
+- Gate 15 Q1-A article safety: PASS.
+- Gate 15 Q2 article acknowledgement/idempotency: PASS.
+- Gate 15 Q1-B PDF: PASS complete.
+- Gate 15 Q1-B EPUB baseline: PASS.
+- Gate 15 overall: OPEN.
+
+### Teste físico pendente
+Only one Gate 15 physical sequence remains:
+1. change only the title of the same already-local original EPUB in Reader;
+2. ordinary Sync once;
+3. require raw EPUB revision retained/pending, no article comparison/acknowledgement for that raw item, content pages 0, no replacement install and no Sync error;
+4. reopen and verify reflow + sidecar/progress/highlights/notes intact;
+5. run Gate 15 diagnostic again and require pending=yes, Reader revision=DB revision, `not_attempted_raw`, `defer_raw_keep_local`, replacement=no, remote/local writes none.
+
+### Bugs / falhas encontrados
+- No new production bug in this session.
+- No failed automated test.
+- No loss/duplication/replacement behavior observed.
+
+### Decisões técnicas
+- No production change before the EPUB revision proof because the exact raw path already has deterministic automated coverage and PDF physical evidence.
+- Do not manufacture/re-download a replacement EPUB fixture; use the existing managed original already proven in Gate 6/baseline.
+- Automatic replacement remains disabled.
+
+### Desvios da spec
+- None.
+
+### Blocker
+- Physical EPUB title-only revision/preservation proof.
+- Gate 16 remains blocked until Gate 15 is explicitly closed after that result.
+
+### Próximos passos exatos
+1. run the EPUB title-only revision sequence above;
+2. record the Sync report and post-Sync diagnostic;
+3. if PASS, close Gate 15 in STATUS/spec/plan/device tests;
+4. merge/close Phase Q as appropriate;
+5. only then begin Phase R / Gate 16 hardening in canonical order.
+
+
+## Gate 15 Q1-B original EPUB metadata revision — PHYSICAL PASS
+
+User confirmed the final EPUB title-only same-ID revision sequence passed all required criteria on build 0.1.46.
+
+Accepted physical result:
+- only the Reader title was changed for the same already-local original EPUB;
+- one ordinary Sync completed successfully;
+- the raw EPUB revision remained pending/deferred rather than being treated as an HTML metadata-only acknowledgement;
+- no replacement content page/download/install occurred;
+- no refresh remote-read error or fatal Sync error occurred;
+- the same local EPUB reopened/reflowed normally;
+- sidecar/progress/highlights/notes remained intact;
+- post-Sync diagnostic remained raw: refresh pending=yes, current Reader revision=DB revision, comparison `not_attempted_raw`, decision `defer_raw_keep_local`, automatic replacement=no, remote/local writes=none.
+
+### Gate 15 final result
+- Q1-A article safety: PASS.
+- Q2 article metadata-only acknowledgement + idempotency: PASS.
+- Q1-B original PDF preservation: PASS.
+- Q1-B original EPUB preservation: PASS.
+- Existing local content bytes/sidecars were never auto-replaced.
+- **Gate 15 / Phase Q is PASSED COMPLETE.**
+- Phase R / Gate 16 is now unblocked.
+
+### Next implementation state
+- close/merge Phase Q PR #18 after final CI;
+- branch Phase R from merged `main`;
+- harden in spec order: large library, low disk, malformed document, huge document, Unicode, 429, intermittent Wi-Fi, force-close, reboot, migration, rollback, debug-log secret review;
+- do all deterministic/off-device tests first; stop only when the next item genuinely requires a PW3 physical test.

@@ -75,6 +75,7 @@ function Worker:run(options)
     local Reader = require("api/reader")
     local Readwise = require("api/readwise")
     local DocumentsSync = require("sync/documents")
+    local ContentRefreshReconcile = require("sync/content_refresh_reconcile")
     local AnnotationSync = require("sync/annotations")
     local AnnotationUpload = require("sync/annotation_upload")
     local AnnotationBacklog = require("sync/annotation_backlog")
@@ -316,6 +317,18 @@ function Worker:run(options)
             sync_report.archive_remote_errors = 0
             sync_report.archive_queue_waiting =
                 queue_repository:countArchiveWaiting()
+            sync_report.content_refresh_pending_total =
+                sync_report.content_refresh_pending_total
+                or repository:countContentRefreshPending()
+            sync_report.content_refresh_pending_seen = 0
+            sync_report.content_refresh_article_checked = 0
+            sync_report.content_refresh_metadata_only_acknowledged = 0
+            sync_report.content_refresh_changed_retained = 0
+            sync_report.content_refresh_raw_retained = 0
+            sync_report.content_refresh_unverified_retained = 0
+            sync_report.content_refresh_local_missing = 0
+            sync_report.content_refresh_revision_races = 0
+            sync_report.content_refresh_remote_errors = 0
         end
 
         local function localQueueOnlyReport(preflight_err)
@@ -379,6 +392,34 @@ function Worker:run(options)
         applyAnnotationDefaults(sync_report)
         sync_report.remote_preflight = "passed"
         sync_report.network_available = true
+
+        stage = "content_refresh_reconcile"
+        local refresh_reconciler = ContentRefreshReconcile:new{
+            documents = repository,
+            reader = reader,
+        }
+        local refresh_report = refresh_reconciler:run()
+        sync_report.content_refresh_pending_seen =
+            refresh_report.pending_seen or 0
+        sync_report.content_refresh_article_checked =
+            refresh_report.article_checked or 0
+        sync_report.content_refresh_metadata_only_acknowledged =
+            refresh_report.metadata_only_acknowledged or 0
+        sync_report.content_refresh_changed_retained =
+            refresh_report.changed_retained or 0
+        sync_report.content_refresh_raw_retained =
+            refresh_report.raw_retained or 0
+        sync_report.content_refresh_unverified_retained =
+            refresh_report.unverified_retained or 0
+        sync_report.content_refresh_local_missing =
+            refresh_report.local_missing or 0
+        sync_report.content_refresh_revision_races =
+            refresh_report.revision_races or 0
+        sync_report.content_refresh_remote_errors =
+            refresh_report.remote_errors or 0
+        sync_report.content_refresh_pending_total =
+            refresh_report.pending_after
+            or repository:countContentRefreshPending()
         sync_report.highlights_created = queue_report.created or 0
         sync_report.highlights_reconciled = queue_report.reconciled or 0
         sync_report.highlights_unmatched =

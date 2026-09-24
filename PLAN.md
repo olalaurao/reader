@@ -1315,23 +1315,29 @@ Não:
 
 ## 46. Próximo passo
 
-A **Phase P / Gate 14 está concluída** na baseline física PW3 + KOReader v2026.07.1.
+A **Phase Q / Gate 15 passou completa** no PW3 alvo.
 
-Próxima fase: **Phase Q / Gate 15 — content refresh safety**.
+Validado:
+- artigo metadata-only sem perda local e com acknowledgement idempotente;
+- PDF original retido sem replacement após revisão de título;
+- EPUB original retido sem replacement após revisão de título;
+- progresso, sidecars, highlights e notas preservados;
+- replacement automático continua desabilitado.
 
-Objetivo:
-- provar como atualizações remotas de conteúdo afetam um documento local já lido/anotado;
-- impedir qualquer substituição automática que possa perder posição, highlights, notas ou configurações do sidecar;
-- tratar HTML/artigo e raw PDF/EPUB separadamente se o risco for diferente.
+Fase atual: **Phase R / Gate 16 — hardening**.
 
 Ordem:
-1. inspecionar o comportamento atual do materializador/update path;
-2. preparar spike seguro para artigo já parcialmente lido com highlight/nota;
-3. medir atualização remota sem presumir que substituir arquivo seja seguro;
-4. preparar spike separado para PDF/EPUB;
-5. implementar política conservadora:
-   - auto-refresh apenas quando comprovadamente seguro;
-   - deferir/bloquear refresh arriscado mantendo o arquivo atual;
-   - preservar sidecar sempre;
-6. Gate 15 físico: nenhuma perda de progresso/anotação após remote content update;
-7. somente depois iniciar Phase R / Gate 16.
+1. biblioteca grande;
+2. pouco armazenamento;
+3. documento malformado;
+4. documento enorme;
+5. Unicode;
+6. 429;
+7. Wi-Fi/rede intermitente;
+8. force-close;
+9. reboot;
+10. migration;
+11. rollback;
+12. revisão de logs/redaction.
+
+Fazer primeiro todos os testes determinísticos/off-device; pedir teste físico somente quando um item depender realmente do PW3.

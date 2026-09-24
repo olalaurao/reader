@@ -1,7 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
 return {
-    VERSION = "0.1.43",
+    VERSION = "0.1.46",
     SETTINGS_FILENAME = "readwisereader.lua",
     DEFAULT_DOWNLOAD_ROOT = "/mnt/us/documents/Readwise",
     DEFAULT_SYNC_LOCATIONS = { "new", "later" },
@@ -12,6 +12,9 @@ return {
     MAX_IMAGES_PER_ARTICLE = 20,
     MAX_RAW_SOURCE_BYTES = 64 * 1024 * 1024,
     GATE13_PARENT_PROBE_MAX_BYTES = 1 * 1024 * 1024,
+    GATE15_LOCAL_HTML_PROBE_MAX_BYTES = 4 * 1024 * 1024,
+    GATE15_REMOTE_HTML_PROBE_MAX_BYTES = 4 * 1024 * 1024,
+    CONTENT_REFRESH_RECONCILE_MAX_PER_SYNC = 5,
     MIN_RAW_SOURCE_FREE_BYTES = 128 * 1024 * 1024,
     AUTH_URL = "https://readwise.io/api/v2/auth/",
     READER_LIST_URL = "https://readwise.io/api/v3/list/",

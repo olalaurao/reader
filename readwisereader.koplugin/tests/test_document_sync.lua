@@ -34,6 +34,27 @@ local function fakeRepository(initial)
             self.rows[id] = self.rows[id] or { reader_id = id }
             self.rows[id].last_sync_error = kind
         end,
+        markContentRefreshPending = function(self, id, remote_updated_at, detected_at)
+            local row = assert(self.rows[id])
+            row.content_refresh_pending = true
+            row.content_refresh_remote_updated_at = remote_updated_at
+            row.content_refresh_detected_at = detected_at
+            return copy(row)
+        end,
+        clearContentRefreshPending = function(self, id)
+            local row = assert(self.rows[id])
+            row.content_refresh_pending = false
+            row.content_refresh_remote_updated_at = nil
+            row.content_refresh_detected_at = nil
+            return copy(row)
+        end,
+        countContentRefreshPending = function(self)
+            local count = 0
+            for _, row in pairs(self.rows) do
+                if row.content_refresh_pending then count = count + 1 end
+            end
+            return count
+        end,
         setLocalState = function(self, id, state)
             self.rows[id] = self.rows[id] or { reader_id = id }
             for key, value in pairs(state) do self.rows[id][key] = value end
@@ -68,7 +89,11 @@ local function newSync(options)
                 installs[#installs + 1] = doc.id
                 local path = "/Readwise/" .. doc.id .. ".html"
                 repository:setLocalState(doc.id, {
-                    local_path = path, is_local_present = true, local_format = "html",
+                    local_path = path,
+                    is_local_present = true,
+                    local_format = "html",
+                    materialized_remote_updated_at = doc.updated_at,
+                    content_refresh_pending = false,
                 })
                 return { path = path }
             end,
@@ -306,6 +331,10 @@ return function()
         assert(report.location_moved == 1)
         assert(report.metadata_updated == 1)
         assert(report.content_refresh_deferred == 1)
+        assert(report.content_refresh_pending_total == 1)
+        assert(repo.rows.a.content_refresh_pending == true)
+        assert(repo.rows.a.content_refresh_remote_updated_at == "u2")
+        assert(repo.rows.a.content_refresh_detected_at == 1030)
         assert(#collections >= 1 and #metadata == 1)
     end
 
@@ -345,6 +374,64 @@ return function()
         assert(#metadata == 1)
         assert(metadata[1].tags[1] == "research")
         assert(metadata[1].tags[2] == "later")
+        assert(report.content_refresh_deferred == 1)
+        assert(report.content_refresh_pending_total == 1)
+        assert(repo.rows.a.content_refresh_pending == true)
+    end
+
+    do
+        -- Once a remote revision is deferred, the pending signal must survive
+        -- later no-op incremental syncs even though remote_updated_at has
+        -- already advanced in the metadata row.
+        local repository = fakeRepository({
+            a = {
+                reader_id = "a", category = "article", location = "new",
+                title = "Alpha", remote_updated_at = "u1",
+                materialized_remote_updated_at = "u1",
+                local_path = "/Readwise/a.html",
+                is_local_present = true, is_managed = true,
+            },
+        })
+        local meta = fakeMeta({
+            document_watermark = "T001000",
+            document_query_after = "T000995",
+            document_filter_scope = "locations=later,new;categories=article",
+            metadata_projection_version = PROJECTION,
+        })
+        local first_reader = {
+            iterateDocuments = function(_, _, callback)
+                callback(doc("a", "new", "Alpha", "u2"))
+                return { pages = 1, duplicates = 0 }
+            end,
+        }
+        local first_sync, repo, updated_meta = newSync{
+            reader = first_reader,
+            repository = repository,
+            meta = meta,
+            now_values = { 1042, 1043 },
+        }
+        local first_report = assert(first_sync:sync{})
+        assert(first_report.content_refresh_pending_total == 1)
+        assert(repo.rows.a.remote_updated_at == "u2")
+        assert(repo.rows.a.materialized_remote_updated_at == "u1")
+        assert(repo.rows.a.content_refresh_pending == true)
+
+        local second_reader = {
+            iterateDocuments = function()
+                return { pages = 1, duplicates = 0 }
+            end,
+        }
+        local second_sync = newSync{
+            reader = second_reader,
+            repository = repo,
+            meta = updated_meta,
+            now_values = { 1050, 1051 },
+        }
+        local second_report = assert(second_sync:sync{})
+        assert(second_report.content_refresh_deferred == 0)
+        assert(second_report.content_refresh_pending_total == 1)
+        assert(repo.rows.a.content_refresh_pending == true,
+            "pending refresh must not disappear on a later no-op sync")
     end
 
     do

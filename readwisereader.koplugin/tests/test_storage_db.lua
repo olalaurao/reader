@@ -79,6 +79,84 @@ local function testQueueUniquenessAndForeignKey()
     db:close()
 end
 
+local function testV1ToV2Migration()
+    local db = newMemoryDB()
+    local conn = db.sq3.open(":memory:")
+    db:_configure(conn)
+    conn:exec(Migrations.SCHEMA_V1)
+    conn:exec("PRAGMA user_version=1;")
+    conn:exec([[
+        INSERT INTO documents(
+            reader_id, category, location, remote_updated_at,
+            local_path, local_format, is_local_present
+        ) VALUES (
+            'doc-old', 'article', 'new', 'u-old',
+            '/Readwise/old.html', 'html', 1
+        );
+    ]])
+
+    local changed = Migrations.apply(conn, 1)
+    assertEqual(changed, true)
+    assertEqual(
+        tonumber(conn:rowexec("PRAGMA user_version;")),
+        2,
+        "v1 database must migrate to v2"
+    )
+
+    local stmt = conn:prepare([[
+        SELECT materialized_remote_updated_at,
+               content_refresh_pending,
+               content_refresh_remote_updated_at,
+               content_refresh_detected_at
+        FROM documents WHERE reader_id='doc-old';
+    ]])
+    local row = stmt:step()
+    stmt:close()
+    assertEqual(row[1], nil,
+        "migration must not invent a materialized revision for legacy files")
+    assertEqual(tonumber(row[2]), 0)
+    assertEqual(row[3], nil)
+    assertEqual(row[4], nil)
+    conn:close()
+end
+
+local function testBackupCopySemantics()
+    local copied_from, copied_to
+    local db = DB:new{
+        path = "/tmp/readwisereader.sqlite3",
+        sq3 = SQ3,
+        device = { canUseWAL = function() return false end },
+        copy_file = function(from, to)
+            copied_from, copied_to = from, to
+            -- KOReader ffiUtil.copyFile returns nil on success.
+            return nil
+        end,
+    }
+    local ok, err = pcall(function()
+        db:_backupBeforeMigration(1)
+    end)
+    assertEqual(ok, true,
+        "nil from KOReader copyFile must mean backup success")
+    assertEqual(err, nil)
+    assertEqual(copied_from, "/tmp/readwisereader.sqlite3")
+    assertEqual(copied_to, "/tmp/readwisereader.sqlite3.bak")
+
+    local failing = DB:new{
+        path = "/tmp/readwisereader.sqlite3",
+        sq3 = SQ3,
+        device = { canUseWAL = function() return false end },
+        copy_file = function()
+            return "synthetic copy failure"
+        end,
+    }
+    local failed, message = pcall(function()
+        failing:_backupBeforeMigration(1)
+    end)
+    assertEqual(failed, false,
+        "non-nil KOReader copyFile return must be treated as failure")
+    assertTrue(tostring(message):find("synthetic copy failure", 1, true) ~= nil)
+end
+
 local function testTransactionRollback()
     local db = newMemoryDB()
     local conn = db:open()
@@ -120,6 +198,8 @@ return function()
     assertTrue(Migrations.SCHEMA_VERSION >= 1)
     testFreshSchema()
     testQueueUniquenessAndForeignKey()
+    testV1ToV2Migration()
+    testBackupCopySemantics()
     testTransactionRollback()
     testMigrationRollbackSignal()
 end

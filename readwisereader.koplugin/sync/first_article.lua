@@ -171,6 +171,10 @@ function FirstArticle:_recordLocal(document, state)
         is_local_present = true,
         last_materialized_at = self.now(),
         last_sync_error = nil,
+        materialized_remote_updated_at = document.updated_at,
+        content_refresh_pending = false,
+        content_refresh_remote_updated_at = nil,
+        content_refresh_detected_at = nil,
     })
 
     local metadata_ok, metadata_err = self.koreader_documents:writeMetadata(state.path, document)
