@@ -351,3 +351,23 @@ Diagnostic rule:
 6. if HTML exceeds a conservative diagnostic cap, treat that as a production hardening requirement rather than increasing the cap blindly.
 
 Never solve a hard-exit ambiguity by moving a remote POST earlier in the sequence.
+
+
+## 19. Keep safety-critical matching out of native FFI
+
+Gate 13C produced this evidence sequence:
+- 0.1.39 hard-exited only after entering the combined parent-read/match stage;
+- 0.1.40 fetched all three parent HTML payloads successfully (9.851 / 27.477 / 8.564 bytes);
+- therefore the remaining hard-exit boundary is matcher execution, not parent retrieval.
+
+The annotation matcher previously attempted canonical normalization through KOReader's native `ffi/utf8proc.normalize_NFC`. A native FFI fault cannot be turned into a recoverable Lua error by `pcall`, which is incompatible with the queue's fail-safe contract.
+
+From 0.1.41:
+- annotation matching does not load/call native utf8proc;
+- exact match stays first;
+- the Unicode fallback uses a conservative pure-Lua composition table for explicitly supported Latin base+combining sequences;
+- unsupported canonical-equivalence cases may become safe false negatives (`unmatched`) rather than risking process termination;
+- whitespace and punctuation fallbacks still run after that;
+- diagnostic stage breadcrumbs isolate each matching phase before mutation is permitted.
+
+For this plugin, a safe false negative is preferable to a native crash or an unsafe guessed highlight location.
