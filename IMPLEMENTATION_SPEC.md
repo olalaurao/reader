@@ -2730,7 +2730,7 @@ Physical result:
 
 Phase P is complete.
 
-## Phase Q — content refresh safety — Q1-A PASSED; Q2 IMPLEMENTED IN 0.1.46; GATE 15 OPEN
+## Phase Q — content refresh safety — Q1-A + Q2 ARTICLE PASS; Q1-B RAW PENDING; GATE 15 OPEN
 
 ### Q1 — build 0.1.45 read-only / no-replacement spike
 
@@ -2873,6 +2873,15 @@ Sync report adds:
 - final pending count.
 
 Automatic byte replacement remains disabled in V1 unless a later explicit format stability spike changes this spec.
+
+### Q2 physical article result — PASS
+On the target PW3 / KOReader v2026.07.1 / build 0.1.46:
+- the first Q2 Sync acknowledged the previously-pending title-only article revision without replacing local bytes;
+- because the report's acknowledgement lines were cropped, a read-only Gate 15 diagnostic recovered the evidence: refresh pending=no, current Reader revision=DB revision, visible text=same, replacement=no, remote/local writes=none;
+- the unchanged second Sync was then confirmed as a no-op for that revision;
+- local progress/position, highlights and notes remained intact.
+
+Therefore article Q2 acknowledgement and idempotency are physically passed. The only remaining Gate 15 coverage is Q1-B for already-local original PDF/EPUB revisions.
 
 ### Gate 15
 No local annotation/progress loss caused by remote content update/revision. Existing local bytes and sidecar must remain intact for every changed/unverified/raw case; metadata-only article revisions may be acknowledged without replacing bytes after Q1 passes.
@@ -3050,26 +3059,17 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Validate **Phase Q / Gate 15 Q2** on build 0.1.46 using the already-pending Q1-A title-only article revision.
+Validate **Phase Q / Gate 15 Q1-B raw-format preservation** on build 0.1.46. Article Q1-A + Q2 are already physically passed.
 
-1. install 0.1.46 preserving settings/database/documents/sidecars;
-2. do not change the article, title, highlights, notes or reading position before the test;
-3. Wi-Fi/internet ON;
-4. run ordinary **Sync now exactly once**;
-5. return the full report;
-6. require:
-   - `Refresh pending examined >= 1`;
-   - `Refresh articles compared >= 1`;
-   - `Metadata-only revisions acknowledged = 1` for the Q1-A fixture;
-   - `Content refresh pending review = 0` unless unrelated pending fixtures already exist;
-   - `Content pages = 0`;
-   - changed/raw/unverified/race/remote-error counters = 0 for this fixture;
-
-**Cropped-report recovery rule:** if the one authorized first Q2 Sync report was already dismissed or its acknowledgement lines were cropped, do **not** run another Sync just to recreate the report. Open the same article and run the read-only **Inspect content refresh safety (Gate 15)** diagnostic once. Require `refresh pending = no`, current Reader revision = DB remote revision, remote probe = passed, visible-text comparison = same, automatic replacement = no, remote writes = none and local writes = none. Combined with the already-recorded pre-Q2 `refresh pending = yes` and the 0.1.46 invariant that only an exact same-visible-text reconciliation clears that marker, this may substitute for the cropped acknowledgement lines. If the diagnostic still shows pending, stop and do not run the second Sync.
-
-7. reopen the same article and verify progress/position, highlights and notes remain unchanged;
-8. run one unchanged second Sync and require no new acknowledgement/work for the same revision;
-9. if suitable already-local original PDF/EPUB fixtures exist, perform Q1-B title-only revisions and require `Raw PDF/EPUB revisions retained` with no replacement;
-10. Gate 15 closes only after article Q2 idempotency plus required raw-format evidence/scope decision is recorded;
-11. do not begin Phase R / Gate 16 before Gate 15 closes.
-
+1. keep the current plugin/KOReader/firmware unchanged;
+2. locate an **already-local plugin-managed original PDF** from Gate 6 if it still exists;
+3. open it and run read-only **Inspect content refresh safety (Gate 15)** before changing Reader metadata;
+4. baseline must show original raw format (`category=pdf`, `local_format=pdf`), local file present, remote probe passed, comparison `not_attempted_raw`, decision `defer_raw_keep_local`, automatic replacement=no, remote/local writes=none;
+5. record sidecar/progress/annotation signals shown by the diagnostic;
+6. in Reader, change **only the title** of that exact same document;
+7. run ordinary Sync once and require the revision to remain pending/deferred as raw, with no replacement content download and no local-state loss;
+8. rerun the diagnostic and require `defer_raw_keep_local`, then verify the local PDF still opens with sidecar/progress/annotations intact;
+9. repeat the same sequence for an already-local original EPUB (`category=epub`, `local_format=epub`) if available;
+10. if either original raw fixture no longer exists locally, record the physical coverage limitation instead of manufacturing a destructive fixture;
+11. close Gate 15 only after raw coverage/scope is resolved;
+12. do not begin Phase R / Gate 16 before Gate 15 closes.

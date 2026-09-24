@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase Q / Gate 15 — Q1-A ARTICLE SAFETY PASSED; Q2 first acknowledgement PROVEN via read-only recovery diagnostic; unchanged second Sync idempotency is the immediate physical blocker**
+**Phase Q / Gate 15 — Q1-A ARTICLE SAFETY PASSED; Q2 ARTICLE ACKNOWLEDGEMENT + IDEMPOTENCY PASSED; Q1-B RAW PDF/EPUB PHYSICAL COVERAGE IS THE ONLY REMAINING GATE 15 BLOCKER**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
@@ -31,7 +31,7 @@ Build 0.1.46 implements Q2 without enabling replacement:
 - raw PDF/EPUB revisions remain pending and are not replacement-downloaded;
 - automatic byte replacement remains disabled.
 
-Gate 15 remains **OPEN** until Q2 passes physically and raw-format coverage/scope is closed.
+Gate 15 remains **OPEN** only until raw-format coverage/scope is closed. Article Q2 acknowledgement and unchanged-second-Sync idempotency are now physically passed.
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -3979,3 +3979,57 @@ Immediate next physical action:
    - Errors = 0;
 4. verify the same article still preserves progress/position, highlights and notes;
 5. return the full Sync report before making any raw-format test changes.
+
+
+## Gate 15 Q2 article idempotency — PHYSICAL PASS
+
+User confirmed the required unchanged second ordinary Sync on build 0.1.46 passed all requested Q2 criteria and the article remained intact.
+
+Accepted physical result:
+- no repeated content-refresh work for the acknowledged Q1-A revision;
+- content-refresh pending for that article remained cleared;
+- no repeated metadata-only acknowledgement;
+- no changed/unverified/race/remote-read-error refresh result for that fixture;
+- content pages remained zero;
+- Sync completed without errors;
+- the same local article preserved reading position/progress, highlights and notes.
+
+Combined with the preceding read-only recovery diagnostic (pending=no, exact Reader revision=DB revision, visible text same, replacement no, remote/local writes none), **Q2 article acknowledgement + idempotency are PASSED**.
+
+### Off-device raw hardening in this continuation
+- `test_content_refresh_reconcile.lua` already proves both original PDF and EPUB pending revisions are retained across repeated reconciliation and issue zero replacement GETs;
+- missing-local article retention remains covered without remote comparison;
+- `test_content_refresh.lua` now explicitly covers both `pdf/pdf` and `epub/epub` returning `defer_raw_keep_local`;
+- CI #1012 on `49bbfd1a359aaa3b5f36b2d9145db912bcf44edf`: **SUCCESS** across development checks, full Lua suite, package/layout and artifact upload;
+- no production plugin file changed after the validated 0.1.46 production head.
+
+### Current branch / HEAD
+- Branch: `phase-q/content-refresh-gate15`.
+- Base/integrated `main`: `5d7c954d051e491c1b11344057c59df7e2cf9656`.
+- Draft PR: #18.
+- Production 0.1.46 code/package head: `2fe649de11ed4acb5b3914386e7f98e52f81646b`.
+- Test hardening head: `49bbfd1a359aaa3b5f36b2d9145db912bcf44edf`.
+- This documentation closeout commit follows that test head.
+
+### Gates
+- Gates 0–14: PASSED.
+- Gate 15 Q1-A article safety: PASSED physically.
+- Gate 15 Q2 article acknowledgement/idempotency: **PASSED physically**.
+- Gate 15 Q1-B raw PDF/EPUB: **PENDING PHYSICAL COVERAGE**.
+- Gate 16: blocked until Gate 15 closes.
+
+### Physical blocker / exact next steps
+1. Do not change firmware, KOReader or plugin build.
+2. Use an **already-local, plugin-managed original PDF** from the earlier Gate 6 proof if it still exists.
+3. Open that PDF in KOReader and run **Inspect content refresh safety (Gate 15)** before making any Reader change.
+4. Required baseline: category=pdf, local format=pdf, local file present=yes, remote probe=passed, visible-text comparison=`not_attempted_raw`, decision=`defer_raw_keep_local`, replacement=no, remote/local writes=none. Record sidecar/progress/annotation evidence shown.
+5. Only after that baseline is confirmed, change **only the title** of that same PDF in Reader, Sync once, and require the raw revision to remain pending with no replacement download/content page and local state intact.
+6. Repeat the same sequence for an already-local original EPUB if it still exists.
+7. If one or both original Gate 6 fixtures no longer exist locally, record that limitation rather than creating a destructive replacement fixture.
+8. Gate 15 closes only after raw coverage/scope is resolved; only then may Phase R / Gate 16 begin.
+
+### Bugs / decisions
+- No production defect was found by the Q2 idempotency closeout.
+- No scope deviation: V1 still forbids automatic existing-document replacement.
+- No secrets/private content were added to tests/docs.
+- No firmware/KOReader update, Wi-Fi control or destructive remote behavior was introduced.

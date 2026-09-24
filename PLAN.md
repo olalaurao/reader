@@ -1315,32 +1315,20 @@ Não:
 
 ## 46. Próximo passo
 
-A **Phase P / Gate 14 está concluída e mergeada** em `main` pelo PR #17 (`5d7c954d051e491c1b11344057c59df7e2cf9656`).
+A **Phase Q / Gate 15** continua aberta apenas para **Q1-B raw PDF/EPUB**.
 
-Fase atual: **Phase Q / Gate 15 — content refresh safety**.
-
-Q1-A de artigo **PASSOU fisicamente** na 0.1.45:
-- artigo com progresso real, 6 annotations e XPointer;
-- revisão Reader apenas de título;
-- Sync marcou refresh pending sem baixar conteúdo (`Content pages: 0`);
-- arquivo, posição, highlights e notas ficaram intactos;
-- diagnóstico pós-revisão: pending yes, visible text same, replacement no.
-
-Build **0.1.46** implementa Q2:
-1. examina no máximo 5 artigos HTML pendentes por Sync;
-2. GET remoto somente leitura + leitura local limitada;
-3. só reconhece a revisão se o `updated_at` remoto ainda for exatamente a revisão pendente;
-4. se texto visível for igual, limpa **somente** o marcador pending;
-5. nunca troca bytes locais nem sidecar;
-6. texto diferente, erro, race ou comparação indisponível continua pending;
-7. PDF/EPUB raw continua pending sem download de replacement;
-8. segundo Sync da mesma revisão deve ser no-op.
+Já passou fisicamente:
+- Q1-A artigo: revisão metadata-only detectada sem replacement e com progresso/highlights/notas preservados;
+- Q2 artigo: pending limpo somente após texto visível equivalente;
+- diagnóstico read-only confirmou pending=no, revisão Reader=DB, visible text same, replacement no;
+- segundo Sync inalterado foi no-op e preservou o estado local.
 
 Próximo teste físico:
-1. instalar 0.1.46 sem mudar o fixture Q1-A;
-2. Sync uma vez;
-3. esperar metadata-only acknowledged=1 e pending voltar a 0 para esse artigo, com content pages=0;
-4. confirmar posição/highlights/notas intactos;
-5. segundo Sync no-op;
-6. depois validar raw PDF/EPUB quando houver fixtures originais já locais;
-7. somente após Gate 15 PASS iniciar Phase R / Gate 16.
+1. usar um PDF original já baixado/gerenciado pelo plugin desde o Gate 6, se ainda existir;
+2. diagnóstico Gate 15 baseline sem mudar nada;
+3. alterar somente o título no Reader;
+4. Sync uma vez;
+5. exigir raw revision retained/deferred, nenhum replacement download e estado local intacto;
+6. repetir com EPUB original já local, se disponível;
+7. se um fixture original não existir mais, registrar a limitação em vez de fabricar um teste destrutivo;
+8. só depois fechar Gate 15 e iniciar Phase R / Gate 16.

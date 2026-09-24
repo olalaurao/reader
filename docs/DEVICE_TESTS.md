@@ -2684,3 +2684,40 @@ Observed:
 - local writes: none.
 
 Result: first metadata-only Q2 acknowledgement is accepted. The next required test is one unchanged ordinary Sync proving zero repeated refresh work for this revision.
+
+
+### Gate 15 Q2 article unchanged second Sync — PASS
+
+User confirmed the required second ordinary Sync was run with no intervening article/title/highlight/note/position changes and all requested criteria passed.
+
+Accepted result:
+- no repeated refresh work for the acknowledged Q1-A revision;
+- pending remained cleared;
+- no repeated metadata-only acknowledgement;
+- content pages remained zero;
+- no refresh error/race/unverified result for the fixture;
+- Sync had no errors;
+- local progress/position, highlights and notes remained intact.
+
+Q2 article acknowledgement/idempotency is physically closed.
+
+### Gate 15 Q1-B next device test — original PDF baseline
+
+Do not install a new build. Use an already-local original PDF managed by this plugin (prefer the Gate 6 PDF fixture).
+
+1. Open the PDF in KOReader.
+2. Before changing anything in Reader, run **Readwise Reader → Inspect content refresh safety (Gate 15)**.
+3. Return the full screen.
+
+Expected baseline:
+- Category: pdf;
+- Local format: pdf;
+- Local file present: yes;
+- Remote probe: passed;
+- Visible-text comparison: `not_attempted_raw`;
+- V1 refresh decision: `defer_raw_keep_local`;
+- Automatic replacement allowed: no;
+- Remote writes: none;
+- Local writes: none.
+
+Do not rename the PDF in Reader until this baseline is reviewed.
