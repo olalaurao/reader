@@ -79,6 +79,47 @@ local function testQueueUniquenessAndForeignKey()
     db:close()
 end
 
+local function testV1ToV2Migration()
+    local db = newMemoryDB()
+    local conn = db.sq3.open(":memory:")
+    db:_configure(conn)
+    conn:exec(Migrations.SCHEMA_V1)
+    conn:exec("PRAGMA user_version=1;")
+    conn:exec([[
+        INSERT INTO documents(
+            reader_id, category, location, remote_updated_at,
+            local_path, local_format, is_local_present
+        ) VALUES (
+            'doc-old', 'article', 'new', 'u-old',
+            '/Readwise/old.html', 'html', 1
+        );
+    ]])
+
+    local changed = Migrations.apply(conn, 1)
+    assertEqual(changed, true)
+    assertEqual(
+        tonumber(conn:rowexec("PRAGMA user_version;")),
+        2,
+        "v1 database must migrate to v2"
+    )
+
+    local stmt = conn:prepare([[
+        SELECT materialized_remote_updated_at,
+               content_refresh_pending,
+               content_refresh_remote_updated_at,
+               content_refresh_detected_at
+        FROM documents WHERE reader_id='doc-old';
+    ]])
+    local row = stmt:step()
+    stmt:close()
+    assertEqual(row[1], nil,
+        "migration must not invent a materialized revision for legacy files")
+    assertEqual(tonumber(row[2]), 0)
+    assertEqual(row[3], nil)
+    assertEqual(row[4], nil)
+    conn:close()
+end
+
 local function testTransactionRollback()
     local db = newMemoryDB()
     local conn = db:open()
@@ -120,6 +161,7 @@ return function()
     assertTrue(Migrations.SCHEMA_VERSION >= 1)
     testFreshSchema()
     testQueueUniquenessAndForeignKey()
+    testV1ToV2Migration()
     testTransactionRollback()
     testMigrationRollbackSignal()
 end
