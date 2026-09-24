@@ -2187,3 +2187,21 @@ Final idempotency check:
 3. run ordinary **Sync now** once;
 4. require created 0 / processed 0 / waiting 0 / errors 0;
 5. verify Reader still has exactly one copy of each Gate 13 item.
+
+
+### Gate 13 final idempotency — PASS
+
+After the first controlled reconnect created exactly the 3 pending highlights and Reader-side verification confirmed exactly one correct copy of each with expected notes, an unchanged second Sync was run.
+
+Confirmed:
+- Highlights created: 0;
+- create queue processed: 0;
+- create queue waiting: 0;
+- unmatched/ambiguous: 0;
+- no retry/auth wait/blocker;
+- errors: 0;
+- Reader still contains exactly one copy of each Gate 13 item.
+
+**Gate 13 PASSED. Phase O complete.**
+
+Next physical gate: Gate 14 / Finished → Archive.
