@@ -1319,19 +1319,28 @@ A **Phase O / Gate 13 está concluída e mergeada** em `main` pelo PR #16 (`b7c8
 
 Fase atual: **Phase P / Gate 14 — Finished → Archive**.
 
-O source spike no KOReader oficial v2026.07.1 encontrou um candidato canônico forte:
-- BookStatusWidget: Finished = `complete`;
-- ReaderStatus `markBook()`: grava `summary.status = "complete"` e atualiza `summary.modified`;
-- BookList: `complete` = Finished e o status vem de `doc_settings.summary.status`.
+O spike físico 0.1.42 **PASSOU** no PW3:
+- antes: sidecar/BookList/runtime = `reading`;
+- depois de **Book status → Finished**: sidecar/BookList/runtime = `complete`;
+- `summary.modified` mudou para 2026-09-24;
+- `percent_finished` permaneceu 0.1538, provando que porcentagem não é o sinal;
+- o diagnóstico não fez request nem write.
 
-Mas a regra do projeto exige validação física antes de depender disso em produção. Portanto a ordem é:
+Build 0.1.43 implementa a política V1:
+1. **Archive in Reader** default ON;
+2. detectar exatamente `summary.status=complete` em documentos Reader gerenciados presentes localmente;
+3. persistir intenção `archive_document` antes da rede;
+4. GET remoto antes de PATCH/retry para reconciliar outcome ambíguo;
+5. PATCH individual `location=archive`;
+6. atualizar DB/Collection local para Archive, mantendo arquivo/sidecar/progresso/highlights/notas;
+7. nunca deletar arquivo local por archive remoto;
+8. segundo Sync sem mudanças não reenvia archive.
 
-1. build 0.1.42: rodar o diagnóstico local/read-only **Inspect finished status (Gate 14)** antes e depois de marcar um documento Reader gerenciado como Finished;
-2. exigir que o sidecar persistido mostre `summary.status=complete`, comparando também runtime e BookList;
-3. só depois implementar a intenção durável de archive;
-4. PATCH do documento-pai no Reader para `location=archive` exatamente uma vez;
-5. manter arquivo local, sidecar, progresso, highlights e notas;
-6. archive remoto nunca implica delete local;
-7. testar retry/idempotência;
-8. Gate 14 físico: Finished → Sync → Reader archive → arquivo/sidecar intactos → segundo Sync no-op;
-9. somente depois iniciar Phase Q / Gate 15.
+Próximo gate físico:
+1. instalar 0.1.43;
+2. com o mesmo documento já Finished e Wi-Fi ON, rodar **Sync now uma vez**;
+3. conferir relatório completo;
+4. confirmar no Reader que foi para Archive;
+5. confirmar no Kindle que arquivo, sidecar, progresso, highlights e notas continuam;
+6. depois rodar segundo Sync no-op;
+7. somente após PASS iniciar Phase Q / Gate 15.
