@@ -630,30 +630,29 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Branch: `phase-q/content-refresh-gate15`
 - Draft PR: **#18** — keep draft / do not merge until Gate 15 passes physically.
 - Base/integrated `main`: `5d7c954d051e491c1b11344057c59df7e2cf9656` (PR #17 merge / Phase P + Gate 14 passed)
-- Validated 0.1.44 code/package head: `e491c7ed6096513d623f6ac6129e4ad73de56705`.
-- Validated documentation/status head before the final handoff: `6c10b102efb3e70f110d1675995f3b81ff9da39f`; this final STATUS-only handoff commit follows it.
+- Validated 0.1.45 code/package + documentation head: `355286940e9cc28103146f87904b5c478d3b33dd`.
 - Build version for physical Gate 15 Q1 retest: **0.1.45**.
 - Database schema: **v2**.
-  - existing v1 database is backed up by the existing migration framework before migration;
+  - existing v1 database is backed up before migration;
+  - KOReader `ffiUtil.copyFile` nil return is treated correctly as success;
   - legacy local files keep `materialized_remote_updated_at = NULL` rather than receiving an invented revision.
-- CI run **#917** on the validated 0.1.44 code/package state: **SUCCESS**.
+- CI run **#950** on 0.1.45 head `355286940e9cc28103146f87904b5c478d3b33dd`: **SUCCESS**.
   - development checks: SUCCESS;
   - full Lua unit suite: SUCCESS;
   - installable ZIP build: SUCCESS;
   - package layout validation: SUCCESS;
   - artifact upload: SUCCESS.
-- Validated 0.1.44 artifact:
-  - workflow run: `36031184709` / run #917;
-  - artifact ID: `10821257420`;
-  - artifact name: `readwisereader-koplugin-fd29f2a8927b20ed8b53af7c43539d3cdaa27ae2`;
-  - outer artifact SHA-256: `c73318305a728292e4b1c90c0c9da5c86c66de1899a37ad6b02601fc60b77459`;
-  - installable inner `readwisereader.koplugin.zip` SHA-256: `6371f5d49656bb7fad201494a81f29bdc6df2e60cb895e39750a103ef84828b6`;
+- Validated 0.1.45 artifact:
+  - workflow run: `36033377998` / run #950;
+  - artifact ID: `10822853224`;
+  - artifact name: `readwisereader-koplugin-ed394430336ed304f715cb29ae00d6f5c300e2f4`;
+  - outer artifact SHA-256: `cdc8ab6c921994414ecc0d02adcc7eb53923bbcff3a496273c48e6abfd5ded51`;
+  - installable inner `readwisereader.koplugin.zip` SHA-256: `3427a86ad2d90b7d4cfaee1cd3c665bc4de74948b90213d39a9378c81266dcbe`;
   - inner ZIP `unzip -t`: **PASS**, no errors;
-  - packaged `constants.lua`: version **0.1.44**;
+  - packaged `constants.lua`: version **0.1.45**;
   - Gate 15 policy/worker/UI files present;
   - packaged ZIP contains no `tests/` entries.
-- Final pre-handoff CI run **#921** on `6c10b102efb3e70f110d1675995f3b81ff9da39f`: **SUCCESS** across development checks, full Lua unit suite, ZIP build/layout and artifact upload.
-- Documentation-only commits after `e491c7ed...` do not change installable plugin bytes.
+- 0.1.44 is superseded and must not be used for Gate 15.
 
 ## Target environment
 
