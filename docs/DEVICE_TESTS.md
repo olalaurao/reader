@@ -2080,6 +2080,21 @@ This rules out parent LIST/JSON/HTML retrieval as the physical hard-exit boundar
 
 ### Build 0.1.41 — pure-Lua matcher reconnect diagnosis
 
+Automated/package validation:
+- draft PR #16;
+- CI run #758 on `eaf9466dece5f7be31d608a3e3c003c2ec3b8c8c`: **SUCCESS**;
+- development checks: SUCCESS;
+- full Lua unit suite: SUCCESS;
+- ZIP build/layout: SUCCESS;
+- artifact upload: SUCCESS;
+- artifact ID: `10815214175`;
+- artifact name: `readwisereader-koplugin-3bb70eba730c69f4552ce04c4c3524a8eb64ced3`;
+- outer artifact SHA-256: `83444d6b99770b2d6c843647c0a7ee5e4dae29631bbf93137159ee764a5c8153`;
+- installable inner ZIP SHA-256: `77b6d0b109a63916e400155259794f7c147ec600d08d9d084bbd5072e0e59252`;
+- inner ZIP `unzip -t`: **PASS**, no errors;
+- packaged `constants.lua`: version **0.1.41**;
+- packaged ZIP contains no `tests/` entries.
+
 Physical prerequisite already proven by 0.1.40:
 - queue pending 3;
 - active remote marker matches 0;
