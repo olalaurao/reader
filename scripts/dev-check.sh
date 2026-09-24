@@ -25,6 +25,15 @@ find "$PLUGIN_DIR" -type f -name '*.lua' -print | LC_ALL=C sort | while IFS= rea
     printf '%s\n' "syntax ok: ${lua_file#"$ROOT_DIR"/}"
 done
 
+# The installable plugin should remain source-sized. Catch accidental private
+# dumps, caches, binaries or giant fixtures before they can enter an artifact.
+find "$PLUGIN_DIR" -type f ! -path "$PLUGIN_DIR/tests/*" -print | while IFS= read -r prod_file; do
+    bytes=$(wc -c < "$prod_file" | tr -d '[:space:]')
+    if [ "$bytes" -gt 1048576 ]; then
+        fail "unexpected production file larger than 1 MiB: ${prod_file#"$ROOT_DIR"/}"
+    fi
+done
+
 if command -v git >/dev/null 2>&1 && [ -d "$ROOT_DIR/.git" ]; then
     if git -C "$ROOT_DIR" grep -nE 'Token[[:space:]]+[A-Za-z0-9._-]{24,}' -- ':!*.md' ':!LICENSE' >/dev/null 2>&1; then
         fail "possible committed token detected"
