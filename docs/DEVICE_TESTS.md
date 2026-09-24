@@ -1859,3 +1859,16 @@ Before running 0.1.38 Sync:
 7. If Wi-Fi turned ON merely by opening/closing Readwise Reader: **stop and report that result**. Do not run Sync and do not create another highlight.
 
 Purpose: distinguish KOReader's own restore behavior from a possible plugin-load interaction before evaluating offline queue semantics.
+
+
+### Gate 13 offline-state isolation result — PASS
+
+Controlled physical setup:
+- disable KOReader **Restore Wi-Fi connection on resume**;
+- turn Wi-Fi OFF from KOReader's own Network menu;
+- open/close Readwise Reader without Sync.
+
+Observed:
+- Wi-Fi remained OFF.
+
+Use this controlled KOReader-offline state for the 0.1.38 Gate 13A retry. Do not rely on native Kindle Airplane Mode alone and do not create another highlight.
