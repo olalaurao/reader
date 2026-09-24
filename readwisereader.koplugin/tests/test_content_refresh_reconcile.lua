@@ -100,6 +100,17 @@ return function()
         assert(#cleared == 1 and cleared[1] == "article-1")
         assert(rows[1].content_refresh_pending == false)
         assert(#gets == 1 and gets[1].with_html == true)
+
+        -- Once the exact metadata-only revision is acknowledged, a later
+        -- unchanged Sync must do no refresh work and issue no second GET.
+        local second_report = reconciler:run()
+        assert(second_report.pending_seen == 0)
+        assert(second_report.article_checked == 0)
+        assert(second_report.metadata_only_acknowledged == 0)
+        assert(second_report.changed_retained == 0)
+        assert(second_report.pending_after == 0)
+        assert(#cleared == 1)
+        assert(#gets == 1)
     end
 
     do
