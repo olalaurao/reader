@@ -2060,3 +2060,7 @@ Required physical observations:
 3. compare the two screens before changing Gate 13 logic.
 
 CI #526 on diagnostic functional HEAD `2848c239619d70ce8200ad254d18e016fd96d168`: **SUCCESS**.
+- Diagnostic build 0.1.35 artifact run #530: **SUCCESS**
+- artifact ID: `10786643587`
+- artifact name: `readwisereader-koplugin-bb0b5a44498fc6737813d4223e82376b88bc10ba`
+- artifact digest: `sha256:e56cb003c69ee59c30c224a3c0b753a3a465bacea549618f712e1a73ea35f44b`
