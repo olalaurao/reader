@@ -50,7 +50,7 @@ function Worker:run(options)
     local config = Config:new()
     local db
 
-    local ok, result_or_err = pcall(function()
+    local ok, report, domain_err = pcall(function()
         db = DB:new()
         local documents = Documents:new{ db = db }
         local document = documents:getByLocalPath(local_path)
@@ -195,7 +195,14 @@ function Worker:run(options)
             message = "Gate 15 content-refresh diagnostic failed safely.",
         }
     end
-    return result_or_err
+    if not report then
+        return nil, domain_err or {
+            kind = "worker",
+            retryable = true,
+            message = "Gate 15 content-refresh diagnostic returned no report.",
+        }
+    end
+    return report
 end
 
 Worker._readFile = readFile
