@@ -2655,19 +2655,67 @@ Do not treat source inspection alone as the production proof. Build 0.1.42 adds 
 
 The diagnostic performs no network request and no local/remote write.
 
-**Stop condition:** do not implement P1 archive mutation until the target PW3 confirms that using KOReader's Finished control persists `summary.status = "complete"` in the managed document sidecar.
+**P0 physical result: PASS on the target PW3 / KOReader v2026.07.1.**
 
-### P1 — after P0 passes
-- canonical finished detection using the experimentally-proven signal;
-- durable archive intent before network mutation;
-- Reader parent PATCH `location=archive`;
-- exactly-once/idempotent processing;
-- local file keep;
-- sidecar/progress/highlights/notes keep;
-- remote archive never implies local deletion.
+Before KOReader **Book status → Finished**:
+- managed Reader document: yes;
+- local file: present;
+- Reader location in plugin DB: `new`;
+- sidecar: present;
+- persisted `summary.status = reading`;
+- persisted `summary.modified = 2026-09-23`;
+- persisted `percent_finished = 0.1538`;
+- BookList status: `reading`;
+- runtime `summary.status = reading`;
+- diagnostic candidate: no;
+- plugin remote requests/writes/local writes: none.
+
+After choosing **Finished** and closing the KOReader status UI:
+- Reader location in plugin DB remained `new` (the diagnostic made no mutation);
+- sidecar remained present;
+- persisted `summary.status = complete`;
+- persisted `summary.modified = 2026-09-24`;
+- persisted `percent_finished` remained **0.1538**;
+- BookList status became `complete`;
+- runtime `summary.status` became `complete`;
+- diagnostic candidate: yes;
+- plugin remote requests/writes/local writes: none.
+
+Therefore V1 Finished detection is **exactly `summary.status == "complete"`**. Do not infer Finished from `percent_finished`, end-of-document position, visible labels, or a date alone.
+
+### P1 — IMPLEMENTED in build 0.1.43
+- setting `archive_finished` / **Finished documents → Archive in Reader**, default ON as specified by PLAN.md;
+- scan only Reader-managed, locally-present documents;
+- require an existing local file and canonical sidecar status;
+- unknown/missing sidecar status is a safe skip/block, never interpreted as unfinished;
+- detect only `summary.status == "complete"`;
+- enqueue `archive_document:<reader_id>` durably before any remote reachability/mutation;
+- payload contains only the Reader ID, target `location=archive`, and non-sensitive local finished modification marker;
+- read-only Reader GET before every archive PATCH/retry;
+- if Reader is already archived, adopt that state and perform no PATCH;
+- if a prior PATCH timed out/crashed but actually succeeded, next Sync GET-reconciles it and does not issue a duplicate PATCH;
+- if local Finished is reverted before a confirmed remote archive and Reader is verified not archived, cancel the intent safely;
+- PATCH parent document individually with `{"location":"archive"}`;
+- after confirmed remote archive, persist local document-row location `archive` **before** marking the queue item succeeded, making local crash recovery monotonic;
+- parent-side postprocess moves the still-local file to the plugin-managed `Readwise: Archive` Collection without removing unrelated user Collections;
+- never delete, replace, rename, or rewrite the local document or sidecar as part of archive;
+- local progress/highlights/notes are untouched;
+- archive setting OFF prevents discovery/processing; durable pending state is not destructively discarded;
+- nonretryable client rejection blocks safely;
+- auth/retryable/ambiguous outcomes remain durable and are reconciled before a later retry.
+
+No schema migration is required: the existing generic durable queue already supports document operations.
 
 ### Gate 14
-Finished → archive exactly once; local file/sidecar/progress/annotations remain intact; unchanged second Sync performs no duplicate archive mutation.
+Physical validation still required for 0.1.43:
+1. use the same finished managed fixture;
+2. run **Sync now** once;
+3. require exactly one Reader archive mutation or safe already-archive reconciliation;
+4. confirm Reader location is Archive;
+5. confirm local file remains;
+6. confirm sidecar, progress, highlights and notes remain;
+7. run a second unchanged Sync;
+8. require zero new archive PATCHes / queue waiting zero / no duplicate side effect.
 
 ## Phase Q — content refresh safety
 
@@ -2817,7 +2865,7 @@ These choices are intentional so future implementation sessions do not repeatedl
 - How does Reader match repeated identical `content` within one document?
 - Does Reader's exact-content requirement compare decoded visible text exactly as documented examples imply for HTML entities/soft hyphens?
 - Which KOReader sidecar API is safest for closed-document annotation reads on the post-Gate-4A target (expected `v2026.07.1`)?
-- What is the safest canonical "finished" signal on that target?
+- Resolved Gate 14 P0: canonical Finished signal on the target is persisted `doc_settings.summary.status == "complete"`; `percent_finished` is not authoritative.
 - Do relative local image files render robustly in CRengine HTML on PW3?
 - How much HTML/image content can this PW3 handle comfortably?
 - How stable are XPointer positions after replacing an HTML document with changed content?
@@ -2854,24 +2902,17 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Begin **Phase P / Gate 14 — Finished → Archive** from the merged Phase O baseline.
+Complete **Phase P / Gate 14** with build 0.1.43 on the same physically-proven Finished fixture.
 
-1. inspect the current KOReader 2026.07.1 sidecar/status representation for a canonical finished signal;
-2. perform the spec-required spike before assuming which field/event means "finished";
-3. implement only after the signal is demonstrated:
-   - detect the managed document's canonical finished state;
-   - persist/queue archive intent durably;
-   - PATCH the Reader parent document location to `archive` exactly once;
-   - preserve the local document file;
-   - preserve the KOReader sidecar;
-   - preserve progress/highlights/notes;
-   - never infer local deletion from remote archive;
-4. add deterministic idempotency/retry tests;
-5. physically validate Gate 14 on the target PW3:
-   - mark one managed document finished;
-   - Sync;
-   - Reader location becomes archive exactly once;
-   - local file + sidecar + reading state remain intact;
-   - unchanged second Sync performs no duplicate archive mutation;
-6. do not begin Phase Q / Gate 15 until Gate 14 passes.
+1. install 0.1.43 preserving settings/database/documents/sidecars;
+2. keep **Finished documents → Archive in Reader** enabled;
+3. keep Wi-Fi/internet available;
+4. do not edit/delete the fixture's annotations;
+5. run ordinary **Sync now exactly once**;
+6. return the full Sync report;
+7. verify Reader location became Archive;
+8. verify the local file still opens and the sidecar/progress/highlights/notes remain intact;
+9. do not run the second Sync until the first report/Reader/local state are reviewed;
+10. then run one unchanged second Sync and require no repeated archive mutation and archive queue waiting = 0;
+11. only after Gate 14 passes begin Phase Q / Gate 15.
 
