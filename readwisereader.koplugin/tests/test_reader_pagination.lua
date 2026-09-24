@@ -69,6 +69,60 @@ return function()
     end
 
     do
+        -- Phase R / Gate 16 large-library stress: walk 5,000 unique
+        -- documents across 50 full Reader pages without accumulating document
+        -- payloads in the caller. This exercises cursor progression and the
+        -- per-document callback path at a scale well above the physical test
+        -- library while keeping rate limiting disabled in deterministic CI.
+        local page_count = 50
+        local page_size = 100
+        local request_index = 0
+        local callback_count = 0
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function()
+                    request_index = request_index + 1
+                    return {
+                        status = 200,
+                        headers = {},
+                        body = tostring(request_index),
+                    }
+                end,
+            },
+            json_decode = function(body)
+                local page = tonumber(body)
+                local results = {}
+                local first = (page - 1) * page_size + 1
+                for offset = 0, page_size - 1 do
+                    results[#results + 1] = {
+                        id = "large-doc-" .. tostring(first + offset),
+                    }
+                end
+                return {
+                    results = results,
+                    nextPageCursor = page < page_count
+                        and ("large-cursor-" .. tostring(page + 1))
+                        or nil,
+                }
+            end,
+            list_min_interval = 0,
+        }
+
+        local report, err = reader:iterateDocuments({}, function(document)
+            callback_count = callback_count + 1
+            assert(document.id == "large-doc-" .. tostring(callback_count))
+        end)
+        assert(err == nil)
+        assert(report.pages == page_count)
+        assert(report.received == page_count * page_size)
+        assert(report.unique == page_count * page_size)
+        assert(report.duplicates == 0)
+        assert(callback_count == page_count * page_size)
+        assert(request_index == page_count)
+    end
+
+    do
         local reader = sequenceReader({
             {
                 results = { { id = "a" } },
