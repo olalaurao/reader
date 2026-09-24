@@ -2508,9 +2508,11 @@ Physical deletion-ON close on build 0.1.32: the tombstoned target disappeared re
 ## Phase O — offline queue hardening — IMPLEMENTED, GATE 13 PENDING
 
 ### O1 — offline create / restart / reconnect
-Implemented in build 0.1.33:
+Implemented in build 0.1.34 (queue core introduced in 0.1.33; Kindle airplane-mode detection corrected in 0.1.34):
 - ordinary **Sync now** no longer rejects Wi-Fi-off operation; full rescan still requires network;
+- on Kindle, native `com.lab126.cmd airplaneMode` is authoritative: if set, Sync now must use offline/local-queue mode even if KOReader's generic online test returns true;
 - the UI passes explicit network availability into the worker and never controls Wi-Fi itself;
+- generic KOReader `NetworkMgr:isOnline()` must not be treated as equivalent to Kindle Airplane Mode; official KOReader 2026.07.1 source implements it as hostname-resolution reachability and the Kindle backend supports Wi-Fi restore;
 - current managed sidecar annotations are scanned and durable create intents are queued **before any remote document request**;
 - offline mode performs local sidecar → DB → queue work and returns without network access or watermark advancement;
 - queued payload contains the local text/note, parent Reader ID, stable local annotation ID, hashes and marker;
