@@ -53,13 +53,41 @@ end
 -- Local-only discovery. This function must never perform a remote request.
 -- It scans every locally-present Reader-managed document so a highlight made
 -- before switching to another book is still discovered on the next manual sync.
-function Backlog:queueAll(current_path)
-    local documents
-    if type(self.documents.listManagedLocal) == "function" then
-        documents = self.documents:listManagedLocal()
-    else
-        documents = self.documents:listManaged()
+local function safeDocuments(documents, current_path)
+    local source = "none"
+    local rows
+
+    if type(documents.listManagedLocal) == "function" then
+        local ok, result = pcall(documents.listManagedLocal, documents)
+        if ok and type(result) == "table" then
+            rows = result
+            source = "managed_local"
+        end
     end
+
+    if rows == nil and type(documents.listManaged) == "function" then
+        local ok, result = pcall(documents.listManaged, documents)
+        if ok and type(result) == "table" then
+            rows = result
+            source = "managed_fallback"
+        end
+    end
+
+    if rows == nil then
+        rows = {}
+        source = "current_fallback"
+        if type(current_path) == "string" and current_path ~= ""
+            and type(documents.getByLocalPath) == "function" then
+            local ok, current = pcall(documents.getByLocalPath, documents, current_path)
+            if ok and current then rows[1] = current end
+        end
+    end
+
+    return rows, source
+end
+
+function Backlog:queueAll(current_path)
+    local documents, repository_source = safeDocuments(self.documents, current_path)
     local ordered, current_managed = localManagedDocuments(
         documents,
         current_path
@@ -67,11 +95,15 @@ function Backlog:queueAll(current_path)
 
     local report = {
         status = "ok",
+        repository_source = repository_source,
+        repository_fallback = repository_source ~= "managed_local",
         documents_seen = #ordered,
         documents_authoritative = 0,
         documents_skipped = 0,
         scan_errors = 0,
+        scan_exceptions = 0,
         queue_errors = 0,
+        queue_exceptions = 0,
         scanned = 0,
         queued = 0,
         already_linked = 0,
@@ -85,9 +117,19 @@ function Backlog:queueAll(current_path)
 
     for _, document in ipairs(ordered) do
         local is_current = current_path ~= nil and document.local_path == current_path
-        local scan_report, scan_err = self.scanner:scanPath(document.local_path)
+        local call_ok, scan_report, scan_err = pcall(
+            self.scanner.scanPath,
+            self.scanner,
+            document.local_path
+        )
 
-        if not scan_report then
+        if not call_ok then
+            report.scan_errors = report.scan_errors + 1
+            report.scan_exceptions = report.scan_exceptions + 1
+            report.documents_skipped = report.documents_skipped + 1
+            report.last_error_kind = "scan_exception"
+            if is_current then report.current_status = "scan_exception" end
+        elseif not scan_report then
             report.scan_errors = report.scan_errors + 1
             report.documents_skipped = report.documents_skipped + 1
             report.last_error_kind = scan_err and scan_err.kind or "scan_error"
@@ -106,11 +148,18 @@ function Backlog:queueAll(current_path)
                 report.current_status = "ok"
             end
 
-            local queued, queue_err = self.uploader:queueCandidates(
+            local queue_ok, queued, queue_err = pcall(
+                self.uploader.queueCandidates,
+                self.uploader,
                 document,
                 scan_report.annotations or {}
             )
-            if not queued then
+            if not queue_ok then
+                report.queue_errors = report.queue_errors + 1
+                report.queue_exceptions = report.queue_exceptions + 1
+                report.last_error_kind = "queue_exception"
+                if is_current then report.current_status = "queue_exception" end
+            elseif not queued then
                 report.queue_errors = report.queue_errors + 1
                 report.last_error_kind = queue_err and queue_err.kind or "queue_error"
                 if is_current then report.current_status = "queue_error" end
@@ -130,6 +179,8 @@ function Backlog:queueAll(current_path)
 
     return report
 end
+
+Backlog._safeDocuments = safeDocuments
 
 Backlog._localManagedDocuments = localManagedDocuments
 Backlog._addCounts = addCounts
