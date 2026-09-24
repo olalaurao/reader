@@ -2019,3 +2019,45 @@ With Wi-Fi ON and **without running Sync now**:
 This proves the diagnostic passed its earlier queue/auth/marker stages and died only after entering the parent-content phase. It does not distinguish parent HTTP/JSON fetch from text matching yet.
 
 Do not run normal Sync. Next diagnostic must isolate parent fetch from matching and retain sanitized partial evidence even if the child dies.
+
+
+### Build 0.1.40 — bounded parent-fetch reconnect diagnosis
+
+Reason:
+- 0.1.39 physically hard-exited with last durable stage `parent_reads`;
+- that stage contained both parent HTTP/JSON fetch and text matching, so it was not sufficient to assign cause.
+
+0.1.40 changes the diagnostic only:
+- retains queue/auth/exact-marker reads;
+- persists sanitized partial snapshots after every stage;
+- probes each active parent metadata-only first;
+- probes parent HTML second with a **1 MiB response-body cap**;
+- does **not** run text matching;
+- displays parent HTML byte count only when the bounded fetch succeeds;
+- no POST/PATCH/DELETE;
+- no queue promotion/mutation.
+
+Automated/package validation:
+- CI run #720: development checks passed, but unit tests failed because the off-device test harness does not provide KOReader's runtime `json` module; no package was built from that failed run;
+- test harness corrected with a scoped JSON stub; production code unchanged by that correction;
+- CI run #727 on `9179fb8c0aeec4c6ea55f71ab63840ccbdeefc69`: **SUCCESS**;
+- development checks: SUCCESS;
+- full Lua unit suite: SUCCESS;
+- ZIP build/layout: SUCCESS;
+- artifact upload: SUCCESS;
+- artifact ID: `10815790280`;
+- artifact name: `readwisereader-koplugin-26ae1018469053e0bfba13f03f8d243330eab960`;
+- outer artifact SHA-256: `8ea1c43a38058f0f536b930fcf72810f17c37db54166a37dae65dfae1d123256`;
+- installable inner ZIP SHA-256: `683340446507b9084f8190af7a7e4db91cbf49a779fd54218fd9a0637e927ce4`;
+- inner ZIP `unzip -t`: **PASS**, no errors;
+- packaged `constants.lua`: version **0.1.40**;
+- packaged reconnect worker/UI present;
+- packaged ZIP contains no `tests/` entries.
+
+Physical instructions:
+1. install 0.1.40 preserving DB/settings/documents/sidecars;
+2. keep Wi-Fi ON;
+3. do not run Sync now;
+4. do not change Gate 13 annotations;
+5. run **Inspect reconnect queue (Gate 13)** once;
+6. return the whole screen, including any recovered partial snapshot and last durable stage.
