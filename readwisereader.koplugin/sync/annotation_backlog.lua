@@ -102,6 +102,7 @@ function Backlog:queueAll(current_path)
         documents_skipped = 0,
         scan_errors = 0,
         scan_exceptions = 0,
+        normalize_exceptions = 0,
         queue_errors = 0,
         queue_exceptions = 0,
         scanned = 0,
@@ -143,6 +144,8 @@ function Backlog:queueAll(current_path)
             end
         else
             report.documents_authoritative = report.documents_authoritative + 1
+            report.normalize_exceptions = report.normalize_exceptions
+                + (scan_report.normalize_exceptions or 0)
             if is_current then
                 report.current_scan_authoritative = true
                 report.current_status = "ok"
