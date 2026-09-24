@@ -18,6 +18,7 @@ local tests = {
     "tests.test_article_ui",
     "tests.test_annotation_diagnostics_ui",
     "tests.test_annotation_sync",
+    "tests.test_annotation_backlog",
     "tests.test_text_match",
     "tests.test_text_match_probe",
     "tests.test_text_match_diagnostics_ui",
