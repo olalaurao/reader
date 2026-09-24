@@ -263,17 +263,28 @@ function TextMatch.visibleText(html)
                 i = i + 1
             end
         else
-            out[#out + 1] = html:sub(i, i)
-            i = i + 1
+            -- Ordinary text is overwhelmingly the common case. Append one
+            -- contiguous chunk instead of one Lua string/table slot per byte.
+            local next_special = html:find("[<&]", i)
+            if next_special then
+                if next_special > i then
+                    out[#out + 1] = html:sub(i, next_special - 1)
+                end
+                i = next_special
+            else
+                out[#out + 1] = html:sub(i)
+                i = n + 1
+            end
         end
     end
 
     return table.concat(out)
 end
 
-local function normalizedWithMap(source, options)
+local function normalizedWithMap(source, options, build_map)
     options = options or {}
-    local parts, map = {}, {}
+    local parts = {}
+    local map = build_map and {} or nil
     local normalized_length = 0
     local i, n = 1, #source
 
@@ -282,12 +293,14 @@ local function normalizedWithMap(source, options)
         parts[#parts + 1] = value
         local start_index = normalized_length + 1
         normalized_length = normalized_length + #value
-        map[#map + 1] = {
-            normalized_start = start_index,
-            normalized_end = normalized_length,
-            source_start = source_start,
-            source_end = source_end,
-        }
+        if map then
+            map[#map + 1] = {
+                normalized_start = start_index,
+                normalized_end = normalized_length,
+                source_start = source_start,
+                source_end = source_end,
+            }
+        end
     end
 
     while i <= n do
@@ -357,12 +370,20 @@ local function uniqueLiteral(haystack, needle)
 end
 
 local function mappedStage(remote_visible, local_text, options, mode)
-    local normalized_remote, map = normalizedWithMap(remote_visible, options)
-    local normalized_local = normalizedWithMap(local_text, options)
+    -- Most stages are rejected before we ever need normalized->source offsets.
+    -- Avoid allocating one Lua mapping table per UTF-8 unit on those paths.
+    local normalized_remote = normalizedWithMap(remote_visible, options, false)
+    local normalized_local = normalizedWithMap(local_text, options, false)
     if normalized_local == "" then return nil, "missing" end
 
     local first, last, state = uniqueLiteral(normalized_remote, normalized_local)
     if state ~= "unique" then return nil, state end
+
+    -- Only the one stage that actually matched uniquely pays for a map.
+    local remapped_remote, map = normalizedWithMap(remote_visible, options, true)
+    if remapped_remote ~= normalized_remote then
+        return nil, "missing"
+    end
     local source_start, source_end = sourceSpan(map, first, last)
     if not source_start or not source_end then return nil, "missing" end
 
