@@ -1319,30 +1319,28 @@ A **Phase P / Gate 14 está concluída e mergeada** em `main` pelo PR #17 (`5d7c
 
 Fase atual: **Phase Q / Gate 15 — content refresh safety**.
 
-Decisão conservadora da V1:
-- um arquivo local já existente **não é substituído automaticamente** enquanto a estabilidade de posições/sidecar não estiver provada por formato;
-- revisão remota nova fica persistente como `content refresh pending`;
-- metadata/location/tags podem atualizar sem trocar os bytes do documento;
-- artigo HTML pode ser comparado read-only por texto visível;
-- PDF/EPUB original sempre fica deferido nesta fase;
-- sidecar nunca é substituído.
+Q1-A de artigo **PASSOU fisicamente** na 0.1.45:
+- artigo com progresso real, 6 annotations e XPointer;
+- revisão Reader apenas de título;
+- Sync marcou refresh pending sem baixar conteúdo (`Content pages: 0`);
+- arquivo, posição, highlights e notas ficaram intactos;
+- diagnóstico pós-revisão: pending yes, visible text same, replacement no.
 
-Build 0.1.45 implementa Q1 após corrigir a falha física da 0.1.44:
-1. schema v2 para persistir materialized revision + refresh pending, com backup v1→v2 corrigido para a semântica real do `ffiUtil.copyFile` do KOReader (nil = sucesso);
-2. migration não inventa baseline para arquivos legados;
-3. pending não desaparece num Sync posterior;
-4. diagnóstico **Inspect content refresh safety (Gate 15)** mostra risco de sidecar/progresso/anotações e compara HTML local/remoto por igualdade direta de texto normalizado, sem `ffi/sha2` e sem exibir conteúdo;
-5. replacement automático está hard-disabled.
+Build **0.1.46** implementa Q2:
+1. examina no máximo 5 artigos HTML pendentes por Sync;
+2. GET remoto somente leitura + leitura local limitada;
+3. só reconhece a revisão se o `updated_at` remoto ainda for exatamente a revisão pendente;
+4. se texto visível for igual, limpa **somente** o marcador pending;
+5. nunca troca bytes locais nem sidecar;
+6. texto diferente, erro, race ou comparação indisponível continua pending;
+7. PDF/EPUB raw continua pending sem download de replacement;
+8. segundo Sync da mesma revisão deve ser no-op.
 
-A tentativa física 0.1.44 falhou ao clicar no diagnóstico: o backup pré-migração interpretava o retorno `nil` de sucesso do `copyFile` como erro e a exceção escapava do callback. A 0.1.45 corrige isso e contém erros futuros de preflight na UI.
-
-Próximo gate físico:
-1. instalar 0.1.45 e usar artigo Reader gerenciado com progresso + highlight/nota;
-2. diagnóstico baseline;
-3. alterar apenas o título no Reader para criar revisão determinística;
-4. Sync;
-5. confirmar arquivo/progresso/highlight/nota intactos;
-6. diagnóstico pós-revisão deve mostrar pending + visible text same + replacement no;
-7. quando possível repetir em PDF e EPUB originais, esperando `defer_raw_keep_local`;
-8. depois implementar Q2 para limpar apenas revision metadata-only comprovada;
-9. somente após Gate 15 PASS iniciar Phase R / Gate 16.
+Próximo teste físico:
+1. instalar 0.1.46 sem mudar o fixture Q1-A;
+2. Sync uma vez;
+3. esperar metadata-only acknowledged=1 e pending voltar a 0 para esse artigo, com content pages=0;
+4. confirmar posição/highlights/notas intactos;
+5. segundo Sync no-op;
+6. depois validar raw PDF/EPUB quando houver fixtures originais já locais;
+7. somente após Gate 15 PASS iniciar Phase R / Gate 16.
