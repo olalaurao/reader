@@ -187,3 +187,15 @@ Gate 12B on build 0.1.31 physically proved the intended three-way conflict behav
 - no remote error occurred.
 
 Future work must preserve this invariant: **a true local+remote divergence blocks mutation and preserves both sides; never convert this path to last-writer-wins.**
+
+
+## 11. Physical deletion-OFF invariant
+
+Gate 12C physically proved on build 0.1.31:
+- a local KOReader highlight disappearance is detected as a tombstone;
+- with deletion propagation OFF, no Reader DELETE occurs;
+- the remote target remains;
+- an unrelated control highlight remains;
+- the sync reports the deletion as retained remotely, with no mutation block/error.
+
+Future implementations must preserve this default-safe invariant: **local deletion alone must never imply remote deletion**. Destructive propagation requires an explicit opt-in plus the stronger remote identity contract.
