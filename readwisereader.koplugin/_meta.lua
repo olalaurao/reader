@@ -5,5 +5,5 @@ local _ = require("gettext")
 return {
     name = "readwisereader",
     fullname = _("Readwise Reader"),
-    description = _([[Synchronize Readwise Reader content with KOReader. Experimental 0.1.33 adds durable offline annotation queueing, reboot recovery, backoff and safe retry reconciliation for Gate 13.]]),
+    description = _([[Synchronize Readwise Reader content with KOReader. Experimental 0.1.34 fixes Kindle airplane-mode detection on top of the durable Gate 13 offline annotation queue.]]),
 }
