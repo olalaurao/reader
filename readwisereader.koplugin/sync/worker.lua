@@ -201,6 +201,8 @@ function Worker:run(options)
                 local_queue_report.scan_errors or 0
             sync_report.annotation_scan_exceptions =
                 local_queue_report.scan_exceptions or 0
+            sync_report.annotation_normalize_exceptions =
+                local_queue_report.normalize_exceptions or 0
             sync_report.annotation_queue_errors =
                 local_queue_report.queue_errors or 0
             sync_report.annotation_queue_exceptions =
