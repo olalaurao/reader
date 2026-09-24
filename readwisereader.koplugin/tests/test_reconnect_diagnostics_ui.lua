@@ -75,15 +75,18 @@ return function()
                         marker_scan_status = "passed",
                         marker_scan_pages = 1,
                         marker_matches_total = 1,
+                        parent_probe_max_bytes = 1048576,
+                        parent_probe_mode = "bounded_fetch_only",
                         items = {
                             {
                                 status = "pending",
                                 attempts = 0,
                                 has_remote_id = false,
                                 marker_matches = 0,
-                                parent_read = "ok",
-                                match_status = "matched",
-                                match_mode = "exact",
+                                parent_metadata = "ok",
+                                parent_html = "ok",
+                                parent_html_bytes = 1200,
+                                match_status = "not_run",
                             },
                             {
                                 status = "in_flight",
@@ -91,8 +94,10 @@ return function()
                                 error_kind = "create_timeout",
                                 has_remote_id = false,
                                 marker_matches = 1,
-                                parent_read = "ok",
-                                match_status = "matched",
+                                parent_metadata = "ok",
+                                parent_html = "too_large",
+                                parent_html_bytes = 0,
+                                match_status = "not_run",
                             },
                         },
                         remote_writes = 0,
@@ -108,6 +113,9 @@ return function()
         assert(shown[1].text:find("Active marker matches: 1", 1, true))
         assert(shown[1].text:find("status=in_flight", 1, true))
         assert(shown[1].text:find("marker_matches=1", 1, true))
+        assert(shown[1].text:find("parent_html=too_large", 1, true))
+        assert(shown[1].text:find("Parent probe body cap: 1048576 bytes", 1, true))
+        assert(shown[1].text:find("Text matching: not run in this build", 1, true))
         assert(shown[1].text:find("Remote writes: none", 1, true))
     end)
 
@@ -115,13 +123,42 @@ return function()
         local ui = UI:new{
             config = { hasAccessToken = function() return true end },
             worker = {
-                run = function() return nil, { kind = "worker", stage = "parent_reads" } end,
-                lastStage = function() return "parent_reads" end,
+                run = function() return nil, { kind = "worker", stage = "parent_1_html_fetch" } end,
+                lastStage = function() return "parent_1_html_fetch" end,
+                lastSnapshot = function()
+                    return {
+                        stage = "parent_1_metadata_ok",
+                        auth_status = "passed",
+                        queue_pending = 3,
+                        queue_retry_wait = 0,
+                        queue_in_flight = 0,
+                        queue_blocked = 0,
+                        queue_succeeded = 9,
+                        marker_scan_status = "passed",
+                        marker_scan_pages = 1,
+                        marker_matches_total = 1,
+                        parent_probe_max_bytes = 1048576,
+                        parent_probe_mode = "bounded_fetch_only",
+                        items = {
+                            {
+                                status = "pending",
+                                attempts = 0,
+                                marker_matches = 1,
+                                parent_metadata = "ok",
+                                parent_html = "not_run",
+                                parent_html_bytes = 0,
+                            },
+                        },
+                    }
+                end,
             },
         }
         ui:run()
         assert(#shown == 1)
-        assert(shown[1].text:find("Last durable stage: parent_reads", 1, true))
+        assert(shown[1].text:find("recovered partial snapshot", 1, true))
+        assert(shown[1].text:find("Last durable stage: parent_1_html_fetch", 1, true))
+        assert(shown[1].text:find("Queue pending: 3", 1, true))
+        assert(shown[1].text:find("Active marker matches: 1", 1, true))
         assert(shown[1].text:find("Remote writes: none", 1, true))
     end)
 
