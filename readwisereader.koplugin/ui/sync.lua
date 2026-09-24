@@ -47,6 +47,11 @@ local function errorText(err)
         return _("Reader pagination became inconsistent, so the sync stopped without advancing its watermark.")
     elseif err.kind == "cancelled" then
         return _("Document sync cancelled. Completed files were kept; the watermark was not advanced.")
+    elseif err.kind == "worker" then
+        return string.format(
+            _("Document sync failed safely at stage: %s. Local documents and queued work were preserved."),
+            err.stage or _("unknown")
+        )
     end
     return _("Document sync failed safely. Existing local documents were kept.")
 end
@@ -106,7 +111,15 @@ local function summaryText(report)
         string.format(_("Authoritative annotation sidecars: %d"), report.annotation_documents_authoritative or 0),
         string.format(_("Annotation documents skipped safely: %d"), report.annotation_documents_skipped or 0),
         string.format(_("Annotation scan errors: %d"), report.annotation_scan_errors or 0),
+        string.format(_("Annotation scan exceptions isolated: %d"), report.annotation_scan_exceptions or 0),
         string.format(_("Annotation queue errors: %d"), report.annotation_queue_errors or 0),
+        string.format(_("Annotation queue exceptions isolated: %d"), report.annotation_queue_exceptions or 0),
+        string.format(_("Annotation repository source: %s"), report.annotation_repository_source or _("unknown")),
+        string.format(
+            _("Annotation repository fallback: %s"),
+            report.annotation_repository_fallback and _("yes") or _("no")
+        ),
+        string.format(_("Current annotation document status: %s"), report.annotation_current_status or _("unknown")),
         string.format(_("Managed-document highlights scanned: %d"), report.annotation_scanned or 0),
         string.format(_("Highlights created: %d"), report.highlights_created or 0),
         string.format(_("Highlights reconciled safely: %d"), report.highlights_reconciled or 0),
