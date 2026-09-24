@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase Q / Gate 15 — Q1 conservative content-refresh safety spike IMPLEMENTED in build 0.1.44; physical PW3 validation required before Q2**
+**Phase Q / Gate 15 — Q1 crash root cause fixed in build 0.1.45; physical PW3 retest required before Q2**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
@@ -23,15 +23,18 @@ Phase Q finding from the pre-existing code:
 - however, a newer Reader revision only incremented the transient `content_refresh_deferred` report while `remote_updated_at` was advanced;
 - therefore the fact that local bytes were older than Reader could disappear on the next no-op incremental Sync.
 
-Build 0.1.44 fixes the state model before enabling any refresh:
+Build 0.1.45 keeps the 0.1.44 state-model work and fixes the first physical crash before enabling any refresh:
 - schema v2 persistently separates the Reader metadata revision from the revision actually materialized into local bytes;
 - newer Reader revisions on existing local files are marked `content_refresh_pending`;
 - pending state survives later no-op Syncs;
 - existing local document bytes are **never automatically replaced**;
 - a read-only Gate 15 diagnostic measures KOReader sidecar/progress/annotation risk and article visible-text equivalence;
-- raw PDF/EPUB revisions are always deferred in Q1.
+- raw PDF/EPUB revisions are always deferred in Q1;
+- 0.1.44 physical attempt failed immediately when tapping the Gate 15 diagnostic;
+- root cause: KOReader `ffiUtil.copyFile` returns nil on success, but the new v1→v2 pre-migration backup code treated nil as failure and raised before migration;
+- 0.1.45 fixes the backup return-value contract, contains parent preflight errors, and removes unnecessary `ffi/sha2` from the diagnostic.
 
-Gate 15 remains **OPEN**. Q2 is blocked until Q1 is physically validated.
+Gate 15 remains **OPEN**. Q2 is blocked until Q1 is physically validated on 0.1.45.
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -629,7 +632,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Base/integrated `main`: `5d7c954d051e491c1b11344057c59df7e2cf9656` (PR #17 merge / Phase P + Gate 14 passed)
 - Validated 0.1.44 code/package head: `e491c7ed6096513d623f6ac6129e4ad73de56705`.
 - Validated documentation/status head before the final handoff: `6c10b102efb3e70f110d1675995f3b81ff9da39f`; this final STATUS-only handoff commit follows it.
-- Build version for physical Gate 15 Q1: **0.1.44**.
+- Build version for physical Gate 15 Q1 retest: **0.1.45**.
 - Database schema: **v2**.
   - existing v1 database is backed up by the existing migration framework before migration;
   - legacy local files keep `materialized_remote_updated_at = NULL` rather than receiving an invented revision.
@@ -1549,7 +1552,7 @@ The first physical 0.1.37 run then exposed a robustness gap not represented in C
 
 ## Blockers
 
-Immediate blocker: **physical Gate 15 Q1 on build 0.1.44**.
+Immediate blocker: **physical Gate 15 Q1 retest on build 0.1.45**.
 
 Everything possible without the target device is complete for Q1:
 - Gate 14 closed and merged;
@@ -1581,7 +1584,7 @@ Everything possible without the target device is complete for Q1:
 ## Exact next steps
 
 ### Q1-A — article
-1. Install **0.1.44** preserving settings/database/documents/sidecars.
+1. Install **0.1.45** preserving settings/database/documents/sidecars.
 2. Use a Reader-managed local **article** with existing progress + highlight/note.
 3. Open it and run **Readwise Reader → Inspect content refresh safety (Gate 15)**; return the complete baseline screen.
 4. In Reader, change **only the title** of that same document; do not delete/re-save it.
@@ -3518,3 +3521,27 @@ Run the 0.1.44 article before/title-change/Sync/after diagnostic sequence. Raw P
 - final pre-handoff CI #921 is green.
 - no Gate 15 Q2 content acknowledgement or replacement code has been implemented ahead of the required PW3 evidence.
 - next action is exactly the Q1-A article baseline → Reader title-only revision → Sync → preservation → post-revision diagnostic sequence documented above.
+
+
+### Gate 15 Q1 attempt 1 — 0.1.44 physical FAIL
+
+User tapped **Inspect content refresh safety (Gate 15)** and KOReader exited back to the launcher before any diagnostic result appeared.
+
+Root cause was identified without requiring another device action:
+- 0.1.44 was the first build to trigger DB schema v1→v2 migration;
+- the diagnostic's parent preflight lazily opens the DB;
+- KOReader `ffiUtil.copyFile` returns **nil on successful copy**;
+- `DB:_backupBeforeMigration` incorrectly treated that nil as a failed backup;
+- the resulting Lua error escaped the menu callback;
+- migration SQL had not started yet, so the original v1 DB should remain unchanged;
+- a valid `readwisereader.sqlite3.bak` may have been created before the erroneous failure.
+
+0.1.45 fixes/hardens:
+- nil from KOReader copyFile = success;
+- non-nil string = copy error;
+- regression coverage models the real KOReader contract;
+- parent DB/sidecar preflight errors are contained with `pcall`;
+- normalized visible text comparison no longer uses `ffi/sha2`; it uses direct Lua string equality;
+- existing local content replacement remains hard-disabled.
+
+Next physical action: install 0.1.45, open the same managed article, tap Gate 15 once, and return the full diagnostic screen. If KOReader exits again, stop immediately and preserve the newest `koreader/crash.log`.
