@@ -45,6 +45,16 @@ return function()
         local online, reason = state:isAvailable()
         assert(online == false)
         assert(reason == "kindle_airplane_mode")
+
+        local report = state:diagnostics()
+        assert(report.is_kindle == true)
+        assert(report.airplane_mode == 1)
+        assert(report.airplane_mode_source == "liblipclua")
+        assert(report.wireless_enable == 1)
+        assert(report.wifid_enable == 1)
+        assert(report.koreader_is_online == true)
+        assert(report.plugin_network_available == false)
+        assert(report.plugin_network_reason == "kindle_airplane_mode")
     end
 
     do
