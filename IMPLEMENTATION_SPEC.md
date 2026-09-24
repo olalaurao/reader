@@ -2564,21 +2564,37 @@ Implemented:
 - zero/ambiguous match never guesses and never blind retries;
 - non-create stale operations retain generic pending recovery semantics for later phases.
 
-### Gate 13 — physical validation pending on build 0.1.38
+### Gate 13 — physical validation pending on reconnect diagnostic build 0.1.39
 Automated O2/O3 fault injection and managed-document backlog discovery coverage are complete. The 0.1.35 network-state spike is also complete and invalidated local-state authorization.
 
 Physical 0.1.37 Gate 13A result: **FAIL SAFE / no report**. With Airplane Mode/no internet, ordinary Sync displayed only `Document sync failed safely`. No reboot/reconnect step was attempted. Because 0.1.37 introduced broad local sidecar traversal, 0.1.38 adds per-document exception containment, annotation-normalization containment, repository-query fallback, and worker-stage diagnostics without weakening the pre-write remote gate.
 
-Physical validation on the target PW3 must now reuse the same 0.1.37 local fixture and prove the 0.1.38 local-backlog + read-only reachability gate plus the real persistence boundary:
-1. install 0.1.38 while preserving DB/settings/documents/sidecars; **do not create another fixture**;
-2. keep Wi-Fi/Airplane Mode OFFLINE and reuse the exact highlight/note created for the failed 0.1.37 attempt;
-3. close/reopen if needed to ensure the sidecar remains flushed, then run ordinary Sync now offline;
-4. confirm the report says offline/local queue (or queued-offline-partial only if a non-current sidecar was safely isolated), current annotation document status is `ok`, `Highlight creates queued durably >= 1`, `Create queue waiting after sync >= 1`, and `Highlights created = 0`;
-5. fully restart KOReader while the item is still pending;
-6. enable Wi-Fi outside the plugin;
-7. run Sync now and confirm exactly one highlight/note reaches the original Reader document;
-8. run Sync now again and confirm `Highlights created = 0` and queue waiting becomes 0;
-9. confirm Reader contains exactly one copy and the local highlight/note survived throughout.
+Physical Gate 13A/B evidence on 0.1.38:
+- controlled KOReader-offline state passed: 3 durable create items waited, 0 were processed, no remote/document work progressed;
+- after a full KOReader restart while still offline, the same queue remained at 3 waiting and the same local highlight/note remained visible;
+- therefore offline durability + process-restart persistence are physically proven.
+
+Gate 13C reconnect attempt on 0.1.38: **FAIL SAFE / no report**.
+- Wi-Fi was re-enabled outside the plugin;
+- ordinary Sync now returned only `Document sync failed safely`;
+- the user did not run a second Sync afterward;
+- because the generic UI means the KOReader subprocess ended without a usable serialized result, do not assume whether the failure happened before or after a remote create and do not blind retry.
+
+Build 0.1.39 is therefore a **read-only reconnect spike**:
+- snapshots the durable create queue without promoting/mutating rows;
+- runs the Reader auth probe in the same KOReader subprocess model;
+- scans Reader highlights read-only for exact per-annotation KOReader ownership markers;
+- reads pending parent documents and verifies local-text matching without POST/PATCH/DELETE;
+- persists only a coarse local stage name (`queue_snapshot`, `auth_probe`, `marker_scan`, `parent_reads`, `done`) so even a child-process hard exit leaves a diagnostic;
+- exposes queue status/attempt counts and marker matches without displaying tokens, note text, highlight text, Reader IDs or signed URLs.
+
+Next physical step:
+1. install 0.1.39 preserving DB/settings/documents/sidecars;
+2. keep Wi-Fi ON; do not create/edit/delete any Gate 13 fixture;
+3. **do not run Sync now**;
+4. run **Readwise Reader → Inspect reconnect queue (Gate 13)** once;
+5. return the whole diagnostic screen;
+6. only after the queue state + exact remote marker state are known may Gate 13C mutation resume.
 
 Gate 13 closes only after no duplicate and no lost annotation are physically proven across offline → reboot → reconnect.
 
