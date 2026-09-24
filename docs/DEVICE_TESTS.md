@@ -1631,3 +1631,49 @@ This was **not user error**. Build 0.1.33 used KOReader `NetworkMgr:isOnline()`,
    - Content pages: **0**;
    - new fixture must not yet exist in Reader.
 8. Stop after this screen. Do not reboot until Gate 13A passes.
+
+### Gate 13A attempt — build 0.1.34 — FAIL
+
+Despite native Kindle Airplane Mode being enabled, the report still showed online behavior:
+- Metadata pages: **1**;
+- Current-document highlights scanned: **3**;
+- Highlights created: **1**;
+- Highlights already linked: **2**;
+- Highlight creates queued durably: **1**;
+- Create queue items processed: **1**;
+- Create queue waiting after sync: **0**.
+
+Do not create another highlight for this spike.
+
+### Build 0.1.35 — read-only network-state spike
+
+Install 0.1.35 and run:
+**Readwise Reader → Inspect network state (Gate 13)**
+
+First observation:
+1. enable native Kindle Airplane Mode;
+2. open/return to KOReader;
+3. run the diagnostic;
+4. photograph the whole result screen.
+
+Second observation:
+1. disable Airplane Mode and connect Wi-Fi normally;
+2. run the same diagnostic again;
+3. photograph the whole result screen.
+
+The diagnostic must show **Remote requests: none** and **Remote writes: none**.
+
+Record these fields for both states:
+- native airplaneMode;
+- native wirelessEnable;
+- native wifid enable;
+- KOReader interface;
+- KOReader isWifiOn;
+- KOReader isConnected;
+- KOReader isOnline;
+- KOReader cached Wi-Fi;
+- KOReader cached connected;
+- Plugin network_available;
+- Plugin reason.
+
+Do **not** run Gate 13A Sync now again until the ON/OFF signals are compared.
