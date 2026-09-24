@@ -2505,25 +2505,60 @@ Physical deletion-OFF evidence on build 0.1.31: 2 fresh highlights were created;
 
 Physical deletion-ON close on build 0.1.32: the tombstoned target disappeared remotely, the control highlight remained, deletion propagation was returned OFF, and the follow-up OFF sync showed 0 local deletions, 0 remote deletions, 0 mutation blocks, 0 remote errors. Gate 12 is closed and Phase O / Gate 13 is unblocked.
 
-## Phase O — offline queue hardening
+## Phase O — offline queue hardening — IMPLEMENTED, GATE 13 PENDING
 
-### O1
-- create offline;
-- restart KOReader;
-- connect;
-- retry.
+### O1 — offline create / restart / reconnect
+Implemented in build 0.1.33:
+- ordinary **Sync now** no longer rejects Wi-Fi-off operation; full rescan still requires network;
+- the UI passes explicit network availability into the worker and never controls Wi-Fi itself;
+- current managed sidecar annotations are scanned and durable create intents are queued **before any remote document request**;
+- offline mode performs local sidecar → DB → queue work and returns without network access or watermark advancement;
+- queued payload contains the local text/note, parent Reader ID, stable local annotation ID, hashes and marker;
+- queue processing is independent of the original in-memory reader session, so a new KOReader process can resume it after reboot;
+- online queue processing occurs before the remote document feed.
 
-### O2
-- server 429;
-- timeout;
-- 5xx;
-- auth expiration.
+### O2 — retry classes
+Implemented:
+- queue states now implement `retry_wait` and `available_after` from the canonical schema;
+- due retry-wait rows promote atomically to pending;
+- retryable **preflight GET** failures are safe to defer because no POST has occurred;
+- auth rejection before POST preserves attempts=0 and the durable payload for a later credential recovery;
+- POST 429 is treated as an explicit rejection but still reconciles before any later retry;
+- POST auth rejection likewise reconciles before later retry;
+- POST timeout/offline/5xx/unknown outcome is treated as ambiguous and never blindly retried;
+- 5xx/timeout with zero reconciliation match stays blocked, preserving the local annotation rather than risking a duplicate;
+- exact payload is refreshed only while attempts=0; after an attempt starts the durable payload is immutable.
 
-### O3
-- stale in-flight reconciliation.
+Automated deterministic coverage:
+- offline queue → new uploader/process → reconnect → exactly one create;
+- 429 → retry_wait → due → reconcile zero match → exactly one later successful create;
+- timeout where remote create actually happened → marker reconciliation → no second POST;
+- timeout where no marker exists → blocked/no second POST;
+- 5xx where no marker exists → blocked/no second POST;
+- auth before POST → payload preserved with attempts=0 → later create after auth recovery;
+- ambiguous text → queue blocked/no remote write.
 
-### Gate 13
-No duplicate and no lost annotation across all scenarios.
+### O3 — stale in-flight
+Implemented:
+- worker runs stale-in-flight recovery before processing queue;
+- stale create rows become `blocked/stale_create_in_flight`, never pending;
+- queue processor reconciles a prior-attempt create before any write;
+- one exact marker match adopts the remote child;
+- zero/ambiguous match never guesses and never blind retries;
+- non-create stale operations retain generic pending recovery semantics for later phases.
+
+### Gate 13 — physical validation pending
+Automated O2/O3 fault injection is complete. Physical validation on the target PW3 must prove the real persistence boundary:
+1. with Wi-Fi OFF, create one fresh unique highlight/note in a clean managed article;
+2. close/reopen to flush the sidecar and run ordinary Sync now offline;
+3. confirm the report says offline/local queue, `Highlight creates queued durably >= 1`, `Create queue waiting after sync >= 1`, and `Highlights created = 0`;
+4. fully restart KOReader while the item is still pending;
+5. enable Wi-Fi outside the plugin;
+6. run Sync now and confirm exactly one highlight/note reaches the original Reader document;
+7. run Sync now again and confirm `Highlights created = 0` and queue waiting becomes 0;
+8. confirm Reader contains exactly one copy and the local highlight/note survived throughout.
+
+Gate 13 closes only after no duplicate and no lost annotation are physically proven across offline → reboot → reconnect.
 
 ## Phase P — finished/archive
 
