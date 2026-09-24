@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase N IN PROGRESS — Gate 12A NOTE UPDATE + 12B CONFLICT + 12C DELETE-OFF PASSED; Gate 12D deliberate delete hotfix ready for physical retest on build 0.1.32**
+**Phase N COMPLETE — GATE 12 PASSED PHYSICALLY on PW3 / KOReader 2026.07.1; build 0.1.32**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -1441,7 +1441,7 @@ Current authoritative summary:
 - Gate 9: **PASSED** — physical PW3 / KOReader v2026.07.1, build 0.1.24.
 - Gate 10: **PASSED** — physical PW3 / KOReader v2026.07.1, build 0.1.25.
 - Gate 11: **PASSED** — real Readwise Official → Obsidian export/configuration.
-- Gate 12: **PARTIAL PHYSICAL PASS** — note update passed on build 0.1.31; conflict + deletion subtests remain.
+- Gate 12: **PASSED** — build 0.1.32 final physical close; note update, conflict, delete-OFF, deliberate delete-ON all validated.
 - Gates 13–15: **NOT YET PASSED**.
 
 Historical early-gate detail:
@@ -1508,53 +1508,30 @@ A pre-existing Phase K branch state had incorrectly grouped remote highlight cre
 
 ## Blockers
 
-Immediate blocker: **remaining Gate 12 physical validation** on build 0.1.31.
+No Gate 12 blocker remains. Phase N is complete.
 
-Already passed physically:
-- linked local note edit reaches the exact Reader highlight;
-- Reader-visible final state is verified before success;
-- the production path recovered stale Reader state by combining Readwise v2 note truth/update with Reader v3 verification/repair;
-- no conflict/block/error was reported for the successful note-update target;
-- simultaneous local + Reader note edits produce a conflict and overwrite neither side.
+Gate 12 physical result:
+- 12A note update: PASS;
+- 12B simultaneous local/remote conflict: PASS, neither side overwritten;
+- 12C local deletion with propagation OFF: PASS, remote retained;
+- 12D deliberate opt-in deletion on build 0.1.32: PASS, target disappeared remotely, control remained, setting returned OFF;
+- follow-up sync with deletion OFF was clean: local deletions 0, remote deletions 0, mutation blocks 0, remote errors 0.
 
-Already additionally passed:
-- deletion propagation is OFF for the controlled test;
-- deleting one linked KOReader highlight while OFF leaves the Reader highlight intact;
-- the OFF sync reports exactly one pending local deletion/retention and zero remote deletions;
-- the user confirmed both remote highlights still exist.
+Next hard gate:
+- **Phase O / Gate 13 — offline queue hardening:** no duplicate and no lost annotation across offline create/restart/reconnect, 429, timeout, 5xx, auth expiration, and stale in-flight recovery.
 
-Still required:
-- after explicit confirmation enables propagation, the next sync must delete only that exact linked Reader child;
-- the control highlight in the same article must remain untouched;
-- deletion propagation must be turned OFF again immediately after the test;
-- no crash/freeze.
-
-Safety rules:
-- note update identity = durable Reader child id + same parent + `category=highlight`; Reader source marker is supplementary only;
-- note conflict truth = exact mapped Readwise v2 highlight note;
-- note equality comparison normalizes only invisible newline/whitespace representation;
-- a v2 PATCH response is never enough to mark success: Reader v3 must reflect the note, or a verified v3 repair path must complete first;
-- `last_synced_note` advances only after Reader visibility is proven;
-- local text mutation is not propagated;
-- conflicts never use silent last-writer-wins;
-- deletion remains destructive opt-in only and requires cross-API identity: exact Reader child + expected parent/category + exact Readwise v2 `external_id` mapping; Reader source marker is no longer authoritative.
-
-Later hard gates remain:
-- Gate 13 full offline queue/retry hardening;
+Later hard gates:
 - Gate 14 finished/archive;
 - Gate 15 content refresh safety.
 
 ## Exact next steps
 
-1. Keep build **0.1.31** installed; Gate 12A note update, 12B conflict, and 12C deletion-OFF are PASS.
-2. Proceed to Gate 12D using the same tombstoned target from 12C.
-3. Enable Settings → Highlights → Propagate highlight deletions and accept the destructive warning.
-4. With the same article open, run Sync now exactly once.
-5. Verify Remote highlight deletions = 1, no mutation/error block for the target, the deleted-local target disappears remotely, and the control highlight remains.
-6. Immediately turn Propagate highlight deletions OFF again, regardless of pass/fail.
-7. If the delete is blocked or remote deletion remains 0, stop and inspect; do not weaken destructive identity checks without evidence.
-8. Close Gate 12 only after this deliberate-ON delete passes.
-9. Before any future annotation implementation, read `docs/ANNOTATION_SYNC_LESSONS.md`.
+1. Close/merge Phase N to `main`.
+2. Start Phase O from the merged Gate 12 baseline.
+3. Audit the existing pending-ops queue, mutation state transitions, retry classification, and startup/reboot recovery before adding new behavior.
+4. Preserve all annotation invariants from `docs/ANNOTATION_SYNC_LESSONS.md`.
+5. Implement Gate 13 in the spec order: offline create/restart/reconnect; 429/timeout/5xx/auth; stale in-flight reconciliation.
+6. Do not advance to Phase P / Gate 14 until Gate 13 physically passes.
 
 ## Existing architectural decisions still in force
 
@@ -1951,3 +1928,32 @@ Root cause:
 - code CI #475 on `e6fca05b24f90254087b7111dc1346e255f76a8f`: **SUCCESS**.
 
 Gate 12D remains physically pending on build 0.1.32.
+
+
+### Gate 12D — deliberate opt-in deletion — PHYSICAL PASS
+
+Physical result on target PW3 / KOReader v2026.07.1, build 0.1.32.
+
+Observed destructive outcome:
+- the exact tombstoned target disappeared from Reader;
+- the control highlight remained in Reader;
+- deletion propagation was turned OFF again immediately after the test.
+
+Follow-up confirmation sync with deletion propagation OFF:
+- current-document highlights scanned: **2**;
+- highlights created: **0**;
+- highlights already linked: **2**;
+- local highlight deletions detected: **0**;
+- remote highlight deletions: **0**;
+- deletions retained remotely: **0**;
+- annotation mutations blocked safely: **0**;
+- delete cross-API identity verified: **0** (expected on the follow-up because no delete remained pending);
+- Reader delete verification reads: **0**;
+- Reader deletions verified: **0**;
+- delete verification pending: **0**;
+- annotation remote errors: **0**;
+- user confirmed control remained and setting was OFF.
+
+The destructive-run diagnostic screen itself was not captured after the successful 0.1.32 run, so no unobserved per-run counter is invented here. The end state and clean follow-up prove the tombstone was reconciled: the remote target was gone, control remained, and no local deletion remained pending.
+
+**Gate 12D: PASS. Gate 12: PASS. Phase N: COMPLETE.**
