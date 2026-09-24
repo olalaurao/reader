@@ -1913,3 +1913,37 @@ Gate 13A passes because the target current document was authoritative, all three
    - content pages 0.
 7. Return the full report + local-survival result.
 8. Do not reconnect Wi-Fi yet.
+
+
+### Gate 13B — PASS
+
+After full KOReader restart with Wi-Fi still OFF:
+- local Gate 13 highlight survived;
+- local Gate 13 note survived;
+- queue waiting remained 3;
+- highlights created remained 0;
+- queue processed remained 0;
+- metadata/content pages remained 0;
+- current annotation document status remained `ok`.
+
+Proceed to Gate 13C reconnect/exactly-once test.
+
+### Gate 13C — reconnect / exactly-once
+
+1. Keep build 0.1.38.
+2. Do not create/edit/delete any Gate 13 fixture.
+3. Enable Wi-Fi from KOReader's Network menu, outside the Readwise Reader plugin.
+4. Confirm internet is available.
+5. Run ordinary **Sync now** once.
+6. Capture the full report.
+7. Check Reader:
+   - each pending new highlight/note is under the correct original document;
+   - exactly one copy of each;
+   - no duplicate.
+8. Run **Sync now** again with no changes.
+9. Capture the full report again.
+10. Required second run:
+   - Highlights created = 0;
+   - queue waiting = 0;
+   - exactly one Reader copy remains;
+   - local annotations remain intact.
