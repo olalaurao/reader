@@ -157,6 +157,76 @@ local function testBackupCopySemantics()
     assertTrue(tostring(message):find("synthetic copy failure", 1, true) ~= nil)
 end
 
+local function copyFileForTest(from, to)
+    local source = assert(io.open(from, "rb"))
+    local bytes = source:read("*a")
+    source:close()
+    local target = assert(io.open(to, "wb"))
+    assert(target:write(bytes))
+    target:close()
+    -- Match KOReader ffiUtil.copyFile: nil means success.
+    return nil
+end
+
+local function testFileBackedMigrationBackup()
+    local path = os.tmpname()
+    os.remove(path)
+    os.remove(path .. ".bak")
+
+    -- Seed a real v1 file and close it, as an older installed plugin would.
+    local seed = SQ3.open(path)
+    seed:exec(Migrations.SCHEMA_V1)
+    seed:exec("PRAGMA user_version=1;")
+    seed:exec([[
+        INSERT INTO documents(
+            reader_id, category, location, title, remote_updated_at,
+            local_path, local_format, is_local_present
+        ) VALUES (
+            'persisted-v1', 'article', 'new', 'Before migration', 'u1',
+            '/Readwise/persisted.html', 'html', 1
+        );
+    ]])
+    seed:close()
+
+    local db = DB:new{
+        path = path,
+        sq3 = SQ3,
+        device = { canUseWAL = function() return false end },
+        copy_file = copyFileForTest,
+    }
+    assertEqual(db:getSchemaVersion(), Migrations.SCHEMA_VERSION)
+    local migrated = db:getConnection()
+    assertEqual(
+        tonumber(migrated:rowexec(
+            "SELECT count(*) FROM documents WHERE reader_id='persisted-v1';"
+        )),
+        1,
+        "migration must preserve existing document rows"
+    )
+    db:close()
+
+    -- The backup is a rollback point from immediately before schema mutation.
+    local backup = SQ3.open(path .. ".bak")
+    assertEqual(
+        tonumber(backup:rowexec("PRAGMA user_version;")),
+        1,
+        "migration backup must retain the old schema version"
+    )
+    assertEqual(
+        tonumber(backup:rowexec(
+            "SELECT count(*) FROM documents WHERE reader_id='persisted-v1';"
+        )),
+        1,
+        "migration backup must retain pre-migration data"
+    )
+    backup:close()
+
+    os.remove(path)
+    os.remove(path .. ".bak")
+    os.remove(path .. "-journal")
+    os.remove(path .. ".bak-journal")
+end
+
 local function testTransactionRollback()
     local db = newMemoryDB()
     local conn = db:open()
@@ -200,6 +270,7 @@ return function()
     testQueueUniquenessAndForeignKey()
     testV1ToV2Migration()
     testBackupCopySemantics()
+    testFileBackedMigrationBackup()
     testTransactionRollback()
     testMigrationRollbackSignal()
 end
