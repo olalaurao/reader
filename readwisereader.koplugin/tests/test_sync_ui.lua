@@ -284,6 +284,27 @@ return function()
 
     withStubbedSyncUI(function(SyncUI, state)
         local ui = newUI(SyncUI, state, "watermark", {
+            mode = "remote_unavailable",
+            errors = 0,
+            remote_preflight = "auth",
+            annotation_sync_status = "queued_remote_unavailable",
+            annotation_scanned = 1,
+            highlight_creates_queued = 1,
+            highlight_queue_waiting = 1,
+            postprocess = {},
+        })
+        ui:syncNow(false)
+        assert(#state.worker_calls == 1)
+        assert(state.worker_calls[1].network_available == nil)
+        assert(state.shown[#state.shown].text:find(
+            "Mode: local queue / remote unavailable", 1, true
+        ))
+        assert(state.shown[#state.shown].text:find("Remote preflight: auth", 1, true))
+        assert(next(state.meta_writes) == nil)
+    end)
+
+    withStubbedSyncUI(function(SyncUI, state)
+        local ui = newUI(SyncUI, state, "watermark", {
             mode = "offline",
             errors = 0,
             remote_preflight = "timeout",
