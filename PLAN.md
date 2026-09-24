@@ -1315,15 +1315,17 @@ Não:
 
 ## 46. Próximo passo
 
-Concluir a **Phase O / Gate 13** na baseline física já adotada: PW3 + KOReader v2026.07.1.
+A **Phase O / Gate 13 está concluída** na baseline física PW3 + KOReader v2026.07.1.
+
+Próxima fase: **Phase P / Gate 14 — Finished → Archive**.
 
 Ordem:
-1. Gate 13A: **PASS** em 0.1.38 — fila offline permaneceu durável e nenhuma escrita remota ocorreu;
-2. Gate 13B: **PASS** em 0.1.38 — fila + highlight/nota local sobreviveram ao restart do KOReader;
-3. Gate 13C tentativa 1: **FAIL SAFE** — após religar Wi-Fi, `Sync now` terminou sem relatório utilizável;
-4. diagnóstico 0.1.39: **hard exit em `parent_reads`**, provando que queue/auth/marker scan avançaram e estreitando a falha para fetch do parent e/ou text matching;
-5. diagnóstico 0.1.40: **PASS** — os 3 parents fizeram metadata + HTML fetch completos (9.851 / 27.477 / 8.564 bytes), marker scan achou 0 cópias ativas; a fronteira restante é o matcher;
-6. diagnóstico 0.1.41: **PASS** — os 3 itens terminaram o matcher real no PW3 sem crash (1 exact, 2 whitespace), permanecendo pending/attempts=0/marker_matches=0 e sem writes;
-7. retomar Gate 13C de forma controlada em 0.1.41: um único **Sync now**, verificar exatamente uma cópia de cada item no Reader;
-8. rodar segundo sync sem mudanças e confirmar zero creates, fila vazia e zero duplicatas;
-9. somente depois iniciar **Phase P / Gate 14 (Finished → Archive)**.
+1. validar experimentalmente qual é o sinal canônico de `finished` no KOReader 2026.07.1; não assumir campo/evento;
+2. detectar apenas documentos Reader gerenciados;
+3. transformar finished local em intenção durável de archive;
+4. atualizar o documento-pai no Reader para `location=archive` exatamente uma vez;
+5. manter arquivo local, sidecar, progresso, highlights e notas;
+6. não propagar archive como delete local;
+7. testar retry/idempotência;
+8. Gate 14 físico: marcar finished → Sync → Reader archive → arquivo/sidecar intactos → segundo Sync no-op;
+9. somente depois iniciar Phase Q / Gate 15.
