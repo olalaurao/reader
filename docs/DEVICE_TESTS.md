@@ -1710,6 +1710,8 @@ Automated/package validation:
 - artifact ID: `10786469934`;
 - artifact name: `readwisereader-koplugin-475dc29fd1fd180b40c0e9091c39f81b1532c901`;
 - artifact digest: `sha256:7944e764ed09815ec51b1739769254b2578c2dcc8df19a832b45056215b1fb76`.
+- verified installable inner ZIP SHA-256: `5be016c319586d9ca72512c82e4d98aa1ba02b505d92dc1aafd126a3901d381e`;
+- inner ZIP integrity: `unzip -t` **PASS**, no errors.
 
 0.1.36 no longer uses those local flags as permission to write remotely. Ordinary Sync now queues the local annotation first and then performs a **read-only Readwise auth GET** inside the cancellable worker. No create/update/delete/document sync is allowed unless that probe succeeds.
 
