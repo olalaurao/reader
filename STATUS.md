@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase P / Gate 14 — P0 FINISHED SIGNAL PASSED PHYSICALLY; P1 Finished → Archive IMPLEMENTED in build 0.1.43; physical archive validation pending**
+**Phase P COMPLETE — GATE 14 PASSED; ready to merge PR #17 and begin Phase Q / Gate 15**
 
 Phase O / Gate 13 is complete and merged to `main` through PR #16 as `b7c8977b89cf572bec1280e3490a033341af4375`.
 
@@ -32,7 +32,7 @@ Build 0.1.43 implements the production archive path:
 - local file, sidecar, progress, highlights and notes are never deleted/rewritten by archive;
 - no reverse/unarchive behavior in V1.
 
-Gate 14 remains **OPEN** until the 0.1.43 physical first Sync + local/Reader preservation check + unchanged second Sync pass.
+Gate 14 **PASSED** physically on build 0.1.43.
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -1548,7 +1548,7 @@ The first physical 0.1.37 run then exposed a robustness gap not represented in C
 
 ## Blockers
 
-Immediate blocker: **final unchanged second Sync for Gate 14 idempotency on build 0.1.43**.
+Immediate blocker: **none in Phase P; merge PR #17, then begin Phase Q / Gate 15 content-refresh safety**.
 
 Everything possible without the Kindle is complete:
 - P0 canonical Finished signal physically proven;
@@ -3368,3 +3368,52 @@ Final Gate 14 action:
    - Reader document remains in Archive;
    - local file/sidecar/progress/highlights/notes remain intact.
 6. If this passes, Gate 14 / Phase P is complete and PR #17 can move toward merge before Phase Q / Gate 15.
+
+
+### Gate 14 final unchanged second Sync — PASS
+
+User confirmed the unchanged second Sync after the first successful Finished → Archive transition passed the required idempotency checks.
+
+Visible second-Sync evidence:
+- Errors: **0**;
+- Remote preflight: **passed**;
+- Metadata pages: **1**;
+- Content pages: **0**;
+- Duplicate API records ignored: **0**;
+- Annotation sync: `scan_partial`;
+- Managed annotation documents scanned: **802**;
+- Authoritative annotation sidecars: **13**;
+- Annotation documents skipped safely: **789**;
+- annotation scan/normalize/queue exceptions: **0**;
+- Current annotation document status: **ok**;
+- Managed-document highlights scanned: **12**;
+- Highlights created: **0**;
+- Highlights already linked: **12**;
+- Highlights unmatched/ambiguous: **0**;
+- Create queue items processed: **0**;
+- Create queue waiting after sync: **0**;
+- Notes updated: **0**;
+- remote highlight deletions: **0**;
+- annotation remote errors: **0**.
+
+User confirmation for the Gate 14-specific second-sync criteria:
+- no repeated archive mutation;
+- archive queue remained empty;
+- Reader document remained in Archive;
+- local document still existed/opened;
+- sidecar/progress/highlights/notes remained intact.
+
+### Gate 14 — PASS / Phase P complete
+
+Physical proof covers:
+1. canonical KOReader Finished signal `summary.status == "complete"`;
+2. durable Finished archive intent;
+3. Reader archive transition;
+4. preservation of local file, sidecar, progress, highlights and notes;
+5. unchanged second Sync idempotency with no repeated archive effect.
+
+Conclusion:
+- **Gate 14 PASSED**;
+- **Phase P COMPLETE**;
+- PR #17 can be moved out of draft and merged through the normal repository flow;
+- next canonical work is **Phase Q / Gate 15 — content refresh safety**.
