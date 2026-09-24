@@ -2334,3 +2334,18 @@ Interpretation:
   4. check whether Wi-Fi remains OFF.
 - if it remains OFF, use that state for Gate 13A;
 - if opening Readwise Reader alone turns it ON, stop and investigate eager NetworkMgr/plugin-load interaction before any further Gate 13 sync.
+
+
+### Gate 13 offline-state isolation — PASS
+
+Physical result on target PW3 / KOReader v2026.07.1:
+- KOReader setting **Restore Wi-Fi connection on resume** disabled;
+- Wi-Fi turned OFF from KOReader's own Network menu while already inside KOReader;
+- Readwise Reader menu opened and closed without running Sync;
+- Wi-Fi remained OFF.
+
+Conclusion:
+- the previous Airplane Mode instability is attributable to KOReader/Kindle restore-state behavior, not to a proven Readwise Reader explicit Wi-Fi-on action;
+- current plugin load does not by itself reproduce Wi-Fi restoration under this controlled state;
+- this controlled KOReader-offline state is now the required fixture for Gate 13A on build 0.1.38;
+- no new highlight should be created: reuse the exact existing Gate 13 fixture from the failed 0.1.37 attempt.
