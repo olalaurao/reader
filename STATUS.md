@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase N COMPLETE — GATE 12 PASSED PHYSICALLY on PW3 / KOReader 2026.07.1; build 0.1.32**
+**Phase O IMPLEMENTED — GATE 13 PHYSICAL VALIDATION PENDING on PW3 / KOReader 2026.07.1; build 0.1.33**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Current work is **Phase N / Gate 12**. Note update, conflict handling, and deletion-OFF have passed physically. The first deliberate deletion attempt on 0.1.31 was blocked safely because Reader did not expose the expected source marker. Build 0.1.32 replaces that unreliable marker requirement with cross-API Reader+v2 identity and post-DELETE verification. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Phase N / Gate 12 is complete and merged to `main` through PR #15 as `54509c84bb731cfa0507865d6cc8fb300859647d`. Current work is **Phase O / Gate 13 offline queue hardening** on build 0.1.33. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -603,23 +603,20 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 
 ## Current branch / commit
 
-- Branch: `phase-n/note-update-delete-gate12`
-- Base/integrated `main`: `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4` (PR #14 merge / Phase M + Gate 11 passed)
-- Phase N mutation engine: `183c578dbf2b97b3a5d111d369f40e8cc3bff4d2`
-- Phase N Sync/settings integration: `9e8c532c9407041ecb8dd2babeabff1586476774`
-- Phase N destructive-toggle coverage: `4d081b346156f7dd09e4db6640181a9ee9518864`
-- 0.1.31 end-to-end note verification/repair build: `77e7d7ca5c791b5324a3b2561eb3a4b274a966f0`
-- Run #457 on build 0.1.31: **SUCCESS**
-- Gate 12A artifact ID: `10780487761`
-- Gate 12D 0.1.32 artifact ID: `10783537576`
-- 0.1.32 artifact name: `readwisereader-koplugin-bea761cab22553b0419ee58a4cba93e3818b5ef4`
-- 0.1.32 artifact digest: `sha256:96488ff7faa582057b38a67d9307734b6b10dd76a34038f450cc354fe13481d2`
-- Run #483 on 0.1.32 head `bea761cab22553b0419ee58a4cba93e3818b5ef4`: **SUCCESS**
-- artifact digest: `sha256:53041ae091550714584e4572f7bb069bef2870ca24a591361ea784ed7945be2e`
-- Annotation engineering memory: `docs/ANNOTATION_SYNC_LESSONS.md`, introduced at `80f42810cccfbfdfb7d2535e6e86156a0c0bfd0e`
-- Gate 12A physical PASS recorded in STATUS/spec/API interop/device runbook on 2026-09-23
-- Historical Phase M main merge: `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`
-- Historical Phase L main merge: `5fa22b7726baa175b9149309f5480d8cce5cb39a`
+- Branch: `phase-o/offline-queue-gate13`
+- Base/integrated `main`: `54509c84bb731cfa0507865d6cc8fb300859647d` (PR #15 merge / Phase N + Gate 12 passed)
+- Durable retry-wait storage: `aed0e0bd5b171fe7a00d3fd6e7777afa59f124fe`
+- Queue backoff repository tests: `072441d16bf0ba82d77a3655ec71c8c1367dc348`
+- Local queue / remote processor split: `8358dc862dce705550fcb86775690749e19bc0b6`
+- Gate 13 queue scenario coverage: `efd16b055cc0c7fdaf5ecef4fb589f7a404f7e93`
+- Offline-first worker integration: `4473e50490f3feb815c5712a3fb664825f877b69`
+- Offline Sync now UI: `376e1a30db555e8d48e75c788e2e9ea120bd9777`
+- Offline UI tests: `9f900b2ba34c69e52b35aff0818349e8b3954744`
+- 5xx ambiguous-create safety coverage: `83bdec82239172701eb4060402ca9affd54e7f76`
+- Run #500 on Phase O functional HEAD: **SUCCESS**
+- Build staged as **0.1.33**
+- Historical Phase N main merge: `54509c84bb731cfa0507865d6cc8fb300859647d`
+- Annotation invariants remain canonical in `docs/ANNOTATION_SYNC_LESSONS.md`
 
 ## Target environment
 
@@ -629,7 +626,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Jailbreak/KUAL functional
 - KOReader historical Gate 0–4 baseline: `2025.04`
 - canonical physical V1 baseline from Gate 4A-1 onward: official KOReader `v2026.07.1`, `kindlepw2` package
-- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase N / Gate 12 conflict + safe deletion after note-update PASS
+- Bookshelf `v5.1.4` coexistence: Gate 4A-2 PASSED; current target is Phase O / Gate 13 offline queue hardening
 
 ## Phase A result
 
@@ -1442,7 +1439,8 @@ Current authoritative summary:
 - Gate 10: **PASSED** — physical PW3 / KOReader v2026.07.1, build 0.1.25.
 - Gate 11: **PASSED** — real Readwise Official → Obsidian export/configuration.
 - Gate 12: **PASSED** — build 0.1.32 final physical close; note update, conflict, delete-OFF, deliberate delete-ON all validated.
-- Gates 13–15: **NOT YET PASSED**.
+- Gate 13: **PENDING PHYSICAL TEST** — build 0.1.33; O1/O2/O3 implemented and automated.
+- Gates 14–15: **NOT YET PASSED**.
 
 Historical early-gate detail:
 - B1 off-device implementation: complete.
@@ -1508,17 +1506,39 @@ A pre-existing Phase K branch state had incorrectly grouped remote highlight cre
 
 ## Blockers
 
-No Gate 12 blocker remains. Phase N is complete.
+Immediate blocker: **Gate 13 physical validation** of build 0.1.33 on the target PW3 / KOReader v2026.07.1.
 
-Gate 12 physical result:
-- 12A note update: PASS;
-- 12B simultaneous local/remote conflict: PASS, neither side overwritten;
-- 12C local deletion with propagation OFF: PASS, remote retained;
-- 12D deliberate opt-in deletion on build 0.1.32: PASS, target disappeared remotely, control remained, setting returned OFF;
-- follow-up sync with deletion OFF was clean: local deletions 0, remote deletions 0, mutation blocks 0, remote errors 0.
+Implemented and automated:
+- ordinary Sync now can run with Wi-Fi OFF and performs local sidecar → DB → durable queue work only;
+- outbound create intent is durable before any POST and survives a new uploader/worker process;
+- `retry_wait` + `available_after` backoff is implemented without a schema change;
+- retryable preflight failures (offline/timeout/429/5xx) preserve attempts=0 and defer safely;
+- auth rejection before POST preserves the queue for later retry after credentials recover;
+- create 429 can retry only after reconciliation proves no marker exists;
+- create timeout can reconcile a remotely-created child without a second POST;
+- create timeout with zero marker match stays blocked and never retries blindly;
+- create 5xx with unknown outcome stays blocked after reconciliation and never retries blindly;
+- stale `in_flight` create rows become reconciliation-only work after reboot;
+- full document rescan still requires network and V1 still never controls Wi-Fi.
 
-Next hard gate:
-- **Phase O / Gate 13 — offline queue hardening:** no duplicate and no lost annotation across offline create/restart/reconnect, 429, timeout, 5xx, auth expiration, and stale in-flight recovery.
+Automated evidence:
+- run #494: storage retry/backoff transitions PASS;
+- run #496: offline/restart, 429, timeout, auth, ambiguity queue scenarios PASS;
+- run #497: worker offline-first ordering PASS;
+- run #499: offline Sync now UI PASS;
+- run #500: 5xx ambiguity + full suite/package PASS.
+
+Physical proof still required:
+- create one fresh local annotation while Wi-Fi is OFF;
+- Sync now offline must show the annotation durably queued, with no remote create;
+- fully restart KOReader while that queue item is pending;
+- enable Wi-Fi outside the plugin;
+- Sync now must create exactly one Reader highlight with the exact note;
+- a second Sync now must create zero duplicates;
+- the queue must end with zero waiting create work;
+- no annotation loss, crash, or freeze.
+
+O2 fault classes (429, timeout, 5xx, auth) are validated through injected deterministic unit/integration failures because intentionally forcing those server responses against the live account is neither reliable nor safe. Gate 13 physical validation focuses on the real persistence/reboot/reconnect boundary.
 
 Later hard gates:
 - Gate 14 finished/archive;
@@ -1526,12 +1546,12 @@ Later hard gates:
 
 ## Exact next steps
 
-1. Close/merge Phase N to `main`.
-2. Start Phase O from the merged Gate 12 baseline.
-3. Audit the existing pending-ops queue, mutation state transitions, retry classification, and startup/reboot recovery before adding new behavior.
-4. Preserve all annotation invariants from `docs/ANNOTATION_SYNC_LESSONS.md`.
-5. Implement Gate 13 in the spec order: offline create/restart/reconnect; 429/timeout/5xx/auth; stale in-flight reconciliation.
-6. Do not advance to Phase P / Gate 14 until Gate 13 physically passes.
+1. Finish CI/package for build **0.1.33** and record the exact artifact.
+2. Install 0.1.33 preserving settings/database/documents/sidecars.
+3. Run the Gate 13 physical script in `docs/DEVICE_TESTS.md`.
+4. Do not delete/recreate the fixture if the offline queue count is unexpected; report the screen first.
+5. Close/merge Phase O only after offline → reboot → reconnect → second no-op sync proves exactly-once behavior.
+6. Do not advance to Phase P / Gate 14 first.
 
 ## Existing architectural decisions still in force
 
@@ -1957,3 +1977,22 @@ Follow-up confirmation sync with deletion propagation OFF:
 The destructive-run diagnostic screen itself was not captured after the successful 0.1.32 run, so no unobserved per-run counter is invented here. The end state and clean follow-up prove the tombstone was reconciled: the remote target was gone, control remained, and no local deletion remained pending.
 
 **Gate 12D: PASS. Gate 12: PASS. Phase N: COMPLETE.**
+
+
+## Phase O — offline queue hardening
+
+**Status: IMPLEMENTED / READY FOR PHYSICAL TEST — build 0.1.33; GATE 13 IS NOT YET PASSED**
+
+Implementation:
+- local annotation discovery/queueing occurs before remote document sync;
+- ordinary Sync now is allowed offline and performs no network request when the UI reports Wi-Fi unavailable;
+- queue payload survives process/reboot boundaries and can be processed without the original in-memory document session;
+- never-attempted retryable preflight failures enter `retry_wait` with durable `available_after`;
+- due retry-wait rows promote back to pending;
+- prior create attempts always reconcile before a later write;
+- 429/auth rejections can retry only after full reconciliation finds no remote marker;
+- timeout/offline/5xx/unknown POST outcomes remain reconciliation-only and never blind retry;
+- stale in-flight creates remain reconciliation-only;
+- queue/status diagnostics are visible in Sync now.
+
+Gate 13 physical test remains required.
