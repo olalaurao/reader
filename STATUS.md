@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase O IMPLEMENTED — GATE 13A/B PASSED; GATE 13C reconnect blocked on read-only diagnostic build 0.1.39**
+**Phase O IMPLEMENTED — GATE 13A/B PASSED; GATE 13C reconnect blocked on bounded read-only diagnostic build 0.1.40**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -606,37 +606,38 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Branch: `phase-o/offline-queue-gate13`
 - Draft PR: **#16** — keep draft / do not merge until Gate 13 passes physically.
 - Base/integrated `main`: `54509c84bb731cfa0507865d6cc8fb300859647d` (PR #15 merge / Phase N + Gate 12 passed)
-- Current pre-handoff branch HEAD: `21e7a66df430491cea45bd7789ce9e9d7b0447b1`; the final STATUS handoff commit follows this SHA.
-- Build version under physical diagnosis: **0.1.39**.
+- Current pre-handoff branch HEAD: `099b5d43a63429dc0a618c6631f8e86e33b7f125`; subsequent test/artifact/status commits follow this SHA.
+- Build version under physical diagnosis: **0.1.40**.
 - Gate 13A: **PASSED** on 0.1.38.
 - Gate 13B: **PASSED** on 0.1.38.
 - Gate 13C attempt 1 on 0.1.38: **FAIL SAFE / no usable report** after reconnect; no second Sync was run.
-- 0.1.39 reconnect-spike implementation:
-  - `cc88e67af26f54beb03448820e66b036241ded76` — read-only queue snapshots/counts;
-  - `d9def9e2bdc3e48a8c50708c9fc6be52b12782eb` — reconnect probe worker with durable coarse stages;
-  - `35389486ba86ca1dc0b7bf4b1af1a095c07057a9` — read-only reconnect UI;
-  - `9c69cc5742a0c2194b6682fd8f31868c83feac12` — menu wiring;
-  - `41f3c882cde31c182784ecf939b0d8d967acfaf2`, `0a78031435f9e319b40a0bc6fc88773c9f458e3b`, `cd5ffa96bbb4871c7c63deb0e7a01398864fc53f`, `498b242d80e235400c1740b8d864391bce084773` — deterministic repository/worker/UI test coverage;
-  - `0ff91d25ac67e563b26c1e37815c5855b79ae157` — version 0.1.39.
-- CI run **#691** on complete 0.1.39 code/package head `edf5fda8e01bfd653e2108c89ae50169486824aa`: **SUCCESS**.
+- 0.1.39 read-only diagnostic: **hard exit at durable stage `parent_reads`**, remotely read-only.
+- 0.1.40 bounded diagnostic implementation:
+  - `22677bc5351cfdc43deaddd1fb86f9fa873ae5ee` / `f5e9920abbf1218ae3f91e3d35685beee3e38d94` — optional Reader LIST body bound wired only to LIST/getDocument;
+  - `5eba924bc7cc273b2cb7202e29699491f4922c28` — 1 MiB parent diagnostic cap;
+  - `87c266533f90d1f9afaee4b93aa9d61b4056bef6` — metadata-vs-bounded-HTML parent probe, text matching removed;
+  - `d9983ca47b4e06a007b27e0a5002945469fd6604` — sanitized partial-snapshot recovery UI;
+  - `a9f6afec71f9d28285857949a6e58aee0078201a`, `e7211cce4a4c516cc3d041a241812be1ffc0cff0`, `d131290ce2d0e03a0a91a142b05f83b0debea384`, `9179fb8c0aeec4c6ea55f71ab63840ccbdeefc69` — API/snapshot/UI tests and off-device JSON stub;
+  - `f757b1e7f1b315c258a8cdd8d46cec42666943b3` — version 0.1.40.
+- CI run #720: dev checks SUCCESS; tests FAILED only because the off-device harness lacked KOReader's runtime `json` module used by the new snapshot helper; no artifact produced.
+- CI run **#727** on corrected code head `9179fb8c0aeec4c6ea55f71ab63840ccbdeefc69`: **SUCCESS**.
   - development checks: SUCCESS;
   - full Lua unit suite: SUCCESS;
   - installable ZIP build: SUCCESS;
   - package layout validation: SUCCESS;
   - artifact upload: SUCCESS.
-- Validated 0.1.39 artifact:
-  - workflow run: `36015157080` / run #691;
-  - artifact ID: `10814635997`;
-  - artifact name: `readwisereader-koplugin-dbbc15b832486fe75d462ab1c89c72efbf036bfe`;
-  - outer artifact SHA-256: `96950e35ad6df0f6bc0b3b6e81500e6814065344ee4c5f2770320b017b36f36d`;
-  - installable inner `readwisereader.koplugin.zip` SHA-256: `90e21fc2dc8da2e66e5edee21a37285172d71890fc2b3dd727460ce196e6ec0a`;
+- Validated 0.1.40 artifact:
+  - workflow run: `36017376224` / run #727;
+  - artifact ID: `10815790280`;
+  - artifact name: `readwisereader-koplugin-26ae1018469053e0bfba13f03f8d243330eab960`;
+  - outer artifact SHA-256: `8ea1c43a38058f0f536b930fcf72810f17c37db54166a37dae65dfae1d123256`;
+  - installable inner `readwisereader.koplugin.zip` SHA-256: `683340446507b9084f8190af7a7e4db91cbf49a779fd54218fd9a0637e927ce4`;
   - inner ZIP `unzip -t`: **PASS**, no errors;
-  - packaged `constants.lua`: version **0.1.39**;
-  - packaged reconnect diagnostic files present;
+  - packaged `constants.lua`: version **0.1.40**;
+  - reconnect diagnostic files present;
   - packaged ZIP contains no `tests/` entries.
-- 0.1.39 diagnostic remote operations are GET/LIST only. It performs no POST/PATCH/DELETE and no queue mutation/promotion.
-- Documentation-only commits after `edf5fda...` do not change packaged plugin bytes.
-- Annotation/retry invariants: `docs/ANNOTATION_SYNC_LESSONS.md`, including the missing-subprocess-result ambiguity rule.
+- 0.1.40 remains remotely read-only and does not invoke text matching.
+- Annotation/retry invariants: `docs/ANNOTATION_SYNC_LESSONS.md`.
 
 ## Target environment
 
@@ -1535,7 +1536,7 @@ The first physical 0.1.37 run then exposed a robustness gap not represented in C
 
 ## Blockers
 
-Immediate blocker: **physical 0.1.39 read-only reconnect diagnostic**.
+Immediate blocker: **physical 0.1.40 bounded parent-fetch reconnect diagnostic**.
 
 Already physically proven:
 - Gate 13A: offline durable queue safety — **PASS**;
@@ -1556,23 +1557,22 @@ Gate 13 remains **OPEN**. Gate 14+ remains blocked. PR #16 stays draft.
 
 ## Exact next steps
 
-1. Install **0.1.39** preserving settings/database/documents/sidecars.
+1. Install **0.1.40** preserving settings/database/documents/sidecars.
 2. Keep Wi-Fi **ON** and internet available.
 3. Do **not** create, edit, or delete any Gate 13 fixture.
 4. Do **not** run ordinary **Sync now**.
 5. Run **Readwise Reader → Inspect reconnect queue (Gate 13)** exactly once.
 6. Return the entire diagnostic screen.
-7. Review:
-   - child-process auth status;
-   - queue `pending/retry_wait/in_flight/blocked/succeeded` counts;
-   - active exact-marker matches already present in Reader;
-   - parent-read/text-match status;
-   - or, if no report is returned, the durable `Last stage`.
-8. Only after this read-only evidence is known:
-   - reconcile any remotely-created item without duplicate POST;
-   - correct the failing stage if needed;
-   - resume Gate 13C exactly-once delivery.
-9. Gate 13 closes only after reconnect delivery succeeds and a second unchanged Sync proves created=0 / waiting=0 / exactly one remote copy.
+7. Interpret in this order:
+   - queue status/attempt counts and exact-marker matches;
+   - metadata-only parent status;
+   - bounded HTML parent status / byte count;
+   - if the child still exits, recovered sanitized snapshot + precise last stage.
+8. If every bounded HTML fetch succeeds, the remaining physical suspect is text matching memory behavior; optimize/probe matcher separately before mutation.
+9. If a parent returns `too_large`, harden production reconnect for large parent content rather than increasing limits blindly.
+10. If a bounded HTML fetch itself hard-exits, narrow the HTTP/JSON path further before mutation.
+11. Only after the failing boundary is corrected may Gate 13C resume create/reconcile processing.
+12. Gate 13 closes only after reconnect delivery succeeds and a second unchanged Sync proves created=0 / waiting=0 / exactly one remote copy.
 
 ## Existing architectural decisions still in force
 
@@ -2703,3 +2703,63 @@ Strong implementation lead:
 - on a memory-constrained PW3 this is a credible hard-exit/OOM risk for a sufficiently large parent, but the 0.1.39 stage alone does **not** prove whether the hard exit occurs during HTTP/JSON parent fetch or during matching.
 
 Next build must split those boundaries read-only before changing production mutation logic.
+
+
+## Phase O 0.1.40 bounded-parent diagnostic handoff
+
+### Milestone
+- Phase O / Gate 13.
+- Gate 13A PASS.
+- Gate 13B PASS.
+- Gate 13C mutation frozen after reconnect hard exit.
+- Next physical gate action is the 0.1.40 read-only bounded parent probe.
+
+### Physical evidence
+- 0.1.39 diagnostic returned no report.
+- durable last stage: `parent_reads`.
+- 0.1.39 diagnostic performed no remote writes.
+- queue/auth/marker phases were passed before entering parent reads.
+- fetch-vs-matcher cause remained ambiguous.
+
+### Files altered for 0.1.40
+- `readwisereader.koplugin/api/reader.lua`
+- `readwisereader.koplugin/constants.lua`
+- `readwisereader.koplugin/sync/reconnect_probe_worker.lua`
+- `readwisereader.koplugin/ui/reconnect_diagnostics.lua`
+- `readwisereader.koplugin/tests/test_reader.lua`
+- `readwisereader.koplugin/tests/test_reconnect_probe_worker.lua`
+- `readwisereader.koplugin/tests/test_reconnect_diagnostics_ui.lua`
+- `readwisereader.koplugin/_meta.lua`
+- `CHANGELOG.md`
+- `IMPLEMENTATION_SPEC.md`
+- `PLAN.md`
+- `docs/DEVICE_TESTS.md`
+- `docs/ANNOTATION_SYNC_LESSONS.md`
+- `STATUS.md`
+
+### What was implemented
+- optional HTTP body cap passed through Reader LIST/getDocument;
+- diagnostic cap fixed at 1 MiB;
+- parent metadata fetch separated from parent HTML fetch;
+- text matching disabled in the diagnostic;
+- sanitized partial snapshot persisted after every diagnostic stage;
+- parent UI can recover snapshot even when child returns no serialized result;
+- no queue mutation/promotion and no remote write.
+
+### Tests
+- #720: syntax/dev checks passed; unit test harness failed on missing KOReader-only `json` runtime module;
+- scoped test stub added; no production behavior changed by that fix;
+- #727: **SUCCESS** — dev checks, all Lua tests, package, layout, artifact;
+- artifact independently unzipped/validated;
+- installable SHA-256: `683340446507b9084f8190af7a7e4db91cbf49a779fd54218fd9a0637e927ce4`.
+
+### Bugs / decisions
+- do not label 0.1.39 as proof of OOM: only parent-phase hard exit is proven;
+- current matcher has a credible high-allocation design, but it will not be changed as the asserted root cause until fetch survival is measured;
+- no blind retry;
+- no firmware/KOReader update;
+- no Wi-Fi control;
+- no credentials/private payloads committed or displayed.
+
+### Blocker
+- physical 0.1.40 **Inspect reconnect queue (Gate 13)** screen.
