@@ -1962,6 +1962,24 @@ Do not infer that no remote write happened. The failed child process may have ex
 
 ### Build 0.1.39 — read-only reconnect diagnosis
 
+Automated/package validation:
+- draft PR #16;
+- CI run #691 on `edf5fda8e01bfd653e2108c89ae50169486824aa`: **SUCCESS**;
+- development checks: SUCCESS;
+- full Lua unit suite: SUCCESS;
+- ZIP build/layout: SUCCESS;
+- artifact upload: SUCCESS;
+- artifact ID: `10814635997`;
+- artifact name: `readwisereader-koplugin-dbbc15b832486fe75d462ab1c89c72efbf036bfe`;
+- outer artifact SHA-256: `96950e35ad6df0f6bc0b3b6e81500e6814065344ee4c5f2770320b017b36f36d`;
+- installable inner ZIP SHA-256: `90e21fc2dc8da2e66e5edee21a37285172d71890fc2b3dd727460ce196e6ec0a`;
+- inner ZIP `unzip -t`: **PASS**, no errors;
+- packaged `constants.lua`: version **0.1.39**;
+- packaged diagnostic files present:
+  - `ui/reconnect_diagnostics.lua`;
+  - `sync/reconnect_probe_worker.lua`;
+- packaged ZIP contains no `tests/` entries.
+
 Install 0.1.39 preserving DB/settings/documents/sidecars.
 
 With Wi-Fi ON:
