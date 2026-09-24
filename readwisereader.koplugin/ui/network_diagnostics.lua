@@ -63,12 +63,13 @@ function UI:run()
         ),
         "",
         string.format(
-            "Plugin network_available: %s",
+            "Local network hint: %s",
             show(r.plugin_network_available)
         ),
-        string.format("Plugin reason: %s", show(r.plugin_network_reason)),
+        string.format("Local hint reason: %s", show(r.plugin_network_reason)),
         "",
-        _("Remote requests: none"),
+        _("Sync authority: read-only Readwise probe before writes"),
+        _("Remote requests in this diagnostic: none"),
         _("Remote writes: none"),
     }
     UIManager:show(InfoMessage:new{ text = table.concat(lines, "\n") })
