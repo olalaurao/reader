@@ -3591,3 +3591,62 @@ Next physical action:
 4. return the complete Sync report;
 5. do not run a second Sync yet;
 6. then reopen the article and verify progress/position + highlights/notes remain before the post-revision Gate 15 diagnostic.
+
+
+### Gate 15 Q1-A title-only revision Sync — PASS PARTIAL
+
+Physical target: PW3 / KOReader v2026.07.1 / build 0.1.45.
+
+After the user changed **only the Reader document title** for the baseline article, one ordinary Sync was run.
+
+Visible report evidence:
+- Content refresh pending review: **1**;
+- Metadata documents seen: **1**;
+- Filtered out: **0**;
+- Retryable item errors: **0**;
+- Retryable stages: none;
+- Errors: **0**;
+- Metadata write errors: **0**;
+- Collection write errors: **0**;
+- Metadata pages: **1**;
+- Content pages: **0**;
+- Duplicate API records ignored: **0**;
+- Remote preflight: **passed**;
+- Annotation sync: `scan_partial`;
+- Managed annotation documents scanned: **802**;
+- Authoritative annotation sidecars: **13**;
+- Annotation documents skipped safely: **789**;
+- Annotation scan/normalize/queue exceptions: **0**;
+- Current annotation document status: **ok**;
+- Managed-document highlights scanned: **12**;
+- Highlights created: **0**;
+- Highlights already linked: **12**;
+- Highlights unmatched/ambiguous: **0**;
+- Create queue items processed: **0**;
+- Create queue waiting after sync: **0**;
+- Notes updated: **0**;
+- remote highlight deletions: **0**;
+- annotation remote errors: **0**.
+
+Interpretation:
+- the title-only same-ID Reader revision was detected and is now durably pending review;
+- no content page/download was performed for the existing local document;
+- no annotation duplication/regression is visible in the Sync report;
+- no remote/content replacement error occurred;
+- this proves the 0.1.45 no-replacement path is active for the deterministic metadata-only revision.
+
+Gate 15 Q1-A is not complete yet. Required next evidence:
+1. reopen the same local article;
+2. verify reading position/progress unchanged;
+3. verify its existing highlight(s) remain;
+4. verify note(s) remain;
+5. run **Inspect content refresh safety (Gate 15)** again;
+6. require:
+   - Refresh pending: yes;
+   - remote probe: passed;
+   - Visible-text comparison: same;
+   - Reading state at risk: yes;
+   - decision: `same_visible_text_keep_local`;
+   - Automatic replacement allowed: no;
+   - remote writes none / local writes none.
+7. Do not run another ordinary Sync until this post-revision diagnostic is reviewed.
