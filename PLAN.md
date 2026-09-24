@@ -1322,7 +1322,8 @@ Ordem:
 2. Gate 13B: **PASS** em 0.1.38 — fila + highlight/nota local sobreviveram ao restart do KOReader;
 3. Gate 13C tentativa 1: **FAIL SAFE** — após religar Wi-Fi, `Sync now` terminou sem relatório utilizável;
 4. diagnóstico 0.1.39: **hard exit em `parent_reads`**, provando que queue/auth/marker scan avançaram e estreitando a falha para fetch do parent e/ou text matching;
-5. antes de qualquer novo write/retry, instalar 0.1.40 e rodar somente **Inspect reconnect queue (Gate 13)**: ele separa metadata fetch de HTML fetch, limita o body a 1 MiB, desliga text matching e preserva snapshot sanitizado mesmo se o child morrer;
-6. com essa evidência, corrigir o caminho exato sem blind retry e provar entrega exatamente uma vez;
-7. rodar segundo sync sem mudanças e confirmar zero duplicatas;
-8. somente depois iniciar **Phase P / Gate 14 (Finished → Archive)**.
+5. diagnóstico 0.1.40: **PASS** — os 3 parents fizeram metadata + HTML fetch completos (9.851 / 27.477 / 8.564 bytes), marker scan achou 0 cópias ativas; a fronteira restante é o matcher;
+6. instalar 0.1.41 e rodar somente **Inspect reconnect queue (Gate 13)** com o matcher real, agora sem `ffi/utf8proc`, usando normalização conservadora em Lua puro e breadcrumbs por fase;
+7. se o matcher passar no PW3, retomar Gate 13C de forma controlada e provar entrega exatamente uma vez;
+8. rodar segundo sync sem mudanças e confirmar zero duplicatas;
+9. somente depois iniciar **Phase P / Gate 14 (Finished → Archive)**.
