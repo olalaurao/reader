@@ -746,6 +746,72 @@ return function()
     end
 
     do
+        -- Phase R / Gate 16 intermittent-network recovery: a LIST traversal
+        -- may have already yielded valid metadata before the next request
+        -- times out. Those idempotent upserts may remain, but the watermark
+        -- must not advance. The next sync must rediscover/materialize the same
+        -- document safely instead of stranding or duplicating it.
+        local repository = fakeRepository()
+        local meta = fakeMeta({
+            document_watermark = "T001000",
+            document_query_after = "T000995",
+            document_filter_scope = "locations=later,new;categories=article",
+            metadata_projection_version = PROJECTION,
+        })
+        local first_reader = {
+            iterateDocuments = function(_, options, callback)
+                assert(options.updated_after == "T000995")
+                callback(doc("flaky", "new", "Flaky network", "u1"))
+                return nil, { kind = "timeout", retryable = true }
+            end,
+        }
+        local first_sync, repo, preserved_meta = newSync{
+            reader = first_reader,
+            repository = repository,
+            meta = meta,
+            now_values = { 1100, 1101 },
+        }
+        local first_report, first_err = first_sync:sync{}
+        assert(first_report == nil)
+        assert(first_err.kind == "timeout")
+        assert(preserved_meta.values.document_watermark == "T001000")
+        assert(repo.rows.flaky ~= nil)
+        assert(repo.rows.flaky.is_local_present ~= true)
+
+        local second_reader = {
+            iterateDocuments = function(_, options, callback)
+                assert(options.updated_after == "T000995")
+                callback(doc("flaky", "new", "Flaky network", "u1"))
+                return { pages = 1, duplicates = 0, malformed = 0 }
+            end,
+            getDocument = function(_, id, with_html)
+                assert(id == "flaky")
+                assert(with_html == true)
+                return doc(
+                    "flaky",
+                    "new",
+                    "Flaky network",
+                    "u1",
+                    "<p>Recovered after timeout</p>"
+                )
+            end,
+        }
+        local second_sync, _, _, installs = newSync{
+            reader = second_reader,
+            repository = repo,
+            meta = preserved_meta,
+            now_values = { 1200, 1201 },
+        }
+        local second_report, second_err = second_sync:sync{}
+        assert(second_err == nil)
+        assert(second_report.mode == "incremental")
+        assert(second_report.downloaded == 1)
+        assert(#installs == 1 and installs[1] == "flaky")
+        assert(repo.rows.flaky.local_path == "/Readwise/flaky.html")
+        assert(preserved_meta.values.document_watermark ~= "T001000")
+    end
+
+    do
         local meta = fakeMeta({
             document_watermark = "T001000",
             document_query_after = "T000995",
