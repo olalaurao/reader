@@ -224,3 +224,21 @@ Rules:
 - never substitute text/note similarity for destructive identity.
 
 This is the destructive counterpart to the note-sync lesson: **cross-API agreement is stronger than assuming one API representation contains every field reliably.**
+
+
+## 13. Physical deliberate-delete invariant
+
+Gate 12D physically passed on build 0.1.32:
+- the explicitly tombstoned target disappeared from Reader;
+- the control highlight remained;
+- deletion propagation was turned OFF again;
+- a follow-up OFF sync had no pending local deletion, no remote deletion, no mutation block, and no remote error.
+
+This closes the destructive identity lesson:
+- do not trust Reader `source/saved_using` as mandatory production identity;
+- do require exact durable Reader child + parent/category and exact Readwise v2 `external_id` mapping;
+- do verify remote disappearance before clearing durable state;
+- do keep deletion opt-in/default OFF;
+- do verify an unrelated control survives.
+
+Future destructive annotation work must preserve both halves of Gate 12: safe retention while OFF and exact-target deletion while deliberately ON.
