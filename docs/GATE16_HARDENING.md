@@ -19,12 +19,12 @@
 The CI suite must pass all of these before device installation:
 
 1. **Large library** — 5,000 unique Reader records across 50 pages, callback-streamed with cursor guards and no duplicates.
-2. **Low disk** — raw preflight rejects below reserve; exact reserve boundary is accepted; ENOSPC during stream removes the temp file and exposes no partial final document.
-3. **Malformed document** — paged scans isolate/count an invalid record and continue valid neighbors; direct document lookup remains strict.
+2. **Low disk** — raw preflight rejects below reserve; exact reserve boundary is accepted; ENOSPC during streamed raw **and processed HTML** writes removes the temp file, preserves a retryable `no_space` classification and exposes no partial final document.
+3. **Malformed document** — paged scans isolate/count invalid records, including a whole malformed page with a valid next cursor, and continue valid later records; direct document lookup remains strict.
 4. **Huge document** — processed HTML and Reader response/page sizes are bounded before render/materialization.
 5. **Unicode** — multilingual filenames/HTML, combining marks, CJK, Arabic and emoji ZWJ survive; byte truncation never cuts a UTF-8 codepoint.
 6. **429** — numeric Retry-After is honored; missing value uses bounded fallback; waiting remains cancellable.
-7. **Intermittent network** — timeout/offline work is not treated as success; durable queues survive and ambiguous POST outcomes reconcile before any retry.
+7. **Intermittent network** — timeout/offline work is not treated as success; a metadata scan interrupted after partial callback work keeps the old watermark and safely rediscovers/materializes the same document on the next Sync; durable queues survive and ambiguous POST outcomes reconcile before any retry.
 8. **Force-close / reboot** — a file-backed SQLite queue survives process re-open; stale highlight creates become blocked, never blind retries; retry deadlines persist.
 9. **Migration** — real file-backed v1→v2 migration creates a pre-migration backup retaining old schema/data; transaction failure rolls back.
 10. **Rollback** — schema is still v2; 0.1.46 can read the same DB if the 0.1.47 plugin directory is reverted.
