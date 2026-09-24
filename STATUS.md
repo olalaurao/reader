@@ -606,7 +606,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Branch: `phase-o/offline-queue-gate13`
 - Draft PR: **#16** — keep draft / do not merge until Gate 13 passes physically.
 - Base/integrated `main`: `54509c84bb731cfa0507865d6cc8fb300859647d` (PR #15 merge / Phase N + Gate 12 passed)
-- Current pre-artifact branch HEAD: `0c0883a64d107b5f2d67b4a180b3e49ee929dc4d`; final CI/artifact/documentation commits follow this SHA.
+- Current pre-handoff branch HEAD: `21e7a66df430491cea45bd7789ce9e9d7b0447b1`; the final STATUS handoff commit follows this SHA.
 - Build version under physical diagnosis: **0.1.39**.
 - Gate 13A: **PASSED** on 0.1.38.
 - Gate 13B: **PASSED** on 0.1.38.
@@ -618,8 +618,25 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
   - `9c69cc5742a0c2194b6682fd8f31868c83feac12` — menu wiring;
   - `41f3c882cde31c182784ecf939b0d8d967acfaf2`, `0a78031435f9e319b40a0bc6fc88773c9f458e3b`, `cd5ffa96bbb4871c7c63deb0e7a01398864fc53f`, `498b242d80e235400c1740b8d864391bce084773` — deterministic repository/worker/UI test coverage;
   - `0ff91d25ac67e563b26c1e37815c5855b79ae157` — version 0.1.39.
+- CI run **#691** on complete 0.1.39 code/package head `edf5fda8e01bfd653e2108c89ae50169486824aa`: **SUCCESS**.
+  - development checks: SUCCESS;
+  - full Lua unit suite: SUCCESS;
+  - installable ZIP build: SUCCESS;
+  - package layout validation: SUCCESS;
+  - artifact upload: SUCCESS.
+- Validated 0.1.39 artifact:
+  - workflow run: `36015157080` / run #691;
+  - artifact ID: `10814635997`;
+  - artifact name: `readwisereader-koplugin-dbbc15b832486fe75d462ab1c89c72efbf036bfe`;
+  - outer artifact SHA-256: `96950e35ad6df0f6bc0b3b6e81500e6814065344ee4c5f2770320b017b36f36d`;
+  - installable inner `readwisereader.koplugin.zip` SHA-256: `90e21fc2dc8da2e66e5edee21a37285172d71890fc2b3dd727460ce196e6ec0a`;
+  - inner ZIP `unzip -t`: **PASS**, no errors;
+  - packaged `constants.lua`: version **0.1.39**;
+  - packaged reconnect diagnostic files present;
+  - packaged ZIP contains no `tests/` entries.
 - 0.1.39 diagnostic remote operations are GET/LIST only. It performs no POST/PATCH/DELETE and no queue mutation/promotion.
-- Annotation/retry invariants: `docs/ANNOTATION_SYNC_LESSONS.md`.
+- Documentation-only commits after `edf5fda...` do not change packaged plugin bytes.
+- Annotation/retry invariants: `docs/ANNOTATION_SYNC_LESSONS.md`, including the missing-subprocess-result ambiguity rule.
 
 ## Target environment
 
@@ -2591,3 +2608,71 @@ Exact next physical action:
 5. run **Readwise Reader → Inspect reconnect queue (Gate 13)** once;
 6. return the whole screen;
 7. only then decide whether reconnect resumes with reconciliation, a code fix, or another narrower spike.
+
+
+## Phase O 0.1.39 reconnect-diagnostic handoff
+
+### Physical evidence that triggered this work
+- Gate 13A passed offline on 0.1.38.
+- Gate 13B passed after full KOReader restart while still offline; queue remained 3 waiting and local highlight/note survived.
+- Gate 13C reconnect attempt 1 on 0.1.38 returned only `Document sync failed safely` after Wi-Fi was enabled.
+- No second Sync was run, preserving the ambiguous create boundary.
+
+### Files altered
+- `readwisereader.koplugin/storage/queue.lua`
+- `readwisereader.koplugin/sync/reconnect_probe_worker.lua` (new)
+- `readwisereader.koplugin/ui/reconnect_diagnostics.lua` (new)
+- `readwisereader.koplugin/main.lua`
+- `readwisereader.koplugin/tests/test_storage_repositories.lua`
+- `readwisereader.koplugin/tests/test_reconnect_probe_worker.lua` (new)
+- `readwisereader.koplugin/tests/test_reconnect_diagnostics_ui.lua` (new)
+- `readwisereader.koplugin/tests/run.lua`
+- `readwisereader.koplugin/constants.lua`
+- `readwisereader.koplugin/_meta.lua`
+- `CHANGELOG.md`
+- `IMPLEMENTATION_SPEC.md`
+- `PLAN.md`
+- `docs/DEVICE_TESTS.md`
+- `docs/ANNOTATION_SYNC_LESSONS.md`
+- `STATUS.md`
+
+### What was implemented
+- a remotely read-only Gate 13 reconnect diagnostic;
+- local queue snapshot/status counts without promotion/mutation;
+- auth GET inside the same subprocess model used by Sync;
+- exact remote marker scan for active create items;
+- read-only parent GET + text-match readiness;
+- recent queue item diagnostics without exposing payload contents or IDs;
+- durable coarse stage breadcrumb so a hard child exit still reports the last stage;
+- no normal Sync retry and no remote mutation added.
+
+### Tests executed/results
+- deterministic queue repository tests verify diagnostics do not mutate state;
+- worker helper tests cover durable stage breadcrumbs and safe item summaries;
+- UI tests cover successful diagnostics and no-result stage fallback;
+- CI run #691: **SUCCESS** for dev checks, full Lua suite, ZIP build/layout, artifact upload;
+- downloaded artifact independently verified:
+  - outer SHA matches GitHub digest;
+  - inner ZIP SHA `90e21fc2dc8da2e66e5edee21a37285172d71890fc2b3dd727460ce196e6ec0a`;
+  - `unzip -t` PASS;
+  - version 0.1.39;
+  - reconnect diagnostic files packaged;
+  - tests excluded.
+
+### Gates
+- Gates 0–12: **PASSED**.
+- Gate 13A: **PASSED**.
+- Gate 13B: **PASSED**.
+- Gate 13C: **OPEN / mutation frozen pending 0.1.39 read-only diagnostic**.
+- Gate 14+: not started; blocked by Gate 13.
+
+### Bugs / decisions
+- generic no-report reconnect failure is treated as an ambiguous side-effect boundary, not as proof of no POST;
+- inspection of KOReader v2026.07.1 Trapper confirms normal multiple task returns are serialized/restored, so the generic result is not explained by dropping the second return value;
+- no blind retry is allowed;
+- no firmware/KOReader update;
+- no Wi-Fi control added;
+- no credentials, notes, selected text, Reader IDs, signed URLs or private response bodies added to diagnostics/logs.
+
+### Blocker / exact next physical action
+Install 0.1.39, keep Wi-Fi ON, do not run Sync, and run **Inspect reconnect queue (Gate 13)** exactly once. Return the full diagnostic screen.
