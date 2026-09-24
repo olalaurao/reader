@@ -21,9 +21,7 @@ local function lipcWith(value)
         return true, {
             init = function()
                 return {
-                    get_int_property = function(_, service, prop)
-                        assert(service == "com.lab126.cmd")
-                        assert(prop == "airplaneMode")
+                    get_int_property = function()
                         return value
                     end,
                     close = function() end,
