@@ -47,7 +47,17 @@ function UI:run()
         return
     end
 
-    local document = self.documents:getByLocalPath(path)
+    local document_ok, document = pcall(
+        self.documents.getByLocalPath,
+        self.documents,
+        path
+    )
+    if not document_ok then
+        UIManager:show(InfoMessage:new{
+            text = _("Gate 15 could not open the local sync database safely. No document or sidecar was changed."),
+        })
+        return
+    end
     if not document or document.is_managed ~= true then
         UIManager:show(InfoMessage:new{
             text = _("The current document is not managed by Readwise Reader."),
@@ -55,7 +65,17 @@ function UI:run()
         return
     end
 
-    local reading_state, status_err = self.status:scan(path)
+    local status_ok, reading_state, status_err = pcall(
+        self.status.scan,
+        self.status,
+        path
+    )
+    if not status_ok then
+        UIManager:show(InfoMessage:new{
+            text = _("Gate 15 could not inspect KOReader reading state safely. No document or sidecar was changed."),
+        })
+        return
+    end
     if not reading_state then
         UIManager:show(InfoMessage:new{
             text = status_err and status_err.message
