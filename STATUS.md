@@ -2982,3 +2982,65 @@ Next Gate 13C action:
 4. return the full report before running any second Sync;
 5. then verify in Reader that the three expected pending highlights/notes exist exactly once under their original documents;
 6. only after reviewing that first report run the unchanged second Sync to prove idempotency.
+
+
+### Gate 13C controlled delivery — plugin PASS on 0.1.41 / Reader-side verification pending
+
+Physical target: PW3 / KOReader v2026.07.1 / build 0.1.41.
+
+First controlled ordinary Sync after the matcher fix:
+- Metadata updated: **3**;
+- Content refresh deferred safely: **3**;
+- Metadata documents seen: **3**;
+- Metadata pages: **1**;
+- Content pages: **0**;
+- Remote preflight: `passed`;
+- Annotation sync: `scan_partial`;
+- Managed annotation documents scanned: **801**;
+- Authoritative annotation sidecars: **13**;
+- Annotation documents skipped safely: **788**;
+- Annotation scan errors: **0**;
+- Annotation scan exceptions isolated: **0**;
+- Annotation normalize exceptions isolated: **0**;
+- Annotation queue errors: **0**;
+- Annotation queue exceptions isolated: **0**;
+- Annotation repository source: `managed_local`;
+- Annotation repository fallback: **no**;
+- Current annotation document status: `current_document_not_managed`;
+- Managed-document highlights scanned: **12**;
+- Highlights created: **3**;
+- Highlights reconciled safely: **0**;
+- Highlights already linked: **9**;
+- Highlights unmatched/ambiguous: **0**;
+- Highlight creates blocked safely: **0**;
+- Highlight creates queued durably: **3**;
+- Create queue items processed: **3**;
+- Create retries deferred: **0**;
+- Create auth waits: **0**;
+- Create queue waiting after sync: **0**;
+- Reconciliation markers verified: **0**;
+- Notes updated: **0**;
+- Note updates reconciled: **0**;
+- Note conflicts blocked: **0**;
+- Annotation mutations blocked safely: **0**;
+- Local highlight deletions detected: **0**;
+- Remote highlight deletions: **0**;
+- Errors: **0**;
+- Metadata write errors: **0**;
+- Collection write errors: **0**.
+
+Interpretation:
+- **plugin-side first reconnect delivery PASSED**;
+- exactly the three pending creates were processed;
+- queue drained from 3 waiting to 0;
+- no retry, auth wait, blocked create, ambiguity, deletion or error occurred;
+- `current_document_not_managed` is acceptable here because Phase O create backlog processing is intentionally global across locally-present managed documents and does not require the currently-open document to be managed;
+- `Notes updated: 0` does not imply create-note loss: note content for a new highlight is carried in the create payload; the separate note-update counter only covers PATCH/reconciliation of already-existing Reader highlights.
+
+Remaining evidence before the second Sync:
+1. verify in Reader that the three newly-created highlights are under the correct original documents;
+2. verify each appears **exactly once**;
+3. verify the expected note is attached to the relevant created highlight(s);
+4. only after that verification, run one unchanged second Sync to prove idempotency.
+
+Gate 13C is **not yet closed** until Reader-side exactly-one delivery and the unchanged second Sync both pass.
