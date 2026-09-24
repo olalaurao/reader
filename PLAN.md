@@ -1327,15 +1327,17 @@ Decisão conservadora da V1:
 - PDF/EPUB original sempre fica deferido nesta fase;
 - sidecar nunca é substituído.
 
-Build 0.1.44 implementa Q1:
-1. schema v2 para persistir materialized revision + refresh pending;
+Build 0.1.45 implementa Q1 após corrigir a falha física da 0.1.44:
+1. schema v2 para persistir materialized revision + refresh pending, com backup v1→v2 corrigido para a semântica real do `ffiUtil.copyFile` do KOReader (nil = sucesso);
 2. migration não inventa baseline para arquivos legados;
 3. pending não desaparece num Sync posterior;
-4. diagnóstico **Inspect content refresh safety (Gate 15)** mostra risco de sidecar/progresso/anotações e compara HTML local/remoto sem exibir conteúdo;
+4. diagnóstico **Inspect content refresh safety (Gate 15)** mostra risco de sidecar/progresso/anotações e compara HTML local/remoto por igualdade direta de texto normalizado, sem `ffi/sha2` e sem exibir conteúdo;
 5. replacement automático está hard-disabled.
 
+A tentativa física 0.1.44 falhou ao clicar no diagnóstico: o backup pré-migração interpretava o retorno `nil` de sucesso do `copyFile` como erro e a exceção escapava do callback. A 0.1.45 corrige isso e contém erros futuros de preflight na UI.
+
 Próximo gate físico:
-1. artigo Reader gerenciado com progresso + highlight/nota;
+1. instalar 0.1.45 e usar artigo Reader gerenciado com progresso + highlight/nota;
 2. diagnóstico baseline;
 3. alterar apenas o título no Reader para criar revisão determinística;
 4. Sync;
