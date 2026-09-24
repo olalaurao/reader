@@ -619,7 +619,9 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 ## Current branch / commit
 
 - Branch: `phase-p/finished-archive-gate14`
+- Draft PR: **#17**
 - Base/integrated `main`: `b7c8977b89cf572bec1280e3490a033341af4375` (PR #16 merge / Phase O + Gate 13 passed)
+- 0.1.42 code/package HEAD: `84afff1d5fec69dcf42e55554aa90af778d58e05`
 - Build version: **0.1.42**
 - Phase P spike files:
   - `readwisereader.koplugin/koreader/status.lua` — safe local sidecar/BookList finished-status adapter;
@@ -632,6 +634,24 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
   - `readwisereader.koplugin/_meta.lua`;
   - `CHANGELOG.md`;
   - canonical docs/status.
+- Initial PR CI run **#810** failed in development checks because the first 0.1.42 metadata-description edit accidentally left the Lua long string unterminated. No tests/package ran from that failed build.
+- `84afff1d5fec69dcf42e55554aa90af778d58e05` fixes the metadata syntax.
+- CI run **#812** on the corrected code/package head: **SUCCESS**.
+  - development checks: SUCCESS;
+  - full Lua unit suite: SUCCESS;
+  - installable ZIP build: SUCCESS;
+  - package layout validation: SUCCESS;
+  - artifact upload: SUCCESS.
+- Validated 0.1.42 artifact:
+  - workflow run: `36022820811` / run #812;
+  - artifact ID: `10818495299`;
+  - artifact name: `readwisereader-koplugin-7668964a8fc8283f5b682afb107b508c8738cba2`;
+  - outer artifact SHA-256: `6cd590229ea205ac64bd027490b738166cb33846e8cacfefb70f6f92433bb58d`;
+  - installable inner `readwisereader.koplugin.zip` SHA-256: `df37908276eb9938a87d3d401a01bbe607bf295cc477288b25e48bbddbfd2a7a`;
+  - inner ZIP `unzip -t`: **PASS**, no errors;
+  - packaged `constants.lua`: version **0.1.42**;
+  - packaged ZIP contains no `tests/` entries.
+- Documentation-only commits after the 0.1.42 package head do not change installable plugin bytes.
 - No archive PATCH, queue mutation, local deletion, or finished-state write has been implemented yet.
 - Canonical candidate under physical validation: `summary.status == "complete"`.
 
@@ -3126,3 +3146,18 @@ This is strong source evidence, but the canonical spec requires an experimental 
 
 ### Blocker
 - physical before/after Finished diagnostic on the PW3.
+
+
+### 0.1.42 automated/package validation
+
+- PR #17 remains draft.
+- CI #810: FAIL at dev-check due solely to an unterminated `_meta.lua` long string introduced while changing the experimental description.
+- Fix commit: `84afff1d5fec69dcf42e55554aa90af778d58e05`.
+- CI #812: PASS across development checks, complete Lua suite, package build/layout and artifact upload.
+- artifact outer digest matched after download.
+- inner installable ZIP digest: `df37908276eb9938a87d3d401a01bbe607bf295cc477288b25e48bbddbfd2a7a`.
+- installable ZIP integrity: PASS.
+- version inside package: 0.1.42.
+- no test files packaged.
+
+Physical blocker remains the before/after Finished signal spike; no later Phase P mutation is authorized yet.
