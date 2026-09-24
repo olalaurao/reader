@@ -3287,3 +3287,50 @@ Conclusion: Gate 14 P0 **PASS**. `summary.status == "complete"` is canonical; re
 
 ### Blocker
 - one physical first Sync + Reader/local preservation verification on 0.1.43; then one unchanged second Sync.
+
+
+### Gate 14 P1 first archive Sync — REMOTE PASS / local preservation check pending
+
+Physical target: PW3 / KOReader v2026.07.1 / build 0.1.43.
+
+User ran the required first ordinary Sync with the previously-proven managed document still marked Finished.
+
+Visible Sync-report evidence:
+- Errors: **0**;
+- Remote preflight: **passed**;
+- Metadata documents seen: **4**;
+- Metadata pages: **1**;
+- Content pages: **0**;
+- Duplicate API records ignored: **0**;
+- Managed annotation documents scanned: **801**;
+- Authoritative annotation sidecars: **13**;
+- Annotation scan errors: **0**;
+- Annotation queue errors: **0**;
+- Managed-document highlights scanned: **12**;
+- Highlights created: **0**;
+- Highlights already linked: **12**;
+- Highlights unmatched/ambiguous: **0**;
+- Create queue items processed: **0**;
+- Create queue waiting after sync: **0**;
+- Notes updated: **0**;
+- annotation remote errors: **0**.
+
+Reader-side verification:
+- the target Finished document **moved to Archive successfully**.
+
+Conclusion so far:
+- first Gate 14 remote archive effect **PASSED**;
+- no annotation duplicate/error regression is visible;
+- the photographed report crop does not include the later archive-specific counters, so do not infer their exact numeric values from this image;
+- Gate 14 is still open until local preservation is checked and the unchanged second Sync proves idempotency.
+
+Required local preservation check before second Sync:
+1. confirm the same archived document still exists locally and opens;
+2. confirm its reading position/progress is still preserved;
+3. confirm its existing highlights are still present;
+4. confirm its existing notes are still present;
+5. preferably run **Inspect finished status (Gate 14)** on that document and confirm sidecar is still present / status remains complete.
+
+Only after all of the above pass:
+- run one unchanged second **Sync now**;
+- require no repeated archive mutation and archive queue waiting = 0.
