@@ -2676,3 +2676,30 @@ Exact next physical action:
 
 ### Blocker / exact next physical action
 Install 0.1.39, keep Wi-Fi ON, do not run Sync, and run **Inspect reconnect queue (Gate 13)** exactly once. Return the full diagnostic screen.
+
+
+### Gate 13C 0.1.39 read-only diagnostic result — HARD EXIT AT PARENT READS
+
+Physical result with Wi-Fi ON:
+- user did **not** run ordinary Sync;
+- user ran **Inspect reconnect queue (Gate 13)** exactly once;
+- UI returned:
+  - `Gate 13 diagnostic ended without a report`;
+  - `Last durable stage: parent_reads`;
+  - `Remote writes: none`.
+
+Interpretation:
+- local queue snapshot stage completed;
+- child-process auth probe completed far enough to advance beyond `auth_probe`;
+- remote exact-marker scan completed far enough to advance beyond `marker_scan`;
+- the subprocess ended without a serialized report after entering parent-content reads;
+- the 0.1.39 diagnostic itself performed no POST/PATCH/DELETE, so this diagnostic introduced no new remote mutation;
+- this sharply narrows the reconnect crash boundary to Reader parent-content fetch and/or subsequent text matching;
+- exact queue/marker counts from the 0.1.39 child were lost with the missing serialized report, so mutation remains frozen.
+
+Strong implementation lead:
+- the normal reconnect path requests `withHtmlContent=true` for each queued parent and then calls `TextMatch.findExactSubstring`;
+- current `TextMatch.visibleText` constructs a full lowercase copy of HTML and appends most text **one byte at a time** into a Lua table; normalized matching can additionally create one mapping table per UTF-8 unit;
+- on a memory-constrained PW3 this is a credible hard-exit/OOM risk for a sufficiently large parent, but the 0.1.39 stage alone does **not** prove whether the hard exit occurs during HTTP/JSON parent fetch or during matching.
+
+Next build must split those boundaries read-only before changing production mutation logic.
