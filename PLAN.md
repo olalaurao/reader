@@ -1318,7 +1318,7 @@ Não:
 Concluir a **Phase O / Gate 13** na baseline física já adotada: PW3 + KOReader v2026.07.1.
 
 Ordem:
-1. validar a build 0.1.37 com Airplane Mode/no internet: anotação deve entrar na fila local e nenhuma escrita remota pode ocorrer;
+1. validar a build 0.1.38 com Airplane Mode/no internet, reutilizando o mesmo highlight criado na tentativa 0.1.37 que falhou com `Document sync failed safely`: a anotação deve entrar/permanecer na fila local e nenhuma escrita remota pode ocorrer;
 2. reiniciar KOReader com a fila pendente;
 3. reconectar Wi-Fi fora do plugin;
 4. sincronizar e provar entrega exatamente uma vez;
