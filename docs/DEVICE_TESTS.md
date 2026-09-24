@@ -2491,3 +2491,35 @@ Retest with 0.1.45:
 4. tap **Inspect content refresh safety (Gate 15)** once;
 5. return the complete screen if it opens;
 6. if KOReader exits again, stop immediately and preserve the newest `koreader/crash.log` before any further test.
+
+
+### Gate 15 Q1-A 0.1.45 baseline — PASS
+
+Corrected build 0.1.45 opened the diagnostic successfully on the target PW3.
+
+Baseline:
+- article / html / reader_html;
+- local file yes;
+- sidecar yes;
+- percent_finished 0.1538;
+- annotations 6;
+- last XPointer yes;
+- partial file checksum yes;
+- reading state at risk yes;
+- materialized remote revision unavailable (expected legacy pre-v2 baseline);
+- refresh pending no;
+- remote probe passed;
+- visible-text comparison same;
+- local HTML 27733 bytes;
+- remote HTML 27477 bytes;
+- decision `same_visible_text_keep_local`;
+- automatic replacement no;
+- remote/local writes none.
+
+This confirms the 0.1.44 crash fix and establishes a valid article-with-reading-state baseline.
+
+Next:
+- change only this document's title in Reader;
+- run one ordinary Sync now;
+- return full Sync report;
+- do not run a second Sync until the result is reviewed.
