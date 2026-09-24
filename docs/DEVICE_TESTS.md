@@ -2061,3 +2061,18 @@ Physical instructions:
 4. do not change Gate 13 annotations;
 5. run **Inspect reconnect queue (Gate 13)** once;
 6. return the whole screen, including any recovered partial snapshot and last durable stage.
+
+
+### Build 0.1.40 physical result — parent fetch PASS
+
+Read-only reconnect diagnostic completed normally:
+- stage `done_fetch_only`;
+- auth passed;
+- queue pending 3, in_flight 0, blocked 0;
+- marker scan passed across 11 pages;
+- active marker matches 0;
+- all three pending parents fetched metadata + HTML successfully;
+- HTML sizes: 9,851 / 27,477 / 8,564 bytes;
+- remote writes none.
+
+This rules out parent LIST/JSON/HTML retrieval as the physical hard-exit boundary for these fixtures. The remaining 0.1.39-only work was text matching/normalization, so the next spike must exercise that path read-only and in finer stages before Gate 13C mutation resumes.
