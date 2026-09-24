@@ -51,9 +51,11 @@ function DB:_backupBeforeMigration(from_version)
     if not self.copy_file then
         error("database backup helper is unavailable")
     end
-    local ok, err = self.copy_file(self.path, self.path .. ".bak")
-    if not ok then
-        error("database backup failed: " .. tostring(err or "unknown error"))
+    -- KOReader ffiUtil.copyFile returns nil on success and an error
+    -- string on failure. Do not interpret nil as a failed copy.
+    local copy_err = self.copy_file(self.path, self.path .. ".bak")
+    if copy_err ~= nil then
+        error("database backup failed: " .. tostring(copy_err))
     end
 end
 
