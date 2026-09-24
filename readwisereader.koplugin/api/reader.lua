@@ -229,7 +229,6 @@ function Reader:_jsonMutation(method, url, payload)
         headers = headers,
         body = body,
         timeout_class = "api",
-        max_body_bytes = options.max_body_bytes,
     }
     if not response then return nil, err end
     return response
@@ -358,6 +357,7 @@ function Reader:listDocuments(options)
             ["Authorization"] = "Token " .. token,
         },
         timeout_class = "api",
+        max_body_bytes = options.max_body_bytes,
     }
     if not response then
         return nil, err
