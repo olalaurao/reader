@@ -604,25 +604,28 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 ## Current branch / commit
 
 - Branch: `phase-o/offline-queue-gate13`
+- Draft PR: **#16** — keep draft / do not merge until Gate 13 passes physically.
 - Base/integrated `main`: `54509c84bb731cfa0507865d6cc8fb300859647d` (PR #15 merge / Phase N + Gate 12 passed)
-- Durable retry-wait storage: `aed0e0bd5b171fe7a00d3fd6e7777afa59f124fe`
-- Queue backoff repository tests: `072441d16bf0ba82d77a3655ec71c8c1367dc348`
-- Local queue / remote processor split: `8358dc862dce705550fcb86775690749e19bc0b6`
-- Gate 13 queue scenario coverage: `efd16b055cc0c7fdaf5ecef4fb589f7a404f7e93`
-- Offline-first worker integration: `4473e50490f3feb815c5712a3fb664825f877b69`
-- Offline Sync now UI: `376e1a30db555e8d48e75c788e2e9ea120bd9777`
-- Offline UI tests: `9f900b2ba34c69e52b35aff0818349e8b3954744`
-- 5xx ambiguous-create safety coverage: `83bdec82239172701eb4060402ca9affd54e7f76`
-- Run #500 on Phase O functional HEAD: **SUCCESS**
-- Build 0.1.33 physically failed Gate 13A because KOReader still took the online path with Kindle Airplane Mode enabled.
-- 0.1.34 adds explicit Kindle native airplane-mode detection.
-- Build staged as **0.1.34**
-- Final build run #506 on `b6c906444c6777bacd8210c7cae0f453dcf5afb8`: **SUCCESS**
-- Gate 13 artifact ID: `10784790189`
-- artifact name: `readwisereader-koplugin-b6c906444c6777bacd8210c7cae0f453dcf5afb8`
-- artifact digest: `sha256:73067451006de5e87105fccca09d4633475a59656cc10a6483a2912ba49220d3`
-- Historical Phase N main merge: `54509c84bb731cfa0507865d6cc8fb300859647d`
-- Annotation invariants remain canonical in `docs/ANNOTATION_SYNC_LESSONS.md`
+- Phase O implementation/package HEAD under physical test: `f89204dd098a3e530990b8ced0e050b0e106d33d`
+- 0.1.36 core reachability gate:
+  - `98092cee84c55b04ea49c63bb29d6228d9f207df` — remote writes gated behind read-only reachability probe;
+  - `94afef331b34b099630e2d0cac9471105977c6e5` — UI stops trusting local network state;
+  - `671a951a6d0892870aba22baf5443880608e38a1` — explicit probe helper contract;
+  - `555d5970d3bf62962dc792cee6292a52e8a52f2c` — probe helper tests;
+  - `f89204dd098a3e530990b8ced0e050b0e106d33d` — remote-unavailable UI coverage.
+- Phase O deterministic queue/retry implementation remains based on the earlier 0.1.33 work; no duplicate-safety invariant was weakened by 0.1.36.
+- CI PR run **#553** on code/package HEAD: **SUCCESS**.
+  - development checks: SUCCESS;
+  - Lua unit tests: SUCCESS;
+  - installable ZIP build: SUCCESS;
+  - package layout: SUCCESS;
+  - artifact upload: SUCCESS.
+- 0.1.36 artifact ID: `10786469934`
+- artifact name: `readwisereader-koplugin-475dc29fd1fd180b40c0e9091c39f81b1532c901`
+- artifact digest: `sha256:7944e764ed09815ec51b1739769254b2578c2dcc8df19a832b45056215b1fb76`
+- Artifact workflow run: `35947882140` / run #553.
+- Documentation-only commits after `f89204d...` do not change packaged plugin bytes; the physical build remains version **0.1.36**.
+- Annotation/retry invariants: `docs/ANNOTATION_SYNC_LESSONS.md`, now including the Gate 13 pre-write reachability boundary.
 
 ## Target environment
 
@@ -1540,12 +1543,30 @@ Physical proof still required:
 
 ## Exact next steps
 
-1. Finish CI/package for build **0.1.33** and record the exact artifact.
-2. Install 0.1.33 preserving settings/database/documents/sidecars.
-3. Run the Gate 13 physical script in `docs/DEVICE_TESTS.md`.
-4. Do not delete/recreate the fixture if the offline queue count is unexpected; report the screen first.
-5. Close/merge Phase O only after offline → reboot → reconnect → second no-op sync proves exactly-once behavior.
-6. Do not advance to Phase P / Gate 14 first.
+1. Install the 0.1.36 artifact from PR run #553; preserve existing settings/database/documents/sidecars.
+2. Keep native Kindle Airplane Mode ON / no internet.
+3. In a clean managed article, create **one new unique** highlight with note:
+   - `gate13 probe [[Foucault]]`
+   - next line: `#queue-test-0136`
+4. Close/reopen the article once to flush the sidecar; leave it open.
+5. Run ordinary **Sync now** exactly once.
+6. Gate 13A passes only if:
+   - Mode = `offline / local queue`;
+   - Remote preflight = `offline`, `timeout`, `tls`, or `unknown`;
+   - Highlights created = **0**;
+   - Create queue items processed = **0**;
+   - Highlight creates queued durably >= **1**;
+   - Create queue waiting after sync >= **1**;
+   - Metadata pages = **0**;
+   - Content pages = **0**;
+   - no watermark advance;
+   - new fixture is absent from Reader.
+7. Stop after this screen and report it. Do **not** reboot until Gate 13A passes.
+8. After Gate 13A passes, restart KOReader while the same item is pending, verify local annotation/note survives, then reconnect Wi-Fi outside the plugin.
+9. Run Sync now once: require exactly one remote create or safe reconciliation, waiting queue 0, exact note in the original Reader document.
+10. Run Sync now again unchanged: require created 0, waiting 0, exactly one Reader copy.
+11. Record Gate 13 PASS only after the full offline → restart → reconnect → second-sync sequence passes.
+12. Keep PR #16 draft and do not begin Phase P / Gate 14 until Gate 13 is physically closed.
 
 ## Existing architectural decisions still in force
 
