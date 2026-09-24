@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase O IMPLEMENTED — GATE 13A/B PASSED; GATE 13C reconnect blocked on bounded read-only diagnostic build 0.1.40**
+**Phase O IMPLEMENTED — GATE 13A/B PASSED; GATE 13C reconnect blocked on pure-Lua matcher diagnostic build 0.1.41**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -606,38 +606,50 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Branch: `phase-o/offline-queue-gate13`
 - Draft PR: **#16** — keep draft / do not merge until Gate 13 passes physically.
 - Base/integrated `main`: `54509c84bb731cfa0507865d6cc8fb300859647d` (PR #15 merge / Phase N + Gate 12 passed)
-- Current pre-final-STATUS branch HEAD: `477a7ddbce0676906d40ded26bcce428e781bfa4`; this final STATUS-only handoff commit follows it.
-- Build version under physical diagnosis: **0.1.40**.
+- Current pre-final-STATUS branch HEAD: `219e0bd2fe6c77f44c7f6648b3d6446ba63bfd61`; final STATUS/PR documentation commits follow this SHA.
+- Build version under physical diagnosis: **0.1.41**.
 - Gate 13A: **PASSED** on 0.1.38.
 - Gate 13B: **PASSED** on 0.1.38.
 - Gate 13C attempt 1 on 0.1.38: **FAIL SAFE / no usable report** after reconnect; no second Sync was run.
 - 0.1.39 read-only diagnostic: **hard exit at durable stage `parent_reads`**, remotely read-only.
-- 0.1.40 bounded diagnostic implementation:
-  - `22677bc5351cfdc43deaddd1fb86f9fa873ae5ee` / `f5e9920abbf1218ae3f91e3d35685beee3e38d94` — optional Reader LIST body bound wired only to LIST/getDocument;
-  - `5eba924bc7cc273b2cb7202e29699491f4922c28` — 1 MiB parent diagnostic cap;
-  - `87c266533f90d1f9afaee4b93aa9d61b4056bef6` — metadata-vs-bounded-HTML parent probe, text matching removed;
-  - `d9983ca47b4e06a007b27e0a5002945469fd6604` — sanitized partial-snapshot recovery UI;
-  - `a9f6afec71f9d28285857949a6e58aee0078201a`, `e7211cce4a4c516cc3d041a241812be1ffc0cff0`, `d131290ce2d0e03a0a91a142b05f83b0debea384`, `9179fb8c0aeec4c6ea55f71ab63840ccbdeefc69` — API/snapshot/UI tests and off-device JSON stub;
-  - `f757b1e7f1b315c258a8cdd8d46cec42666943b3` — version 0.1.40.
-- CI run #720: dev checks SUCCESS; tests FAILED only because the off-device harness lacked KOReader's runtime `json` module used by the new snapshot helper; no artifact produced.
-- CI run **#727** on corrected code head `9179fb8c0aeec4c6ea55f71ab63840ccbdeefc69`: **SUCCESS**.
+- 0.1.40 bounded diagnostic physical result: **PASS**.
+  - queue pending 3 / in_flight 0 / blocked 0;
+  - marker scan passed across 11 pages;
+  - active exact-marker matches: 0;
+  - all 3 parent metadata + HTML fetches passed;
+  - HTML sizes: 9,851 / 27,477 / 8,564 bytes;
+  - remote writes: none.
+- 0.1.41 matcher hardening:
+  - native `ffi/utf8proc.normalize_NFC` removed from annotation matching;
+  - exact matching unchanged;
+  - conservative Latin base+combining composition now pure Lua;
+  - unsupported canonical-equivalence cases fail safely as unmatched;
+  - whitespace/punctuation fallbacks preserved;
+  - diagnostic executes the real matcher with durable phase breadcrumbs;
+  - existing bounded parent fetch + sanitized partial snapshots retained;
+  - diagnostic remains remotely read-only and queue-read-only.
+- Relevant 0.1.41 implementation commits:
+  - `5d91162aec7e6fff889013a2bfcd7180d0b797ac` — remove native NFC FFI + matcher stage callback;
+  - `ecb07b1958d7ad694d0e556807ed6ac6e6f99d33` — execute matcher in reconnect diagnostic;
+  - `d36e936386cf5a2989f134505a33c8432925e5e5` — matcher status in diagnostic UI;
+  - `8d0041c919a0edf1d6a0faa3e13de5d20fa900a8` / `99e9b98200594c5507abf780bf0f7c01e82d5b86` — matcher/UI regression coverage;
+  - `feb11c41ffeb0fdb4d984e0d8ad398387510eb1f` — version 0.1.41.
+- CI run **#758** on `eaf9466dece5f7be31d608a3e3c003c2ec3b8c8c`: **SUCCESS**.
   - development checks: SUCCESS;
   - full Lua unit suite: SUCCESS;
   - installable ZIP build: SUCCESS;
   - package layout validation: SUCCESS;
   - artifact upload: SUCCESS.
-- Validated 0.1.40 artifact:
-  - workflow run: `36017376224` / run #727;
-  - artifact ID: `10815790280`;
-  - artifact name: `readwisereader-koplugin-26ae1018469053e0bfba13f03f8d243330eab960`;
-  - outer artifact SHA-256: `8ea1c43a38058f0f536b930fcf72810f17c37db54166a37dae65dfae1d123256`;
-  - installable inner `readwisereader.koplugin.zip` SHA-256: `683340446507b9084f8190af7a7e4db91cbf49a779fd54218fd9a0637e927ce4`;
+- Validated 0.1.41 artifact:
+  - workflow run: `36019363874` / run #758;
+  - artifact ID: `10815214175`;
+  - artifact name: `readwisereader-koplugin-3bb70eba730c69f4552ce04c4c3524a8eb64ced3`;
+  - outer artifact SHA-256: `83444d6b99770b2d6c843647c0a7ee5e4dae29631bbf93137159ee764a5c8153`;
+  - installable inner `readwisereader.koplugin.zip` SHA-256: `77b6d0b109a63916e400155259794f7c147ec600d08d9d084bbd5072e0e59252`;
   - inner ZIP `unzip -t`: **PASS**, no errors;
-  - packaged `constants.lua`: version **0.1.40**;
-  - reconnect diagnostic files present;
+  - packaged `constants.lua`: version **0.1.41**;
   - packaged ZIP contains no `tests/` entries.
-- 0.1.40 remains remotely read-only and does not invoke text matching.
-- Annotation/retry invariants: `docs/ANNOTATION_SYNC_LESSONS.md`.
+- Annotation/retry invariants: `docs/ANNOTATION_SYNC_LESSONS.md`, including pure-Lua matcher safety decision.
 
 ## Target environment
 
@@ -1536,43 +1548,49 @@ The first physical 0.1.37 run then exposed a robustness gap not represented in C
 
 ## Blockers
 
-Immediate blocker: **isolate/fix the KOReader-device text matcher path, then validate it read-only before resuming Gate 13C mutation**.
+Immediate blocker: **physical 0.1.41 pure-Lua matcher diagnostic**.
 
 Already physically proven:
 - Gate 13A: offline durable queue safety — **PASS**;
-- Gate 13B: queue + local highlight/note survive full KOReader restart offline — **PASS**.
+- Gate 13B: queue + local highlight/note survive full KOReader restart offline — **PASS**;
+- Gate 13C fetch isolation: queue/auth/marker read path passes; all three parent HTML fetches pass.
 
-Gate 13C attempt 1 on 0.1.38 failed safely after Wi-Fi reconnect with no usable sync report. Because that attempt may have reached an ambiguous create boundary, ordinary Sync must not be repeated until local queue state and exact Reader marker state are measured.
+Current queue evidence from 0.1.40:
+- pending = **3**;
+- retry_wait = 0;
+- in_flight = 0;
+- blocked = 0;
+- active exact-marker matches = **0**;
+- no evidence from the exact ownership markers that the failed 0.1.38 reconnect created any of the three pending items.
 
-Everything possible without the physical Kindle is implemented for the diagnostic:
-- read-only queue snapshot without state promotion;
-- child-process auth probe;
-- read-only exact-marker scan;
-- read-only parent-document GET + text matching;
-- durable non-sensitive stage marker for hard child exits;
-- no token/text/note/Reader IDs displayed;
-- no remote write endpoint called by the diagnostic.
+Remaining hard-exit boundary:
+- text matching / normalization path.
+- The previous matcher invoked KOReader native `ffi/utf8proc.normalize_NFC`.
+- 0.1.41 removes that native dependency from annotation matching and adds granular matcher breadcrumbs.
+- This is a strong technical lead, not yet a physically proven root cause.
 
-Gate 13 remains **OPEN**. Gate 14+ remains blocked. PR #16 stays draft.
+Gate 13 remains **OPEN**. Gate 14+ remains blocked. PR #16 stays draft. Ordinary Sync remains frozen until the 0.1.41 read-only matcher probe passes.
 
 ## Exact next steps
 
-1. Install **0.1.40** preserving settings/database/documents/sidecars.
+1. Install **0.1.41** preserving settings/database/documents/sidecars.
 2. Keep Wi-Fi **ON** and internet available.
 3. Do **not** create, edit, or delete any Gate 13 fixture.
 4. Do **not** run ordinary **Sync now**.
 5. Run **Readwise Reader → Inspect reconnect queue (Gate 13)** exactly once.
 6. Return the entire diagnostic screen.
-7. Interpret in this order:
-   - queue status/attempt counts and exact-marker matches;
-   - metadata-only parent status;
-   - bounded HTML parent status / byte count;
-   - if the child still exits, recovered sanitized snapshot + precise last stage.
-8. If every bounded HTML fetch succeeds, the remaining physical suspect is text matching memory behavior; optimize/probe matcher separately before mutation.
-9. If a parent returns `too_large`, harden production reconnect for large parent content rather than increasing limits blindly.
-10. If a bounded HTML fetch itself hard-exits, narrow the HTTP/JSON path further before mutation.
-11. Only after the failing boundary is corrected may Gate 13C resume create/reconcile processing.
-12. Gate 13 closes only after reconnect delivery succeeds and a second unchanged Sync proves created=0 / waiting=0 / exactly one remote copy.
+7. Required successful diagnostic:
+   - stage = `done_match_probe`;
+   - auth passed;
+   - queue still pending 3 / in_flight 0 / blocked 0;
+   - active marker matches still 0 unless Reader changed externally;
+   - parent metadata/HTML remain `ok`;
+   - each active item reports a terminal match status rather than child hard-exit;
+   - Remote writes = none.
+8. If the child still exits, return the recovered snapshot + exact last durable stage (for example `parent_2_match_unicode`).
+9. If 0.1.41 completes normally for all three items, the same matcher implementation is physically cleared for a controlled Gate 13C create/reconcile retry.
+10. Only after that read-only pass may ordinary Sync resume.
+11. Gate 13 closes only after the controlled reconnect delivery succeeds and a second unchanged Sync proves created=0 / waiting=0 / exactly one remote copy.
 
 ## Existing architectural decisions still in force
 
@@ -1608,7 +1626,7 @@ Implemented on branch `phase-k/annotation-sync`:
 - source-span mapping returns the exact Reader-visible substring rather than the normalized search string;
 - repeated exact or normalized candidates are blocked as `ambiguous`;
 - no-match remains `unmatched`;
-- on-device NFC uses KOReader's bundled `ffi/utf8proc`; the pure-Lua Latin composition fallback exists only so off-device CI can exercise the algorithm without KOReader's FFI module;
+- Phase K originally used KOReader's bundled `ffi/utf8proc` for on-device NFC; Gate 13C evidence later superseded that implementation in 0.1.41 with a conservative pure-Lua normalization path because native FFI is incompatible with the queue's recoverable-failure requirement;
 - new `sync/text_match_probe.lua`, isolated subprocess worker and `ui/text_match_diagnostics.lua`;
 - diagnostic uses only local sidecar read + Reader GET/LIST and explicitly reports `Remote writes: none`;
 - the old staged 0.1.23 upload action was removed from `main.lua` menu wiring until Gate 9 passes. Its implementation remains quarantined for later Phase L review, not as a current executable gate action.
@@ -2792,3 +2810,64 @@ Conclusion:
 - parent response size is not the trigger for these three fixtures;
 - active exact-marker matches are currently 0, so the read-only marker scan did not find evidence that the failed 0.1.38 reconnect attempt already created any of these 3 marker-owned remote highlights;
 - mutation remains frozen until the matcher boundary is corrected and physically validated read-only.
+
+
+## Phase O 0.1.41 pure-Lua matcher handoff
+
+### Physical evidence received
+- 0.1.40 read-only diagnostic completed normally.
+- Queue: pending 3, in_flight 0, blocked 0, succeeded 11.
+- Exact marker scan: passed, 11 pages, active marker matches 0.
+- Parent #1 metadata/html: ok / ok, 9,851 bytes.
+- Parent #2 metadata/html: ok / ok, 27,477 bytes.
+- Parent #3 metadata/html: ok / ok, 8,564 bytes.
+- Remote writes: none.
+
+### Technical conclusion
+- the 0.1.39 hard exit is downstream of parent fetch for these three items;
+- remaining boundary is the matcher;
+- native `ffi/utf8proc` is a credible unrecoverable-failure mechanism but is **not yet claimed as physically proven root cause**;
+- production-safe direction is to avoid native FFI in annotation matching and prefer conservative false negatives.
+
+### Files altered for 0.1.41
+- `readwisereader.koplugin/sync/text_match.lua`
+- `readwisereader.koplugin/sync/reconnect_probe_worker.lua`
+- `readwisereader.koplugin/ui/reconnect_diagnostics.lua`
+- `readwisereader.koplugin/tests/test_text_match.lua`
+- `readwisereader.koplugin/tests/test_reconnect_diagnostics_ui.lua`
+- `readwisereader.koplugin/constants.lua`
+- `readwisereader.koplugin/_meta.lua`
+- `CHANGELOG.md`
+- `IMPLEMENTATION_SPEC.md`
+- `PLAN.md`
+- `docs/DEVICE_TESTS.md`
+- `docs/ANNOTATION_SYNC_LESSONS.md`
+- `STATUS.md`
+
+### What was implemented
+- native NFC FFI removed from annotation matcher;
+- pure-Lua Latin canonical composition retained for supported decomposed accents;
+- exact/whitespace/punctuation safety semantics retained;
+- granular matcher stage callback added;
+- reconnect diagnostic now exercises the real matcher read-only;
+- sanitized snapshots and bounded parent HTML remain in place.
+
+### Tests/results
+- deterministic matcher tests cover:
+  - decomposed/composed Latin normalization;
+  - exact → unicode → whitespace stage ordering;
+  - invalid/non-Latin byte remains in Lua without native FFI;
+  - diagnostic match status/mode rendering;
+- CI #758: **SUCCESS**;
+- installable ZIP integrity/version/layout independently validated;
+- inner ZIP SHA-256: `77b6d0b109a63916e400155259794f7c147ec600d08d9d084bbd5072e0e59252`.
+
+### Gates
+- Gates 0–12: PASSED.
+- Gate 13A: PASSED.
+- Gate 13B: PASSED.
+- Gate 13C: OPEN; mutation frozen pending 0.1.41 matcher probe.
+- Gate 14+: blocked.
+
+### Blocker
+- one physical read-only action: install 0.1.41 and run **Inspect reconnect queue (Gate 13)** once.
