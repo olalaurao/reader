@@ -1717,6 +1717,19 @@ Automated/package validation:
 
 ### Build 0.1.37 — Gate 13A retest
 
+Automated/package validation:
+- draft PR #16;
+- code/package CI run #597: **SUCCESS**;
+- latest branch-head CI run #599: **SUCCESS**;
+- development checks, full Lua unit suite, ZIP build, package layout and artifact upload all passed;
+- latest artifact ID: `10808879560`;
+- artifact name: `readwisereader-koplugin-809bc26d5a18fc7302b9b8532a5a1fae513156d0`;
+- outer artifact SHA-256: `9accc0d982d701fb82d5df6fce4c3e519619c540649b4b4122554905f9438421`;
+- installable inner `readwisereader.koplugin.zip` SHA-256: `771bfec4484f8d0654b717f1ae0029edd87fca8d842668c28c554485db864e53`;
+- inner ZIP integrity: `unzip -t` **PASS**, no errors;
+- packaged `constants.lua` reports version **0.1.37**;
+- packaged ZIP contains no `tests/` entries.
+
 Additional automated contract in 0.1.37:
 - manual Sync discovers new create-highlight work across every **locally-present managed Reader document**, prioritizing the currently-open document;
 - remote-only documents are excluded before sidecar IO;
