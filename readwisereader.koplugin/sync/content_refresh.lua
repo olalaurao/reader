@@ -15,6 +15,15 @@ function Refresh.normalizeVisible(html, Html, TextMatch)
     return trim(visible)
 end
 
+function Refresh.compareVisible(local_html, remote_html, Html, TextMatch)
+    local local_visible = Refresh.normalizeVisible(local_html, Html, TextMatch)
+    local remote_visible = Refresh.normalizeVisible(remote_html, Html, TextMatch)
+    if local_visible == nil or remote_visible == nil then
+        return "unavailable"
+    end
+    return local_visible == remote_visible and "same" or "different"
+end
+
 function Refresh.decide(input)
     input = input or {}
 
