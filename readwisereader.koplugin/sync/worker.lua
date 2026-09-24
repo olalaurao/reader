@@ -2,6 +2,17 @@
 
 local Worker = {}
 
+local NETWORK_UNAVAILABLE_KINDS = {
+    offline = true,
+    timeout = true,
+    tls = true,
+    unknown = true,
+}
+
+local function isNetworkUnavailable(err)
+    return err ~= nil and NETWORK_UNAVAILABLE_KINDS[err.kind] == true
+end
+
 local function copyMetadata(document)
     local tags
     if type(document.tags) == "table" then
@@ -227,9 +238,11 @@ function Worker:run(options)
             sync_report.annotation_sync_status = annotation_sync_status
         end
 
-        if options.network_available == false then
-            local offline_report = {
-                mode = "offline",
+        local function localQueueOnlyReport(preflight_err)
+            local offline = options.network_available == false
+                or isNetworkUnavailable(preflight_err)
+            local local_report = {
+                mode = offline and "offline" or "remote_unavailable",
                 errors = 0,
                 metadata_pages = 0,
                 content_pages = 0,
@@ -237,17 +250,34 @@ function Worker:run(options)
                 postprocess = {},
                 watermark_advanced = false,
                 network_available = false,
+                remote_preflight = preflight_err and preflight_err.kind
+                    or (options.network_available == false and "local_offline_hint" or "unknown"),
                 storage_available_before =
                     storage_before and storage_before.available or nil,
             }
-            applyAnnotationDefaults(offline_report)
+            applyAnnotationDefaults(local_report)
             if current_scan_authoritative then
-                offline_report.annotation_sync_status = "queued_offline"
+                local_report.annotation_sync_status =
+                    offline and "queued_offline" or "queued_remote_unavailable"
             end
             local storage_after = util.diskUsage(config:getDownloadDirectory())
-            offline_report.storage_available_after =
+            local_report.storage_available_after =
                 storage_after and storage_after.available or nil
-            return offline_report
+            return local_report
+        end
+
+        if options.network_available == false then
+            return localQueueOnlyReport(nil)
+        end
+
+        -- The target PW3 can report stale/incorrect local network state while
+        -- native Kindle Airplane Mode is active. Before any queue processing,
+        -- mutation, or document request, prove real Readwise reachability with
+        -- the existing read-only auth endpoint. A failed probe leaves all local
+        -- annotation work durably queued and performs no remote write.
+        local reachable, preflight_err = reader:validateToken()
+        if not reachable then
+            return localQueueOnlyReport(preflight_err)
         end
 
         -- Process every durable create, including work left by a previous
@@ -264,6 +294,8 @@ function Worker:run(options)
         end
 
         applyAnnotationDefaults(sync_report)
+        sync_report.remote_preflight = "passed"
+        sync_report.network_available = true
         sync_report.highlights_created = queue_report.created or 0
         sync_report.highlights_reconciled = queue_report.reconciled or 0
         sync_report.highlights_unmatched =
@@ -376,5 +408,6 @@ function Worker:run(options)
 end
 
 Worker._copyMetadata = copyMetadata
+Worker._isNetworkUnavailable = isNetworkUnavailable
 
 return Worker
