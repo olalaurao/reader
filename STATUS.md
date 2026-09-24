@@ -4659,3 +4659,15 @@ Use the same stable offline fixture already proven on this PW3; **do not use nat
 11. **Stop there:** do not restart KOReader and do not turn Wi-Fi back ON until this offline queue checkpoint is reviewed.
 
 If queued/waiting is zero, remote preflight passed, or any remote create occurred, Gate 16 checkpoint 3 FAILS and restart/reconnect must not proceed.
+
+
+### Checkpoint 2 handoff CI
+- Documentation/runbook handoff commit: `b3de7324df0e454406454628e52e58c24d6e8d73`.
+- Workflow #1091: **SUCCESS**.
+- Development checks: PASS.
+- Full Lua unit suite: PASS.
+- Installable ZIP build: PASS.
+- Package layout verification: PASS.
+- Artifact upload: PASS.
+- No production plugin code/schema/package behavior changed in the checkpoint-2 handoff.
+- Current blocker remains only the controlled offline durable-queue physical checkpoint described above.
