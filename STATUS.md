@@ -6,11 +6,11 @@
 
 ## Current milestone
 
-**Phase O IMPLEMENTED — GATE 13 PENDING PHYSICAL RETEST; build 0.1.36 replaces unreliable local network detection with a read-only Readwise reachability gate**
+**Phase O IMPLEMENTED — GATE 13 PENDING PHYSICAL RETEST; build 0.1.37 adds managed-document backlog discovery on top of the read-only Readwise reachability gate**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
-Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Phase N / Gate 12 is complete and merged to `main` through PR #15 as `54509c84bb731cfa0507865d6cc8fb300859647d`. Current work is **Phase O / Gate 13 offline queue hardening**. Builds 0.1.33 and 0.1.34 both entered the online path after the user enabled native Kindle Airplane Mode. The 0.1.35 read-only spike then proved that all three attempted native Kindle properties were unavailable on this PW3 while KOReader still reported Wi-Fi/connected/online=true with no internet. Build 0.1.36 therefore no longer lets local network flags authorize remote writes: it queues local annotations first and then requires the existing read-only Readwise auth GET to succeed before queue processing, annotation mutations, or document sync. The Phase F.5 / Gate 4A record below is retained as historical evidence:
+Phase J / Gate 8 is complete and merged to `main` through PR #11 as `9010238a5683f7f4b8f2de21a87b93ad1953e4ea`. Phase K / Gate 9 passed physically and was merged through PR #12 as `e482dfb93ac882c20fdea946574835eb5a884766`. Phase L / Gate 10 passed physically and was merged through PR #13 as `5fa22b7726baa175b9149309f5480d8cce5cb39a`. Phase M / Gate 11 passed in the user's real Obsidian vault and was merged through PR #14 as `8c33cc4f84b1b31adeba8d19b7f783d569e73bc4`. Phase N / Gate 12 is complete and merged to `main` through PR #15 as `54509c84bb731cfa0507865d6cc8fb300859647d`. Current work is **Phase O / Gate 13 offline queue hardening**. Builds 0.1.33 and 0.1.34 both entered the online path after the user enabled native Kindle Airplane Mode. The 0.1.35 read-only spike then proved that all three attempted native Kindle properties were unavailable on this PW3 while KOReader still reported Wi-Fi/connected/online=true with no internet. Build 0.1.36 therefore stopped letting local network flags authorize remote writes. A follow-up repository/spec audit found the Phase L/N staging limitation still present: new create-highlight work was only discovered in the currently-open document. Build 0.1.37 closes that Phase O gap by discovering/queueing creates across every locally-present managed Reader document before the same read-only Readwise auth GET; note/delete mutation remains current-document bounded for safety. The Phase F.5 / Gate 4A record below is retained as historical evidence:
 
 ### Gate 4A migration step — KOReader upgrade completed
 
@@ -606,28 +606,34 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Branch: `phase-o/offline-queue-gate13`
 - Draft PR: **#16** — keep draft / do not merge until Gate 13 passes physically.
 - Base/integrated `main`: `54509c84bb731cfa0507865d6cc8fb300859647d` (PR #15 merge / Phase N + Gate 12 passed)
-- Phase O implementation/package HEAD under physical test: `f89204dd098a3e530990b8ced0e050b0e106d33d`
-- 0.1.36 core reachability gate:
-  - `98092cee84c55b04ea49c63bb29d6228d9f207df` — remote writes gated behind read-only reachability probe;
-  - `94afef331b34b099630e2d0cac9471105977c6e5` — UI stops trusting local network state;
-  - `671a951a6d0892870aba22baf5443880608e38a1` — explicit probe helper contract;
-  - `555d5970d3bf62962dc792cee6292a52e8a52f2c` — probe helper tests;
-  - `f89204dd098a3e530990b8ced0e050b0e106d33d` — remote-unavailable UI coverage.
-- Phase O deterministic queue/retry implementation remains based on the earlier 0.1.33 work; no duplicate-safety invariant was weakened by 0.1.36.
-- CI PR run **#553** on code/package HEAD: **SUCCESS**.
-  - development checks: SUCCESS;
-  - Lua unit tests: SUCCESS;
-  - installable ZIP build: SUCCESS;
-  - package layout: SUCCESS;
-  - artifact upload: SUCCESS.
-- 0.1.36 artifact ID: `10786469934`
-- artifact name: `readwisereader-koplugin-475dc29fd1fd180b40c0e9091c39f81b1532c901`
-- artifact digest: `sha256:7944e764ed09815ec51b1739769254b2578c2dcc8df19a832b45056215b1fb76`
-- verified installable inner ZIP SHA-256: `5be016c319586d9ca72512c82e4d98aa1ba02b505d92dc1aafd126a3901d381e`
-- local verification: outer artifact SHA matched GitHub digest; inner `readwisereader.koplugin.zip` passed `unzip -t` with no errors.
-- Artifact workflow run: `35947882140` / run #553.
-- Documentation-only commits after `f89204d...` do not change packaged plugin bytes; the physical build remains version **0.1.36**.
-- Annotation/retry invariants: `docs/ANNOTATION_SYNC_LESSONS.md`, now including the Gate 13 pre-write reachability boundary.
+- Current pre-handoff branch HEAD: `899ab50eb25ecf0a544cfa528d13030c876474f3` (0.1.37 artifact documentation); the final STATUS handoff commit follows this SHA.
+- 0.1.37 implementation/package code through `4a942ec1868a3993770bdc667e7dc19cfaa64409`:
+  - `c7ade1afcce10533e2ecd113ce2707a29ccf608a` — scanner exposes reconciled candidate identities for local queue handoff;
+  - `6b3dd8bdf2c32e48614f8a6b3377a5123221e4ec` — queueing split from sidecar IO;
+  - `d2ce2aa3bed61f06dbcfb4e68bd54b7e6b6b8122` — managed-document backlog discovery module;
+  - `50fbe949a18c7b94ba4dc13fcad94e16ea56bdc9` — backlog discovery unit tests;
+  - `9b7b8eb763dacd19a9d9a30f5017bc9580ba55cf` — worker integrates all-local managed discovery before remote preflight;
+  - `6e01b3e5c3c9e101fa858fa04f89066cc24324d9` / `ecfaf691880b5e3eaefdbbfafd4bfaca062c87a3` — filtered local-document SQL + bounded PW3 discovery;
+  - `df8afe95d9029dfc79ededefdaac35abd4315305`, `be4483e0af4ee20131779dd13f27321b8e44d215`, `136edf03dae82b6dde6966e101d8ef76847b00d0`, `4a942ec1868a3993770bdc667e7dc19cfaa64409` — storage/identity/backlog/UI regression coverage.
+- Build version: **0.1.37**.
+- CI run **#597** on the complete code/package head: **SUCCESS**.
+- CI run **#599** on the branch head after documentation-only changes: **SUCCESS**.
+- Both runs passed:
+  - development checks;
+  - full Lua unit suite;
+  - installable ZIP build;
+  - package layout validation;
+  - artifact upload.
+- Latest validated 0.1.37 artifact:
+  - workflow run: `36004909909` / run #599;
+  - artifact ID: `10808879560`;
+  - artifact name: `readwisereader-koplugin-809bc26d5a18fc7302b9b8532a5a1fae513156d0`;
+  - outer artifact SHA-256: `9accc0d982d701fb82d5df6fce4c3e519619c540649b4b4122554905f9438421`;
+  - installable inner `readwisereader.koplugin.zip` SHA-256: `771bfec4484f8d0654b717f1ae0029edd87fca8d842668c28c554485db864e53`;
+  - inner ZIP `unzip -t`: **PASS**, no errors;
+  - packaged `constants.lua`: version **0.1.37**;
+  - packaged ZIP contains no `tests/` entries.
+- Annotation/retry invariants: `docs/ANNOTATION_SYNC_LESSONS.md`, including corrected Gate 12 destructive cross-API identity, Gate 13 pre-write reachability, and the create-backlog-vs-mutation-scope boundary.
 
 ## Target environment
 
@@ -1505,6 +1511,7 @@ Next physical gate: **Gate 2**, after Phase C storage and Phase D Reader metadat
 - Strip query parameters from request log URLs and never log request headers.
 - Do not use KOReader network helpers that may toggle/connect Wi-Fi.
 - Phase O: local Kindle/KOReader network booleans are advisory only on the target PW3. Remote writes require the worker's read-only Readwise auth probe to succeed after local annotation queueing.
+- Phase O backlog discovery is broader than mutation scope: new create-highlight work is discovered across all locally-present managed Reader documents, but note update / optional remote delete remain bounded to the current document for this gate.
 
 ## Spec deviations / deliberate canonical changes
 
@@ -1518,57 +1525,65 @@ A pre-existing Phase K branch state had incorrectly grouped remote highlight cre
 
 Gate 13 produced another deliberate canonical correction on 2026-09-23. The earlier preflight design assumed local KOReader/Kindle network state could determine whether remote work was safe to begin. Physical build 0.1.35 disproved that on the target PW3: native Airplane Mode properties were unavailable while KOReader still reported Wi-Fi/connected/online=true with no internet. The spec now requires local annotation queueing first and a **read-only Readwise auth GET inside the worker before any remote write**. This is a safety correction, not a scope expansion; Wi-Fi control remains forbidden.
 
+A 2026-09-24 audit against the Phase L/N handoff found one non-device Phase O gap before retesting: create discovery was still current-document-only even though the canonical spec assigned broader offline/backlog discovery to Phase O. Build 0.1.37 corrects that by scanning only locally-present managed documents, skipping unsafe/non-authoritative sidecars without inferring deletion, and queueing reconciled candidates before the remote probe. This does **not** broaden note/delete mutation scope.
+
 ## Blockers
 
-Immediate blocker: **physical Gate 13A retest on build 0.1.36**.
+Immediate blocker: **physical Gate 13A retest on build 0.1.37**.
 
-The 0.1.35 read-only device spike is complete and proved the prior local network detector unsafe:
-- native `airplaneMode`, `wirelessEnable`, and `wifid enable`: unavailable;
-- KOReader `isWifiOn/isConnected/isOnline`: true despite no internet/native Airplane Mode;
-- diagnostic itself performed no remote request/write.
+Everything that does not require the physical Kindle is complete for this gate:
+- durable create queue / idempotency / retry_wait and stale-in-flight recovery;
+- timeout/5xx ambiguity reconciliation without blind POST retry;
+- 429/auth retry safety;
+- read-only remote reachability gate before any write;
+- create backlog discovery across all locally-present managed Reader documents;
+- current-document prioritization;
+- remote-only row exclusion before sidecar IO;
+- safe skip of missing/non-authoritative/malformed sidecars;
+- no second sidecar read between identity reconciliation and queue preparation;
+- optimized local-managed SQL query for PW3;
+- diagnostic counters for backlog scan/skip/error state;
+- full automated suite + package build on CI;
+- installable 0.1.37 ZIP integrity/version/layout verified.
 
-Implemented for 0.1.36:
-- ordinary Sync now scans the current managed sidecar and durably queues create intent first;
-- UI local network state no longer authorizes remote work;
-- worker calls the existing read-only Reader auth endpoint before queue processing;
-- failed probe performs no remote write, leaves waiting queue intact, and advances no document watermark;
-- successful probe is required before create queue processing, note/delete mutation, or document feed sync;
-- 429/timeout/5xx/auth/stale-in-flight duplicate-safety invariants from Phase O remain unchanged.
-
-Physical proof still required:
-- Airplane Mode/no internet: new fixture must queue, create 0, process 0, waiting >=1, metadata/content pages 0;
-- restart KOReader with that same item pending;
-- reconnect Wi-Fi outside the plugin;
-- exactly one remote create or exact reconciliation;
-- second unchanged sync creates zero duplicates;
-- local annotation/note survives end-to-end.
+Gate 13 remains **OPEN** because the spec requires real-device proof of the persistence boundary. Do not begin Phase P / Gate 14 and do not merge PR #16 before this passes.
 
 ## Exact next steps
 
-1. Install the 0.1.36 artifact from PR run #553; preserve existing settings/database/documents/sidecars.
+1. Install **0.1.37** from the validated artifact; preserve settings/database/documents/sidecars.
 2. Keep native Kindle Airplane Mode ON / no internet.
 3. In a clean managed article, create **one new unique** highlight with note:
    - `gate13 probe [[Foucault]]`
-   - next line: `#queue-test-0136`
+   - next line: `#queue-test-0137`
 4. Close/reopen the article once to flush the sidecar; leave it open.
 5. Run ordinary **Sync now** exactly once.
 6. Gate 13A passes only if:
    - Mode = `offline / local queue`;
    - Remote preflight = `offline`, `timeout`, `tls`, or `unknown`;
+   - Managed annotation documents scanned >= **1**;
+   - Authoritative annotation sidecars >= **1**;
+   - Managed-document highlights scanned >= **1**;
    - Highlights created = **0**;
    - Create queue items processed = **0**;
    - Highlight creates queued durably >= **1**;
    - Create queue waiting after sync >= **1**;
    - Metadata pages = **0**;
    - Content pages = **0**;
-   - no watermark advance;
-   - new fixture is absent from Reader.
-7. Stop after this screen and report it. Do **not** reboot until Gate 13A passes.
-8. After Gate 13A passes, restart KOReader while the same item is pending, verify local annotation/note survives, then reconnect Wi-Fi outside the plugin.
-9. Run Sync now once: require exactly one remote create or safe reconciliation, waiting queue 0, exact note in the original Reader document.
-10. Run Sync now again unchanged: require created 0, waiting 0, exactly one Reader copy.
-11. Record Gate 13 PASS only after the full offline → restart → reconnect → second-sync sequence passes.
-12. Keep PR #16 draft and do not begin Phase P / Gate 14 until Gate 13 is physically closed.
+   - no document watermark advance;
+   - the new fixture is absent from Reader.
+7. **Stop after this screen and report it. Do not reboot yet unless Gate 13A passes.**
+8. After Gate 13A passes, restart KOReader while the same item remains pending and verify the local highlight/note survived.
+9. Reconnect Wi-Fi outside the plugin and run Sync now once:
+   - exactly one remote create **or** safe reconciliation;
+   - waiting queue = **0**;
+   - exact note under the original Reader document;
+   - no duplicate.
+10. Run Sync now again unchanged:
+   - Highlights created = **0**;
+   - queue waiting = **0**;
+   - Reader still has exactly one copy;
+   - local annotation/note remain.
+11. Only then record Gate 13 PASS, mark Phase O complete, make PR #16 ready/merge through normal review, and proceed to Phase P / Gate 14.
 
 ## Existing architectural decisions still in force
 
@@ -2140,3 +2155,69 @@ Gate 13 remains **OPEN**. Exact next physical step after CI/artifact:
 7. reconnect Wi-Fi and prove exactly-once delivery + no-op second sync.
 
 Do not advance to Phase P / Gate 14 until this Gate 13 persistence/reconnect sequence passes physically.
+
+
+## Phase O 0.1.37 session handoff
+
+### Files altered in this session
+- `readwisereader.koplugin/sync/annotations.lua`
+- `readwisereader.koplugin/sync/annotation_upload.lua`
+- `readwisereader.koplugin/sync/annotation_backlog.lua` (new)
+- `readwisereader.koplugin/sync/worker.lua`
+- `readwisereader.koplugin/storage/documents.lua`
+- `readwisereader.koplugin/ui/sync.lua`
+- `readwisereader.koplugin/constants.lua`
+- `readwisereader.koplugin/_meta.lua`
+- `readwisereader.koplugin/tests/test_annotation_backlog.lua` (new)
+- `readwisereader.koplugin/tests/test_annotation_sync.lua`
+- `readwisereader.koplugin/tests/test_storage_repositories.lua`
+- `readwisereader.koplugin/tests/test_sync_ui.lua`
+- `readwisereader.koplugin/tests/run.lua`
+- `CHANGELOG.md`
+- `IMPLEMENTATION_SPEC.md`
+- `PLAN.md`
+- `docs/ANNOTATION_SYNC_LESSONS.md`
+- `docs/DEVICE_TESTS.md`
+- `STATUS.md`
+
+### What was implemented
+- closed Phase O's outstanding current-document-only create-discovery gap;
+- all locally-present Reader-managed documents now participate in local create backlog discovery during manual Sync;
+- current document is scanned first;
+- remote-only documents are excluded in SQL before sidecar work;
+- identity reconciliation and queue preparation share one authoritative sidecar scan;
+- individual scan failures do not abort other managed documents and do not imply deletion;
+- remote writes remain gated by the read-only Readwise auth probe;
+- note/delete remote mutation remains current-document-only.
+
+### Tests executed
+- CI run #577 after initial backlog module: **SUCCESS**;
+- CI run #584 after storage/identity/backlog regression additions progressed through dev checks/tests/package successfully before later commits superseded it;
+- CI run #597 on the complete 0.1.37 code/package head: **SUCCESS**;
+- CI run #599 after documentation-only follow-up: **SUCCESS**;
+- latest validated artifact downloaded and checked locally:
+  - outer SHA matches GitHub artifact digest;
+  - inner installable ZIP SHA `771bfec4484f8d0654b717f1ae0029edd87fca8d842668c28c554485db864e53`;
+  - `unzip -t` PASS;
+  - package contains version 0.1.37;
+  - no tests packaged.
+
+### Gates
+- Gates 0–12: remain **PASSED**.
+- Gate 13: **OPEN / physical test required**.
+- Gates 14+: **not started**; blocked by Gate 13.
+
+### Bugs / failures found
+- no new code failure remained after automated testing;
+- documentation had one contradictory stale Gate 12 rule requiring Reader source marker for destructive delete; corrected to the physically-proven cross-API identity rule;
+- implementation audit found Phase O create discovery still current-document-only; corrected in 0.1.37.
+
+### Decisions / deviations
+- no product-scope deviation;
+- spec clarified to match its earlier Phase L/N handoff: broad discovery applies to create backlog, not to destructive mutation scope;
+- no firmware/KOReader update;
+- no Wi-Fi control added;
+- no credentials/private content committed.
+
+### Blocker
+- only remaining blocker is the required physical PW3 Gate 13 sequence above.
