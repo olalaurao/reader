@@ -152,7 +152,15 @@ function DocumentsSync:_updateExistingMetadata(existing, document, seen_at, repo
             self:_syncCollection(existing, document, report)
         end
         if remote_changed then
-            -- Content replacement is intentionally deferred to Phase Q.
+            -- Phase Q safe baseline: a remote revision never overwrites an
+            -- existing local document implicitly. Persist the revision as
+            -- pending review before advancing metadata state so the signal
+            -- cannot disappear on the next incremental Sync.
+            self.repository:markContentRefreshPending(
+                existing.reader_id,
+                document.updated_at,
+                seen_at
+            )
             report.content_refresh_deferred = report.content_refresh_deferred + 1
         end
     end
@@ -386,6 +394,7 @@ function DocumentsSync:sync(options)
         metadata_invalidate_paths = {},
         location_moved = 0,
         content_refresh_deferred = 0,
+        content_refresh_pending_total = 0,
         filtered_out = 0,
         unsupported_categories = 0,
         nonretryable_skipped = 0,
@@ -437,6 +446,8 @@ function DocumentsSync:sync(options)
     local completed_epoch = self.now()
     local completed_at = self.format_time(completed_epoch)
     report.completed_at = completed_at
+    report.content_refresh_pending_total =
+        self.repository:countContentRefreshPending()
     self.sync_meta:set("document_scan_completed_at", completed_at)
 
     if report.errors == 0 then
@@ -472,6 +483,7 @@ end
 DocumentsSync.DEFAULT_OVERLAP_SECONDS = DEFAULT_OVERLAP_SECONDS
 DocumentsSync.HTML_PAGE_LIMIT = HTML_PAGE_LIMIT
 DocumentsSync.METADATA_PROJECTION_VERSION = METADATA_PROJECTION_VERSION
+DocumentsSync.SUPPORTED_CATEGORIES = SUPPORTED_CATEGORIES
 DocumentsSync.SUPPORTED_CATEGORIES = SUPPORTED_CATEGORIES
 DocumentsSync._metadataChanged = metadataChanged
 DocumentsSync._filterScope = filterScope
