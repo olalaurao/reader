@@ -679,6 +679,73 @@ return function()
     end
 
     do
+        -- Intermittent network failure after one metadata item: durable local
+        -- metadata/pending state may be written, but the global watermark must
+        -- remain unchanged so the next Sync can safely replay the overlap.
+        local repository = fakeRepository({
+            a = {
+                reader_id = "a",
+                category = "article",
+                location = "new",
+                title = "Old",
+                remote_updated_at = "u1",
+                materialized_remote_updated_at = "u1",
+                local_path = "/Readwise/a.html",
+                local_format = "html",
+                is_local_present = true,
+                is_managed = true,
+            },
+        })
+        local meta = fakeMeta({
+            document_watermark = "T001000",
+            document_query_after = "T000995",
+            document_filter_scope = "locations=later,new;categories=article",
+            metadata_projection_version = PROJECTION,
+        })
+        local first_reader = {
+            iterateDocuments = function(_, options, callback)
+                assert(options.updated_after == "T000995")
+                callback(doc("a", "new", "Renamed during flaky network", "u2"))
+                return nil, { kind = "timeout", retryable = true }
+            end,
+        }
+        local first_sync, repo = newSync{
+            reader = first_reader,
+            repository = repository,
+            meta = meta,
+            now_values = { 1100, 1101 },
+        }
+        local first_report, first_err = first_sync:sync{}
+        assert(first_report == nil)
+        assert(first_err.kind == "timeout")
+        assert(meta.values.document_watermark == "T001000")
+        assert(meta.values.document_query_after == "T000995")
+        assert(repo.rows.a.remote_updated_at == "u2")
+        assert(repo.rows.a.content_refresh_pending == true)
+
+        local second_reader = {
+            iterateDocuments = function(_, options)
+                assert(options.updated_after == "T000995")
+                return { pages = 1, duplicates = 0, malformed = 0 }
+            end,
+        }
+        local second_sync = newSync{
+            reader = second_reader,
+            repository = repo,
+            meta = meta,
+            now_values = { 1110, 1111 },
+        }
+        local second_report, second_err = second_sync:sync{}
+        assert(second_err == nil)
+        assert(second_report.mode == "incremental")
+        assert(second_report.content_refresh_pending_total == 1)
+        assert(meta.values.document_watermark == "T001110")
+        assert(meta.values.document_query_after == "T001105")
+        assert(repo.rows.a.content_refresh_pending == true,
+            "flaky-network replay must not erase durable refresh evidence")
+    end
+
+    do
         local meta = fakeMeta({
             document_watermark = "T001000",
             document_query_after = "T000995",
