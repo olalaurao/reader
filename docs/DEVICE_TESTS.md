@@ -1510,3 +1510,31 @@ Use the **same tombstoned target** from Gate 12C/12D attempt 1. Do not create an
    - control highlight remains.
 8. Immediately turn **Propagate highlight deletions OFF** again.
 9. If cross-API identity is not verified, delete remains 0, verification is pending, or any error/block appears: turn the setting OFF and stop.
+
+
+### Gate 12D — deliberate opt-in deletion — PASS
+
+Build: **0.1.32**
+
+Observed:
+- the tombstoned target disappeared from Reader;
+- the control highlight remained in Reader;
+- **Propagate highlight deletions** was turned OFF again.
+
+Follow-up Sync now with propagation OFF:
+- current-document highlights scanned: **2**;
+- highlights created: **0**;
+- highlights already linked: **2**;
+- local highlight deletions detected: **0**;
+- remote highlight deletions: **0**;
+- deletions retained remotely: **0**;
+- annotation mutations blocked safely: **0**;
+- delete cross-API identity verified: **0** (no pending delete on this confirmation run);
+- Reader delete verification reads: **0**;
+- Reader deletions verified: **0**;
+- delete verification pending: **0**;
+- annotation remote errors: **0**.
+
+The successful destructive-run diagnostic counters were not captured in a photo, so they are intentionally not reconstructed. The end state plus the clean follow-up prove that the target tombstone was reconciled and no unintended deletion remained pending.
+
+**Gate 12D PASS. Gate 12 PASS.**
