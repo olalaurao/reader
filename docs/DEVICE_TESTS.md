@@ -1947,3 +1947,44 @@ Proceed to Gate 13C reconnect/exactly-once test.
    - queue waiting = 0;
    - exactly one Reader copy remains;
    - local annotations remain intact.
+
+
+### Gate 13C attempt 1 — build 0.1.38 — FAIL SAFE / no usable report
+
+Physical result:
+- Gate 13A and Gate 13B had already passed;
+- Wi-Fi was re-enabled from KOReader outside the plugin;
+- ordinary **Sync now** was run once;
+- UI returned only `Document sync failed safely`;
+- no second Sync was run after this failure.
+
+Do not infer that no remote write happened. The failed child process may have exited before or after mutating one queue item, and the generic UI does not establish the boundary.
+
+### Build 0.1.39 — read-only reconnect diagnosis
+
+Install 0.1.39 preserving DB/settings/documents/sidecars.
+
+With Wi-Fi ON:
+1. **Do not run Sync now.**
+2. Do not create/edit/delete any Gate 13 fixture.
+3. Run **Readwise Reader → Inspect reconnect queue (Gate 13)** once.
+4. This diagnostic is remotely read-only:
+   - local durable queue SELECT only;
+   - Reader auth GET;
+   - Reader highlight LIST for exact KOReader ownership markers;
+   - Reader parent GET for text-match readiness;
+   - no POST/PATCH/DELETE.
+5. Return the whole diagnostic screen.
+
+The diagnostic reports:
+- last completed stage;
+- auth status inside the KOReader subprocess;
+- queue counts by `pending/retry_wait/in_flight/blocked/succeeded`;
+- exact remote marker matches for active queue rows;
+- read-only parent-document fetch/match status;
+- recent queue rows without exposing their text/note/Reader IDs.
+
+If the subprocess ends without a report, the UI reads a tiny local durable stage marker and shows:
+`Last durable stage: <stage>`.
+
+Do not resume mutation until this read-only evidence is reviewed.
