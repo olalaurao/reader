@@ -67,7 +67,10 @@ return function()
             end,
         }
         local backlog = Backlog:new{
-            documents = { listManaged = function() return docs end },
+            documents = {
+                listManagedLocal = function() return docs end,
+                listManaged = function() error("filtered local query must be preferred") end,
+            },
             scanner = scanner,
             uploader = uploader,
         }
