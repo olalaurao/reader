@@ -2730,7 +2730,7 @@ Physical result:
 
 Phase P is complete.
 
-## Phase Q — content refresh safety — Q1-A + Q2 ARTICLE PASS; Q1-B RAW PENDING; GATE 15 OPEN
+## Phase Q — content refresh safety — GATE 15 PASSED COMPLETE
 
 ### Q1 — build 0.1.45 read-only / no-replacement spike
 
@@ -2832,7 +2832,7 @@ This physically authorizes Q2 to acknowledge only the exact pending revision who
 
 PDF physical result: **PASS COMPLETE** on the target PW3 / KOReader v2026.07.1 / build 0.1.46.
 
-EPUB baseline physical result: **PASS** on the same target/build.
+EPUB physical result: **PASS COMPLETE** on the same target/build.
 - existing plugin-managed original EPUB identified and opened;
 - diagnostic reported raw EPUB semantics (`category=epub`, `local_format=epub`);
 - local file present;
@@ -2842,7 +2842,14 @@ EPUB baseline physical result: **PASS** on the same target/build.
 - automatic replacement remained disabled;
 - remote/local writes were none.
 
-The remaining EPUB proof is the same-ID title-only revision + one Sync + post-Sync preservation/diagnostic validation.
+The same-ID title-only EPUB revision + one Sync + post-Sync preservation/diagnostic validation also passed physically:
+- raw EPUB revision remained pending/deferred;
+- no replacement content download/install occurred;
+- EPUB reopened/reflowed normally;
+- sidecar/progress/highlights/notes remained intact;
+- post-Sync diagnostic remained `not_attempted_raw` + `defer_raw_keep_local`, pending=yes, replacement disabled, remote/local writes none.
+
+Therefore **Gate 15 is PASSED COMPLETE**. Phase R / Gate 16 is unblocked.
 - existing plugin-managed original PDF identified and opened;
 - diagnostic reported raw PDF semantics (`category=pdf`, `local_format=pdf`);
 - remote probe passed;
@@ -3084,15 +3091,25 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Complete the **last Gate 15 Q1-B EPUB preservation step** on build 0.1.46. EPUB baseline is already physically passed.
+Begin **Phase R / Gate 16 hardening** from the merged Gate 15 baseline.
 
-1. keep firmware, KOReader and plugin build unchanged;
-2. on the exact already-local original EPUB used for the baseline, change **only the title** in Reader;
-3. do not delete/re-add/re-save/move/replace the EPUB or alter annotations;
-4. run ordinary Sync exactly once;
-5. require raw EPUB revision retained/pending, `Refresh articles compared = 0` for this raw item, `Metadata-only revisions acknowledged = 0` for it, `Content pages = 0`, no replacement download/install, no refresh remote-read error, and no fatal Sync error;
-6. reopen the same EPUB and verify open/reflow plus sidecar/progress/highlights/notes remain intact;
-7. run read-only Gate 15 diagnostic again; require refresh pending=yes, current Reader revision=DB revision, comparison `not_attempted_raw`, decision `defer_raw_keep_local`, replacement=no, remote/local writes=none;
-8. return the Sync report + diagnostic result;
-9. if this passes, Gate 15 may close and Phase R / Gate 16 becomes unblocked;
-10. do not begin Gate 16 before recording the physical EPUB result.
+Order is mandatory:
+1. large library;
+2. low disk;
+3. malformed document;
+4. huge document;
+5. Unicode;
+6. 429 / Retry-After;
+7. intermittent Wi-Fi / retryable network failure;
+8. force-close recovery;
+9. reboot recovery;
+10. migration;
+11. rollback;
+12. debug-log review for secrets.
+
+Rules:
+- implement and automate deterministic cases before asking for PW3 physical testing;
+- preserve existing documents, sidecars, annotations, queue and watermarks;
+- no automatic destructive cleanup;
+- no firmware/KOReader update;
+- do not mark Gate 16 passed until the release-candidate hardening sequence is physically stable on the target PW3.

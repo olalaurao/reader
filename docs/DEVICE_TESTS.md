@@ -2816,3 +2816,21 @@ Expected:
 - no replacement download/install;
 - no Sync errors;
 - post-Sync diagnostic: refresh pending yes, current Reader revision=DB revision, `not_attempted_raw`, `defer_raw_keep_local`, replacement no, remote/local writes none.
+
+
+### Gate 15 Q1-B original EPUB title-only revision — PASS
+
+User confirmed the final raw EPUB preservation sequence passed:
+- same already-local plugin-managed original EPUB;
+- Reader title-only revision;
+- one ordinary Sync;
+- raw revision retained/deferred;
+- no replacement download/content install;
+- no Sync error;
+- EPUB reopened/reflowed normally;
+- sidecar/progress/highlights/notes remained intact;
+- post-Sync diagnostic: refresh pending yes, current Reader revision=DB revision, comparison `not_attempted_raw`, decision `defer_raw_keep_local`, replacement no, remote/local writes none.
+
+### Gate 15 — PASS COMPLETE
+
+Article Q1-A/Q2, original PDF and original EPUB preservation are all physically passed on the target PW3. Phase R / Gate 16 hardening is unblocked.

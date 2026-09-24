@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase Q / Gate 15 — Q1-A + Q2 ARTICLE PASSED; Q1-B PDF COMPLETE; EPUB BASELINE PASSED; EPUB METADATA-REVISION PRESERVATION IS THE ONLY REMAINING GATE 15 BLOCKER**
+**Phase Q / Gate 15 — PASSED COMPLETE; Phase R / Gate 16 hardening is now unblocked**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
@@ -4308,3 +4308,33 @@ Only one Gate 15 physical sequence remains:
 3. if PASS, close Gate 15 in STATUS/spec/plan/device tests;
 4. merge/close Phase Q as appropriate;
 5. only then begin Phase R / Gate 16 hardening in canonical order.
+
+
+## Gate 15 Q1-B original EPUB metadata revision — PHYSICAL PASS
+
+User confirmed the final EPUB title-only same-ID revision sequence passed all required criteria on build 0.1.46.
+
+Accepted physical result:
+- only the Reader title was changed for the same already-local original EPUB;
+- one ordinary Sync completed successfully;
+- the raw EPUB revision remained pending/deferred rather than being treated as an HTML metadata-only acknowledgement;
+- no replacement content page/download/install occurred;
+- no refresh remote-read error or fatal Sync error occurred;
+- the same local EPUB reopened/reflowed normally;
+- sidecar/progress/highlights/notes remained intact;
+- post-Sync diagnostic remained raw: refresh pending=yes, current Reader revision=DB revision, comparison `not_attempted_raw`, decision `defer_raw_keep_local`, automatic replacement=no, remote/local writes=none.
+
+### Gate 15 final result
+- Q1-A article safety: PASS.
+- Q2 article metadata-only acknowledgement + idempotency: PASS.
+- Q1-B original PDF preservation: PASS.
+- Q1-B original EPUB preservation: PASS.
+- Existing local content bytes/sidecars were never auto-replaced.
+- **Gate 15 / Phase Q is PASSED COMPLETE.**
+- Phase R / Gate 16 is now unblocked.
+
+### Next implementation state
+- close/merge Phase Q PR #18 after final CI;
+- branch Phase R from merged `main`;
+- harden in spec order: large library, low disk, malformed document, huge document, Unicode, 429, intermittent Wi-Fi, force-close, reboot, migration, rollback, debug-log secret review;
+- do all deterministic/off-device tests first; stop only when the next item genuinely requires a PW3 physical test.

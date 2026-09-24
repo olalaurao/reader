@@ -1315,18 +1315,29 @@ Não:
 
 ## 46. Próximo passo
 
-A **Phase Q / Gate 15** está fechada para artigos e PDF; o baseline EPUB raw também passou. Resta somente provar a preservação do EPUB após uma revisão metadata-only.
+A **Phase Q / Gate 15 passou completa** no PW3 alvo.
 
-Já passou fisicamente:
-- artigo Q1-A: revisão metadata-only detectada sem replacement e com estado local preservado;
-- artigo Q2: pending reconhecido somente após texto visível equivalente e segundo Sync no-op;
-- PDF original: baseline raw + revisão somente de título + Sync retendo pending sem replacement + preservação local;
-- EPUB original: baseline raw com `not_attempted_raw`, `defer_raw_keep_local`, replacement desabilitado e zero writes.
+Validado:
+- artigo metadata-only sem perda local e com acknowledgement idempotente;
+- PDF original retido sem replacement após revisão de título;
+- EPUB original retido sem replacement após revisão de título;
+- progresso, sidecars, highlights e notas preservados;
+- replacement automático continua desabilitado.
 
-Próximo teste físico:
-1. alterar somente o título desse mesmo EPUB no Reader;
-2. rodar Sync uma vez;
-3. exigir raw revision retained/deferred, nenhum replacement download/content page e nenhum erro;
-4. reabrir EPUB e confirmar reflow/sidecar/progresso/highlights/notas intactos;
-5. diagnóstico pós-Sync deve continuar `not_attempted_raw` / `defer_raw_keep_local`, pending=yes, replacement=no;
-6. se passar, fechar Gate 15 e iniciar Phase R / Gate 16.
+Fase atual: **Phase R / Gate 16 — hardening**.
+
+Ordem:
+1. biblioteca grande;
+2. pouco armazenamento;
+3. documento malformado;
+4. documento enorme;
+5. Unicode;
+6. 429;
+7. Wi-Fi/rede intermitente;
+8. force-close;
+9. reboot;
+10. migration;
+11. rollback;
+12. revisão de logs/redaction.
+
+Fazer primeiro todos os testes determinísticos/off-device; pedir teste físico somente quando um item depender realmente do PW3.
