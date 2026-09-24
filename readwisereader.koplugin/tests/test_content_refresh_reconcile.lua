@@ -175,6 +175,45 @@ return function()
         assert(report.pending_after == 2)
         assert(#cleared == 0)
         assert(#gets == 0, "raw revisions must not fetch replacement content")
+
+        local second_report = reconciler:run()
+        assert(second_report.raw_retained == 2)
+        assert(second_report.pending_after == 2)
+        assert(#cleared == 0)
+        assert(#gets == 0,
+            "repeated Sync must keep raw revisions pending without replacement GETs")
+    end
+
+    do
+        local reconciler, _, cleared, gets = newHarness{
+            rows = {
+                {
+                    reader_id = "article-missing-local",
+                    category = "article",
+                    local_format = "html",
+                    local_path = "/missing.html",
+                    is_local_present = true,
+                    content_refresh_pending = true,
+                    content_refresh_remote_updated_at = "u2",
+                },
+            },
+            files = {},
+            remote = {
+                ["article-missing-local"] = {
+                    id = "article-missing-local",
+                    updated_at = "u2",
+                    html_content = "<p>Remote text</p>",
+                },
+            },
+        }
+        local report = reconciler:run()
+        assert(report.local_missing == 1)
+        assert(report.article_checked == 0)
+        assert(report.metadata_only_acknowledged == 0)
+        assert(report.pending_after == 1)
+        assert(#cleared == 0)
+        assert(#gets == 0,
+            "missing local bytes must retain pending without a remote comparison")
     end
 
     do
