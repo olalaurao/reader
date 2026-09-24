@@ -25,6 +25,8 @@ local tests = {
     "tests.test_annotation_upload",
     "tests.test_annotation_mutations",
     "tests.test_archive",
+    "tests.test_content_refresh",
+    "tests.test_content_refresh_probe_worker",
     "tests.test_api_interop",
     "tests.test_filenames",
     "tests.test_html",
@@ -44,6 +46,7 @@ local tests = {
     "tests.test_reconnect_probe_worker",
     "tests.test_reconnect_diagnostics_ui",
     "tests.test_finished_diagnostics_ui",
+    "tests.test_content_refresh_diagnostics_ui",
     "tests.test_storage_db",
     "tests.test_storage_repositories",
 }
