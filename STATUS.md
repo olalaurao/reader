@@ -653,7 +653,10 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
   - packaged ZIP contains no `tests/` entries.
 - Documentation-only commits after the 0.1.42 package head do not change installable plugin bytes.
 - Current pre-final-STATUS branch HEAD: `0de519ba8d0d950cb6f5b1140b552acded31cac1`; this STATUS-only handoff commit follows it.
-- CI run **#816** on that documentation head: **SUCCESS** (development checks, full Lua suite, package/layout, artifact upload).
+- CI run **#816** on the documentation head: **SUCCESS** (development checks, full Lua suite, package/layout, artifact upload).
+- Final pre-handoff HEAD: `50624f2c14be85b57e6270da1fd0eba97488fbc6`.
+- Final pre-handoff CI run **#818** on that HEAD: **SUCCESS** across development checks, full Lua suite, package/layout and artifact upload.
+- This final STATUS-only handoff commit follows `50624f2c...`; installable plugin bytes remain the validated 0.1.42 artifact from code/package HEAD `84afff1d...`.
 - No archive PATCH, queue mutation, local deletion, or finished-state write has been implemented yet.
 - Canonical candidate under physical validation: `summary.status == "complete"`.
 
