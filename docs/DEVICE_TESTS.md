@@ -2076,3 +2076,32 @@ Read-only reconnect diagnostic completed normally:
 - remote writes none.
 
 This rules out parent LIST/JSON/HTML retrieval as the physical hard-exit boundary for these fixtures. The remaining 0.1.39-only work was text matching/normalization, so the next spike must exercise that path read-only and in finer stages before Gate 13C mutation resumes.
+
+
+### Build 0.1.41 — pure-Lua matcher reconnect diagnosis
+
+Physical prerequisite already proven by 0.1.40:
+- queue pending 3;
+- active remote marker matches 0;
+- all 3 pending parent metadata/HTML fetches pass;
+- HTML sizes 9,851 / 27,477 / 8,564 bytes;
+- remote writes none.
+
+0.1.41 diagnostic change:
+- annotation matcher no longer loads/calls KOReader native `ffi/utf8proc.normalize_NFC`;
+- exact match unchanged;
+- conservative Latin canonical composition is pure Lua;
+- whitespace/punctuation fallback remains;
+- diagnostic invokes the real matcher and persists each matcher phase;
+- parent body cap remains 1 MiB;
+- no POST/PATCH/DELETE;
+- no queue state mutation/promotion.
+
+Physical instructions:
+1. install 0.1.41 preserving DB/settings/documents/sidecars;
+2. keep Wi-Fi ON;
+3. do not run Sync now;
+4. do not create/edit/delete Gate 13 annotations;
+5. run **Inspect reconnect queue (Gate 13)** exactly once;
+6. return the whole diagnostic screen;
+7. if the child exits, return the recovered partial snapshot and exact last durable stage.
