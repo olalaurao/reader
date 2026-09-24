@@ -1536,7 +1536,7 @@ The first physical 0.1.37 run then exposed a robustness gap not represented in C
 
 ## Blockers
 
-Immediate blocker: **physical 0.1.40 bounded parent-fetch reconnect diagnostic**.
+Immediate blocker: **isolate/fix the KOReader-device text matcher path, then validate it read-only before resuming Gate 13C mutation**.
 
 Already physically proven:
 - Gate 13A: offline durable queue safety — **PASS**;
@@ -2763,3 +2763,32 @@ Next build must split those boundaries read-only before changing production muta
 
 ### Blocker
 - physical 0.1.40 **Inspect reconnect queue (Gate 13)** screen.
+
+
+### Gate 13C 0.1.40 bounded parent-fetch result — PASS
+
+Physical diagnostic result with Wi-Fi ON and **no Sync now**:
+- Stage: `done_fetch_only`;
+- Auth probe: `passed`;
+- Queue pending: **3**;
+- Queue retry_wait: **0**;
+- Queue in_flight: **0**;
+- Queue blocked: **0**;
+- Queue succeeded: **11**;
+- Marker scan: `passed`;
+- Marker scan pages: **11**;
+- Active marker matches: **0**;
+- Parent probe body cap: **1,048,576 bytes**;
+- Parent probe mode: `bounded_fetch_only`;
+- active item #1: parent metadata `ok`, parent HTML `ok`, HTML **9,851 bytes**;
+- active item #2: parent metadata `ok`, parent HTML `ok`, HTML **27,477 bytes**;
+- active item #3: parent metadata `ok`, parent HTML `ok`, HTML **8,564 bytes**;
+- Text matching: not run;
+- Remote writes: none.
+
+Conclusion:
+- **bounded parent fetch passes for all 3 pending items**;
+- the 0.1.39 hard exit at `parent_reads` is therefore isolated to the work that 0.1.40 removed: text matching / its normalization path;
+- parent response size is not the trigger for these three fixtures;
+- active exact-marker matches are currently 0, so the read-only marker scan did not find evidence that the failed 0.1.38 reconnect attempt already created any of these 3 marker-owned remote highlights;
+- mutation remains frozen until the matcher boundary is corrected and physically validated read-only.
