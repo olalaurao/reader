@@ -53,7 +53,14 @@ local function errorText(err)
 end
 
 local function summaryText(report)
-    local mode = report.mode == "full" and _("full") or _("incremental")
+    local mode
+    if report.mode == "full" then
+        mode = _("full")
+    elseif report.mode == "offline" then
+        mode = _("offline / local queue")
+    else
+        mode = _("incremental")
+    end
     local lines = {
         _("Readwise document sync complete"),
         "",
@@ -99,6 +106,11 @@ local function summaryText(report)
         string.format(_("Highlights already linked: %d"), report.highlights_already_linked or 0),
         string.format(_("Highlights unmatched/ambiguous: %d"), report.highlights_unmatched or 0),
         string.format(_("Highlight creates blocked safely: %d"), report.highlight_creates_blocked or 0),
+        string.format(_("Highlight creates queued durably: %d"), report.highlight_creates_queued or 0),
+        string.format(_("Create queue items processed: %d"), report.highlight_queue_processed or 0),
+        string.format(_("Create retries deferred: %d"), report.highlight_create_deferred or 0),
+        string.format(_("Create auth waits: %d"), report.highlight_create_auth_waiting or 0),
+        string.format(_("Create queue waiting after sync: %d"), report.highlight_queue_waiting or 0),
         string.format(_("Reconciliation markers verified: %d"), report.highlight_marker_verified or 0),
         string.format(_("Notes updated: %d"), report.notes_updated or 0),
         string.format(_("Note updates reconciled: %d"), report.notes_reconciled or 0),
@@ -176,15 +188,16 @@ function SyncUI:getStatusMenuItem()
     }
 end
 
-function SyncUI:_preflight()
+function SyncUI:_preflight(require_online)
     if not self.config:hasAccessToken() then
         UIManager:show(InfoMessage:new{ text = _("No access token is configured.") })
         return false
     end
-    -- Deliberately inspect connectivity only; V1 never controls Wi-Fi.
-    if not NetworkMgr:isOnline() then
+    -- V1 never controls Wi-Fi. Ordinary Sync now is allowed offline so local
+    -- sidecars can be scanned and outbound work can be queued durably.
+    if require_online and not NetworkMgr:isOnline() then
         UIManager:show(InfoMessage:new{
-            text = _("No internet connection. Turn Wi-Fi on outside the plugin and try again."),
+            text = _("No internet connection. Full document sync requires Wi-Fi, but ordinary Sync now can queue local annotations offline."),
         })
         return false
     end
@@ -192,18 +205,30 @@ function SyncUI:_preflight()
 end
 
 function SyncUI:syncNow(full_rescan)
-    if not self:_preflight() then
+    if not self:_preflight(false) then
         return
     end
-    if full_rescan or self.sync_meta:get("document_watermark") == nil then
-        self:confirmAndRun(full_rescan)
+
+    local online = NetworkMgr:isOnline()
+    if full_rescan then
+        self:confirmAndRun(true)
         return
     end
-    self:_run(full_rescan)
+
+    if not online then
+        self:_run(false, false)
+        return
+    end
+
+    if self.sync_meta:get("document_watermark") == nil then
+        self:confirmAndRun(false)
+        return
+    end
+    self:_run(false, true)
 end
 
 function SyncUI:confirmAndRun(full_rescan)
-    if not self:_preflight() then
+    if not self:_preflight(true) then
         return
     end
     local text
@@ -227,13 +252,17 @@ Continue?]])
     })
 end
 
-function SyncUI:_run(full_rescan)
+function SyncUI:_run(full_rescan, network_available)
+    if network_available == nil then
+        network_available = NetworkMgr:isOnline()
+    end
     local current_path = self.get_current_path()
     Trapper:wrap(function()
         local completed, report, err = Trapper:dismissableRunInSubprocess(function()
             return self.worker:run{
                 full_rescan = full_rescan == true,
                 current_path = current_path,
+                network_available = network_available == true,
             }
         end, _([[Syncing Reader documents…
 
