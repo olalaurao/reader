@@ -28,13 +28,13 @@ Reader `saved_using/source` is useful evidence but **must not be mandatory for n
 - production Reader LIST may omit or normalize the newer per-annotation marker;
 - Gate 12 physically proved that a correct durable child can be linked while marker verification is zero.
 
-For **remote DELETE**, keep the stronger destructive rule:
+For **remote DELETE**, keep the stronger destructive rule proven by Gate 12D:
 - exact durable Reader child id;
 - same parent;
 - `category=highlight`;
-- exact newer per-annotation KOReader ownership marker.
+- exact Readwise v2 highlight whose `external_id` equals that Reader child id.
 
-Do not let the legacy generic marker or a missing marker authorize destructive deletion.
+Reader `saved_using/source` is supplementary evidence only and must **not** be mandatory for deletion either: Gate 12D attempt 1 proved the legitimate target could omit/normalize it. Do not replace the cross-API identity proof with text/note similarity or a legacy generic marker.
 
 ## 3. Reader v3 ↔ Readwise v2 mapping
 
