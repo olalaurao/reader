@@ -3,6 +3,23 @@
 local Worker = require("sync/reconnect_probe_worker")
 
 return function()
+    local saved_json_loaded = package.loaded["json"]
+    local saved_json_preload = package.preload["json"]
+    local encoded_value
+    package.loaded["json"] = nil
+    package.preload["json"] = function()
+        return {
+            encode = function(value)
+                encoded_value = value
+                return "__snapshot__"
+            end,
+            decode = function(raw)
+                assert(raw == "__snapshot__")
+                return encoded_value
+            end,
+        }
+    end
+
     local tmp = os.tmpname()
     assert(Worker._writeStage(tmp, "marker_scan") == true)
     assert(Worker._readStage(tmp) == "marker_scan")
@@ -42,4 +59,7 @@ return function()
     assert(item.parent_html == "not_run")
     assert(item.parent_html_bytes == 0)
     assert(item.match_status == "not_run")
+
+    package.loaded["json"] = saved_json_loaded
+    package.preload["json"] = saved_json_preload
 end
