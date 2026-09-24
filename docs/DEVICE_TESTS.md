@@ -2749,3 +2749,40 @@ Expected after the revision:
 - content pages 0;
 - no replacement download;
 - diagnostic still `defer_raw_keep_local`.
+
+
+### Gate 15 Q1-B original PDF title-only revision — PASS
+
+User confirmed the complete PDF sequence passed:
+- same already-local plugin-managed original PDF;
+- Reader title-only revision;
+- one ordinary Sync;
+- raw revision retained/deferred;
+- no replacement download/content install;
+- no Sync error;
+- local PDF remained usable;
+- sidecar/progress/annotations remained intact;
+- post-revision diagnostic remained `not_attempted_raw` / `defer_raw_keep_local`, replacement no, remote/local writes none.
+
+PDF Q1-B is closed.
+
+### Gate 15 Q1-B next device test — original EPUB
+
+Do not install a new build.
+
+1. Open the already-local original EPUB used for Gate 6, if it still exists.
+2. Run **Inspect content refresh safety (Gate 15)** before changing anything in Reader.
+3. Return the full baseline screen.
+
+Expected baseline:
+- Category: epub;
+- Local format: epub;
+- Local file present: yes;
+- Remote probe: passed;
+- Visible-text comparison: `not_attempted_raw`;
+- V1 refresh decision: `defer_raw_keep_local`;
+- Automatic replacement allowed: no;
+- Remote writes: none;
+- Local writes: none.
+
+Do not rename the EPUB in Reader until this baseline is confirmed. If the original EPUB no longer exists locally, report that instead.

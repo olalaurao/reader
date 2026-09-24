@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase Q / Gate 15 — Q1-A + Q2 ARTICLE PASSED; Q1-B PDF BASELINE PASSED; PDF METADATA-REVISION TEST THEN EPUB COVERAGE REMAIN**
+**Phase Q / Gate 15 — Q1-A + Q2 ARTICLE PASSED; Q1-B PDF COMPLETE; EPUB RAW PHYSICAL COVERAGE IS THE ONLY REMAINING GATE 15 BLOCKER**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
@@ -4080,3 +4080,69 @@ Conclusion:
    - automatic replacement allowed: no;
    - remote/local writes: none.
 8. Return the Sync report + diagnostic result before changing the EPUB fixture.
+
+
+## Gate 15 Q1-B original PDF metadata revision — PHYSICAL PASS
+
+User confirmed the complete PDF Q1-B sequence passed on the already-local plugin-managed original PDF using build 0.1.46.
+
+Accepted result against the previously documented criteria:
+- only the Reader title was changed for the same PDF identity;
+- one ordinary Sync completed successfully;
+- the raw PDF revision was retained/deferred rather than acknowledged as an HTML metadata-only revision;
+- no replacement content page/download/install occurred;
+- no refresh remote-read error or fatal Sync error was reported;
+- the same local PDF remained openable;
+- local sidecar/progress/annotations remained intact;
+- post-Sync Gate 15 diagnostic remained on raw semantics (`not_attempted_raw` / `defer_raw_keep_local`);
+- automatic replacement remained disabled;
+- diagnostic remote/local writes remained none.
+
+Conclusion:
+- **Q1-B PDF is COMPLETE / PASSED physically**;
+- article Q1-A + Q2 and raw PDF coverage are now closed;
+- the only remaining Gate 15 blocker is equivalent physical coverage for an already-local original EPUB, if the Gate 6 EPUB fixture still exists;
+- Phase R / Gate 16 remains blocked until this is resolved.
+
+### Files altered in this continuation
+- `STATUS.md`;
+- `IMPLEMENTATION_SPEC.md`;
+- `PLAN.md`;
+- `docs/DEVICE_TESTS.md`.
+- no production plugin Lua file changed.
+
+### Implementation / tests
+- no production implementation change was necessary after the PDF pass;
+- existing automated raw reconciler tests already cover both PDF and EPUB retention across repeated reconciliation with zero replacement GETs;
+- explicit `defer_raw_keep_local` decision coverage exists for both PDF and EPUB;
+- CI #1012 passed after EPUB decision coverage was added;
+- CI #1014 passed after the Q2 article closeout;
+- CI #1016 passed after the PDF-baseline documentation update;
+- a final documentation-only CI is required after this handoff commit.
+
+### Gates
+- Gates 0–14: PASSED.
+- Gate 15 Q1-A article safety: PASSED physically.
+- Gate 15 Q2 article acknowledgement/idempotency: PASSED physically.
+- Gate 15 Q1-B PDF: **PASSED physically**.
+- Gate 15 Q1-B EPUB: **PENDING physical coverage**.
+- Gate 16: BLOCKED by Gate 15.
+
+### Bugs / failures / decisions
+- no new production bug was found;
+- raw PDF retention behaved exactly as the conservative V1 policy requires;
+- no spec deviation: automatic replacement of an existing raw document remains disabled;
+- no firmware/KOReader/plugin upgrade is required for the EPUB test;
+- no credentials, signed URLs or private document content were added to Git.
+
+### Blocker / exact next steps
+1. Use the **already-local plugin-managed original EPUB** from Gate 6 if it still exists.
+2. Open it in KOReader and run **Inspect content refresh safety (Gate 15)** before changing Reader metadata.
+3. Baseline must show: category=epub, local format=epub, local file present=yes, remote probe=passed, comparison=`not_attempted_raw`, decision=`defer_raw_keep_local`, replacement=no, remote/local writes=none.
+4. If baseline passes, change **only the title** of that same EPUB in Reader.
+5. Run ordinary **Sync now exactly once**.
+6. Require the EPUB revision to remain raw/pending with no replacement content page/download/install and no Sync error.
+7. Reopen the EPUB; verify reflow/open, sidecar/progress/highlights/notes remain intact.
+8. Run Gate 15 diagnostic again; require refresh pending=yes, current Reader revision=DB revision, comparison=`not_attempted_raw`, decision=`defer_raw_keep_local`, replacement=no, remote/local writes=none.
+9. Return the Sync report + diagnostic result.
+10. If the original Gate 6 EPUB fixture no longer exists locally, report that fact instead of downloading/re-saving a new destructive fixture; the scope decision must then be recorded before closing Gate 15.

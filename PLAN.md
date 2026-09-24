@@ -1315,20 +1315,19 @@ Não:
 
 ## 46. Próximo passo
 
-A **Phase Q / Gate 15** continua aberta apenas para **Q1-B raw PDF/EPUB**.
+A **Phase Q / Gate 15** está fechada para artigos e PDF; resta apenas **Q1-B EPUB raw**.
 
 Já passou fisicamente:
-- Q1-A artigo: revisão metadata-only detectada sem replacement e com progresso/highlights/notas preservados;
-- Q2 artigo: pending limpo somente após texto visível equivalente;
-- diagnóstico read-only confirmou pending=no, revisão Reader=DB, visible text same, replacement no;
-- segundo Sync inalterado foi no-op e preservou o estado local.
+- artigo Q1-A: revisão metadata-only detectada sem replacement e com estado local preservado;
+- artigo Q2: pending reconhecido somente após texto visível equivalente e segundo Sync no-op;
+- PDF original: baseline raw + revisão somente de título + Sync retendo pending sem replacement + preservação local.
 
 Próximo teste físico:
-1. usar um PDF original já baixado/gerenciado pelo plugin desde o Gate 6, se ainda existir;
-2. diagnóstico Gate 15 baseline sem mudar nada;
+1. usar o EPUB original já baixado/gerenciado pelo plugin desde o Gate 6, se ainda existir;
+2. rodar o diagnóstico Gate 15 baseline;
 3. alterar somente o título no Reader;
 4. Sync uma vez;
 5. exigir raw revision retained/deferred, nenhum replacement download e estado local intacto;
-6. repetir com EPUB original já local, se disponível;
-7. se um fixture original não existir mais, registrar a limitação em vez de fabricar um teste destrutivo;
-8. só depois fechar Gate 15 e iniciar Phase R / Gate 16.
+6. diagnóstico pós-Sync deve continuar `defer_raw_keep_local`;
+7. se o fixture original não existir mais, registrar a limitação em vez de fabricar um novo teste;
+8. somente depois fechar Gate 15 e iniciar Phase R / Gate 16.

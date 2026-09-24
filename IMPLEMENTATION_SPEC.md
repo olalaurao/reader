@@ -2830,7 +2830,7 @@ This physically authorizes Q2 to acknowledge only the exact pending revision who
 
 ### Q1-B raw fixtures
 
-PDF baseline physical result: **PASS** on the target PW3 / KOReader v2026.07.1 / build 0.1.46.
+PDF physical result: **PASS COMPLETE** on the target PW3 / KOReader v2026.07.1 / build 0.1.46.
 - existing plugin-managed original PDF identified and opened;
 - diagnostic reported raw PDF semantics (`category=pdf`, `local_format=pdf`);
 - remote probe passed;
@@ -2838,6 +2838,10 @@ PDF baseline physical result: **PASS** on the target PW3 / KOReader v2026.07.1 /
 - decision was `defer_raw_keep_local`;
 - automatic replacement remained disabled;
 - remote/local writes were none.
+- title-only same-ID Reader revision then produced the required durable raw-pending path;
+- normal Sync performed no replacement content download/install;
+- local PDF remained usable and sidecar/progress/annotations remained intact;
+- post-revision diagnostic still reported `not_attempted_raw` + `defer_raw_keep_local` with replacement disabled.
 
 Raw fixtures:
 1. use an already-downloaded original PDF and EPUB when available;
@@ -3068,17 +3072,17 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Validate **Phase Q / Gate 15 Q1-B raw-format preservation** on build 0.1.46. Article Q1-A + Q2 are already physically passed.
+Validate the **remaining Gate 15 Q1-B EPUB preservation** on build 0.1.46. Article Q1-A/Q2 and raw PDF coverage are already physically passed.
 
-1. keep the current plugin/KOReader/firmware unchanged;
-2. locate an **already-local plugin-managed original PDF** from Gate 6 if it still exists;
+1. keep firmware, KOReader and plugin build unchanged;
+2. locate the **already-local plugin-managed original EPUB** used for Gate 6, if it still exists;
 3. open it and run read-only **Inspect content refresh safety (Gate 15)** before changing Reader metadata;
-4. baseline must show original raw format (`category=pdf`, `local_format=pdf`), local file present, remote probe passed, comparison `not_attempted_raw`, decision `defer_raw_keep_local`, automatic replacement=no, remote/local writes=none;
-5. record sidecar/progress/annotation signals shown by the diagnostic;
-6. in Reader, change **only the title** of that exact same document;
-7. run ordinary Sync once and require the revision to remain pending/deferred as raw, with no replacement content download and no local-state loss;
-8. rerun the diagnostic and require `defer_raw_keep_local`, then verify the local PDF still opens with sidecar/progress/annotations intact;
-9. repeat the same sequence for an already-local original EPUB (`category=epub`, `local_format=epub`) if available;
-10. if either original raw fixture no longer exists locally, record the physical coverage limitation instead of manufacturing a destructive fixture;
-11. close Gate 15 only after raw coverage/scope is resolved;
+4. require baseline `category=epub`, `local_format=epub`, local file present, remote probe passed, comparison `not_attempted_raw`, decision `defer_raw_keep_local`, replacement=no, remote/local writes=none;
+5. change **only the title** of that exact same EPUB in Reader;
+6. run ordinary Sync once;
+7. require the raw EPUB revision to remain pending/deferred, `Content pages = 0`, no replacement download/install, no refresh remote-read error and no fatal Sync error;
+8. reopen the EPUB and verify it still opens/reflows with sidecar/progress/highlights/notes intact;
+9. run Gate 15 diagnostic again and require refresh pending=yes, current Reader revision=DB revision, comparison `not_attempted_raw`, decision `defer_raw_keep_local`, replacement=no, remote/local writes=none;
+10. if the original EPUB fixture no longer exists locally, record that limitation instead of creating a new replacement fixture;
+11. close Gate 15 only after EPUB coverage/scope is resolved;
 12. do not begin Phase R / Gate 16 before Gate 15 closes.
