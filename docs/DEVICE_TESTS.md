@@ -1677,3 +1677,63 @@ Record these fields for both states:
 - Plugin reason.
 
 Do **not** run Gate 13A Sync now again until the ON/OFF signals are compared.
+
+### Build 0.1.35 — physical diagnostic result with no internet / Airplane Mode
+
+Observed on target PW3 / KOReader v2026.07.1:
+- Kindle: **true**;
+- native `airplaneMode`: **unavailable**;
+- native `wirelessEnable`: **unavailable**;
+- native `wifid enable`: **unavailable**;
+- KOReader interface: `wlan0`;
+- KOReader `isWifiOn`: **true**;
+- KOReader `isConnected`: **true**;
+- KOReader `isOnline`: **true**;
+- KOReader cached Wi-Fi: **true**;
+- KOReader cached connected: **unavailable**;
+- plugin local-network decision: **true / online**;
+- remote requests: **none**;
+- remote writes: **none**.
+
+This is sufficient to reject both prior detection strategies:
+1. the attempted native LIPC properties are not available on this target in the tested state;
+2. KOReader's local connectivity booleans can remain true while the user has no internet/Airplane Mode.
+
+A second 0.1.35 online screenshot is no longer required before implementing the safer contract because the offline observation alone proves the false-positive safety failure.
+
+### Build 0.1.36 — Gate 13A retest
+
+0.1.36 no longer uses those local flags as permission to write remotely. Ordinary Sync now queues the local annotation first and then performs a **read-only Readwise auth GET** inside the cancellable worker. No create/update/delete/document sync is allowed unless that probe succeeds.
+
+Use a **new unique** local highlight/note; do not reuse fixtures already uploaded by 0.1.33/0.1.34.
+
+1. Install 0.1.36, preserving DB/settings/documents/sidecars.
+2. Enable native Kindle Airplane Mode / ensure there is no internet.
+3. Open a clean managed article.
+4. Create one unique highlight with:
+   `gate13 probe [[Foucault]]`
+   and next line:
+   `#queue-test-0136`
+5. Close/reopen once to flush the sidecar; leave article open.
+6. Run ordinary **Sync now**.
+7. Required result:
+   - Mode: **offline / local queue**;
+   - Remote preflight: `offline`, `timeout`, `tls` or `unknown` is acceptable for this no-internet state;
+   - Current-document highlights scanned: >=1;
+   - Highlight creates queued durably: >=1;
+   - Highlights created: **0**;
+   - Create queue items processed: **0**;
+   - Create queue waiting after sync: >=1;
+   - Metadata pages: **0**;
+   - Content pages: **0**;
+   - no watermark advance;
+   - the new fixture is absent from Reader.
+8. **Stop and return this screen.** Do not reboot yet unless all conditions above pass.
+
+If Gate 13A passes, continue with the same queued item:
+- restart KOReader while still offline;
+- confirm local highlight/note survives;
+- reconnect Wi-Fi outside the plugin;
+- Sync now once: exactly one create or safe reconciliation, queue waiting 0;
+- Sync now again unchanged: created 0, waiting 0, exactly one Reader copy.
+
