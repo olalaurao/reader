@@ -2923,3 +2923,62 @@ Conclusion: parent HTTP/JSON/HTML retrieval is not the physical hard-exit bounda
 
 ### Blocker
 - one physical read-only action: run **Inspect reconnect queue (Gate 13)** on 0.1.41 and return the full screen.
+
+
+### Gate 13C 0.1.41 matcher diagnostic — PASS
+
+Physical target: PW3 / KOReader v2026.07.1 / build 0.1.41.
+
+Read-only reconnect diagnostic completed normally:
+- Stage: `done_match_probe`;
+- Auth probe: `passed`;
+- Queue pending: **3**;
+- Queue retry_wait: **0**;
+- Queue in_flight: **0**;
+- Queue blocked: **0**;
+- Queue succeeded: **11**;
+- Marker scan: `passed`;
+- Marker scan pages: **11**;
+- Active marker matches: **0**;
+- Parent probe body cap: **1,048,576 bytes**;
+- Parent probe mode: `bounded_fetch_and_pure_lua_match`;
+- pending item #1:
+  - attempts 0;
+  - remote_id no;
+  - marker_matches 0;
+  - parent metadata ok;
+  - parent HTML ok;
+  - HTML bytes 9,851;
+  - match **matched / exact**;
+- pending item #2:
+  - attempts 0;
+  - remote_id no;
+  - marker_matches 0;
+  - parent metadata ok;
+  - parent HTML ok;
+  - HTML bytes 27,477;
+  - match **matched / whitespace**;
+- pending item #3:
+  - attempts 0;
+  - remote_id no;
+  - marker_matches 0;
+  - parent metadata ok;
+  - parent HTML ok;
+  - HTML bytes 8,564;
+  - match **matched / whitespace**;
+- Remote writes: none.
+
+Conclusion:
+- **0.1.41 matcher diagnostic PASSED physically**;
+- all three queued selections can be matched safely by the same production matcher used by create processing;
+- the previous reconnect hard exit is resolved for these real fixtures;
+- all three queue rows remain pristine for first delivery: pending, attempts=0, no remote id, no active exact marker match;
+- therefore a controlled Gate 13C mutation retry is now safe: it is not a blind retry of an ambiguous prior POST because physical evidence shows no attempt was durably started and no marker-owned remote child exists.
+
+Next Gate 13C action:
+1. keep build 0.1.41 installed and Wi-Fi ON;
+2. do not change/create/delete annotations;
+3. run ordinary **Sync now exactly once**;
+4. return the full report before running any second Sync;
+5. then verify in Reader that the three expected pending highlights/notes exist exactly once under their original documents;
+6. only after reviewing that first report run the unchanged second Sync to prove idempotency.
