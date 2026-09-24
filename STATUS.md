@@ -628,7 +628,7 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
 - Draft PR: **#18** — keep draft / do not merge until Gate 15 passes physically.
 - Base/integrated `main`: `5d7c954d051e491c1b11344057c59df7e2cf9656` (PR #17 merge / Phase P + Gate 14 passed)
 - Validated 0.1.46 code/package head: `2fe649de11ed4acb5b3914386e7f98e52f81646b`.
-- Current pre-final-STATUS branch HEAD: `638f61870058c6351a6cd28f7ab0f7219de9c620`; this STATUS-only handoff commit follows it.
+- Validated pre-final handoff HEAD: `56307e13fac7745c9493f24ead1350fcf53c3712`; this final STATUS-only handoff commit follows it.
 - Build version for physical Gate 15 Q2: **0.1.46**.
 - Database schema: **v2**.
 - CI run **#984** on 0.1.46 code/package head: **SUCCESS**.
@@ -649,6 +649,8 @@ The KOReader upgrade does **not** require replaying Gates 0–4 from scratch. Ga
   - packaged ZIP contains no `tests/` entries.
 - 0.1.44 is superseded and must not be used.
 - 0.1.45 remains the Q1-A physical proof build; 0.1.46 is the Q2 validation build.
+- Pre-final handoff CI run **#992** on `56307e13fac7745c9493f24ead1350fcf53c3712`: **SUCCESS** across development checks, full Lua suite, package/layout and artifact upload.
+- The final STATUS-only commit does not change installable plugin bytes.
 
 ## Target environment
 
