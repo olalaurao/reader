@@ -1791,6 +1791,21 @@ Interpretation:
 
 ### Build 0.1.38 — Gate 13A retry
 
+Automated/package validation:
+- draft PR #16;
+- CI run #640 on `99cd78a0a83f606c8415f04091b47b7f58be42a7`: **SUCCESS**;
+- development checks: SUCCESS;
+- full Lua unit suite: SUCCESS;
+- ZIP build/layout: SUCCESS;
+- artifact upload: SUCCESS;
+- artifact ID: `10810568961`;
+- artifact name: `readwisereader-koplugin-f2d4c98d4b24d29446635d9c368e02e10b10b654`;
+- outer artifact SHA-256: `96d8dd7d9246cbb8aa7b387034d9724113308a11d2263a5c4b90214952df316e`;
+- installable inner ZIP SHA-256: `e7fbb5006d228d9ba5166e6265ed42c9464b0f1c9630f4d7dfe5324b5ed0e582`;
+- inner ZIP `unzip -t`: **PASS**, no errors;
+- packaged `constants.lua`: version **0.1.38**;
+- packaged ZIP contains no `tests/` entries.
+
 0.1.38 keeps every 0.1.37 safety invariant and adds:
 - per-document `pcall` isolation around sidecar scan and queue preparation;
 - per-annotation normalization isolation inside a readable sidecar;
