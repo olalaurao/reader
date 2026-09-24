@@ -29,6 +29,20 @@ if command -v git >/dev/null 2>&1 && [ -d "$ROOT_DIR/.git" ]; then
     if git -C "$ROOT_DIR" grep -nE 'Token[[:space:]]+[A-Za-z0-9._-]{24,}' -- ':!*.md' ':!LICENSE' >/dev/null 2>&1; then
         fail "possible committed token detected"
     fi
+
+    # Signed Reader raw URLs are ephemeral credentials. Synthetic examples are
+    # allowed in tests, but production/plugin files must never contain a
+    # committed signed query value.
+    if git -C "$ROOT_DIR" grep -nEi 'https://[^[:space:]"]+[?&](x-amz-signature|x-amz-credential|x-amz-security-token|token|signature|sig)=' --         'readwisereader.koplugin' ':!readwisereader.koplugin/tests' >/dev/null 2>&1; then
+        fail "possible committed signed/credential URL detected in production plugin files"
+    fi
+
+    # Keep sensitive payload fields out of direct logger calls. This is a
+    # conservative static tripwire; runtime HTTP tests separately prove URL
+    # query/fragment redaction and Authorization-header non-logging.
+    if git -C "$ROOT_DIR" grep -nEi 'logger[.:](dbg|info|warn|err).*authorization|logger[.:](dbg|info|warn|err).*(access[_ -]?token|raw_source_url|html_content|payload_json)' --         'readwisereader.koplugin' ':!readwisereader.koplugin/tests' >/dev/null 2>&1; then
+        fail "sensitive field referenced by production logger call"
+    fi
 fi
 
 printf '%s\n' "dev-check: OK"
