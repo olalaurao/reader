@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase N IN PROGRESS — Gate 12A NOTE UPDATE + 12B CONFLICT PASSED PHYSICALLY on PW3 / KOReader 2026.07.1; deletion subtests pending; build 0.1.31**
+**Phase N IN PROGRESS — Gate 12A NOTE UPDATE + 12B CONFLICT + 12C DELETE-OFF PASSED PHYSICALLY on PW3 / KOReader 2026.07.1; Gate 12D deliberate delete pending; build 0.1.31**
 
 Phase F was merged normally to `main` through PR #6 as `21dd64719ca248dd7706895fab1651751edf8844` after Gate 4 passed on the target PW3 / KOReader 2025.04.
 
@@ -1513,13 +1513,16 @@ Already passed physically:
 - no conflict/block/error was reported for the successful note-update target;
 - simultaneous local + Reader note edits produce a conflict and overwrite neither side.
 
+Already additionally passed:
+- deletion propagation is OFF for the controlled test;
+- deleting one linked KOReader highlight while OFF leaves the Reader highlight intact;
+- the OFF sync reports exactly one pending local deletion/retention and zero remote deletions;
+- the user confirmed both remote highlights still exist.
+
 Still required:
-- deletion propagation must be OFF by default;
-- deleting one linked KOReader highlight while OFF must leave the Reader highlight intact;
-- the OFF sync must report exactly one pending deletion in the clean Gate 12 article before deletion is enabled;
 - after explicit confirmation enables propagation, the next sync must delete only that exact linked Reader child;
-- another linked highlight in the same article must remain untouched;
-- deletion propagation must be turned OFF again after the test;
+- the control highlight in the same article must remain untouched;
+- deletion propagation must be turned OFF again immediately after the test;
 - no crash/freeze.
 
 Safety rules:
@@ -1539,12 +1542,15 @@ Later hard gates remain:
 
 ## Exact next steps
 
-1. Keep build **0.1.31** installed; note-update subtest A and conflict subtest B are PASS.
-2. Run Gate 12C with deletion propagation OFF on a clean linked fixture.
-3. **Do not enable deletion if the OFF summary reports more than one local deletion detected/retained.**
-4. If exactly one target is pending, proceed to Gate 12D: enable Settings → Highlights → Propagate highlight deletions, accept the destructive warning, sync, verify only that target disappears, then disable the setting again.
-5. Close Gate 12 only after OFF delete + deliberate ON delete both pass.
-6. Before any future annotation implementation, read `docs/ANNOTATION_SYNC_LESSONS.md`.
+1. Keep build **0.1.31** installed; Gate 12A note update, 12B conflict, and 12C deletion-OFF are PASS.
+2. Proceed to Gate 12D using the same tombstoned target from 12C.
+3. Enable Settings → Highlights → Propagate highlight deletions and accept the destructive warning.
+4. With the same article open, run Sync now exactly once.
+5. Verify Remote highlight deletions = 1, no mutation/error block for the target, the deleted-local target disappears remotely, and the control highlight remains.
+6. Immediately turn Propagate highlight deletions OFF again, regardless of pass/fail.
+7. If the delete is blocked or remote deletion remains 0, stop and inspect; do not weaken destructive identity checks without evidence.
+8. Close Gate 12 only after this deliberate-ON delete passes.
+9. Before any future annotation implementation, read `docs/ANNOTATION_SYNC_LESSONS.md`.
 
 ## Existing architectural decisions still in force
 
@@ -1886,3 +1892,30 @@ Physical result on target PW3 / KOReader v2026.07.1, build 0.1.31:
 **Gate 12B conflict handling: PASS.**
 
 This physically proves that the three-way conflict path blocks mutation before any remote note PATCH and preserves both divergent states.
+
+
+### Gate 12C — local deletion with propagation OFF — PHYSICAL PASS
+
+Physical result on target PW3 / KOReader v2026.07.1, build 0.1.31.
+
+Fixture setup sync:
+- current-document highlights scanned: **2**;
+- highlights created: **2**;
+- annotation remote errors: **0**.
+
+After deleting only the target highlight locally with propagation OFF:
+- current-document highlights scanned: **1**;
+- highlights created: **0**;
+- highlights already linked: **1**;
+- local highlight deletions detected: **1**;
+- remote highlight deletions: **0**;
+- deletions retained remotely (propagation off): **1**;
+- annotation mutations blocked safely: **0**;
+- annotation remote errors: **0**;
+- user confirmed **both remote highlights still exist** in Reader.
+
+**Gate 12C deletion-OFF: PASS.**
+
+This physically proves the default-safe tombstone behavior: local disappearance is detected and retained durably without destructive remote action while propagation is OFF.
+
+Next: Gate 12D deliberate opt-in deletion of exactly that linked target; control highlight must remain.
