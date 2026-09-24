@@ -191,7 +191,8 @@ return function()
         assert(#state.worker_calls == 1)
         assert(state.worker_calls[1].full_rescan == false)
         assert(state.worker_calls[1].current_path == "/Readwise/current.html")
-        assert(state.worker_calls[1].network_available == true)
+        assert(state.worker_calls[1].network_available == nil,
+            "UI must not authorize remote writes from local network state")
         assert(#state.metadata_writes == 1)
         assert(state.metadata_consumer_refreshes == 1)
         assert(#state.collection_writes == 1)
@@ -266,6 +267,7 @@ return function()
         local ui = newUI(SyncUI, state, "watermark", {
             mode = "offline",
             errors = 0,
+            remote_preflight = "offline",
             annotation_sync_status = "queued_offline",
             annotation_scanned = 1,
             highlight_creates_queued = 1,
@@ -274,15 +276,17 @@ return function()
         })
         ui:syncNow(false)
         assert(#state.worker_calls == 1)
-        assert(state.worker_calls[1].network_available == false,
-            "Kindle airplane mode must override NetworkMgr:isOnline()")
+        assert(state.worker_calls[1].network_available == nil,
+            "UI must leave remote reachability authorization to the worker probe")
         assert(state.shown[#state.shown].text:find("Mode: offline / local queue", 1, true))
+        assert(state.shown[#state.shown].text:find("Remote preflight: offline", 1, true))
     end, { online = true, airplane_mode = true })
 
     withStubbedSyncUI(function(SyncUI, state)
         local ui = newUI(SyncUI, state, "watermark", {
             mode = "offline",
             errors = 0,
+            remote_preflight = "timeout",
             annotation_sync_status = "queued_offline",
             annotation_scanned = 1,
             highlight_creates_queued = 1,
@@ -293,19 +297,31 @@ return function()
         assert(state.wrap_calls == 1)
         assert(state.subprocess_calls == 1)
         assert(#state.worker_calls == 1)
-        assert(state.worker_calls[1].network_available == false)
+        assert(state.worker_calls[1].network_available == nil)
         assert(state.worker_calls[1].current_path == "/Readwise/current.html")
         assert(state.shown[#state.shown].text:find("Mode: offline / local queue", 1, true))
+        assert(state.shown[#state.shown].text:find("Remote preflight: timeout", 1, true))
         assert(state.shown[#state.shown].text:find("Highlight creates queued durably: 1", 1, true))
         assert(state.shown[#state.shown].text:find("Create queue waiting after sync: 1", 1, true))
         assert(next(state.meta_writes) == nil, "offline local queue must not advance document watermark")
     end, { online = false })
 
     withStubbedSyncUI(function(SyncUI, state)
-        local ui = newUI(SyncUI, state, "watermark")
+        local ui = newUI(SyncUI, state, "watermark", {
+            mode = "offline",
+            errors = 0,
+            remote_preflight = "offline",
+            annotation_sync_status = "queued_offline",
+            postprocess = {},
+        })
         ui:confirmAndRun(true)
         assert(state.wrap_calls == 0)
         assert(state.subprocess_calls == 0)
-        assert(state.shown[#state.shown].text:find("Full document sync requires Wi-Fi", 1, true))
+        assert(state.shown[#state.shown].kind == "confirm")
+        state.shown[#state.shown].ok_callback()
+        assert(state.wrap_calls == 1)
+        assert(state.subprocess_calls == 1)
+        assert(state.worker_calls[1].network_available == nil)
+        assert(state.shown[#state.shown].text:find("Remote preflight: offline", 1, true))
     end, { online = false })
 end
