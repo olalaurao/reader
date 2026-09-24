@@ -285,6 +285,70 @@ return function()
     end
 
     do
+        -- Missing/invalid Retry-After falls back to bounded configured delays
+        -- (5s, then 15s) before surfacing the third 429.
+        local now = 0
+        local calls = 0
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function()
+                    calls = calls + 1
+                    return nil, {
+                        kind = "rate_limit",
+                        retryable = true,
+                        retry_after = nil,
+                    }
+                end,
+            },
+            json_decode = function() return {} end,
+            clock = function() return now end,
+            sleep = function(seconds) now = now + seconds end,
+            list_min_interval = 0,
+        }
+        local report, err = reader:iterateDocuments({}, function() end)
+        assert(report == nil)
+        assert(err.kind == "rate_limit")
+        assert(calls == 3)
+        assert(now >= 20)
+    end
+
+    do
+        -- Cancellation is checked during a Retry-After wait, not only after it
+        -- completes, so long server backoffs remain dismissable.
+        local now = 0
+        local calls = 0
+        local cancelled = false
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function()
+                    calls = calls + 1
+                    return nil, {
+                        kind = "rate_limit",
+                        retryable = true,
+                        retry_after = 30,
+                    }
+                end,
+            },
+            json_decode = function() return {} end,
+            clock = function() return now end,
+            sleep = function(seconds)
+                now = now + seconds
+                cancelled = true
+            end,
+            list_min_interval = 0,
+        }
+        local report, err = reader:iterateDocuments({
+            is_cancelled = function() return cancelled end,
+        }, function() end)
+        assert(report == nil)
+        assert(err.kind == "cancelled")
+        assert(calls == 1)
+        assert(now <= 0.25)
+    end
+
+    do
         local reader = sequenceReader({
             {
                 results = { { id = "a" } },
