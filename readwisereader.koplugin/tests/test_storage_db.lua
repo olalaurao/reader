@@ -265,7 +265,12 @@ local function testMigrationRollbackSignal()
 end
 
 return function()
-    assertTrue(Migrations.SCHEMA_VERSION >= 1)
+    -- Gate 16 / 0.1.47 intentionally keeps schema v2 so rolling the plugin
+    -- directory back to the known-good 0.1.46 build does not require a DB
+    -- downgrade. If a future hardening change bumps schema, this assertion
+    -- must be changed together with a new rollback plan.
+    assertEqual(Migrations.SCHEMA_VERSION, 2,
+        "Gate 16 rollback compatibility requires schema v2")
     testFreshSchema()
     testQueueUniquenessAndForeignKey()
     testV1ToV2Migration()

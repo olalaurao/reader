@@ -4,16 +4,20 @@ A KOReader plugin project for using a Kindle as an offline reading client for Re
 
 ## Current status
 
-**Gates 0–3 are complete on the target Kindle Paperwhite 3 / KOReader 2025.04. Phase F `0.1.3` is implemented off-device and Gate 4 is next.** It adds filtered multi-article sync, incremental watermarks, stable Reader-ID ownership, metadata/location updates, Readwise Collections, cancellation, sync summaries and explicit full rescan. Existing local content is not destructively refreshed in Phase F.
+**Gates 0–15 are complete on the target Kindle Paperwhite 3. Phase R / Gate 16 hardening is in progress on experimental build 0.1.47.** Gate 16 adds no new remote-destructive behavior; it hardens large-library traversal, low-storage failure, malformed/oversized Reader responses, Unicode, 429/network recovery, restart persistence, migration/rollback and secret redaction before the final V1 acceptance phase.
 
-The Gate 2 action performs a metadata-only full Reader-library scan with cursor guards, ID deduplication, request pacing, bounded `Retry-After` recovery and cancellable KOReader UI. It reports counts by location/category. **It does not download or change Reader documents and does not perform remote writes.**
-
+Canonical physical baseline:
+- Kindle Paperwhite 3 / firmware 5.16.2.1.1;
+- official KOReader v2026.07.1 (`kindlepw2`);
+- Bookshelf v5.1.4 coexistence validated;
+- manual Sync only;
+- automatic existing-document content replacement remains disabled.
 ## Primary target
 
 - Kindle Paperwhite 3 / 7th generation
 - Kindle firmware 5.16.2.1.1
-- KOReader 2025.04 through Gate 4
-- planned controlled migration after Gate 4: official KOReader v2026.07.1 (`kindlepw2` on this PW3), then Bookshelf v5.1.4 coexistence validation
+- KOReader 2025.04 was the historical Gate 0–4 baseline
+- official KOReader v2026.07.1 (`kindlepw2`) is the current canonical V1 baseline; Bookshelf v5.1.4 coexistence has passed
 - Manual sync only for V1
 
 Do not update Kindle firmware/jailbreak for this project. The KOReader update is now a deliberate Gate 4A migration with backup, rollback and regression testing; see `docs/KOREADER_UPGRADE.md`.
