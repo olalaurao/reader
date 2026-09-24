@@ -21,6 +21,18 @@ return function()
             TextMatch
         ) == "Hello world"
     )
+    assert(Refresh.compareVisible(
+        "<html><body><p>Hello   world</p></body></html>",
+        "<p>Hello world</p>",
+        Html,
+        TextMatch
+    ) == "same")
+    assert(Refresh.compareVisible(
+        "<p>Hello world</p>",
+        "<p>Hello changed world</p>",
+        Html,
+        TextMatch
+    ) == "different")
 
     assert(Refresh.isReplacementAllowed() == false)
     assert(Refresh.decide{
