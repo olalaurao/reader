@@ -181,10 +181,26 @@ local function newUI(SyncUI, state, watermark, report, ui_options)
                     annotation_repository_fallback = true,
                     annotation_current_status = "ok",
                     annotation_scanned = 4,
+                    archive_enabled = true,
+                    archive_documents_scanned = 1,
+                    archive_finished_detected = 1,
+                    archive_intents_queued = 1,
+                    archive_queue_processed = 1,
+                    documents_archived = 1,
+                    archive_reconciled = 0,
+                    archive_already_archived = 0,
+                    archive_cancelled = 0,
+                    archive_documents_skipped = 0,
+                    archive_scan_errors = 0,
+                    archive_blocked = 0,
+                    archive_deferred = 0,
+                    archive_auth_waiting = 0,
+                    archive_queue_waiting = 0,
+                    archive_remote_errors = 0,
                     postprocess = {
                         {
                             path = "/Readwise/a.html",
-                            location = "later",
+                            location = "archive",
                             metadata = { title = "A" },
                         },
                     },
@@ -231,6 +247,12 @@ return function()
         assert(state.shown[#state.shown].text:find("Highlights created: 0", 1, true))
         assert(state.shown[#state.shown].text:find("Notes updated: 0", 1, true))
         assert(state.shown[#state.shown].text:find("Remote highlight deletions: 0", 1, true))
+        assert(state.shown[#state.shown].text:find("Archive finished documents: on", 1, true))
+        assert(state.shown[#state.shown].text:find("Finished status detected: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("Archive intents queued durably: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("Reader documents archived: 1", 1, true))
+        assert(state.shown[#state.shown].text:find("Archive queue waiting after sync: 0", 1, true))
+        assert(state.collection_writes[1].location == "archive")
     end)
 
     withStubbedSyncUI(function(SyncUI, state)
