@@ -2365,3 +2365,96 @@ Confirmed:
 **Gate 14 PASSED. Phase P complete.**
 
 Next physical gate: Gate 15 / content refresh safety.
+
+
+### Phase Q / Gate 15 Q1 — build 0.1.44 content-refresh safety spike
+
+Purpose:
+- prove that a Reader revision on an already-local document cannot silently replace local bytes or lose KOReader progress/annotations;
+- establish article visible-text comparison behavior and raw PDF/EPUB deferral before Q2 changes any pending state.
+
+0.1.44 safety contract:
+- DB schema migrates v1 → v2 with the normal pre-migration `.bak` backup;
+- legacy local files get **no invented materialized revision**;
+- a changed Reader revision on an existing local file is persisted as `content_refresh_pending`;
+- later no-op Syncs do not forget the pending state;
+- existing local document bytes are **never auto-replaced**;
+- sidecar is never rewritten by the refresh diagnostic;
+- article diagnostic reads local/remote HTML under 4 MiB caps and compares normalized visible text only;
+- the diagnostic never displays document text or comparison hashes;
+- PDF/EPUB original content is not downloaded by the diagnostic;
+- remote writes: none;
+- local writes: none;
+- automatic replacement allowed: no.
+
+Automated/package validation for 0.1.44:
+- draft PR #18;
+- CI run #917 on `e491c7ed6096513d623f6ac6129e4ad73de56705`: **SUCCESS**;
+- development checks: SUCCESS;
+- full Lua unit suite: SUCCESS;
+- package/layout: SUCCESS;
+- artifact upload: SUCCESS;
+- artifact ID: `10821257420`;
+- artifact name: `readwisereader-koplugin-fd29f2a8927b20ed8b53af7c43539d3cdaa27ae2`;
+- outer artifact SHA-256: `c73318305a728292e4b1c90c0c9da5c86c66de1899a37ad6b02601fc60b77459`;
+- installable inner ZIP SHA-256: `6371f5d49656bb7fad201494a81f29bdc6df2e60cb895e39750a103ef84828b6`;
+- inner ZIP integrity: PASS;
+- packaged version: 0.1.44;
+- Gate 15 policy/worker/UI files present;
+- packaged ZIP contains no `tests/` entries.
+
+#### Q1-A — article with real reading state
+
+Use a Reader-managed local **article** that already has:
+- nonzero reading progress and/or an XPointer;
+- at least one highlight;
+- preferably a note on that highlight.
+
+1. Install 0.1.44 preserving settings/DB/documents/sidecars.
+2. Open that article.
+3. Run **Readwise Reader → Inspect content refresh safety (Gate 15)**.
+4. Capture the complete baseline screen.
+5. Do not change the Kindle document.
+6. In Reader, change **only the document title**. Do not delete/re-save the article.
+7. Wait until Reader has persisted the rename, then run ordinary **Sync now** once on the Kindle.
+8. Capture the complete Sync report.
+9. Reopen the same local article and verify:
+   - same local file opens;
+   - progress/position is unchanged;
+   - highlight remains;
+   - note remains.
+10. Run **Inspect content refresh safety (Gate 15)** again and capture the complete screen.
+
+Required post-revision evidence:
+- Sync reports `Content refresh deferred safely >= 1`;
+- Sync reports `Content refresh pending review >= 1`;
+- no content page/download/replacement occurs for this existing file;
+- diagnostic: `Refresh pending: yes`;
+- diagnostic: `Sidecar present: yes`;
+- diagnostic: reading-state-at-risk = yes;
+- diagnostic: `Visible-text comparison: same`;
+- diagnostic: `V1 refresh decision: same_visible_text_keep_local`;
+- diagnostic: `Automatic replacement allowed: no`;
+- diagnostic: remote writes none / local writes none;
+- local progress/highlight/note unchanged.
+
+For a legacy pre-v2 file, `Materialized remote revision: unavailable` / `materialized_baseline_unknown` is expected and safe. Do not invent a baseline.
+
+#### Q1-B — raw PDF/EPUB, when an original-format local fixture is available
+
+For one local Reader-managed document with `Local format: pdf` and one with `Local format: epub`:
+1. run Gate 15 diagnostic baseline;
+2. change only the title in Reader;
+3. Sync once;
+4. reopen the same local raw file and confirm its sidecar/position/annotations remain intact;
+5. run Gate 15 diagnostic again.
+
+Required:
+- refresh pending persists;
+- decision = `defer_raw_keep_local`;
+- automatic replacement = no;
+- no raw source download/replacement occurs.
+
+If a suitable original PDF or EPUB is not already locally managed, do not create a risky replacement fixture merely for this spike; report that format as physically pending.
+
+Do not implement Q2 or begin Gate 16 before Q1 evidence is reviewed.
