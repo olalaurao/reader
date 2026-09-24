@@ -780,7 +780,9 @@ function Reader:iterateDocuments(options, callback)
 
         report.pages = report.pages + 1
         report.malformed = report.malformed + (page.malformed or 0)
-        if #page.results == 0 and page.next_page_cursor ~= nil then
+        if #page.results == 0
+            and (page.malformed or 0) == 0
+            and page.next_page_cursor ~= nil then
             return nil, {
                 kind = "pagination",
                 retryable = false,

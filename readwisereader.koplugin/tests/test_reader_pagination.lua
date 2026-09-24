@@ -147,6 +147,36 @@ return function()
     end
 
     do
+        -- A whole page can be unusable record-by-record while still carrying
+        -- a valid cursor. That is not the same as an API empty-page loop:
+        -- skip the malformed records and continue to the next page.
+        local reader = sequenceReader({
+            {
+                results = {
+                    { title = "missing id 1" },
+                    { id = "" },
+                },
+                nextPageCursor = "after-malformed",
+            },
+            {
+                results = {
+                    { id = "valid-after-malformed" },
+                },
+            },
+        })
+        local ids = {}
+        local report, err = reader:iterateDocuments({}, function(document)
+            ids[#ids + 1] = document.id
+        end)
+        assert(err == nil)
+        assert(report.pages == 2)
+        assert(report.malformed == 2)
+        assert(report.received == 1)
+        assert(report.unique == 1)
+        assert(ids[1] == "valid-after-malformed")
+    end
+
+    do
         local reader = sequenceReader({
             {
                 results = { { id = "a" } },

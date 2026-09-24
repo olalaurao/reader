@@ -132,11 +132,12 @@ return function()
                         },
                     }
                 end,
-                getDocument = function(_, id, with_html, with_raw)
+                getDocument = function(_, id, with_html, with_raw, max_body_bytes)
                     captured.get = {
                         id = id,
                         with_html = with_html,
                         with_raw = with_raw,
+                        max_body_bytes = max_body_bytes,
                     }
                     return {
                         id = id,
@@ -161,6 +162,7 @@ return function()
         assert(document.category == "pdf")
         assert(captured.get.with_html == true)
         assert(captured.get.with_raw == true)
+        assert(captured.get.max_body_bytes == 10 * 1024 * 1024)
     end
 
     do

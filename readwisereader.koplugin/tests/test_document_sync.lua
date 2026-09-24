@@ -157,6 +157,7 @@ return function()
             iterateDocuments = function(_, options, callback)
                 if options.with_html_content then
                     assert(options.location == "new")
+                    assert(options.max_body_bytes == 16 * 1024 * 1024)
                     if options.category == "pdf" then
                         assert(options.with_raw_source_url == true)
                         saw_pdf_raw = true
