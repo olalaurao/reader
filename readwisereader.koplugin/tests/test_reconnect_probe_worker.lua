@@ -11,6 +11,22 @@ return function()
     assert(Worker._statusCount({ pending = 3 }, "pending") == 3)
     assert(Worker._statusCount({}, "pending") == 0)
 
+    local snap = os.tmpname()
+    local snapshot = {
+        stage = "marker_scan_passed",
+        remote_writes = 0,
+        queue_pending = 3,
+        items = {
+            { status = "pending", marker_matches = 1 },
+        },
+    }
+    assert(Worker._writeSnapshot(snap, snapshot) == true)
+    local loaded = assert(Worker._readSnapshot(snap))
+    assert(loaded.stage == "marker_scan_passed")
+    assert(loaded.queue_pending == 3)
+    assert(loaded.items[1].marker_matches == 1)
+    os.remove(snap)
+
     local item = Worker._summarizeItem({
         status = "blocked",
         attempts = 2,
@@ -22,6 +38,8 @@ return function()
     assert(item.error_kind == "stale_create_in_flight")
     assert(item.has_remote_id == true)
     assert(item.marker_matches == 0)
-    assert(item.parent_read == "not_run")
+    assert(item.parent_metadata == "not_run")
+    assert(item.parent_html == "not_run")
+    assert(item.parent_html_bytes == 0)
     assert(item.match_status == "not_run")
 end
