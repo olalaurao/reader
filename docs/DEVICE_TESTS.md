@@ -1772,3 +1772,58 @@ If Gate 13A passes, continue with the same queued item:
 - Sync now once: exactly one create or safe reconciliation, queue waiting 0;
 - Sync now again unchanged: created 0, waiting 0, exactly one Reader copy.
 
+
+
+### Gate 13A attempt — build 0.1.37 — FAIL SAFE / no report
+
+Physical result on target PW3 / KOReader v2026.07.1:
+- 0.1.37 was installed for the offline Gate 13A retest;
+- native Kindle Airplane Mode / no internet remained in effect;
+- the user used the fresh Gate 13 fixture created for this attempt;
+- ordinary **Sync now** did **not** produce the expected summary report;
+- the only UI result was: `Document sync failed safely`;
+- no reboot/reconnect step was performed after this failure.
+
+Interpretation:
+- the worker's top-level `pcall` protected local data from an uncaught Lua exception but hid the stage;
+- because 0.1.37 newly traverses multiple managed sidecars, a real-device sidecar/query/queue exception that was not represented by the unit fixtures is a plausible failure boundary;
+- the exact throw source is **not claimed as proven** from the generic 0.1.37 message alone.
+
+### Build 0.1.38 — Gate 13A retry
+
+0.1.38 keeps every 0.1.37 safety invariant and adds:
+- per-document `pcall` isolation around sidecar scan and queue preparation;
+- per-annotation normalization isolation inside a readable sidecar;
+- optimized local-managed repository query fallback to the previous managed query, then current-document fallback;
+- diagnostic counters for isolated scan/normalize/queue exceptions and repository fallback;
+- outer worker-stage diagnostics if a global exception still escapes;
+- no weakening of the read-only Readwise pre-write probe.
+
+**Do not create another highlight. Reuse the exact fixture from the failed 0.1.37 attempt.**
+
+1. Install 0.1.38, preserving DB/settings/documents/sidecars.
+2. Keep native Kindle Airplane Mode ON / no internet.
+3. Open the same managed article containing the existing Gate 13 fixture; do not edit or recreate it.
+4. Close/reopen once if needed to ensure the sidecar is flushed; leave the article open.
+5. Run ordinary **Sync now** once.
+6. Required:
+   - a full report appears (not generic worker failure);
+   - Mode: **offline / local queue**;
+   - Remote preflight: `offline`, `timeout`, `tls`, or `unknown`;
+   - Current annotation document status: **ok**;
+   - Managed annotation documents scanned: >=1;
+   - Authoritative annotation sidecars: >=1;
+   - Managed-document highlights scanned: >=1;
+   - Highlight creates queued durably: >=1 **or** the same idempotent queue item remains waiting from 0.1.37;
+   - Highlights created: **0**;
+   - Create queue items processed: **0**;
+   - Create queue waiting after sync: >=1;
+   - Metadata pages: **0**;
+   - Content pages: **0**;
+   - new fixture remains absent from Reader.
+7. It is acceptable for:
+   - Annotation sync to be `queued_offline_partial`;
+   - Annotation documents skipped safely / isolated exception counters to be >0,
+   provided **Current annotation document status = ok**, the target fixture is waiting durably, and no remote work ran.
+8. If the generic failure still occurs, report the new message including `stage: ...`; do not reboot.
+9. If the report passes, stop and return the whole screen. Only then proceed to Gate 13B reboot with the same pending queue item.
