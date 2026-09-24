@@ -2458,3 +2458,36 @@ Required:
 If a suitable original PDF or EPUB is not already locally managed, do not create a risky replacement fixture merely for this spike; report that format as physically pending.
 
 Do not implement Q2 or begin Gate 16 before Q1 evidence is reviewed.
+
+
+### Gate 15 Q1 attempt 1 — 0.1.44 — FAIL / crash fixed in 0.1.45
+
+Physical result:
+- user opened a managed Reader article;
+- tapping **Inspect content refresh safety (Gate 15)** caused KOReader to exit back to the launcher instead of showing the diagnostic;
+- no intentional Sync, remote mutation, content replacement, sidecar write, or Gate 15 comparison occurred.
+
+Root cause isolated before requesting another device attempt:
+- 0.1.44 introduced the first DB schema migration (v1 → v2);
+- the diagnostic parent preflight calls the documents repository, which lazily opens the DB and therefore triggers the migration;
+- KOReader `ffiUtil.copyFile(from, to)` returns **nil on success** and an error string on failure;
+- `DB:_backupBeforeMigration` incorrectly treated nil as failure:
+  - the backup copy could succeed;
+  - the plugin then raised `database backup failed: unknown error`;
+  - this error escaped the menu callback because that parent preflight was not protected by `pcall`;
+- the migration transaction had not started yet, so the original v1 DB should remain unchanged; a successful `.bak` copy may also be present.
+
+Additional hardening in 0.1.45:
+- backup logic now treats `nil` as KOReader copy success and any non-nil return as failure;
+- regression tests explicitly model KOReader's real copyFile contract;
+- DB and sidecar parent-process preflight calls are wrapped so future errors show a safe message instead of escaping the menu callback;
+- unnecessary `ffi/sha2` hashing was removed from the Gate 15 subprocess; visible text is compared directly after normalization;
+- replacement remains hard-disabled.
+
+Retest with 0.1.45:
+1. install 0.1.45 preserving settings/DB/documents/sidecars;
+2. relaunch KOReader;
+3. open the same Reader-managed article;
+4. tap **Inspect content refresh safety (Gate 15)** once;
+5. return the complete screen if it opens;
+6. if KOReader exits again, stop immediately and preserve the newest `koreader/crash.log` before any further test.
