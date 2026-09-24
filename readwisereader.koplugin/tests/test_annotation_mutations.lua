@@ -32,6 +32,7 @@ local function baseState()
         v3_updates = 0,
         reader_gets = 0,
         auto_propagate_v2 = true,
+        v2_deleted = false,
     }
 end
 
@@ -121,6 +122,9 @@ local function newMutator(state, local_note, remote_note, propagate, source)
     local reader = {
         getDocument = function()
             state.reader_gets = state.reader_gets + 1
+            if remote == nil then
+                return nil, { kind = "not_found", retryable = false }
+            end
             return copy(remote)
         end,
         updateDocument = function(_, id, patch)
@@ -132,6 +136,8 @@ local function newMutator(state, local_note, remote_note, propagate, source)
         deleteDocument = function(_, id)
             assert(id == "remote-1")
             state.deletes = state.deletes + 1
+            remote = nil
+            state.v2_deleted = true
             return true
         end,
     }
@@ -140,6 +146,9 @@ local function newMutator(state, local_note, remote_note, propagate, source)
             state.v2_lists = state.v2_lists + 1
             assert(options.page_size == 1000)
             assert(options.page == 1)
+            if state.v2_deleted then
+                return { count = 0, results = {} }
+            end
             return {
                 count = 1,
                 results = { copy(v2) },
@@ -147,6 +156,9 @@ local function newMutator(state, local_note, remote_note, propagate, source)
         end,
         getHighlight = function(_, id)
             assert(id == 77)
+            if state.v2_deleted then
+                return nil, { kind = "not_found", retryable = false }
+            end
             return copy(v2)
         end,
         updateHighlight = function(_, id, patch)
@@ -326,30 +338,30 @@ local function deletionOnCase()
     local report = assert(mutator:syncPath("/Readwise/a.html"))
     assert(report.deletions_detected == 1)
     assert(report.deletions_remote == 1)
+    assert(report.delete_cross_api_identity_verified == 1)
+    assert(report.reader_deletions_verified == 1)
+    assert(report.reader_delete_verification_reads >= 1)
     assert(state.deletes == 1)
     assert(state.row.created_remote == false)
     assert(state.row.reader_highlight_document_id == nil)
     assert(state.row.sync_state == "deleted_synced")
 end
 
-local function missingMarkerStillBlocksDelete()
+local function missingMarkerDeleteUsesCrossApiIdentity()
     local state = baseState()
     state.row.local_deleted_at = 123
     state.row.sync_state = "local_deleted"
-    local mutator = newMutator(
-        state,
-        false,
-        "old note",
-        true,
-        "reader"
-    )
+    local mutator = newMutator(state, false, "old note", true, "reader")
     local report = assert(mutator:syncPath("/Readwise/a.html"))
-    assert(report.blocked == 1)
-    assert(report.deletions_remote == 0)
-    assert(state.deletes == 0, "durable link without exact marker must not authorize DELETE")
+    assert(report.blocked == 0)
+    assert(report.delete_cross_api_identity_verified == 1)
+    assert(report.deletions_remote == 1)
+    assert(report.reader_deletions_verified == 1)
+    assert(state.deletes == 1)
+    assert(state.row.created_remote == false)
 end
 
-local function legacyMarkerStillBlocksDelete()
+local function legacyMarkerDeleteUsesCrossApiIdentity()
     local state = baseState()
     state.row.local_deleted_at = 123
     state.row.sync_state = "local_deleted"
@@ -361,9 +373,55 @@ local function legacyMarkerStillBlocksDelete()
         "KOReader Readwise Reader"
     )
     local report = assert(mutator:syncPath("/Readwise/a.html"))
+    assert(report.blocked == 0)
+    assert(report.delete_cross_api_identity_verified == 1)
+    assert(report.deletions_remote == 1)
+    assert(state.deletes == 1)
+    assert(state.row.created_remote == false)
+end
+
+local function crossApiMismatchBlocksDelete()
+    local state = baseState()
+    state.row.local_deleted_at = 123
+    state.row.sync_state = "local_deleted"
+    state.row.readwise_v2_highlight_id = 77
+    local documents, annotations = repos(state)
+    local remote = child("old note", "reader")
+    local reader = {
+        getDocument = function() return copy(remote) end,
+        deleteDocument = function()
+            state.deletes = state.deletes + 1
+            return true
+        end,
+    }
+    local readwise = {
+        getHighlight = function()
+            return {
+                id = 77,
+                external_id = "different-reader-child",
+                note = "old note",
+            }
+        end,
+        listHighlights = function()
+            return { count = 0, results = {} }
+        end,
+    }
+    local mutator = Mutations:new{
+        documents = documents,
+        annotations = annotations,
+        adapter = { scan = function() return { authoritative = true, annotations = {} } end },
+        reader = reader,
+        readwise = readwise,
+        propagate_deletions = true,
+        sleep = function() end,
+        reader_verify_attempts = 2,
+        reader_verify_delay = 0,
+        file_exists = function() return true end,
+    }
+    local report = assert(mutator:syncPath("/Readwise/a.html"))
     assert(report.blocked == 1)
     assert(report.deletions_remote == 0)
-    assert(state.deletes == 0, "legacy generic ownership marker must not authorize DELETE")
+    assert(state.deletes == 0)
     assert(state.row.created_remote == true)
 end
 
@@ -409,7 +467,8 @@ return function()
     conflictCase()
     deletionOffCase()
     deletionOnCase()
-    missingMarkerStillBlocksDelete()
-    legacyMarkerStillBlocksDelete()
+    missingMarkerDeleteUsesCrossApiIdentity()
+    legacyMarkerDeleteUsesCrossApiIdentity()
+    crossApiMismatchBlocksDelete()
     identityMismatchBlocksDelete()
 end
