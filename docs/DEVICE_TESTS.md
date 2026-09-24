@@ -2171,3 +2171,19 @@ Before the final unchanged second Sync:
 4. confirm expected note content is present.
 
 Do not run the second Sync until this Reader-side verification is complete.
+
+
+### Gate 13C Reader verification — PASS
+
+After the first controlled reconnect Sync on 0.1.41:
+- all 3 new highlights were found in the correct original Reader documents;
+- exactly one copy of each was present;
+- expected notes were present;
+- no duplicate was observed.
+
+Final idempotency check:
+1. make no annotation changes;
+2. keep Wi-Fi ON;
+3. run ordinary **Sync now** once;
+4. require created 0 / processed 0 / waiting 0 / errors 0;
+5. verify Reader still has exactly one copy of each Gate 13 item.
