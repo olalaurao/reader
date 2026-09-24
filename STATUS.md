@@ -1499,6 +1499,7 @@ Next physical gate: **Gate 2**, after Phase C storage and Phase D Reader metadat
 - Treat all HTTP 2xx as transport success, while `validateToken()` requires the documented 204 specifically.
 - Strip query parameters from request log URLs and never log request headers.
 - Do not use KOReader network helpers that may toggle/connect Wi-Fi.
+- Phase O: local Kindle/KOReader network booleans are advisory only on the target PW3. Remote writes require the worker's read-only Readwise auth probe to succeed after local annotation queueing.
 
 ## Spec deviations / deliberate canonical changes
 
@@ -1510,45 +1511,32 @@ Gate 8 produced a deliberate canonical API-contract correction on 2026-09-23: ph
 
 A pre-existing Phase K branch state had incorrectly grouped remote highlight creation/deduplication into “Gate 9”. This session restored the canonical order rather than accepting that deviation: **Gate 9 is matching-only and read-only remotely; Phase L / Gate 10 owns create + note + deduplication**. The old 0.1.23 upload implementation files remain available for later Phase L work but their menu entry is disabled in 0.1.24.
 
+Gate 13 produced another deliberate canonical correction on 2026-09-23. The earlier preflight design assumed local KOReader/Kindle network state could determine whether remote work was safe to begin. Physical build 0.1.35 disproved that on the target PW3: native Airplane Mode properties were unavailable while KOReader still reported Wi-Fi/connected/online=true with no internet. The spec now requires local annotation queueing first and a **read-only Readwise auth GET inside the worker before any remote write**. This is a safety correction, not a scope expansion; Wi-Fi control remains forbidden.
+
 ## Blockers
 
-Immediate blocker: **Gate 13 physical validation** of build 0.1.33 on the target PW3 / KOReader v2026.07.1.
+Immediate blocker: **physical Gate 13A retest on build 0.1.36**.
 
-Implemented and automated:
-- ordinary Sync now can run with Wi-Fi OFF and performs local sidecar → DB → durable queue work only;
-- outbound create intent is durable before any POST and survives a new uploader/worker process;
-- `retry_wait` + `available_after` backoff is implemented without a schema change;
-- retryable preflight failures (offline/timeout/429/5xx) preserve attempts=0 and defer safely;
-- auth rejection before POST preserves the queue for later retry after credentials recover;
-- create 429 can retry only after reconciliation proves no marker exists;
-- create timeout can reconcile a remotely-created child without a second POST;
-- create timeout with zero marker match stays blocked and never retries blindly;
-- create 5xx with unknown outcome stays blocked after reconciliation and never retries blindly;
-- stale `in_flight` create rows become reconciliation-only work after reboot;
-- full document rescan still requires network and V1 still never controls Wi-Fi.
+The 0.1.35 read-only device spike is complete and proved the prior local network detector unsafe:
+- native `airplaneMode`, `wirelessEnable`, and `wifid enable`: unavailable;
+- KOReader `isWifiOn/isConnected/isOnline`: true despite no internet/native Airplane Mode;
+- diagnostic itself performed no remote request/write.
 
-Automated evidence:
-- run #494: storage retry/backoff transitions PASS;
-- run #496: offline/restart, 429, timeout, auth, ambiguity queue scenarios PASS;
-- run #497: worker offline-first ordering PASS;
-- run #499: offline Sync now UI PASS;
-- run #500: 5xx ambiguity + full suite/package PASS.
+Implemented for 0.1.36:
+- ordinary Sync now scans the current managed sidecar and durably queues create intent first;
+- UI local network state no longer authorizes remote work;
+- worker calls the existing read-only Reader auth endpoint before queue processing;
+- failed probe performs no remote write, leaves waiting queue intact, and advances no document watermark;
+- successful probe is required before create queue processing, note/delete mutation, or document feed sync;
+- 429/timeout/5xx/auth/stale-in-flight duplicate-safety invariants from Phase O remain unchanged.
 
 Physical proof still required:
-- create one fresh local annotation while Wi-Fi is OFF;
-- Sync now offline must show the annotation durably queued, with no remote create;
-- fully restart KOReader while that queue item is pending;
-- enable Wi-Fi outside the plugin;
-- Sync now must create exactly one Reader highlight with the exact note;
-- a second Sync now must create zero duplicates;
-- the queue must end with zero waiting create work;
-- no annotation loss, crash, or freeze.
-
-O2 fault classes (429, timeout, 5xx, auth) are validated through injected deterministic unit/integration failures because intentionally forcing those server responses against the live account is neither reliable nor safe. Gate 13 physical validation focuses on the real persistence/reboot/reconnect boundary.
-
-Later hard gates:
-- Gate 14 finished/archive;
-- Gate 15 content refresh safety.
+- Airplane Mode/no internet: new fixture must queue, create 0, process 0, waiting >=1, metadata/content pages 0;
+- restart KOReader with that same item pending;
+- reconnect Wi-Fi outside the plugin;
+- exactly one remote create or exact reconciliation;
+- second unchanged sync creates zero duplicates;
+- local annotation/note survives end-to-end.
 
 ## Exact next steps
 
