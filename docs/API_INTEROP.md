@@ -230,7 +230,7 @@ Canonical production contract:
 - poll the exact Reader v3 child and require the expected note to be visible there before advancing `last_synced_note`;
 - if v2 already has the desired note but Reader v3 is stale, PATCH that same validated Reader child through v3 as a repair, then verify again;
 - only after Reader visibility is proven may durable sync state advance;
-- Reader v3 deletion of a proven child propagates so the corresponding v2 highlight disappears, but production deletion remains opt-in/default OFF and keeps stricter exact ownership-marker requirements;
+- Reader v3 deletion of a proven child propagates so the corresponding v2 highlight disappears; production deletion remains opt-in/default OFF, but Gate 12D production evidence replaced the unreliable ownership-marker requirement with stricter **cross-API identity**: exact Reader child/parent/category plus exact Readwise v2 `external_id` mapping;
 - do not implement highlight-color synchronization in V1;
 - preserve literal note text, including `[[wikilinks]]`, throughout the production sync path.
 
@@ -245,3 +245,17 @@ Physical Gate 12A evidence on build 0.1.31:
 - user visually confirmed the final Reader note.
 
 See `docs/ANNOTATION_SYNC_LESSONS.md` for the full failure history and MUST/DO NOT rules. Future annotation work must consult that file before implementation.
+
+
+### Gate 12D production correction — destructive identity
+
+The first production delete attempt on build 0.1.31 was blocked safely because Reader did not expose the exact `source/saved_using` marker. Therefore production delete must not depend on that field.
+
+Canonical destructive identity from build 0.1.32:
+- exact durable Reader child id;
+- expected Reader parent id;
+- `category=highlight`;
+- exact mapped Readwise v2 highlight with `external_id == Reader child id`;
+- no text/note heuristic fallback.
+
+After Reader DELETE acknowledgement, the exact child must be re-read until it is confirmed absent before local durable remote-link state is cleared.
