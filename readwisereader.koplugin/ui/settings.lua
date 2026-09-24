@@ -77,6 +77,23 @@ This is destructive. The plugin still verifies the remote child ID, parent docum
                 },
             },
             {
+                text = _("Finished documents"),
+                sub_item_table = {
+                    {
+                        text = _("Archive in Reader"),
+                        keep_menu_open = true,
+                        checked_func = function()
+                            return self.config:getArchiveFinished()
+                        end,
+                        callback = function()
+                            self.config:setArchiveFinished(
+                                not self.config:getArchiveFinished()
+                            )
+                        end,
+                    },
+                },
+            },
+            {
                 text = _("Documents"),
                 sub_item_table = {
                     {
