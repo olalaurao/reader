@@ -25,6 +25,21 @@ local function probeReader(reader)
     }
 end
 
+local function annotationQueueStatus(local_queue_report, offline)
+    local_queue_report = local_queue_report or {}
+    if (local_queue_report.documents_authoritative or 0) <= 0 then
+        return nil
+    end
+    local partial = (local_queue_report.scan_errors or 0) > 0
+        or (local_queue_report.queue_errors or 0) > 0
+        or (local_queue_report.documents_skipped or 0) > 0
+    if offline then
+        return partial and "queued_offline_partial" or "queued_offline"
+    end
+    return partial and "queued_remote_unavailable_partial"
+        or "queued_remote_unavailable"
+end
+
 local function copyMetadata(document)
     local tags
     if type(document.tags) == "table" then
@@ -270,18 +285,9 @@ function Worker:run(options)
                     storage_before and storage_before.available or nil,
             }
             applyAnnotationDefaults(local_report)
-            if (local_queue_report.documents_authoritative or 0) > 0 then
-                local partial = (local_queue_report.scan_errors or 0) > 0
-                    or (local_queue_report.queue_errors or 0) > 0
-                    or (local_queue_report.documents_skipped or 0) > 0
-                if offline then
-                    local_report.annotation_sync_status =
-                        partial and "queued_offline_partial" or "queued_offline"
-                else
-                    local_report.annotation_sync_status =
-                        partial and "queued_remote_unavailable_partial"
-                        or "queued_remote_unavailable"
-                end
+            local queue_status = annotationQueueStatus(local_queue_report, offline)
+            if queue_status then
+                local_report.annotation_sync_status = queue_status
             end
             local storage_after = util.diskUsage(config:getDownloadDirectory())
             local_report.storage_available_after =
@@ -439,5 +445,6 @@ end
 Worker._copyMetadata = copyMetadata
 Worker._isNetworkUnavailable = isNetworkUnavailable
 Worker._probeReader = probeReader
+Worker._annotationQueueStatus = annotationQueueStatus
 
 return Worker
