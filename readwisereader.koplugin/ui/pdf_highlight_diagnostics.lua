@@ -82,7 +82,7 @@ function UI:run()
                 return self.worker:run(path)
             end, _([[Scanning Reader highlights for this PDF…
 
-Tap to cancel. Gate 17D is read-only: it fetches Reader highlight records and tests KOReader paging/PDF text positions. It does not create, edit, or delete any local or remote annotation.]]))
+Tap to cancel. Gate 17D is read-only: it validates KOReader paging/PDF search boxes and native endpoint positions. Partial first/last PDF words are reported separately. It does not create, edit, or delete any local or remote annotation.]]))
 
         if not completed then
             UIManager:show(InfoMessage:new{
@@ -98,24 +98,34 @@ Tap to cancel. Gate 17D is read-only: it fetches Reader highlight records and te
             return
         end
 
-        local tested, unique, ambiguous, missing, text_diff, other =
-            0, 0, 0, 0, 0, 0
+        local tested, exact, boundary, ambiguous, missing =
+            0, 0, 0, 0, 0
+        local geometry_mismatch, search_text_diff, other = 0, 0, 0
+        local roundtrip_diff = 0
         local samples = {}
         for _, highlight in ipairs(report.remote_highlights or {}) do
             if tested >= MAX_PROBES then break end
             tested = tested + 1
             local locator, status =
                 Locator.findUnique(reader_ui, highlight.content)
-            if status == "unique" then
-                unique = unique + 1
+            if status == "unique_exact" then
+                exact = exact + 1
+            elseif status == "unique_boundary" then
+                boundary = boundary + 1
             elseif status == "ambiguous" then
                 ambiguous = ambiguous + 1
             elseif status == "missing" then
                 missing = missing + 1
-            elseif status == "text_diff" then
-                text_diff = text_diff + 1
+            elseif status == "geometry_mismatch" then
+                geometry_mismatch = geometry_mismatch + 1
+            elseif status == "search_text_diff" then
+                search_text_diff = search_text_diff + 1
             else
                 other = other + 1
+            end
+
+            if locator and locator.roundtrip_matches_search == false then
+                roundtrip_diff = roundtrip_diff + 1
             end
 
             local page_suffix = locator and locator.page
@@ -150,12 +160,28 @@ Tap to cancel. Gate 17D is read-only: it fetches Reader highlight records and te
                 report.highlights_with_text or 0
             ),
             string.format(_("Local PDF probes run: %d"), tested),
-            string.format(_("Unique exact paging matches: %d"), unique),
+            string.format(_("Unique exact paging matches: %d"), exact),
+            string.format(
+                _("Unique word-boundary paging matches: %d"),
+                boundary
+            ),
+            string.format(
+                _("Validated paging positions total: %d"),
+                exact + boundary
+            ),
             string.format(_("Ambiguous matches: %d"), ambiguous),
             string.format(_("Missing matches: %d"), missing),
             string.format(
-                _("Text round-trip differences: %d"),
-                text_diff
+                _("Native endpoint geometry mismatches: %d"),
+                geometry_mismatch
+            ),
+            string.format(
+                _("Search-text relation mismatches: %d"),
+                search_text_diff
+            ),
+            string.format(
+                _("Full-text round-trip differences (diagnostic): %d"),
+                roundtrip_diff
             ),
             string.format(_("Other/invalid matches: %d"), other),
         }
