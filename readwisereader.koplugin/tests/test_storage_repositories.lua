@@ -447,7 +447,29 @@ local function testQueueSurvivesProcessRestart()
     assertEqual(due[1].status, "pending")
     assertEqual(due[1].attempts, 1)
     assertEqual(due[1].payload_hash, "restart-hash")
+
+    -- After the reconnect delivery is durably marked succeeded, a later
+    -- process reopen must not resurrect the create into runnable work.
+    local succeeded = third_queue:markSucceeded(
+        "create_highlight:restart-ann",
+        "remote-restart-ann",
+        101
+    )
+    assertEqual(succeeded.status, "succeeded")
+    assertEqual(third_queue:countCreateWaiting(), 0)
     third_db:close()
+
+    local fourth_db = openFileDB()
+    local fourth_queue = Queue:new{ db = fourth_db }
+    local delivered = fourth_queue:getByKey("create_highlight:restart-ann")
+    assertEqual(delivered.status, "succeeded")
+    assertEqual(delivered.reader_highlight_document_id, "remote-restart-ann")
+    assertEqual(delivered.attempts, 1)
+    assertEqual(delivered.payload_hash, "restart-hash")
+    assertEqual(fourth_queue:countCreateWaiting(), 0)
+    assertEqual(#fourth_queue:listCreateWork(200), 0,
+        "succeeded reconnect create must not revive after process restart")
+    fourth_db:close()
 
     os.remove(path)
     os.remove(path .. "-journal")
