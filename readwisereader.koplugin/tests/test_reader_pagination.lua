@@ -268,6 +268,58 @@ return function()
         assert(#sleeps > 0)
     end
 
+
+    do
+        -- Gate 16 / large-library deterministic stress: pagination must stay
+        -- bounded to one page plus ID/cursor sets rather than accumulating
+        -- document payloads. Exercise a corpus materially larger than the
+        -- current real library without Reader/network access.
+        local page_count = 120
+        local per_page = 100
+        local now = 0
+        local requests = 0
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function()
+                    requests = requests + 1
+                    return { status = 200, headers = {}, body = tostring(requests) }
+                end,
+            },
+            json_decode = function(body)
+                local page_no = tonumber(body)
+                local results = {}
+                for item = 1, per_page do
+                    results[item] = {
+                        id = string.format("stress-%03d-%03d", page_no, item),
+                    }
+                end
+                return {
+                    results = results,
+                    nextPageCursor = page_no < page_count
+                        and ("stress-cursor-" .. tostring(page_no + 1))
+                        or nil,
+                }
+            end,
+            clock = function() return now end,
+            sleep = function(seconds) now = now + seconds end,
+            list_min_interval = 0,
+        }
+
+        local callbacks = 0
+        local report, err = reader:iterateDocuments({}, function()
+            callbacks = callbacks + 1
+        end)
+        assert(err == nil)
+        assert(report.pages == page_count)
+        assert(report.received == page_count * per_page)
+        assert(report.unique == page_count * per_page)
+        assert(report.duplicates == 0)
+        assert(callbacks == page_count * per_page)
+        assert(requests == page_count)
+    end
+
+
     do
         local now = 0
         local cancelled = false
