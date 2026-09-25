@@ -49,6 +49,7 @@ function Probe:run(local_path)
 
     local highlights = {}
     local parent_records = 0
+    local highlights_with_notes = 0
     local scan, err = self.reader:iterateDocuments({
         category = "highlight",
         limit = 100,
@@ -58,10 +59,14 @@ function Probe:run(local_path)
         if remote.parent_id ~= document.reader_id then return end
         parent_records = parent_records + 1
         if type(remote.content) ~= "string" or remote.content == "" then return end
+        local note_present = type(remote.notes) == "string" and remote.notes ~= ""
+        if note_present then highlights_with_notes = highlights_with_notes + 1 end
         highlights[#highlights + 1] = {
             id = remote.id,
+            parent_id = remote.parent_id,
             content = remote.content,
-            note_present = type(remote.notes) == "string" and remote.notes ~= "",
+            notes = remote.notes,
+            note_present = note_present,
             created_at = remote.created_at,
             updated_at = remote.updated_at,
             highlight_offset = remote.highlight_offset,
@@ -77,6 +82,7 @@ function Probe:run(local_path)
         remote_highlights = highlights,
         parent_highlight_records = parent_records,
         highlights_with_text = #highlights,
+        highlights_with_notes = highlights_with_notes,
         pages = scan.pages or 0,
         records_scanned = scan.unique or 0,
         duplicate_records_ignored = scan.duplicates or 0,
