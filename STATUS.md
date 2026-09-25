@@ -53,6 +53,15 @@ Start with **R1: real intermittent Wi-Fi recovery**. Use an already-downloaded R
 
 Report only: whether the offline sync returned safely; whether the recovery sync succeeded; whether the highlight appeared once; whether the second online sync duplicated it; and any error text shown. If R1 passes, STATUS should be updated before advancing to force-close/reboot tests.
 
+## 2026-09-25 — Gate 16 R1 physical PASS; R2 force-close next
+
+- **Physical evidence supplied by user:** Gate 16 R1 real intermittent-Wi-Fi matrix passed completely on the target PW3: offline Sync returned safely, the subsequent online recovery Sync succeeded, the new highlight appeared remotely exactly once, and the second online Sync did not duplicate it. No blocking error was reported.
+- **Conclusion:** hardening item 7 (Wi-Fi/rede intermitente) is **PASS**. This also re-confirms durable local discovery/queueing before remote-write eligibility and idempotent recovery under the real Kindle network behavior previously found unreliable in Gate 13.
+- **Code changes for R1 result:** none required; observed production behavior matches the existing contract.
+- **Branch / HEAD before this STATUS commit:** `hardening/gate16-r1` / `5c64a888c5ad541914f1ca8609f76d3637d4401c`; CI on that HEAD is green for both push and draft PR #20.
+- **Gate 16:** remains **OPEN**. Per the canonical hardening order, the next unresolved device-only item is force-close, followed by reboot. Do not skip to reboot before force-close is observed.
+- **Next physical test — R2 force-close with durable queued work:** use an already-downloaded Reader-managed article. With Wi-Fi/Airplane Mode OFFLINE, create one new disposable highlight and run Sync once so it is discovered/persisted locally and remote write is withheld. Then fully exit/force-close KOReader (do not reboot the Kindle), relaunch KOReader, restore Wi-Fi, run Sync, and verify in Reader that the exact highlight appears once. Run Sync once more and verify no duplicate. Also confirm the article still opens at its prior reading position and its pre-existing highlights/notes remain present. Report: offline Sync safe; KOReader closed/reopened normally; recovery Sync succeeded; highlight appeared once; second Sync did not duplicate; progress/old annotations preserved; any error text.
+
 ## Current milestone
 
 **Phase Q / Gate 15 — PASSED COMPLETE; Phase R / Gate 16 hardening is now unblocked**
