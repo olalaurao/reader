@@ -290,6 +290,43 @@ return function()
         assert(shown[#shown].text:find("rolled back", 1, true))
     end)
 
+    -- Rollback finds the created annotation by table reference, not by the
+    -- original insertion index. Simulate another annotation being inserted
+    -- ahead of it before the durable link returns a failure.
+    withStubs(function(UI, shown)
+        local reader_ui, annotations, calls = makeReaderUI()
+        local importer = makeImporter{
+            on_link = function()
+                table.insert(annotations, 1, {
+                    local_annotation_id = "concurrent-item",
+                    page = 1,
+                    text = "Other",
+                    drawer = "lighten",
+                })
+                error("synthetic link failure after index shift")
+            end,
+        }
+        local ui = UI:new{
+            config = { hasAccessToken = function() return true end },
+            importer = importer.api,
+            get_current_path = function() return "/books/book.pdf" end,
+            get_reader_ui = function() return reader_ui end,
+            worker = { run = function() return remoteReport() end },
+            file_digest = function() return "same-digest" end,
+        }
+
+        ui:run()
+
+        assert(#annotations == 1)
+        assert(annotations[1].local_annotation_id == "concurrent-item",
+            "rollback must remove the imported item, not a shifted neighbor")
+        local save_calls, delete_calls, settings_calls = calls()
+        assert(save_calls == 1)
+        assert(delete_calls == 1)
+        assert(settings_calls == 2)
+        assert(shown[#shown].text:find("rolled back", 1, true))
+    end)
+
     -- A changed PDF digest is a hard stop before durable Reader linking.
     withStubs(function(UI, shown)
         local reader_ui, annotations, calls = makeReaderUI()
