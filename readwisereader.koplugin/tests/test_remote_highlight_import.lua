@@ -227,6 +227,8 @@ return function()
                         text_hash = "pdf-text-hash",
                         note_hash = "pdf-note-hash",
                         page = 2,
+                        pos0 = { page = 2, x = 10, y = 20, rotation = 0, zoom = 1 },
+                        pos1 = { page = 2, x = 80, y = 20, rotation = 0, zoom = 1 },
                         pboxes = {
                             { x = 10, y = 20, w = 30, h = 10 },
                             { x = 50, y = 20, w = 40, h = 10 },
@@ -252,9 +254,14 @@ return function()
                                 text_hash = "pdf-text-hash",
                                 note_hash = "pdf-note-hash",
                                 page = 2,
+                                pos0 = { page = 2, x = 10, y = 20 },
+                                pos1 = { page = 2, x = 80, y = 20 },
+                                -- Deliberately different pboxes prove the
+                                -- persisted lookup follows KOReader paging
+                                -- identity instead of rendering geometry.
                                 pboxes = {
-                                    { x = 10, y = 20, w = 30, h = 10 },
-                                    { x = 50, y = 20, w = 40, h = 10 },
+                                    { x = 9, y = 19, w = 31, h = 11 },
+                                    { x = 49, y = 19, w = 41, h = 11 },
                                 },
                             },
                         },
@@ -275,6 +282,8 @@ return function()
                 text = "PDF selected text",
                 note = "PDF note",
                 page = 2,
+                pos0 = { page = 2, x = 10, y = 20, rotation = 0, zoom = 1 },
+                pos1 = { page = 2, x = 80, y = 20, rotation = 0, zoom = 1 },
                 pboxes = {
                     { x = 10, y = 20, w = 30, h = 10 },
                     { x = 50, y = 20, w = 40, h = 10 },
@@ -284,7 +293,7 @@ return function()
         assert(err == nil)
         assert(result.status == "linked")
         assert(result.local_annotation_id == "ko-sidecar",
-            "PDF persisted geometry fallback must link the sidecar identity")
+            "PDF native paging fallback must link the sidecar identity")
         assert(linked_payload.local_annotation_id == "ko-sidecar")
         assert(linked_payload.reader_highlight_document_id
             == "reader-pdf-highlight")
@@ -321,6 +330,8 @@ return function()
                         text_hash = "same-text",
                         note_hash = "same-note",
                         page = 2,
+                        pos0 = { page = 2, x = 1, y = 2 },
+                        pos1 = { page = 2, x = 4, y = 2 },
                         pboxes = {
                             { x = 1, y = 2, w = 3, h = 4 },
                         },
@@ -340,6 +351,8 @@ return function()
                             text_hash = "same-text",
                             note_hash = "same-note",
                             page = 2,
+                            pos0 = { page = 2, x = 1, y = 2 },
+                            pos1 = { page = 2, x = 4, y = 2 },
                             pboxes = {
                                 { x = 1, y = 2, w = 3, h = 4 },
                             },
@@ -357,10 +370,95 @@ return function()
         local result, err = importer:linkPersisted(
             "/books/book.pdf",
             { id = "reader-pdf-highlight", parent_id = "pdf-parent" },
-            { drawer = "lighten", text = "PDF selected text" }
+            {
+                drawer = "lighten",
+                text = "PDF selected text",
+                page = 2,
+                pos0 = { page = 2, x = 1, y = 2 },
+                pos1 = { page = 2, x = 4, y = 2 },
+            }
         )
         assert(result == nil)
         assert(err.kind == "sidecar_ambiguous")
+    end
+
+    do
+        local importer = Import:new{
+            documents = {
+                getByLocalPath = function()
+                    return {
+                        reader_id = "pdf-parent",
+                        local_path = "/books/book.pdf",
+                        local_format = "pdf",
+                        is_local_present = true,
+                        is_managed = true,
+                    }
+                end,
+            },
+            annotations = {
+                getByReaderRemoteId = function() return nil end,
+                linkImported = function()
+                    error("missing native PDF match must not link")
+                end,
+            },
+            adapter = {
+                normalize = function()
+                    return {
+                        local_annotation_id = "ko-in-memory",
+                        locator_fingerprint = "loc-in-memory",
+                        datetime = "2026-09-25 12:00:00",
+                        text = "PDF selected text",
+                        note = nil,
+                        text_hash = "same-text",
+                        note_hash = "same-note",
+                        page = 2,
+                        pos0 = { page = 2, x = 1, y = 2 },
+                        pos1 = { page = 2, x = 4, y = 2 },
+                    }
+                end,
+                scan = function()
+                    error("PDF import must not verify via generic sidecar scan")
+                end,
+                scanFlushed = function()
+                    return {
+                        authoritative = true,
+                        annotations = {
+                            {
+                                local_annotation_id = "ko-other",
+                                locator_fingerprint = "loc-other",
+                                datetime = "2026-09-25 12:00:00",
+                                text = "PDF selected text",
+                                note = nil,
+                                text_hash = "same-text",
+                                note_hash = "same-note",
+                                page = 2,
+                                pos0 = { page = 2, x = 99, y = 2 },
+                                pos1 = { page = 2, x = 100, y = 2 },
+                            },
+                        },
+                    }
+                end,
+            },
+        }
+
+        local result, err = importer:linkPersisted(
+            "/books/book.pdf",
+            { id = "reader-pdf-highlight", parent_id = "pdf-parent" },
+            {
+                drawer = "lighten",
+                text = "PDF selected text",
+                page = 2,
+                pos0 = { page = 2, x = 1, y = 2 },
+                pos1 = { page = 2, x = 4, y = 2 },
+            }
+        )
+        assert(result == nil)
+        assert(err.kind == "sidecar_lookup")
+        assert(err.message:find("scanned=1", 1, true))
+        assert(err.message:find("same_page=1", 1, true))
+        assert(err.message:find("same_datetime=1", 1, true))
+        assert(err.message:find("same_pos0=0", 1, true))
+        assert(err.message:find("same_pos1=0", 1, true))
     end
 
 end
