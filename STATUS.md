@@ -4954,3 +4954,15 @@ No reinstall, no new highlight and no second diagnostic are needed.
 ### Decision
 - No production change was made because the exactly-once behavior is already implemented and the missing proof was test coverage + physical reconnect validation.
 - Keeping the installed 0.1.47 unchanged preserves RC identity across the physical sequence.
+
+
+### Final checkpoint-4 / exactly-once handoff CI
+- STATUS/spec/plan/runbook/device-test handoff head before this ledger closeout: `1380b631e3f4b86dfc725032a4ddf9d3eb442ecb`.
+- Workflow #1115: **SUCCESS**.
+- Development checks: PASS.
+- Full Lua unit suite: PASS.
+- Installable ZIP build: PASS.
+- Package layout verification: PASS.
+- Artifact upload: PASS.
+- No production plugin/schema/version change occurred; the installed PW3 candidate remains 0.1.47.
+- Exact blocker is now only the one-Sync reconnect exactly-once physical checkpoint documented above.
