@@ -34,7 +34,7 @@ All notable project changes are recorded here.
 
 ### Added
 
-- Experimental `1.2.0-alpha.1` Gate 17D adds a read-only Reader → KOReader PDF/paging locator probe. It uses KOReader's native PDF `findAllText()` result page/word boxes, reconstructs native page positions, round-trips through `getTextFromPositions()` with text-wrap temporarily disabled/restored, and accepts only one exact result. It performs no annotation/sidecar or Reader mutation.
+- Experimental `1.2.0-alpha.2` fixes the Gate 17D PDF probe after the target PW3 returned 0 exact matches but 2 text round-trip differences: KOReader's paging search intentionally permits first-word suffix / last-word prefix matches while returning full PDF word boxes. The probe now validates native endpoint words and reports exact vs whole-word boundary-expanded positions separately, keeping full-text reconstruction diagnostic-only. It remains read-only.\n- Experimental `1.2.0-alpha.1` Gate 17D adds a read-only Reader → KOReader PDF/paging locator probe. It uses KOReader's native PDF `findAllText()` result page/word boxes, reconstructs native page positions, round-trips through `getTextFromPositions()` with text-wrap temporarily disabled/restored, and accepts only one exact result. It performs no annotation/sidecar or Reader mutation.
 
 ## [1.1.0] - 2026-09-25
 
