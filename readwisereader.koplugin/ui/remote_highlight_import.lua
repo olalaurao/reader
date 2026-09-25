@@ -172,7 +172,7 @@ Tap to cancel. No remote mutation is performed. A local highlight is created onl
                         end
 
                         local local_item = reader_ui.annotation.annotations[index]
-                        local link_ok, linked, link_err = pcall(
+                        local link_ok, linked = pcall(
                             self.importer.linkPersisted,
                             self.importer,
                             path,
