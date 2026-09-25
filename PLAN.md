@@ -1404,3 +1404,23 @@ Os filtros de **Locations** selecionam quais documentos entram no document sync/
 ### Próximo gate canônico
 
 Gate 17D: spike separado de locator para PDF/paging. Não reutilizar XPointers/assunções de EPUB.
+
+
+## 48. Pós-v1.1 / Gate 17D — PDF/paging
+
+Próximo incremento: validar experimentalmente como um highlight já existente no Reader pode ser localizado no PDF original aberto no KOReader.
+
+### 17D-1 — probe read-only
+
+- build `1.2.0-alpha.1`;
+- somente PDF original gerenciado e aberto;
+- buscar highlights Reader pelo parent ID;
+- testar no máximo 3;
+- usar `findAllText` paging do KOReader, que devolve página + caixas, não XPointer;
+- reconstruir posições nativas da primeira/última caixa;
+- fazer round-trip com `getTextFromPositions` em modo nativo;
+- aceitar somente um match e texto literal idêntico;
+- zero annotation/sidecar/DB-link write;
+- zero POST/PATCH/DELETE no Reader.
+
+Só depois do PASS físico decidir inserção de annotation PDF. Multi-page, OCR e ambiguidades continuam sem heurística automática.
