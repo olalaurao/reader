@@ -175,6 +175,7 @@ local function summaryText(report)
         string.format(_("Existing local highlights linked safely: %d"), report.remote_highlight_import_collisions_linked or 0),
         string.format(_("Reader local-position collisions: %d"), report.remote_highlight_import_local_collisions or 0),
         string.format(_("Reader/local collision conflicts: %d"), report.remote_highlight_import_collision_conflicts or 0),
+        string.format(_("Unresolved Reader/local collision risks: %d"), report.remote_highlight_import_unresolved_collision_risk or 0),
         string.format(_("Reader locator ambiguous: %d"), report.remote_highlight_import_ambiguous or 0),
         string.format(_("Reader locator missing: %d"), report.remote_highlight_import_missing or 0),
         string.format(_("Reader locator invalid/different: %d"), report.remote_highlight_import_invalid or 0),
@@ -399,6 +400,8 @@ Tap to cancel. Reader highlights for the open EPUB are reconciled before outboun
         report.remote_highlight_import_collisions_linked = import_report.collisions_linked or 0
         report.remote_highlight_import_local_collisions = import_report.local_collisions or 0
         report.remote_highlight_import_collision_conflicts = import_report.collision_conflicts or 0
+        report.remote_highlight_import_unresolved_collision_risk =
+            import_report.unresolved_collision_risk or 0
         report.remote_highlight_import_ambiguous = import_report.ambiguous or 0
         report.remote_highlight_import_missing = import_report.missing or 0
         report.remote_highlight_import_invalid = import_report.invalid or 0
