@@ -176,6 +176,43 @@ return function()
         assert(slept_total >= 7)
     end
 
+
+    do
+        -- Gate 16 / 429: Retry-After waiting must remain cancellable and must
+        -- not issue a blind retry once the user cancels.
+        local now = 0
+        local cancelled = false
+        local requests = 0
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function()
+                    requests = requests + 1
+                    return nil, {
+                        kind = "rate_limit",
+                        retryable = true,
+                        retry_after = 30,
+                    }
+                end,
+            },
+            json_decode = function() return {} end,
+            clock = function() return now end,
+            sleep = function(seconds)
+                now = now + seconds
+                cancelled = true
+            end,
+            list_min_interval = 0,
+        }
+        local report, err = reader:iterateDocuments({
+            is_cancelled = function() return cancelled end,
+        }, function() end)
+        assert(report == nil)
+        assert(err.kind == "cancelled")
+        assert(err.page == 1)
+        assert(requests == 1)
+    end
+
+
     do
         local now = 0
         local call_index = 0
@@ -205,6 +242,30 @@ return function()
         assert(err.report.pages == 0)
         assert(call_index == 3)
     end
+
+
+    do
+        -- Gate 16 / malformed remote item: a bad document must fail closed
+        -- with a bounded decode error instead of reaching the callback.
+        local reader = sequenceReader({
+            {
+                results = {
+                    { id = "valid" },
+                    { title = "missing id" },
+                },
+            },
+        })
+        local callbacks = 0
+        local report, err = reader:iterateDocuments({}, function()
+            callbacks = callbacks + 1
+        end)
+        assert(report == nil)
+        assert(err.kind == "decode")
+        assert(err.index == 2)
+        assert(err.page == 1)
+        assert(callbacks == 0)
+    end
+
 
     do
         local reader = sequenceReader({
@@ -267,6 +328,58 @@ return function()
         end
         assert(#sleeps > 0)
     end
+
+
+    do
+        -- Gate 16 / large-library deterministic stress: pagination must stay
+        -- bounded to one page plus ID/cursor sets rather than accumulating
+        -- document payloads. Exercise a corpus materially larger than the
+        -- current real library without Reader/network access.
+        local page_count = 120
+        local per_page = 100
+        local now = 0
+        local requests = 0
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function()
+                    requests = requests + 1
+                    return { status = 200, headers = {}, body = tostring(requests) }
+                end,
+            },
+            json_decode = function(body)
+                local page_no = tonumber(body)
+                local results = {}
+                for item = 1, per_page do
+                    results[item] = {
+                        id = string.format("stress-%03d-%03d", page_no, item),
+                    }
+                end
+                return {
+                    results = results,
+                    nextPageCursor = page_no < page_count
+                        and ("stress-cursor-" .. tostring(page_no + 1))
+                        or nil,
+                }
+            end,
+            clock = function() return now end,
+            sleep = function(seconds) now = now + seconds end,
+            list_min_interval = 0,
+        }
+
+        local callbacks = 0
+        local report, err = reader:iterateDocuments({}, function()
+            callbacks = callbacks + 1
+        end)
+        assert(err == nil)
+        assert(report.pages == page_count)
+        assert(report.received == page_count * per_page)
+        assert(report.unique == page_count * per_page)
+        assert(report.duplicates == 0)
+        assert(callbacks == page_count * per_page)
+        assert(requests == page_count)
+    end
+
 
     do
         local now = 0

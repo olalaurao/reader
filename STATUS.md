@@ -4,6 +4,91 @@
 > Canonical design: `IMPLEMENTATION_SPEC.md`  
 > Roadmap/product intent: `PLAN.md`
 
+## 2026-09-24 — Phase R / Gate 16 hardening session
+
+- **Milestone:** Phase R / Gate 16 — deterministic/off-device hardening in progress. Gate 15 remains passed complete.
+- **Branch / HEAD:** `hardening/gate16-r1` / `91c6f5c8b1b8989c148f9fa0c9574e444a86be3e` before this STATUS commit.
+- **Base inspected:** current `main` HEAD `3a37df88bae65407d3faaa638c7536ad47fe5744` (Gate 15 merge). `STATUS.md`, `IMPLEMENTATION_SPEC.md`, and `PLAN.md` were re-read from current GitHub state before changes.
+- **Files altered:** `readwisereader.koplugin/tests/test_reader_pagination.lua`, `readwisereader.koplugin/tests/test_installer.lua`, `readwisereader.koplugin/tests/test_http.lua`, `readwisereader.koplugin/tests/test_filenames.lua`, and this `STATUS.md`.
+- **Implemented/validated off-device:** no production behavior changed. Added deterministic hardening coverage for a synthetic 12,000-document/120-page Reader corpus; ENOSPC after a streamed download has begun; malformed Reader document records; a single oversized HTTP chunk crossing the configured response ceiling; cancellation during a 429 `Retry-After` wait; and UTF-8/multibyte filename truncation at the byte boundary.
+- **Commits:** `be6be410` large-library pagination stress; `ba655f17` mid-stream disk exhaustion; `f7023bf3` malformed Reader item; `291a4f22` oversized response ceiling; `201ab69e` cancellable 429 backoff; `91c6f5c8` multibyte filename boundary.
+- **Tests/checks:** test cases were added against existing pure-Lua contracts. GitHub Actions had not yet exposed a workflow run for the branch commits at the time of this handoff, so the full `./scripts/dev-check.sh`, Lua unit suite, package/layout build and artifact verification are **pending CI confirmation**; do not mark these new hardening cases passed until CI is green.
+- **Gates concluded this session:** none. Gate 16 remains open.
+- **Physical tests pending:** none requested yet. Per spec, deterministic/off-device hardening must be completed first.
+- **Bugs/failures found:** no new production bug isolated yet. Existing code already has bounded Reader LIST pacing/repeated-cursor protection, raw-source free-space preflight, atomic temp-file install, response byte ceilings, 429 handling, and UTF-8-aware filename truncation; this session adds regression/stress evidence around those contracts.
+- **Technical decisions:** exercise existing safety contracts before changing production code; do not add speculative hardening when the current implementation already expresses the required invariant. Large-library stress intentionally uses 12,000 unique records, materially above the current real library, while keeping the fixture generated in-memory and free of private data.
+- **Spec deviations:** none.
+- **Blockers:** CI result for the new branch tests is the immediate blocker to calling the deterministic cases passed.
+- **Continuation:** GitHub combined status and PR-triggered workflow lookup still expose no checks for the branch, so CI remains unavailable rather than green. Added commit `cf97d452` locking the HTTP debug-log contract to path-only URLs (signed/query secrets are not emitted) and `26e67af0` exercising a real SQLite v1->v2 migration failure to verify transaction rollback preserves `user_version=1`, pre-existing rows, and removes the partially-added v2 column.
+- **Current HEAD:** `26e67af0bd4944a94ac83e245fa308216a4c2f5b` before this STATUS commit. Branch is 9 commits ahead of Gate-15 `main`, with no production-code changes.
+- **Tests/checks:** deterministic tests added, but the repository exposes no commit status / PR-triggered workflow run for this branch; therefore they remain pending execution rather than falsely recorded as passed.
+- **Next exact steps, in order:** (1) execute the full dev-check/unit/package suite as soon as an executable CI/local runner is available and fix any fixture failure; (2) continue deterministic Gate 16 coverage for persistence/restart and intermittent-network queue recovery where existing tests do not already prove the invariant; (3) audit remaining logger calls for payload/token/signed-URL exposure; (4) update STATUS with executable evidence; (5) then define the smallest PW3 physical hardening matrix.
+
+## 2026-09-25 — Gate 16 deterministic hardening complete; physical matrix next
+
+- **Milestone:** Phase R / Gate 16 deterministic/off-device hardening is complete enough to enter the physical PW3 matrix. Gate 16 itself remains **OPEN** until the required device behavior passes.
+- **Branch / HEAD before this STATUS commit:** `hardening/gate16-r1` / `908c9a8d347ebe26ffc838255e377dc82c3c43f1`. Draft PR #20 targets `main`.
+- **CI evidence:** push workflow run #1148 (`36077985219`) on `908c9a8d` **SUCCESS**: development checks/Lua 5.1 syntax, complete Lua unit suite, package build, ZIP layout verification and artifact upload all passed.
+- **Failure found and fixed:** the first Unicode boundary assertion was itself invalid because a valid multibyte code point naturally ends in a continuation byte. Runs from `91c6f5c8` through `8ed43b85` therefore failed at that test before later modules could execute. Commit `908c9a8d` replaced the faulty assertion with a complete Lua 5.1 UTF-8 structural validator; the full suite then passed.
+- **Additional hardening added:** `8ed43b85` uses a file-backed SQLite DB across close/reopen to simulate a process/KOReader restart. An in-flight create survives durably and startup recovery blocks the ambiguous create instead of blindly retrying it; attempt count and payload remain intact.
+- **Logs/redaction audit:** focused audit of the production entry/worker/probe/API/UI paths found only the stage-only worker warning and HTTP request debug log in the audited paths. HTTP logging passes the new regression proving query/signed-URL secrets are stripped by `safeUrl`; no token/payload logging was added.
+- **Production behavior changed:** none in Phase R so far; hardening commits are tests/docs only.
+- **Deterministic coverage now evidenced green:** large-library pagination (12,000 docs), low-storage mid-stream ENOSPC cleanup, malformed Reader item, oversized HTTP response, cancellable 429 wait, Unicode filename boundary, signed/query URL log redaction, migration transaction rollback, and durable queue/restart recovery.
+- **Physical tests pending:** Gate 16 now needs the smallest real-device matrix for properties that off-device tests cannot establish: PW3 responsiveness/performance, real Wi-Fi interruption/recovery, process force-close/restart with durable queued work, reboot with durable queued work, sidecar/progress preservation through those failures, and install/rollback smoke.
+- **Spec deviations:** none.
+- **Next exact step:** perform the Gate 16 PW3 physical matrix below. Do not merge PR #20 or mark Gate 16 complete until it passes.
+
+### Gate 16 physical matrix — first test only
+
+Start with **R1: real intermittent Wi-Fi recovery**. Use an already-downloaded Reader-managed article; do not delete it or its sidecar.
+
+1. With Wi-Fi on, open the article and create one new disposable highlight (a short unique sentence is best).
+2. Turn Wi-Fi off / enable Kindle Airplane Mode.
+3. Run **Readwise Reader -> Sync now** once.
+4. Confirm the sync fails safely/queues locally rather than hanging or losing the highlight.
+5. Turn Wi-Fi back on / disable Airplane Mode and wait until Kindle connectivity is actually restored.
+6. Run **Sync now** again.
+7. Check Reader and confirm that exact highlight appears **once**.
+8. Run **Sync now** one more time and confirm it still appears only once.
+
+Report only: whether the offline sync returned safely; whether the recovery sync succeeded; whether the highlight appeared once; whether the second online sync duplicated it; and any error text shown. If R1 passes, STATUS should be updated before advancing to force-close/reboot tests.
+
+## 2026-09-25 — Gate 16 R1 physical PASS; R2 force-close next
+
+- **Physical evidence supplied by user:** Gate 16 R1 real intermittent-Wi-Fi matrix passed completely on the target PW3: offline Sync returned safely, the subsequent online recovery Sync succeeded, the new highlight appeared remotely exactly once, and the second online Sync did not duplicate it. No blocking error was reported.
+- **Conclusion:** hardening item 7 (Wi-Fi/rede intermitente) is **PASS**. This also re-confirms durable local discovery/queueing before remote-write eligibility and idempotent recovery under the real Kindle network behavior previously found unreliable in Gate 13.
+- **Code changes for R1 result:** none required; observed production behavior matches the existing contract.
+- **Branch / HEAD before this STATUS commit:** `hardening/gate16-r1` / `5c64a888c5ad541914f1ca8609f76d3637d4401c`; CI on that HEAD is green for both push and draft PR #20.
+- **Gate 16:** remains **OPEN**. Per the canonical hardening order, the next unresolved device-only item is force-close, followed by reboot. Do not skip to reboot before force-close is observed.
+- **Next physical test — R2 force-close with durable queued work:** use an already-downloaded Reader-managed article. With Wi-Fi/Airplane Mode OFFLINE, create one new disposable highlight and run Sync once so it is discovered/persisted locally and remote write is withheld. Then fully exit/force-close KOReader (do not reboot the Kindle), relaunch KOReader, restore Wi-Fi, run Sync, and verify in Reader that the exact highlight appears once. Run Sync once more and verify no duplicate. Also confirm the article still opens at its prior reading position and its pre-existing highlights/notes remain present. Report: offline Sync safe; KOReader closed/reopened normally; recovery Sync succeeded; highlight appeared once; second Sync did not duplicate; progress/old annotations preserved; any error text.
+
+## 2026-09-25 — Gate 16 R2 force-close physical PASS; R3 reboot next
+
+- **Physical evidence supplied by user:** the complete R2 force-close matrix requested in the previous STATUS handoff passed on the target PW3. Offline Sync returned safely with the new highlight queued, KOReader closed/reopened normally without rebooting the Kindle, online recovery Sync succeeded, the highlight appeared remotely exactly once, the following Sync did not duplicate it, and the document's prior reading position plus existing highlights/notes remained intact. No blocking error was reported.
+- **Conclusion:** hardening item 8 (force-close/process restart with durable queued work) is **PASS** on-device. Together with the deterministic file-backed SQLite restart test, this closes the force-close persistence risk without production changes.
+- **CI evidence entering R2:** commit `401769249f9c37b7560932082c215382c07c0d6d` passed both push run `36078395879` and draft-PR run `36078399808`.
+- **Code changes for R2 result:** none required.
+- **Gate 16:** remains **OPEN**. The next canonical hardening item is 9, reboot; migration/rollback/log-redaction evidence already exists off-device but cannot be used to skip the real reboot matrix.
+- **Next physical test — R3 full Kindle reboot with durable queued work:** use an already-downloaded Reader-managed article. Start offline/Airplane Mode, create one new disposable highlight, and run Sync once so the operation is durably queued while remote writes are withheld. Then perform a full Kindle restart/reboot (not merely KOReader exit). After the Kindle and KOReader return, restore Wi-Fi and wait for real connectivity, run Sync, and verify the exact highlight appears in Reader once. Run Sync once more and verify no duplicate. Open the article and confirm prior reading position plus pre-existing highlights/notes are intact. Also confirm the Readwise Reader plugin/settings/token still load normally after the reboot. Report: offline Sync safe; Kindle rebooted normally; plugin/settings survived; recovery Sync succeeded; highlight appeared once; second Sync did not duplicate; progress/old annotations preserved; any error text.
+
+## 2026-09-25 — Gate 16 R3 reboot physical PASS; R4 rollback smoke next
+
+- **Physical result:** the full R3 reboot matrix requested in the previous handoff passed on the target PW3. Offline Sync safely persisted the new highlight; the Kindle rebooted normally; plugin settings/token survived; recovery Sync succeeded; the highlight appeared remotely once; the following Sync did not duplicate it; prior reading position and existing highlights/notes remained intact. No blocking error was reported.
+- **Conclusion:** hardening item 9 (reboot with durable queued work) is **PASS** on-device. R1-R3 now cover intermittent network recovery, process restart, full reboot, durable queue recovery and preservation of document state.
+- **CI entering R3:** commit `9bf7c007d234d5b998056f9a432aa04e7bf8c585` passed push run `36078690845` and draft-PR run `36078694778`.
+- **Already evidenced off-device:** migration rollback and log/redaction have green deterministic coverage on this branch. No production-code change is justified by R3.
+- **Remaining device-only closure:** installation/rollback smoke required by hardening item 50. Gate 16 remains open until that passes.
+- **Next physical test (R4):** back up the current known-good plugin directory plus settings/database; exit KOReader; temporarily disable the plugin by moving its directory out of the active plugins directory while leaving Reader documents/sidecars untouched; relaunch and confirm KOReader starts normally without Readwise Reader; exit again, restore the exact plugin directory, relaunch, confirm Readwise Reader and its settings/token load; open an existing managed article and verify position/highlights/notes; run one online Sync and confirm success without duplicates.
+
+## 2026-09-25 — Gate 16 R4 PASS; Gate 16 complete
+
+- Physical R4 install/rollback smoke passed on the target PW3: KOReader started normally with the plugin temporarily disabled; restoring the same plugin directory restored Readwise Reader; token/settings and existing document progress/highlights/notes were preserved; online Sync succeeded without duplicates; no blocking error was reported.
+- Gate 16 is **PASSED COMPLETE** on PW3 / KOReader v2026.07.1. Phase R now has green evidence for the full hardening sequence, including large-library pagination, storage failure cleanup, malformed/oversized input, Unicode, 429 handling, intermittent network recovery, process restart, full reboot, migration rollback, install/rollback, state preservation and log redaction.
+- No production behavior changed in Phase R; hardening changes are regression/stress tests and documentation.
+- CI entering closure: `1d8830f790d72f2c12e75d9f6e6c64498e429dc8`; push `36078991043` and PR `36078995811` both passed.
+- Spec deviations: none.
+- Next: final CI on this closure commit, merge PR #20 to main if green, then begin Phase S / V1 acceptance. Do not tag v1.0.0 before the complete acceptance script passes.
+
 ## Current milestone
 
 **Phase Q / Gate 15 — PASSED COMPLETE; Phase R / Gate 16 hardening is now unblocked**
