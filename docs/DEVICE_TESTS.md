@@ -2912,3 +2912,26 @@ Target PW3 / KOReader v2026.07.1:
 - local writes: none.
 
 Result: **PASS**. Reader → KOReader historical-highlight position mapping for rolling EPUB is physically proven enough to enter Gate 17B local insertion.
+
+
+## Phase T / Gate 17B — one Reader highlight import
+
+Build: **1.1.0-alpha.2**
+
+Use the same managed EPUB from Gate 17A.
+
+### Checkpoint 17B-1 — import + reopen (do not Sync yet)
+
+1. Install alpha.2 preserving settings, SQLite DB, documents and sidecars; restart KOReader.
+2. Open the same EPUB; Wi-Fi ON.
+3. Run **Readwise Reader → Import one Reader highlight (Gate 17B)** exactly once.
+4. Require:
+   - `Imported local highlights: 1`;
+   - `Remote identity linked durably: yes`;
+   - `Sidecar persistence verified: yes`;
+   - `Remote writes: none`.
+5. Close the EPUB and reopen it.
+6. Confirm the newly imported highlight is visibly present. If the result said `Imported note present: yes`, open/check that highlight and confirm the Reader note is intact.
+7. Do **not** run ordinary Sync until this checkpoint is reported.
+
+If 17B-1 passes, checkpoint 17B-2 is one ordinary Sync followed by proof that no duplicate Reader highlight was created and the local import remains intact.
