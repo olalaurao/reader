@@ -161,6 +161,17 @@ A8 (IMPLEMENTATION_SPEC.md acceptance steps 26-30 and PLAN.md V1 acceptance crit
 
 Phase S remains OPEN only for A9: final log/redaction review plus one unchanged no-op Sync proving zero new documents/highlights. Do not tag `v1.0.0` before A9 passes and Phase S is explicitly closed.
 
+## 2026-09-25 — Phase S final off-device log audit complete
+
+Before requesting the final device log, the production Lua tree was re-audited for logging callsites. The only production logger calls are:
+- `api/http.lua`: request method plus `safeUrl(url)`; `safeUrl` strips the entire query string before logging;
+- `sync/worker.lua`: a fixed warning plus the non-sensitive worker stage name;
+- `ui/article.lua`: three Gate-3/UI exception warnings containing only the caught exception string.
+
+No production logger call intentionally writes Authorization headers, access tokens, request bodies, response bodies, annotation text, document HTML, Reader titles/IDs, or signed URL query parameters. Existing `test_http.lua` regression coverage explicitly verifies that an Authorization token and signed/query secrets are absent from HTTP debug logs. No production change is justified by this audit.
+
+A9 remains the only V1 acceptance blocker. The next physical evidence is the actual KOReader `crash.log` from the target Kindle after the completed A1-A8 acceptance run, inspected for token/signed-URL/full-private-content leakage. After that log passes, run exactly one unchanged online `Sync now` and require zero newly downloaded documents and zero newly created highlights before closing Phase S.
+
 ## Current milestone
 
 **Phase S / V1 acceptance — OPEN; Gates 0–16 PASSED COMPLETE**
