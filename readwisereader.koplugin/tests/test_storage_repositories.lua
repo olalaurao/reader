@@ -377,6 +377,59 @@ local function testQueue()
     db:close()
 end
 
+
+local function testQueuePersistsAcrossRestart()
+    local path = os.tmpname()
+    os.remove(path)
+
+    local function openFileDB()
+        return DB:new{
+            path = path,
+            sq3 = SQ3,
+            device = { canUseWAL = function() return false end },
+            copy_file = function() return nil end,
+        }
+    end
+
+    local first_db = openFileDB()
+    local first_queue = Queue:new{ db = first_db }
+    first_queue:enqueue({
+        idempotency_key = "create_highlight:restart-ann",
+        operation = "create_highlight",
+        entity_type = "annotation",
+        local_annotation_id = "restart-ann",
+        reader_document_id = "restart-doc",
+        payload_json = "{\"content\":\"durable\"}",
+        payload_hash = "restart-hash",
+        created_at = 100,
+    })
+    first_queue:markInFlight("create_highlight:restart-ann", 101)
+    first_db:close()
+
+    -- Simulate a KOReader/process restart: construct a fresh DB/repository
+    -- against the same durable SQLite file, then run startup recovery.
+    local second_db = openFileDB()
+    local second_queue = Queue:new{ db = second_db }
+    local before = second_queue:getByKey("create_highlight:restart-ann")
+    assertEqual(before.status, "in_flight")
+    assertEqual(before.attempts, 1)
+    assertEqual(before.payload_hash, "restart-hash")
+    second_queue:recoverStaleInFlight(200)
+    local recovered = second_queue:getByKey("create_highlight:restart-ann")
+    assertEqual(recovered.status, "blocked",
+        "restart recovery must not blindly retry an ambiguous create")
+    assertEqual(recovered.last_error_kind, "stale_create_in_flight")
+    assertEqual(recovered.attempts, 1,
+        "restart recovery must preserve the durable attempt count")
+    assertEqual(recovered.payload_json, "{\"content\":\"durable\"}",
+        "restart recovery must preserve the durable payload")
+    second_db:close()
+
+    os.remove(path)
+    os.remove(path .. ".bak")
+end
+
+
 local function testSyncMeta()
     local db = newDB()
     local meta = SyncMeta:new{ db = db }
@@ -404,5 +457,6 @@ return function()
     testDocuments()
     testAnnotations()
     testQueue()
+    testQueuePersistsAcrossRestart()
     testSyncMeta()
 end
