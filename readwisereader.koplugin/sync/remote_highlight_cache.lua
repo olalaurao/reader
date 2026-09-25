@@ -13,14 +13,92 @@ local function formatTime(epoch)
     return os.date("!%Y-%m-%dT%H:%M:%SZ", epoch)
 end
 
+local function appendUnique(out, seen, value)
+    if type(value) == "string" and value ~= "" and not seen[value] then
+        seen[value] = true
+        out[#out + 1] = value
+    end
+end
+
 function Cache:new(options)
     options = options or {}
     return setmetatable({
         reader = assert(options.reader, "Reader API is required"),
+        readwise = assert(options.readwise, "Readwise API is required"),
         repository = assert(options.repository, "remote highlight repository is required"),
         sync_meta = assert(options.sync_meta, "sync_meta is required"),
         now = options.now or os.time,
     }, self)
+end
+
+function Cache:_deletedSince(updated_after)
+    if type(updated_after) ~= "string" or updated_after == "" then
+        return {
+            highlight_ids = {},
+            parent_ids = {},
+            pages = 0,
+        }
+    end
+
+    local highlight_ids, parent_ids = {}, {}
+    local seen_highlights, seen_parents = {}, {}
+    local cursor
+    local seen_cursors = {}
+    local pages = 0
+
+    while true do
+        if cursor and seen_cursors[cursor] then
+            return nil, {
+                kind = "pagination",
+                retryable = false,
+                message = "Readwise export returned a repeated page cursor.",
+            }
+        end
+        if cursor then seen_cursors[cursor] = true end
+
+        local page, export_err = self.readwise:exportUpdated{
+            updated_after = updated_after,
+            page_cursor = cursor,
+            include_deleted = true,
+        }
+        if not page then return nil, export_err end
+        pages = pages + 1
+
+        for _, book in ipairs(page.results or {}) do
+            if type(book) == "table" and book.source == "reader" then
+                if book.is_deleted == true then
+                    appendUnique(parent_ids, seen_parents, book.external_id)
+                end
+                for _, highlight in ipairs(book.highlights or {}) do
+                    if type(highlight) == "table"
+                        and highlight.is_deleted == true then
+                        appendUnique(
+                            highlight_ids,
+                            seen_highlights,
+                            highlight.external_id
+                        )
+                    end
+                end
+            end
+        end
+
+        local next_cursor = page.next_page_cursor
+        if next_cursor == nil then break end
+        if type(next_cursor) ~= "string" or next_cursor == "" then
+            return nil, {
+                kind = "decode",
+                retryable = false,
+                message = "Readwise export returned an invalid page cursor.",
+            }
+        end
+        cursor = next_cursor
+    end
+
+    return {
+        highlight_ids = highlight_ids,
+        parent_ids = parent_ids,
+        pages = pages,
+    }
 end
 
 function Cache:refresh()
@@ -58,7 +136,34 @@ function Cache:refresh()
     end)
     if not scan then return nil, scan_err end
 
-    local written = self.repository:upsertMany(remote_rows, started_epoch)
+    -- Reader v3 LIST has no documented deletion tombstone. Once the initial
+    -- full snapshot exists, use Readwise v2 EXPORT includeDeleted=true with
+    -- the same overlap lower bound before advancing the cache watermark.
+    -- The v2 highlight external_id is the Reader highlight child ID, and a
+    -- Reader-sourced book external_id is its Reader parent document ID.
+    local deleted = {
+        highlight_ids = {},
+        parent_ids = {},
+        pages = 0,
+    }
+    if baseline then
+        local deletion_err
+        deleted, deletion_err = self:_deletedSince(query_after)
+        if not deleted then return nil, deletion_err end
+    end
+
+    local written
+    if baseline then
+        written = self.repository:upsertMany(remote_rows, started_epoch)
+        self.repository:deleteByRemoteIds(deleted.highlight_ids)
+        self.repository:deleteByParents(deleted.parent_ids)
+    else
+        -- A successful historical v3 scan is an authoritative extant snapshot.
+        -- Replace atomically so stale rows from an older/partial baseline cannot
+        -- survive into the first import run.
+        written = self.repository:replaceSnapshot(remote_rows, started_epoch)
+    end
+
     local started_at = formatTime(started_epoch)
     local proposed_query_after = formatTime(math.max(
         0,
@@ -77,6 +182,9 @@ function Cache:refresh()
         proposed_query_after = proposed_query_after,
         rows_seen = #remote_rows,
         rows_upserted = written or 0,
+        deleted_highlight_ids = #deleted.highlight_ids,
+        deleted_parent_ids = #deleted.parent_ids,
+        deletion_pages = deleted.pages or 0,
         pages = scan.pages or 0,
         records_scanned = scan.unique or 0,
         duplicate_records_ignored = scan.duplicates or 0,
