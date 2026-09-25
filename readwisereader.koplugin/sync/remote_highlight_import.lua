@@ -116,7 +116,13 @@ function Import:linkPersisted(local_path, remote, local_annotation)
         )
     end
 
-    local scan, scan_err = self.adapter:scan(document.local_path, document.reader_id)
+    local scan_method = document.local_format == "pdf"
+        and self.adapter.scanFlushed or self.adapter.scan
+    local scan, scan_err = scan_method(
+        self.adapter,
+        document.local_path,
+        document.reader_id
+    )
     if not scan then return nil, scan_err end
     if not scan.authoritative then
         return nil, domainError("sidecar", "KOReader sidecar is not authoritative after save.")
