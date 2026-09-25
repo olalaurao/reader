@@ -155,6 +155,12 @@ A7 (PLAN.md V1 acceptance criteria 19-20) passed on the target PW3. On the same 
 
 Phase S remains OPEN. The remaining physical acceptance is now reduced to: (A8) mark this acceptance document finished, sync, verify Reader Archive plus intact local file/sidecar/progress/annotations; then (A9) inspect final logs for secrets/private content and run one final no-op Sync proving zero new documents/highlights. If both pass, Phase S can close and release-candidate/tag work can proceed off-device.
 
+## 2026-09-25 — Acceptance A8 passed
+
+A8 (IMPLEMENTATION_SPEC.md acceptance steps 26-30 and PLAN.md V1 acceptance criteria 24-27) passed on the target PW3. The same acceptance document was marked Finished in KOReader; with Archive in Reader enabled, one Sync moved the document to Reader Archive. The local file remained present and opened normally, reading position/progress remained intact, and existing highlights/notes remained intact. No production change was required.
+
+Phase S remains OPEN only for A9: final log/redaction review plus one unchanged no-op Sync proving zero new documents/highlights. Do not tag `v1.0.0` before A9 passes and Phase S is explicitly closed.
+
 ## Current milestone
 
 **Phase S / V1 acceptance — OPEN; Gates 0–16 PASSED COMPLETE**
