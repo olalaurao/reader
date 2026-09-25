@@ -135,6 +135,7 @@ function KOReaderAnnotations:normalize(reader_document_id, annotation)
         page = annotation.page,
         pos0 = annotation.pos0,
         pos1 = annotation.pos1,
+        pboxes = annotation.pboxes,
         drawer = annotation.drawer,
         color = annotation.color,
         chapter = annotation.chapter,
