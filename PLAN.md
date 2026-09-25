@@ -1526,3 +1526,30 @@ Isso prova que o sidecar contém o item recém-criado e que a divergência está
 - capturar annotation criada por referência;
 - rollback re-resolve índice pela referência e comprova remoção;
 - repetir um único import físico.
+
+
+### 17D-2I — alpha.8 persistence + outbound dedupe PASS
+
+Physical PW3 follow-up:
+- the imported PDF highlight survived close/reopen;
+- ordinary Sync completed normally;
+- the local import remained present;
+- no duplicate Reader highlight was created.
+
+Only one local PDF highlight being visible before that Sync was expected because the Gate 17D-2 explicit action intentionally imported exactly one item.
+
+### 17D-3 — alpha.9 normal Sync integration
+
+Integrate the physically-proven paging importer into the same pre-Sync reconciliation point already used by rolling EPUB/HTML, but keep PDF-specific safety:
+- current open managed original PDF only;
+- shared Reader highlight cache;
+- at most 1 new PDF local annotation per Sync during alpha;
+- at most 10 locator attempts with a durable rotation cursor;
+- exact already-linked skip;
+- exact native-position + compatible-note collision may link safely;
+- ambiguous/missing/invalid unlinked Reader child blocks all current-PDF outbound creates for that run;
+- deferred unexamined Reader children also block current-PDF outbound creates for that run;
+- alpha.8 sidecar-only save, PDF-byte digest, persisted numeric position, durable-link and rollback invariants remain mandatory;
+- no Reader mutation from the import phase.
+
+One consolidated final device acceptance after CI: normal Sync imports the remaining safe Reader PDF child, then one unchanged Sync proves idempotence/no duplicates.
