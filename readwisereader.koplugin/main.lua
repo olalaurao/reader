@@ -9,6 +9,8 @@ local FinishedDiagnosticsUI = require("ui/finished_diagnostics")
 local ContentRefreshDiagnosticsUI = require("ui/content_refresh_diagnostics")
 local ContentRefreshProbeWorker = require("sync/content_refresh_probe_worker")
 local RemoteHighlightDiagnosticsUI = require("ui/remote_highlight_diagnostics")
+local RemoteHighlightImportUI = require("ui/remote_highlight_import")
+local RemoteHighlightImport = require("sync/remote_highlight_import")
 local ApiInteropUI = require("ui/api_interop")
 local Config = require("config")
 local Constants = require("constants")
@@ -174,6 +176,21 @@ function ReadwiseReader:init()
             return self.ui
         end,
     }
+    self.remote_highlight_importer = RemoteHighlightImport:new{
+        documents = self.documents_repository,
+        annotations = self.annotations_repository,
+        adapter = self.koreader_annotations,
+    }
+    self.remote_highlight_import_ui = RemoteHighlightImportUI:new{
+        config = self.config,
+        importer = self.remote_highlight_importer,
+        get_current_path = function()
+            return self.ui and self.ui.document and self.ui.document.file or nil
+        end,
+        get_reader_ui = function()
+            return self.ui
+        end,
+    }
     self.finished_diagnostics_ui = FinishedDiagnosticsUI:new{
         documents = self.documents_repository,
         status = self.koreader_status,
@@ -211,6 +228,7 @@ function ReadwiseReader:addToMainMenu(menu_items)
             self.finished_diagnostics_ui:getMenuItem(),
             self.content_refresh_diagnostics_ui:getMenuItem(),
             self.remote_highlight_diagnostics_ui:getMenuItem(),
+            self.remote_highlight_import_ui:getMenuItem(),
             self.settings_ui:getSettingsMenu(),
         },
     }
