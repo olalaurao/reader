@@ -2919,3 +2919,51 @@ Expected:
 - fixture not present in Reader yet.
 
 If queue waiting is 0 or any remote create occurs, do not proceed to reboot.
+
+
+## Gate 16 — 0.1.47 RC checkpoint 3 — PASS
+
+User confirmed the controlled offline durable-queue step passed:
+- stable KOReader-offline fixture;
+- new highlight/note persisted locally;
+- remote preflight not passed;
+- annotation sync used the offline queue path;
+- Highlights created: 0;
+- create queued durably: >=1;
+- create queue items processed: 0;
+- create queue waiting: >=1;
+- metadata/content pages: 0;
+- no remote mutation;
+- Errors: 0;
+- fixture absent from Reader remotely.
+
+Automated closeout:
+- added a restart/offline reconnect-diagnostic test;
+- queue snapshot is returned after offline auth failure;
+- marker/parent reads and remote writes do not run;
+- CI #1097: PASS;
+- no production RC change.
+
+### Next device checkpoint — restart while still offline
+
+1. Keep Wi-Fi OFF and **Restore Wi-Fi connection on resume OFF**.
+2. Fully restart KOReader.
+3. Reopen the same managed article.
+4. Confirm the exact local highlight/note still exists:
+   `gate16 rc offline [[Foucault]]`
+   `#queue-test-47`
+5. Do not edit/recreate it.
+6. Run **Readwise Reader → Inspect reconnect queue (Gate 13)** while still offline.
+7. Return that diagnostic and stop before reconnect.
+
+Expected:
+- auth probe not passed (offline/timeout/network-unavailable);
+- Queue pending >=1;
+- Queue retry_wait: 0;
+- Queue in_flight: 0;
+- active recent item pending, remote_id=no;
+- marker scan: not_run;
+- parent metadata/html: not_run;
+- Remote writes: none;
+- fixture still absent from Reader remotely;
+- no crash/freeze.

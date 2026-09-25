@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase R / Gate 16 — 0.1.47 RC startup/first Sync + unchanged second Sync PASSED; controlled offline durable-queue checkpoint is current**
+**Phase R / Gate 16 — 0.1.47 RC startup/no-op/offline durable queue PASSED; restart-while-offline queue persistence is current**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
@@ -4684,3 +4684,78 @@ If queued/waiting is zero, remote preflight passed, or any remote create occurre
 - No production code/schema/package change occurred for checkpoint 2; installed RC remains 0.1.47.
 - PR #19 remains draft/mergeable.
 - Exact blocker: controlled offline durable-queue physical checkpoint; restart/reconnect remains forbidden until that report passes.
+
+
+## Gate 16 0.1.47 RC physical smoke — checkpoint 3 PASS
+
+User confirmed the controlled offline durable-queue checkpoint passed every required criterion on the already-installed 0.1.47.
+
+Accepted physical result:
+- KOReader **Restore Wi-Fi connection on resume** remained OFF;
+- Wi-Fi was turned OFF from KOReader's own Network menu and stayed OFF when Readwise Reader was opened/closed without Sync;
+- one fresh managed-article highlight with the requested note was persisted locally;
+- one offline `Sync now` completed safely;
+- remote preflight did **not** pass;
+- annotation sync reported the controlled offline queue path;
+- Highlights created = **0**;
+- at least one create intent was queued durably;
+- Create queue items processed = **0**;
+- Create queue waiting after sync >= **1**;
+- Metadata pages = **0**;
+- Content pages = **0**;
+- no remote note/delete/archive mutation occurred;
+- fatal Errors = **0**;
+- the new Gate 16 fixture was not present in Reader yet.
+
+Conclusion:
+- Gate 16 RC step 5 is **PASSED physically**;
+- the local annotation + durable SQLite create intent now form the restart fixture;
+- reconnect remains blocked until the queue and local annotation are proven to survive a fresh KOReader process while still offline.
+
+### Off-device hardening added after checkpoint 3
+- added `test_reconnect_probe_worker.lua` coverage for a fresh-process queue snapshot followed by an offline auth probe;
+- test proves the read-only reconnect diagnostic returns the persisted queue snapshot with `remote_writes=0`;
+- after offline auth failure it does **not** continue into marker scan, parent metadata/HTML reads, text matching or any write path;
+- CI #1097 on `9637dcabb6b542805a00160e2ead68e4be66c776`: **SUCCESS**;
+- no production plugin file changed; installed RC remains exactly 0.1.47.
+
+### Gates after checkpoint 3
+- Gates 0–15: PASSED.
+- Gate 16 deterministic hardening: PASSED.
+- Gate 16 RC startup/state/first Sync: PASSED.
+- Gate 16 RC unchanged second Sync: PASSED.
+- Gate 16 RC controlled offline durable queue: **PASSED**.
+- Gate 16 RC restart-while-offline persistence: **PENDING**.
+- Gate 16 RC reconnect exactly-once: BLOCKED by restart persistence proof.
+- Gate 16 final restart/state/log-secret review: BLOCKED.
+- Phase S: BLOCKED by Gate 16.
+
+### Exact next physical checkpoint — restart while still offline, read-only proof
+Do **not** reconnect yet.
+
+1. Leave Wi-Fi OFF and **Restore Wi-Fi connection on resume OFF**.
+2. Fully exit/restart KOReader so this is a fresh process.
+3. Reopen the same managed article.
+4. Verify the exact Gate 16 local highlight/note still exists:
+   - `gate16 rc offline [[Foucault]]`
+   - `#queue-test-47`
+5. Do not edit/recreate the highlight.
+6. Open Readwise Reader and run **Inspect reconnect queue (Gate 13)**.
+   - Despite the historical menu label, this diagnostic is read-only remotely and is the canonical safe queue probe for this checkpoint.
+7. Keep Wi-Fi OFF during the diagnostic.
+8. Require:
+   - Stage: `done_auth_failure` (or equivalent completed auth-failure stage);
+   - Auth probe: offline/timeout/other retryable network-unavailable classification, **not passed**;
+   - Queue pending >= **1**;
+   - Queue retry_wait = **0** for this controlled fixture;
+   - Queue in_flight = **0**;
+   - the recent create item is still pending and has no remote ID;
+   - marker scan remains `not_run`;
+   - parent metadata/HTML probes remain `not_run`;
+   - Remote writes: **none**;
+   - no crash/freeze.
+9. Confirm in Reader web/app (from another connected device if convenient) that the new fixture still does not exist remotely.
+10. Return the diagnostic screen/result.
+11. **Stop there:** do not turn Wi-Fi back ON and do not run normal Sync yet.
+
+If the pending queue disappears, the local highlight/note disappears, auth unexpectedly passes, or any remote write occurs, Gate 16 restart persistence FAILS and reconnect must not proceed.

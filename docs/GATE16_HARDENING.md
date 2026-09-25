@@ -56,7 +56,14 @@ Checkpoint 2 — **PASS** on target PW3:
 - unchanged second Sync completed as a no-op;
 - no fatal error, duplicate, unexpected replacement/download, repeated settled acknowledgement or unexpected queue/archive mutation.
 
-Current checkpoint: step 5, controlled offline durable queue. Do not restart/reconnect until the offline report proves the new annotation is waiting durably.
+Checkpoint 3 — **PASS** on target PW3:
+- controlled KOReader-offline fixture remained offline;
+- new local highlight/note was queued durably;
+- remote preflight did not pass;
+- zero create items were processed and zero remote mutation occurred;
+- queue waiting remained >=1; metadata/content pages remained 0.
+
+Current checkpoint: restart KOReader **while still offline** and prove local annotation + SQLite queue persistence with the read-only reconnect diagnostic. Do not reconnect until that diagnostic is reviewed.
 
 After installing only the new plugin directory and restarting KOReader:
 
@@ -89,14 +96,21 @@ After installing only the new plugin directory and restarting KOReader:
    - stop and review this report before restart/reconnect.
 
    Native Kindle Airplane Mode alone is not the Gate 16 fixture because Gate 13 proved KOReader/Kindle restore state can report misleading local network state.
-6. Restart KOReader while that work is still pending, restore connectivity, then Sync.
+6. Restart KOReader while that work is still pending **and keep Wi-Fi OFF**.
+   - reopen the same managed article and verify the exact local highlight/note still exists;
+   - run **Inspect reconnect queue (Gate 13)** while still offline;
+   - require Queue pending >=1, retry_wait=0, in_flight=0, no remote ID for the active fixture, auth probe not passed, marker/parent probes not run and Remote writes=none;
+   - stop and review the diagnostic before reconnect.
+
+7. After restart-persistence PASS, restore connectivity and run ordinary Sync exactly once.
    - the queue is recovered;
    - the highlight/note reaches the correct Reader document once;
+   - queue waiting reaches 0;
    - no duplicate POST/highlight.
-7. Restart KOReader one more time and reopen the same document.
+8. Restart KOReader one more time and reopen the same document.
    - progress/highlights/notes remain intact;
    - plugin and Bookshelf still load.
-8. Review the resulting `crash.log` locally for a Readwise token, Authorization header, signed raw URL/query or dumped private document/note content. If any appears, Gate 16 fails and the log should not be shared until redacted.
+9. Review the resulting `crash.log` locally for a Readwise token, Authorization header, signed raw URL/query or dumped private document/note content. If any appears, Gate 16 fails and the log should not be shared until redacted.
 
 Do not deliberately fill the Kindle filesystem or manufacture corrupt/huge private documents for the physical gate; those failure modes are deterministic CI tests.
 

@@ -1315,29 +1315,29 @@ Não:
 
 ## 46. Próximo passo
 
-A candidata **0.1.47** já passou no PW3:
+A candidata **0.1.47** já passou fisicamente no PW3:
 - startup/settings/token;
 - preservação do artigo gerenciado;
 - primeiro Sync Wi-Fi-on;
-- segundo Sync inalterado/no-op, sem duplicata/replacement/re-ack inesperado.
+- segundo Sync inalterado/no-op;
+- highlight/nota local em offline controlado -> fila durável, sem remote write.
 
-Próximo checkpoint físico: **fila durável em offline controlado**, ainda sem reboot/reconnect.
+Próximo checkpoint físico: **restart do KOReader ainda offline + prova read-only da fila**, sem reconnect ainda.
 
-Usar o mesmo método que passou no Gate 13:
-1. `Restore Wi-Fi connection on resume` OFF;
-2. Wi-Fi OFF pelo menu de rede do KOReader;
-3. confirmar que abrir/fechar Readwise Reader sem Sync não religa o Wi-Fi;
-4. criar highlight novo com nota `gate16 rc offline [[Foucault]]` + `#queue-test-47`;
-5. fechar/reabrir artigo para persistir sidecar;
-6. Sync uma vez ainda offline;
-7. exigir create remoto 0, queued durably >=1, processed 0, waiting >=1, metadata/content pages 0 e nenhum remote write;
-8. parar e revisar o relatório antes de reiniciar ou reconectar.
+1. manter Wi-Fi OFF e `Restore Wi-Fi connection on resume` OFF;
+2. reiniciar completamente o KOReader;
+3. reabrir o mesmo artigo e confirmar o highlight/nota `gate16 rc offline [[Foucault]]` + `#queue-test-47`;
+4. rodar **Inspect reconnect queue (Gate 13)** ainda offline;
+5. exigir auth probe não-passed, Queue pending >=1, retry_wait=0, in_flight=0, item sem remote ID, marker/parent probes não executados e Remote writes=none;
+6. confirmar que o fixture ainda não existe no Reader remoto;
+7. parar antes de ligar Wi-Fi.
 
 Só depois desse PASS:
-- restart do KOReader com fila pendente;
-- reconnect + Sync exatamente uma vez;
-- exatamente uma cópia remota;
+- reconnect;
+- Sync exatamente uma vez;
+- uma única criação/reconciliação remota;
+- fila zerada e nenhuma duplicata;
 - restart final/persistência;
-- revisão local de `crash.log` por token/Authorization/URL assinada/private payload.
+- revisão local do `crash.log` por token/Authorization/URL assinada/private payload.
 
 Gate 16 continua aberto; Phase S continua bloqueada.

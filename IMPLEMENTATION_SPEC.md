@@ -3108,35 +3108,32 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Continue the **0.1.47 Gate 16 PW3 release-candidate smoke** from the physically passed unchanged-second-Sync checkpoint.
+Continue the **0.1.47 Gate 16 PW3 release-candidate smoke** from the physically passed controlled-offline durable-queue checkpoint.
 
 Already physically passed:
-- plugin/startup and settings/token preservation;
+- plugin/startup + settings/token preservation;
 - existing managed article reading state preservation;
 - first ordinary Wi-Fi-on Sync;
-- unchanged second Sync/no-op idempotency.
+- unchanged second Sync/no-op idempotency;
+- controlled offline local highlight/note -> durable create queue with zero remote writes.
 
-Next checkpoint — **controlled offline durable queue only**:
-1. keep 0.1.47 installed;
-2. use the Gate-13-proven PW3 offline fixture: disable KOReader **Restore Wi-Fi connection on resume**, then turn Wi-Fi OFF from KOReader's Network menu while already inside KOReader;
-3. confirm opening/closing Readwise Reader without Sync does not restore Wi-Fi;
-4. create one fresh highlight in an existing managed article with exact note:
-   - `gate16 rc offline [[Foucault]]`
-   - `#queue-test-47`
-5. close/reopen the article once to flush the sidecar;
-6. Sync exactly once while Wi-Fi remains OFF;
-7. require remote preflight not passed, `queued_offline`/partial, zero remote create, >=1 durable queued create, zero queue items processed, >=1 waiting item, metadata/content pages zero, no remote mutation and no fatal errors;
-8. verify the fixture is not present in Reader yet;
-9. stop before restart/reconnect and return the report.
+Next checkpoint — **restart while still offline, read-only queue persistence proof**:
+1. keep Wi-Fi OFF and KOReader **Restore Wi-Fi connection on resume** OFF;
+2. fully restart KOReader;
+3. reopen the same managed article and verify the exact Gate 16 highlight/note still exists locally;
+4. do not edit or recreate it;
+5. run **Inspect reconnect queue (Gate 13)** while still offline;
+6. require an auth-failure/offline result with Queue pending >=1, retry_wait=0, in_flight=0, no remote ID on the active item, marker/parent probes not run and Remote writes=none;
+7. verify the fixture still does not exist remotely;
+8. stop before reconnect and return the diagnostic result.
 
-Do not use native Airplane Mode alone as proof of offline state; Gate 13 showed local network flags/restore behavior can be misleading on the target PW3.
+The reconnect diagnostic snapshots the SQLite queue **before** its read-only auth probe. Deterministic Gate 16 coverage now proves that an offline auth failure returns that snapshot and does not continue to remote marker/parent reads or any write path.
 
 Only after this checkpoint passes:
-- restart KOReader while the item is still pending and Wi-Fi OFF;
-- verify local queue/article/highlight/note survive;
-- reconnect;
-- Sync exactly once;
-- verify exactly one remote highlight/note and no duplicate;
-- perform final restart/state/log-redaction checks.
+- turn Wi-Fi back ON;
+- run ordinary Sync exactly once;
+- require exactly one create/reconcile for the pending fixture, queue waiting -> 0 and no duplicate;
+- verify the exact note in Reader;
+- perform the final restart/state/log-redaction checks.
 
-Gate 16 remains **OPEN** until the whole RC sequence is physically stable.
+Gate 16 remains **OPEN** until the entire RC sequence is physically stable.
