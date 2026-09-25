@@ -3185,3 +3185,32 @@ Required immediate result:
 Then close/reopen **before ordinary Sync** and verify highlight + note persistence.
 
 If it still fails, report the entire structural counter message.
+
+
+### Gate 17D-2 closure — alpha.8 PASS
+
+Observed on target PW3:
+- the one imported Reader-origin PDF highlight survived close/reopen;
+- ordinary `Sync now` succeeded;
+- the highlight remained local;
+- no remote duplicate was created.
+
+Seeing only one local PDF highlight before that Sync was expected: Gate 17D-2 deliberately imported exactly one Reader child.
+
+### Gate 17D-3 — alpha.9 consolidated final acceptance
+
+Do not use the explicit Gate 17D import action again.
+
+Using the same managed PDF, which still has one Reader child not yet imported locally:
+
+1. install the CI-green `1.2.0-alpha.9` build preserving settings, DB, PDF and sidecar;
+2. open the same PDF and run ordinary **Sync now** once;
+3. require the remaining safe Reader highlight to appear locally through the normal pre-Sync path;
+4. if that Reader highlight has a note, require the note to be intact;
+5. require the previously imported highlight to remain intact;
+6. confirm Reader still has no duplicate highlight child;
+7. close/reopen the PDF once and confirm both local annotations remain;
+8. run **Sync now** one more time without changes;
+9. require no additional local import and no remote duplicate.
+
+Report the normal Sync summary fields for Reader → KOReader reconciliation if shown, plus whether both highlights survive reopen and whether the second unchanged Sync is idempotent.
