@@ -3161,3 +3161,27 @@ Then close/reopen before ordinary Sync and verify highlight/note persistence.
 
 If it still fails, report the **entire error**. Alpha.7 includes structural counters such as:
 `raw`, `normalized`, `malformed`, `same_page`, `same_datetime`, `same_pos0`, `same_pos1`.
+
+
+### Gate 17D-2 alpha.7 result — NUMERIC POSITION ROUND-TRIP FAIL / ROLLBACK PASS
+
+Observed:
+`raw=1, normalized=1, malformed=0, normalize_exceptions=0, scanned=1, same_page=1, same_datetime=1, same_pos0=0, same_pos1=0`.
+
+This proves the newly-created annotation reached the current sidecar but its numeric endpoint representation changed across persistence. Rollback succeeded. Do not repeat alpha.7.
+
+### Gate 17D-2 alpha.8
+
+Install alpha.8 and use the same managed PDF.
+
+Run **Import one Reader PDF highlight (Gate 17D)** exactly once.
+
+Required immediate result:
+- `Imported local PDF highlights: 1`;
+- `PDF file digest unchanged: yes`;
+- `PDF embed preference restored: yes`;
+- `Reader writes from import: none`.
+
+Then close/reopen **before ordinary Sync** and verify highlight + note persistence.
+
+If it still fails, report the entire structural counter message.
