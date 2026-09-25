@@ -4759,3 +4759,15 @@ Do **not** reconnect yet.
 11. **Stop there:** do not turn Wi-Fi back ON and do not run normal Sync yet.
 
 If the pending queue disappears, the local highlight/note disappears, auth unexpectedly passes, or any remote write occurs, Gate 16 restart persistence FAILS and reconnect must not proceed.
+
+
+### Checkpoint 3 / restart-handoff CI
+- Test hardening commit `9637dcabb6b542805a00160e2ead68e4be66c776`: workflow #1097 **SUCCESS**.
+- Checkpoint-3 documentation/runbook handoff commit `d2ee6f862bda90cc9c1bebcacdafe2b4ec598699`: workflow #1099 **SUCCESS**.
+- Development checks: PASS.
+- Full Lua unit suite: PASS.
+- Installable ZIP build: PASS.
+- Package layout verification: PASS.
+- Artifact upload: PASS.
+- No production plugin file/schema/version changed; the installed RC remains 0.1.47.
+- Exact blocker remains only the restart-while-offline read-only queue persistence proof above.
