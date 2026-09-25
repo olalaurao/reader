@@ -32,6 +32,10 @@ All notable project changes are recorded here.
 
 ## [Unreleased]
 
+_No unreleased changes._
+
+## [1.0.0] - 2026-09-25
+
 ### Added
 
 - Canonical V1 plan, implementation specification and resumable status ledger.

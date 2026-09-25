@@ -1315,42 +1315,26 @@ Não:
 
 ## 46. Próximo passo
 
-Gates 0–16 estão **PASSED COMPLETE** no PW3 alvo e a Phase R foi mergeada em `main`.
+**V1 acceptance / Phase S: PASSED COMPLETE** no Kindle PW3 real com KOReader v2026.07.1.
 
-Fase atual: **Phase S — V1 acceptance**.
-
-A aceitação integrada já repetiu com sucesso:
-- Reader -> Kindle e abertura do artigo;
-- leitura e anotação offline;
-- fila pendente sem perda;
-- Kindle -> Reader com nota Markdown/wikilinks;
-- segundo Sync sem duplicata;
-- Readwise -> Obsidian com wikilinks;
+O fluxo integrado validou:
+- Reader -> Kindle, abertura e leitura offline;
+- highlight/nota persistentes offline e fila durável;
+- Kindle -> Reader sem duplicação;
+- Markdown e `[[wikilinks]]` até Obsidian;
 - update de nota;
-- falha de rede recuperável;
-- reinício do KOReader com fila pendente e recuperação idempotente.
+- falha de rede e restart do KOReader com recuperação idempotente;
+- location -> Collection preservando Collections locais;
+- tags -> metadados/Bookshelf sem Collection por tag;
+- Finished -> Archive preservando arquivo/sidecar/progresso/anotações;
+- log real sem token/signed URL/conteúdo privado completo;
+- no-op Sync final com zero novos documentos/highlights e sem repetição de Archive.
 
-Aceite integrado adicional já repetido:
-- mudança de location do Reader projetada para a Collection `Readwise: ...`;
-- Collections locais não gerenciadas preservadas;
-- nenhuma cópia local duplicada criada pela mudança de location.
+Próximo passo: **finalizar a release `v1.0.0`**, sem adicionar comportamento novo:
+1. versão/metadados `1.0.0`;
+2. documentação/changelog final;
+3. CI completo + ZIP instalável;
+4. apontar `main` para o candidato verde;
+5. tag `v1.0.0` no commit verde exato.
 
-Aceite integrado de tags também já repetido:
-- alteração de tag no Reader projetada para metadados/Bookshelf do mesmo documento;
-- nenhuma Collection por tag criada;
-- nenhuma cópia local duplicada.
-
-Aceite integrado de conclusão também já repetido:
-- documento marcado Finished no KOReader;
-- Sync moveu o mesmo documento para Archive no Reader;
-- arquivo local permaneceu presente e abrindo;
-- sidecar/progresso/highlights/notas permaneceram íntegros.
-
-A revisão estática/determinística final de logs/redaction também foi repetida no código atual e não encontrou regressão; falta apenas conferir o log real gerado no PW3 durante esta aceitação.
-
-Ainda faltam, antes de `v1.0.0`:
-1. conferir no log real do PW3 que não há token, signed source URL nem conteúdo privado completo;
-2. executar o segundo no-op Sync final e confirmar zero novos documentos/highlights e nenhuma nova mutação de Archive;
-3. somente então fechar Phase S, preparar release candidate e tag `v1.0.0`.
-
-Não pular esses critérios mesmo quando o comportamento já tiver evidência em gates anteriores: esta fase é a repetição integrada de aceite da V1 no PW3 real.
+A V1 está funcionalmente aceita; qualquer mudança de comportamento após este ponto exige nova avaliação de regressão antes da tag.

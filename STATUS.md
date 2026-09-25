@@ -185,9 +185,17 @@ A9 remains the only V1 acceptance blocker. The next physical evidence is the act
 - Spec deviations: none.
 - Exact blocker / next physical action: inspect the target Kindle's current KOReader `crash.log` for access token, signed source URL/query credentials, or full private document/annotation content; if clean, make no Reader/Kindle changes and run exactly one online `Sync now`. Require zero new document downloads, zero new highlights created, no repeated archive mutation, and zero fatal errors. After that PASS, Phase S may be closed and release-candidate/`v1.0.0` work can proceed off-device.
 
+## 2026-09-25 — Acceptance A9 PHYSICAL PASS; Phase S complete
+
+User confirmed the complete final A9 checkpoint on the target PW3: the real KOReader log from the completed acceptance run contained no access token, signed source URL/query credential, or full private document/annotation content; the final unchanged online `Sync now` produced zero new document downloads, zero new highlights, no repeated Archive mutation, and no fatal error.
+
+This closes IMPLEMENTATION_SPEC section 42 steps 31-32 and the final PLAN.md V1 acceptance requirements. A1-A9 are now PASSED as one integrated V1 flow on the target PW3 / KOReader v2026.07.1. Gates 0-16 and Phase S are PASSED COMPLETE. No production bug or spec deviation was found in A9.
+
+Release authorization: `v1.0.0` is now allowed after release-version/documentation preparation and a green full CI/package run. Do not change the validated sync behavior during release preparation.
+
 ## Current milestone
 
-**Phase S / V1 acceptance — OPEN; Gates 0–16 PASSED COMPLETE**
+**V1 acceptance / Phase S — PASSED COMPLETE; release `v1.0.0` in finalization**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 

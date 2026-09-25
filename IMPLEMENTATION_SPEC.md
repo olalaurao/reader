@@ -2936,11 +2936,11 @@ No local annotation/progress loss caused by remote content update/revision. Exis
 ### Gate 16
 Release candidate stable on target PW3.
 
-## Phase S — V1 acceptance
+## Phase S — V1 acceptance — PASSED COMPLETE
 
-Run the complete acceptance script in section 42.
+The complete section-42 acceptance script passed on the target Kindle Paperwhite 3 / KOReader v2026.07.1 on 2026-09-25. The integrated run covered Reader -> Kindle acquisition, offline reading and annotation persistence, queued recovery, Kindle -> Reader highlight/note sync and deduplication, Readwise -> Obsidian wikilinks, note update, retryable-network recovery, KOReader restart with pending work, Reader location/Collection projection, Reader tag/Bookshelf metadata projection, Finished -> Archive with local preservation, real-device log review, and the final unchanged no-op Sync.
 
-Tag `v1.0.0` only after all P0 acceptance steps pass or a deliberate scope change is written into this spec and PLAN.md.
+All P0 acceptance steps are passed. `v1.0.0` is authorized after the release-preparation commit passes the full CI/package workflow.
 
 ---
 
@@ -3091,25 +3091,14 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Begin **Phase R / Gate 16 hardening** from the merged Gate 15 baseline.
+Phase S / V1 acceptance is **PASSED COMPLETE**.
 
-Order is mandatory:
-1. large library;
-2. low disk;
-3. malformed document;
-4. huge document;
-5. Unicode;
-6. 429 / Retry-After;
-7. intermittent Wi-Fi / retryable network failure;
-8. force-close recovery;
-9. reboot recovery;
-10. migration;
-11. rollback;
-12. debug-log review for secrets.
+Release finalization order:
+1. set the plugin version and metadata to `1.0.0` without changing validated runtime behavior;
+2. align README, CHANGELOG, STATUS, PLAN and device-test ledger;
+3. run the full development checks, Lua unit suite, installable ZIP build, package-layout verification and artifact upload in CI;
+4. if green, merge/fast-forward the release candidate to `main`;
+5. tag that exact green `main` commit as `v1.0.0`;
+6. do not add new product behavior between final acceptance and the V1 tag.
 
-Rules:
-- implement and automate deterministic cases before asking for PW3 physical testing;
-- preserve existing documents, sidecars, annotations, queue and watermarks;
-- no automatic destructive cleanup;
-- no firmware/KOReader update;
-- do not mark Gate 16 passed until the release-candidate hardening sequence is physically stable on the target PW3.
+Any failure in the release-preparation CI reopens release finalization, not the already-passed physical acceptance, unless the fix changes production behavior.

@@ -2834,3 +2834,25 @@ User confirmed the final raw EPUB preservation sequence passed:
 ### Gate 15 — PASS COMPLETE
 
 Article Q1-A/Q2, original PDF and original EPUB preservation are all physically passed on the target PW3. Phase R / Gate 16 hardening is unblocked.
+
+
+### Phase S / V1 final acceptance — PASS
+
+Target: Kindle Paperwhite 3 / KOReader v2026.07.1.
+
+The complete integrated V1 acceptance flow passed:
+- fresh Reader article downloaded exactly once and opened normally;
+- offline reading, highlight and multiline note persisted across close/reopen;
+- offline Sync retained pending annotation work without loss;
+- reconnect uploaded the highlight/note to the original Reader document exactly once;
+- unchanged second Sync produced no duplicate;
+- Readwise -> Obsidian export preserved the acceptance wikilinks;
+- note update reached the same linked Reader highlight;
+- retryable network failure and KOReader restart recovered durable pending work without duplication;
+- Reader location change projected to the managed `Readwise: ...` Collection while a non-managed local Collection was preserved;
+- Reader tag change projected to Bookshelf-compatible metadata without creating a Collection per tag;
+- Finished -> Archive moved the Reader document remotely while local file, sidecar, progress, highlights and notes remained intact;
+- real KOReader log review found no access token, signed source URL/query credential or full private document/annotation content leak;
+- final unchanged online Sync reported zero new document downloads, zero new highlights, no repeated Archive mutation and no fatal error.
+
+Result: **Phase S PASSED COMPLETE. V1.0.0 release is authorized after the release-preparation commit passes full CI/package validation.**

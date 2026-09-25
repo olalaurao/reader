@@ -4,7 +4,7 @@ A KOReader plugin project for using a Kindle as an offline reading client for Re
 
 ## Current status
 
-**Gates 0–3 are complete on the target Kindle Paperwhite 3 / KOReader 2025.04. Phase F `0.1.3` is implemented off-device and Gate 4 is next.** It adds filtered multi-article sync, incremental watermarks, stable Reader-ID ownership, metadata/location updates, Readwise Collections, cancellation, sync summaries and explicit full rescan. Existing local content is not destructively refreshed in Phase F.
+**V1 is accepted on the target Kindle Paperwhite 3 / KOReader v2026.07.1.** The complete integrated acceptance flow passed: Reader documents sync to Kindle, reading/annotations work offline, highlights and notes sync back without duplicates, Markdown/`[[wikilinks]]` survive through Readwise to Obsidian, Reader locations/tags project into KOReader/Bookshelf metadata, Finished archives remotely without deleting local reading state, queue/retry/restart recovery is durable, and the final no-op Sync is idempotent.
 
 The Gate 2 action performs a metadata-only full Reader-library scan with cursor guards, ID deduplication, request pacing, bounded `Retry-After` recovery and cancellable KOReader UI. It reports counts by location/category. **It does not download or change Reader documents and does not perform remote writes.**
 
@@ -12,8 +12,9 @@ The Gate 2 action performs a metadata-only full Reader-library scan with cursor 
 
 - Kindle Paperwhite 3 / 7th generation
 - Kindle firmware 5.16.2.1.1
-- KOReader 2025.04 through Gate 4
-- planned controlled migration after Gate 4: official KOReader v2026.07.1 (`kindlepw2` on this PW3), then Bookshelf v5.1.4 coexistence validation
+- KOReader v2026.07.1 (`kindlepw2`) — canonical V1 baseline
+- KOReader 2025.04 — historical Gates 0–4 baseline
+- Bookshelf v5.1.4 — V1 coexistence/metadata integration validated
 - Manual sync only for V1
 
 Do not update Kindle firmware/jailbreak for this project. The KOReader update is now a deliberate Gate 4A migration with backup, rollback and regression testing; see `docs/KOREADER_UPGRADE.md`.
