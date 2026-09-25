@@ -5286,3 +5286,32 @@ Regression coverage:
 Build advanced to `1.2.0-alpha.6`.
 
 Next physical checkpoint remains one explicit PDF import once, followed by close/reopen before ordinary Sync.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.6 off-device green; current-sidecar verification ready
+
+Final alpha.6 package head before this STATUS-only record: `969c45b9f9b6d35fd853ae9b2c6b5c055e6290fa`.
+
+CI workflow `36156449788`: **SUCCESS**.
+- development checks: PASS;
+- complete Lua suite: PASS;
+- installable ZIP build: PASS;
+- package-layout verification: PASS;
+- artifact upload: PASS.
+
+Artifact/package audit:
+- artifact id: `10873443327`;
+- outer artifact digest: `sha256:e5ad74f79927eeb5c56a67f41adb69dd1a416dde2c9c8ad2322b0cf98402e000`;
+- installable ZIP SHA-256: `a74c8eecf24b804600286674e521d613e00a2317dadf9367d51ce9a760e0eb1f`;
+- root exactly `readwisereader.koplugin/`;
+- packaged version/meta: `1.2.0-alpha.6`;
+- packaged adapter contains `scanFlushed()`, `findSidecarFile()`, and `openSettingsFile()`;
+- PDF durable import path explicitly selects `scanFlushed()`;
+- no tests/scripts/.github/dist, SQLite DB/backups, sidecars or crash logs packaged.
+
+Physical blocker:
+1. install alpha.6;
+2. same managed PDF;
+3. run explicit PDF import exactly once;
+4. if success, close/reopen before Sync and verify highlight/note;
+5. if failure, report the complete specific message.
