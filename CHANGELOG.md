@@ -34,6 +34,8 @@ All notable project changes are recorded here.
 
 ### Added
 
+- Experimental `1.2.0-alpha.3` Gate 17D-2 adds an explicit one-item PDF import. It forces KOReader PDF embedding off only during save/delete, restores the user's setting before sidecar persistence, verifies the PDF byte digest is unchanged, preserves Reader notes, uses native pboxes for collision detection, verifies the saved sidecar through the existing durable imported-link path, and rolls the local item back on integrity/link failure. Ordinary Sync integration remains disabled until physical persistence/dedupe proof.
+
 - Experimental `1.2.0-alpha.2` fixes the Gate 17D PDF probe after the target PW3 returned 0 exact matches but 2 text round-trip differences: KOReader's paging search intentionally permits first-word suffix / last-word prefix matches while returning full PDF word boxes. The probe now validates native endpoint words and reports exact vs whole-word boundary-expanded positions separately, keeping full-text reconstruction diagnostic-only. It remains read-only.\n- Experimental `1.2.0-alpha.1` Gate 17D adds a read-only Reader → KOReader PDF/paging locator probe. It uses KOReader's native PDF `findAllText()` result page/word boxes, reconstructs native page positions, round-trips through `getTextFromPositions()` with text-wrap temporarily disabled/restored, and accepts only one exact result. It performs no annotation/sidecar or Reader mutation.
 
 ## [1.1.0] - 2026-09-25
