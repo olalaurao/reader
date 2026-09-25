@@ -28,7 +28,8 @@ function Probe:new(options)
     }, self)
 end
 
-function Probe:run(local_path)
+function Probe:run(local_path, options)
+    options = options or {}
     if type(local_path) ~= "string" or local_path == "" then
         return nil, domainError("document", "Open a Readwise-managed document first.")
     end
@@ -52,6 +53,7 @@ function Probe:run(local_path)
     local highlights_with_notes = 0
     local scan, err = self.reader:iterateDocuments({
         category = "highlight",
+        updated_after = options.updated_after,
         limit = 100,
         with_html_content = false,
         with_raw_source_url = false,
@@ -88,6 +90,7 @@ function Probe:run(local_path)
         duplicate_records_ignored = scan.duplicates or 0,
         remote_writes = 0,
         local_writes = 0,
+        updated_after = options.updated_after,
     }
 end
 
