@@ -32,6 +32,17 @@ All notable project changes are recorded here.
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-25
+
+### Changed
+
+- Increased historical Reader → KOReader import throughput for the currently-open document:
+  - rolling EPUB/HTML: up to **50** new local highlights per `Sync now` with up to **75** locator attempts (previously 20 / 30);
+  - original PDF: up to **5** new local highlights per `Sync now` with up to **30** locator attempts (previously 1 / 10).
+- Identity, ambiguity handling, sidecar verification, Reader-child durable links, PDF byte-integrity checks, rollback and outbound deduplication rules are unchanged.
+- This patch is intentionally shipped without a new physical Kindle acceptance at the user's request; full automated CI/package validation remains mandatory.
+
+
 ## [1.2.0] - 2026-09-25
 
 ### Added
