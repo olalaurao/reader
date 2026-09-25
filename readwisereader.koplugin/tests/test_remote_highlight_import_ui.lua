@@ -437,5 +437,52 @@ return function()
         assert(result.suppress_outbound_ids[1] == "local-conflict")
         assert(link_calls == 0)
         assert(#annotations == 1)
+        assert(ui.sync_meta.data["remote_highlight_baseline:parent-1"] == nil,
+            "unresolved exact collision must keep historical guard open")
+    end)
+
+    -- An ambiguous remote text only blocks matching local annotations. It
+    -- keeps the historical guard open so the suppression cannot disappear
+    -- behind the incremental watermark on a later Sync.
+    withStubs(function(UI)
+        local reader_ui, annotations = makeReaderUI(function(text)
+            if text == "Repeated passage" then return "ambiguous" end
+        end)
+        annotations[1] = {
+            local_annotation_id = "local-repeated",
+            page = "xp:Repeated passage:local",
+            pos0 = "xp:Repeated passage:local",
+            pos1 = "xp:Repeated passage:local-end",
+            text = "Repeated passage",
+            note = nil,
+            datetime = "2026-09-25 00:00:00",
+            drawer = "lighten",
+        }
+        local sync_meta = newSyncMeta()
+        local ui = UI:new{
+            config = { hasAccessToken = function() return true end },
+            importer = makeImporter({}),
+            sync_meta = sync_meta,
+            get_current_path = function() return "/books/book.epub" end,
+            get_reader_ui = function() return reader_ui end,
+            worker = {
+                run = function()
+                    return remoteReport({
+                        {
+                            id = "remote-repeated", parent_id = "parent-1",
+                            content = "Repeated passage", note_present = false,
+                        },
+                    })
+                end,
+            },
+        }
+
+        local result = assert(ui:prepareForSync("/books/book.epub"))
+        assert(result.ambiguous == 1)
+        assert(result.unresolved_collision_risk == 1)
+        assert(#result.suppress_outbound_ids == 1)
+        assert(result.suppress_outbound_ids[1] == "local-repeated")
+        assert(sync_meta.data["remote_highlight_baseline:parent-1"] == nil)
+        assert(#annotations == 1)
     end)
 end
