@@ -220,6 +220,21 @@ The Reader API contract was rechecked on 2026-09-25 and currently documents `art
 
 Next gate: full CI for `1.0.1-rc.1`; if green, perform the smallest PW3 physical closure: one real email/newsletter and one real RSS item downloaded via normal Sync, opened/reopened offline, with no duplicate on a second Sync. Only after that may a corrected final release be called complete.
 
+## 2026-09-25 — Textual-format corrective build CI PASS; physical closure next
+
+- **Branch / implementation HEAD before this STATUS commit:** `fix/v1-textual-formats` / `84bc962c4f92151c19f7a67abb9a0187dcaa003c`.
+- **Build:** `1.0.1-rc.1`.
+- **Implemented:** Reader categories `email`, `rss`, `tweet`, and `video` are now eligible in normal document sync through the existing processed-HTML path. Settings exposes explicit toggles; defaults remain unchanged (`article` only). Safe destination mapping: email -> `Email/`, RSS -> `RSS/`, tweet/video -> `Other/`.
+- **API validation:** current Reader API documentation was rechecked and confirms these category names.
+- **Automated tests added:** all four textual categories are exercised through full-sync eligibility/materialization without raw-source requests; folder/materialization state is verified; Settings toggles are regression-tested.
+- **CI evidence:** workflow `36082391968` completed **SUCCESS** on `84bc962c...`: development checks, full Lua unit suite, installable ZIP build, package-layout verification and artifact upload all passed.
+- **CI artifact:** `readwisereader-koplugin-84bc962c4f92151c19f7a67abb9a0187dcaa003c`, artifact id `10842520881`.
+- **Local extracted install ZIP SHA-256:** `6c9e39ba601f751a0c1f8e14a3885cee265b58c661ebef1cbe9df99f2796e759`.
+- **No regression-sensitive code changed:** annotation identity/matching, queue/retry, archive, collections, metadata projection, DB schema/migrations and content-refresh behavior are untouched.
+- **V1 status:** still REOPENED. The canonical email/newsletter + RSS scope is implemented off-device but not yet physically proven on the PW3.
+- **Exact next physical checkpoint:** install `1.0.1-rc.1` preserving settings/DB/documents/sidecars; enable **Email / newsletters** and **RSS** under Settings -> Documents -> Types; enable a Reader location containing one known email/newsletter and one known RSS item (often Feed for RSS); run Sync; require one local item of each, open/read both, turn Wi-Fi off and reopen both, then restore Wi-Fi and run a second unchanged Sync requiring no duplicate and no fatal error. Do not test tweet/video unless convenient; their implementation shares the same already-covered processed-HTML path and they are not separate PLAN.md acceptance items.
+- **Release rule:** after this physical PASS, record it before bumping to `1.0.1`; then run final CI and publish the corrected release. Do not distribute the old `v1.0.0` as the final Kindle build.
+
 ## Current milestone
 
 **V1 finalization REOPENED — missing textual email/RSS scope discovered after v1.0.0 tag**
