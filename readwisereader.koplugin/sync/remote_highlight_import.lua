@@ -34,6 +34,23 @@ function Import:isRemoteLinked(reader_highlight_document_id)
     return self.annotations:getByReaderRemoteId(reader_highlight_document_id)
 end
 
+function Import:normalizeLocal(local_path, local_annotation)
+    local document, document_err = self:getDocument(local_path)
+    if not document then return nil, document_err end
+
+    local normalized, normalize_err = self.adapter:normalize(
+        document.reader_id,
+        local_annotation
+    )
+    if not normalized then
+        return nil, domainError(
+            "annotation",
+            "KOReader highlight could not be normalized: " .. tostring(normalize_err)
+        )
+    end
+    return normalized, document
+end
+
 function Import:linkPersisted(local_path, remote, local_annotation)
     if type(remote) ~= "table"
         or type(remote.id) ~= "string" or remote.id == ""
@@ -41,8 +58,13 @@ function Import:linkPersisted(local_path, remote, local_annotation)
         return nil, domainError("remote", "Reader highlight identity is incomplete.")
     end
 
-    local document, document_err = self:getDocument(local_path)
-    if not document then return nil, document_err end
+    local normalized, document_or_err = self:normalizeLocal(
+        local_path,
+        local_annotation
+    )
+    if not normalized then return nil, document_or_err end
+    local document = document_or_err
+
     if remote.parent_id ~= document.reader_id then
         return nil, domainError("parent", "Reader highlight belongs to a different document.")
     end
@@ -54,11 +76,6 @@ function Import:linkPersisted(local_path, remote, local_annotation)
             local_annotation_id = already.local_annotation_id,
             link = already,
         }
-    end
-
-    local normalized, normalize_err = self.adapter:normalize(document.reader_id, local_annotation)
-    if not normalized then
-        return nil, domainError("annotation", "Created KOReader highlight could not be normalized: " .. tostring(normalize_err))
     end
 
     local scan, scan_err = self.adapter:scan(document.local_path, document.reader_id)
