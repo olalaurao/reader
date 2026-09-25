@@ -1,6 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
 local Constants = require("constants")
+local Hash = require("content/hash")
 local InfoMessage = require("ui/widget/infomessage")
 local Locator = require("koreader/remote_highlight_locator")
 local TextMatch = require("sync/text_match")
@@ -23,6 +24,44 @@ end
 
 local function stateKey(prefix, reader_document_id)
     return prefix .. tostring(reader_document_id)
+end
+
+local function remoteIdSignature(remote_id)
+    return Hash.sha256("reader-highlight-id\0" .. tostring(remote_id or ""))
+end
+
+local function textSignature(text)
+    return Hash.sha256(
+        "reader-highlight-text\0"
+            .. TextMatch.canonicalPlainText(text)
+    )
+end
+
+local function decodeUnresolved(value)
+    local out = {}
+    if type(value) ~= "string" or value == "" then return out end
+    for line in value:gmatch("[^\n]+") do
+        local id_hash, text_hash = line:match("^([^\t]+)\t([^\t]+)$")
+        if id_hash and text_hash then out[id_hash] = text_hash end
+    end
+    return out
+end
+
+local function encodeUnresolved(values)
+    local keys = {}
+    for key, value in pairs(values or {}) do
+        if type(key) == "string" and key ~= ""
+            and type(value) == "string" and value ~= "" then
+            keys[#keys + 1] = key
+        end
+    end
+    table.sort(keys)
+    if #keys == 0 then return nil end
+    local lines = {}
+    for _, key in ipairs(keys) do
+        lines[#lines + 1] = key .. "\t" .. values[key]
+    end
+    return table.concat(lines, "\n")
 end
 
 local function sameNote(a, b)
@@ -94,6 +133,7 @@ local function newBatchReport(remote_report)
         local_collisions = 0,
         collision_conflicts = 0,
         unresolved_collision_risk = 0,
+        persisted_guard_matches = 0,
         locator_attempts = 0,
         ambiguous = 0,
         missing = 0,
@@ -143,6 +183,7 @@ local function summaryLines(result, title)
         string.format(_("Exact local-position collisions skipped: %d"), result.local_collisions or 0),
         string.format(_("Local/Reader collision conflicts: %d"), result.collision_conflicts or 0),
         string.format(_("Unresolved local/Reader collision risks: %d"), result.unresolved_collision_risk or 0),
+        string.format(_("Persisted unresolved guards matched locally: %d"), result.persisted_guard_matches or 0),
         string.format(_("Locator attempts: %d"), result.locator_attempts or 0),
         string.format(_("Ambiguous locator matches skipped: %d"), result.ambiguous or 0),
         string.format(_("Missing locator matches skipped: %d"), result.missing or 0),
@@ -236,6 +277,7 @@ function UI:_scanState(document)
     local watermark_key = stateKey("remote_highlight_watermark:", id)
     local query_key = stateKey("remote_highlight_query_after:", id)
     local cursor_key = stateKey("remote_highlight_cursor:", id)
+    local unresolved_key = stateKey("remote_highlight_unresolved:", id)
 
     local baseline = self.sync_meta:get(baseline_key) == "1"
     local query_after = baseline and self.sync_meta:get(query_key) or nil
@@ -249,6 +291,8 @@ function UI:_scanState(document)
         watermark_key = watermark_key,
         query_key = query_key,
         cursor_key = cursor_key,
+        unresolved_key = unresolved_key,
+        unresolved = decodeUnresolved(self.sync_meta:get(unresolved_key)),
         baseline_complete = baseline,
         updated_after = query_after,
         cursor_id = self.sync_meta:get(cursor_key),
@@ -256,6 +300,13 @@ function UI:_scanState(document)
 end
 
 function UI:_saveScanProgress(document, remote_report, result, scan_state)
+    local unresolved_encoded = encodeUnresolved(scan_state.unresolved)
+    if unresolved_encoded then
+        self.sync_meta:set(scan_state.unresolved_key, unresolved_encoded)
+    else
+        self.sync_meta:delete(scan_state.unresolved_key)
+    end
+
     if result.failures > 0 or result.suppress_current_document then
         return
     end
@@ -271,8 +322,7 @@ function UI:_saveScanProgress(document, remote_report, result, scan_state)
     -- unchanged historical Reader child would disappear behind updatedAfter
     -- on the next Sync and the outbound create guard could no longer prove
     -- that the corresponding local annotation is safe to POST.
-    if (result.collision_conflicts or 0) > 0
-        or (result.unresolved_collision_risk or 0) > 0 then
+    if (result.collision_conflicts or 0) > 0 then
         self.sync_meta:delete(scan_state.cursor_key)
         return
     end
@@ -383,6 +433,57 @@ function UI:_candidateStates(highlights)
     return states
 end
 
+function UI:_applyPersistedUnresolvedGuards(
+    path,
+    reader_ui,
+    scan_state,
+    result
+)
+    local unresolved_texts = {}
+    for _, signature in pairs(scan_state.unresolved or {}) do
+        unresolved_texts[signature] = true
+    end
+    if next(unresolved_texts) == nil then return true end
+
+    for _, item in ipairs(reader_ui.annotation.annotations or {}) do
+        if item.drawer ~= nil
+            and unresolved_texts[textSignature(item.text)] then
+            local normalized, normalize_err =
+                self.importer:normalizeLocal(path, item)
+            if not normalized then
+                result.failures = result.failures + 1
+                result.status = "error"
+                result.suppress_current_document = true
+                return nil, normalize_err
+            end
+
+            local lookup_ok, local_link = pcall(
+                self.importer.getLocalLink,
+                self.importer,
+                normalized.local_annotation_id
+            )
+            if not lookup_ok then
+                result.failures = result.failures + 1
+                result.status = "error"
+                result.suppress_current_document = true
+                return nil, domainError(
+                    "db",
+                    "Could not read the local annotation identity link."
+                )
+            end
+
+            if not local_link or local_link.created_remote ~= true then
+                addSuppressedId(result, normalized.local_annotation_id)
+                result.persisted_guard_matches =
+                    result.persisted_guard_matches + 1
+                result.unresolved_collision_risk =
+                    result.unresolved_collision_risk + 1
+            end
+        end
+    end
+    return true
+end
+
 function UI:_suppressLocalTextMatches(path, reader_ui, remote, result)
     local matched = 0
     for _, item in ipairs(reader_ui.annotation.annotations or {}) do
@@ -409,6 +510,17 @@ function UI:_applyRemoteReport(path, reader_ui, document, remote_report, scan_st
     local result = newBatchReport(remote_report)
     result.reader_document_id = document.reader_id
 
+    local persisted_ok, persisted_err =
+        self:_applyPersistedUnresolvedGuards(
+            path,
+            reader_ui,
+            scan_state,
+            result
+        )
+    if not persisted_ok then
+        return result, persisted_err
+    end
+
     local candidate_states, state_err =
         self:_candidateStates(remote_report.remote_highlights)
     if not candidate_states then
@@ -422,7 +534,11 @@ function UI:_applyRemoteReport(path, reader_ui, document, remote_report, scan_st
 
     for position, state in ipairs(rotated) do
         local remote = state.remote
+        local remote_id_signature = remoteIdSignature(remote.id)
+        local remote_text_signature = textSignature(remote.content)
+
         if state.existing_link then
+            scan_state.unresolved[remote_id_signature] = nil
             result.linked_skipped = result.linked_skipped + 1
             result.last_processed_remote_id = remote.id
         else
@@ -442,6 +558,8 @@ function UI:_applyRemoteReport(path, reader_ui, document, remote_report, scan_st
                 Locator.findUnique(reader_ui, remote.content)
 
             if not locator then
+                scan_state.unresolved[remote_id_signature] =
+                    remote_text_signature
                 addLocatorFailure(result, locator_status)
                 local suppressed_ok, suppress_err =
                     self:_suppressLocalTextMatches(
@@ -476,9 +594,12 @@ function UI:_applyRemoteReport(path, reader_ui, document, remote_report, scan_st
                             existing_item
                         )
                         if link_ok and linked then
+                            scan_state.unresolved[remote_id_signature] = nil
                             result.collisions_linked =
                                 result.collisions_linked + 1
                         else
+                            scan_state.unresolved[remote_id_signature] =
+                                remote_text_signature
                             result.collision_conflicts =
                                 result.collision_conflicts + 1
                             result.status = "partial"
@@ -488,6 +609,8 @@ function UI:_applyRemoteReport(path, reader_ui, document, remote_report, scan_st
                             )
                         end
                     else
+                        scan_state.unresolved[remote_id_signature] =
+                            remote_text_signature
                         result.collision_conflicts =
                             result.collision_conflicts + 1
                         result.status = "partial"
@@ -504,14 +627,18 @@ function UI:_applyRemoteReport(path, reader_ui, document, remote_report, scan_st
                         locator
                     )
                     if not created then
+                        scan_state.unresolved[remote_id_signature] =
+                            remote_text_signature
                         result.failures = result.failures + 1
                         result.status = "error"
                         result.suppress_current_document = true
                         return result, create_err
                     elseif created.status == "already_linked_race" then
+                        scan_state.unresolved[remote_id_signature] = nil
                         result.linked_skipped =
                             result.linked_skipped + 1
                     else
+                        scan_state.unresolved[remote_id_signature] = nil
                         result.imported = result.imported + 1
                         if remote.note_present then
                             result.notes_imported =
