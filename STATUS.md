@@ -334,6 +334,18 @@ Artifact id: `10846108427`; artifact digest: `sha256:5806a68ab891d1563fb606422ff
 
 Gate 17B remains OPEN only for target-PW3 proof. Do not implement Gate 17C bulk/idempotent integration until this one imported highlight survives close/reopen and a subsequent ordinary Sync proves it is not uploaded as a duplicate.
 
+## 2026-09-25 — Gate 17B handoff finalized
+
+Documentation/handoff HEAD `d1e61a042d75e8872f868f47daa6e513789d239c` passed full CI workflow `36092823512` **SUCCESS** after the implementation-green run `36092610213`.
+
+Installable Gate 17B build supplied for the next PW3 checkpoint:
+- version: `1.1.0-alpha.2`;
+- validated implementation commit: `8f4e7885a308b7b88f53d287ebdf852948b873f6`;
+- CI artifact id: `10846108427`;
+- extracted install ZIP SHA-256: `617db37861d1fea5512bfd9a9cd96dcb9be11056c4b6baadfdfd9cd10ca05fc5`.
+
+No Gate 17C work has begun. Exact blocker is Gate 17B-1 physical import + close/reopen persistence on the same EPUB. Ordinary Sync must not be run until 17B-1 is reported.
+
 ## Current milestone
 
 **Phase T / Gate 17A — Reader → KOReader existing-highlight locator spike; V1.0.0 remains released**
