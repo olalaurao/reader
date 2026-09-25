@@ -1452,3 +1452,19 @@ Corrigir apenas o critério do probe:
 - continuar com zero writes.
 
 A criação PDF continua bloqueada até esse probe passar fisicamente.
+
+
+### 17D-2 — importar um highlight PDF
+
+Depois do PASS físico do locator alpha.2:
+- criar exatamente 1 highlight Reader no PDF local;
+- usar page/pos0/pos1/pboxes validados;
+- preservar nota;
+- forçar sidecar-only apenas durante save/delete do item;
+- restaurar a preferência `highlight_write_into_pdf` antes de `saveSettings`;
+- provar sidecar persistente;
+- ligar child ID remoto duravelmente;
+- rollback local se o link falhar;
+- conferir size+mtime do PDF antes/depois;
+- zero writes no Reader durante a ação;
+- só integrar ao Sync depois de provar persistência e dedupe remoto.
