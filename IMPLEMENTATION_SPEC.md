@@ -3231,4 +3231,16 @@ Use the same managed rolling EPUB already proven in Gates 17A/17B. The acceptanc
 9. KOReader remains responsive and the EPUB opens/reflows normally after the migration/import sequence.
 10. No PDF/paging historical import is exercised or claimed by this gate.
 
-Until this single final session passes, Gate 17C and v1.1.0 stable remain **physically unaccepted**, even though the RC can be off-device green.
+The consolidated final PW3 session **PASSED**. Gate 17B's deferred post-Sync reopen criterion and Gate 17C physical acceptance are therefore closed. Stable v1.1.0 is authorized.
+
+### 49.11 v1.1 current-document scope
+
+Settings → Documents → Locations defines the document acquisition/sync filter. It is not a historical-highlight bulk traversal list.
+
+In v1.1, Reader → KOReader historical import requires the corresponding managed rolling EPUB/HTML to be the currently-open KOReader document. To migrate every eligible selected document, open each one and run manual Sync until its bounded import reports no deferred items.
+
+A library-wide bulk migration is a separate future feature and must preserve the same identity/collision/no-duplicate contracts.
+
+### 49.12 Next gate
+
+Gate 17D is the next canonical implementation gate after the v1.1.0 stable tag: validate PDF/paging locator behavior experimentally on the target KOReader/PW3 before implementing any historical Reader → KOReader PDF annotation creation.

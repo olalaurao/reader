@@ -2957,3 +2957,26 @@ If all items above pass:
 - stable `v1.1.0` may be merged/tagged.
 
 If any item fails, preserve the RC database/sidecar/log state and report the exact Sync summary/error; do not delete documents or sidecars to retry.
+
+
+## v1.1.0 final PW3 acceptance — PASS
+
+User completed the consolidated `1.1.0-rc.1` acceptance on the target PW3 and reported the full requested matrix succeeded.
+
+Accepted result:
+- RC installed/restarted normally with the migrated state intact;
+- Reader → KOReader pre-Sync reconciliation completed without a fatal import failure;
+- historical Reader highlights/notes imported into the managed rolling EPUB;
+- the previously-linked Gate 17B annotation was not duplicated remotely;
+- bounded continuation completed as needed;
+- close/reopen preserved old and newly imported highlights/notes;
+- final unchanged Sync produced no new historical import/remote duplicate and preserved progress/sidecar state;
+- KOReader remained usable and the EPUB continued opening/reflowing normally.
+
+Consequences:
+- deferred Gate 17B post-Sync reopen criterion: **PASS**;
+- Gate 17C: **PASS COMPLETE**;
+- v1.1.0 rolling EPUB/HTML historical import: **ACCEPTED**;
+- stable v1.1.0 release is authorized.
+
+Gate 17D PDF/paging historical import remains untested and outside v1.1.0.

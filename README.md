@@ -6,7 +6,7 @@ A KOReader plugin project for using a Kindle as an offline reading client for Re
 
 **V1.0.0 is accepted on the target Kindle Paperwhite 3 / KOReader v2026.07.1.** The complete integrated acceptance flow passed: Reader documents sync to Kindle, reading/annotations work offline, highlights and notes sync back without duplicates, Markdown/`[[wikilinks]]` survive through Readwise to Obsidian, Reader locations/tags project into KOReader/Bookshelf metadata, Finished archives remotely without deleting local reading state, queue/retry/restart recovery is durable, and the final no-op Sync is idempotent.
 
-**v1.1.0-rc.1 adds historical Reader → KOReader highlight/note import for the currently-open managed rolling EPUB/HTML.** It reconciles those remote highlights before outbound annotation creates, uses a durable historical/incremental cache, suppresses unsafe collisions instead of creating duplicates, and preserves notes through KOReader's native sidecar path. The RC is off-device hardened but still requires the single final PW3 acceptance in `docs/DEVICE_TESTS.md` before stable v1.1.0.
+**v1.1.0 is accepted on the target PW3.** It adds historical Reader → KOReader highlight/note import for the currently-open managed rolling EPUB/HTML. It reconciles those remote highlights before outbound annotation creates, uses a durable historical/incremental cache, suppresses unsafe collisions instead of creating duplicates, and preserves notes through KOReader's native sidecar path. The consolidated final PW3 acceptance passed without duplicate Reader highlights or lost local state.
 
 PDF/paging historical Reader → KOReader import is deliberately not part of v1.1.0; it remains a separate future locator spike. Existing PDF/EPUB reading and Kindle → Reader annotation sync are unchanged.
 
@@ -22,6 +22,18 @@ The Gate 2 action performs a metadata-only full Reader-library scan with cursor 
 - Manual sync only for V1
 
 Do not update Kindle firmware/jailbreak for this project. The KOReader update is now a deliberate Gate 4A migration with backup, rollback and regression testing; see `docs/KOREADER_UPGRADE.md`.
+
+### Historical Reader highlights in v1.1
+
+The document-location filters under **Settings → Documents → Locations** choose which Reader documents participate in download/document sync. They do **not** bulk-import historical highlights across every selected document.
+
+In v1.1, historical Reader → KOReader highlight import is current-document scoped:
+1. open a plugin-managed rolling EPUB/HTML;
+2. run **Sync now**;
+3. if the report says `Reader imports deferred by batch limit > 0`, run Sync again with that same document open until the counter reaches 0;
+4. repeat for each managed EPUB/HTML whose historical Reader highlights you want locally.
+
+A future bulk-library migration may automate this traversal. PDF/paging historical import remains separately gated.
 
 ## Canonical project documents
 

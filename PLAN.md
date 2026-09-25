@@ -1386,15 +1386,21 @@ A arquitetura final substitui o alpha.3 pós-Sync por reconciliação **pré-Syn
 
 **Deferido para depois da v1.1.0.** PDF usa documento paging e exige spike próprio no KOReader real. A v1.1 RC não vai adivinhar coordenadas nem extrapolar a prova de EPUB. Isso não remove o suporte V1 a leitura de PDF/EPUB nem o sync Kindle → Reader; limita apenas o novo import histórico Reader → KOReader.
 
-### Aceitação final única
+### Aceitação final — PASS
 
-Não haverá mais checkpoints físicos intermediários. Uma única sessão no PW3 deve:
-1. instalar a RC preservando documentos/sidecars/configuração;
-2. migrar/abrir o DB normalmente;
-3. abrir o EPUB real usado nos Gates 17A/17B;
-4. rodar Sync e importar múltiplos highlights/notas existentes sem duplicata;
-5. fechar/reabrir e provar persistência;
-6. repetir Sync enquanto houver itens adiados pelo limite de lote;
-7. terminar com um Sync inalterado importando 0 e sem criar duplicata remota.
+A sessão consolidada no PW3 passou integralmente:
+- a RC instalou/migrou e sincronizou normalmente;
+- highlights históricos Reader foram importados sem duplicatas;
+- notas e sidecars sobreviveram ao close/reopen;
+- batches adiados puderam ser concluídos;
+- o Sync final inalterado não criou novos imports/duplicatas nem perdeu estado.
 
-Só depois desse PASS a branch pode ser mergeada/tagueada como `v1.1.0`.
+**v1.1.0 está autorizado para merge/tag stable.**
+
+### Limitação de uso da v1.1.0
+
+Os filtros de **Locations** selecionam quais documentos entram no document sync/download, mas não varrem highlights históricos de todos esses documentos automaticamente. O import histórico continua escopado ao documento rolling EPUB/HTML atualmente aberto. Para migrar todos na v1.1, abrir cada documento e rodar Sync até `Reader imports deferred by batch limit = 0`.
+
+### Próximo gate canônico
+
+Gate 17D: spike separado de locator para PDF/paging. Não reutilizar XPointers/assunções de EPUB.

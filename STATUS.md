@@ -4854,3 +4854,37 @@ Current release state:
 - Gate 17B's deferred final reopen and Gate 17C physical acceptance will both be closed by that one session if it passes;
 - Gate 17D PDF/paging historical import remains outside v1.1.0;
 - do not merge/tag stable `v1.1.0` before the final PW3 acceptance.
+
+
+## 2026-09-25 — v1.1.0 final PW3 acceptance PASS; stable release authorized
+
+User reported the complete consolidated `1.1.0-rc.1` physical acceptance succeeded on the target PW3.
+
+Accepted physical evidence:
+- migration/install/startup completed normally;
+- historical Reader → KOReader import completed on the managed rolling EPUB;
+- imported highlights/notes survived close/reopen;
+- the prior Gate 17B linked highlight remained deduplicated;
+- bounded continuation completed as required;
+- final unchanged Sync imported no additional historical highlights, created no duplicate remote highlight, and preserved existing reading/annotation state;
+- no fatal import/sync error was reported.
+
+Gate closure:
+- Gate 17A: PASS COMPLETE;
+- Gate 17B: PASS COMPLETE, including the formerly-deferred post-Sync reopen criterion;
+- Gate 17C: PASS COMPLETE;
+- Phase T / v1.1 rolling EPUB/HTML historical highlight import: **PASS COMPLETE**;
+- Gate 17D PDF/paging: remains separate and OPEN for post-v1.1 work.
+
+Stable release action authorized:
+1. promote plugin version from `1.1.0-rc.1` to `1.1.0`;
+2. run final full CI/package validation;
+3. merge PR #21 if green;
+4. tag the resulting green `main` commit as `v1.1.0`.
+
+Usage clarification recorded:
+- Settings Locations controls document download/document sync selection;
+- historical highlight import in v1.1 is current-open-document scoped, not bulk-library scoped;
+- to import all highlights today, open each managed rolling EPUB/HTML and Sync until its deferred-import counter reaches 0.
+
+After the stable tag, resume exactly at Gate 17D with a read-only PDF/paging locator spike. Do not infer PDF locator semantics from EPUB XPointers.
