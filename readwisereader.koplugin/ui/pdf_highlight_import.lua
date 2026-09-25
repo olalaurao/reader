@@ -376,12 +376,12 @@ function UI:run()
             end
         end
 
-        local final_digest, final_digest_err = self.file_digest(path)
-        if not final_digest then
-            UIManager:show(InfoMessage:new{ text = final_digest_err })
-            return
-        end
-        local pdf_unchanged = final_digest == digest_before
+        -- A successful import already compared the complete PDF digest
+        -- immediately after sidecar persistence and before durable DB linking.
+        -- Nothing after that check writes the document file, so avoid a third
+        -- full PDF read on low-power devices.
+        local pdf_unchanged = imported == nil
+            or imported.pdf_digest_unchanged == true
 
         local lines = {
             _("Gate 17D-2 Reader → KOReader PDF one-item import"),
