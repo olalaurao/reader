@@ -3051,3 +3051,23 @@ Observed:
 - remote/local writes none.
 
 Gate 17D locator is closed. Next physical gate will be one-item PDF sidecar-only import; do not run it until a dedicated build is supplied.
+
+
+### Gate 17D-2 — one-item PDF sidecar import
+
+Build: `1.2.0-alpha.3` (only after CI/package handoff).
+
+Use the same managed PDF whose alpha.2 locator probe passed.
+
+Run **Readwise Reader → Import one Reader PDF highlight (Gate 17D)** exactly once.
+
+Required immediate result:
+- `Imported local PDF highlights: 1`;
+- `PDF file digest unchanged: yes`;
+- `PDF embed preference restored: yes`;
+- `Reader writes from import: none`;
+- if the chosen Reader highlight has a note, `Imported Reader note: yes`.
+
+Then close/reopen the PDF before ordinary Sync and verify the imported highlight remains visible and its note remains present. Do not run the explicit import action a second time before reporting that reopen result.
+
+Only after that persistence proof may ordinary Sync be used to prove that the imported PDF annotation is already linked and does not create a duplicate Reader child.
