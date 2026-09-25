@@ -158,7 +158,7 @@ function RemoteHighlights:deleteByParents(parent_ids)
         for _, id in ipairs(parent_ids) do
             if type(id) == "string" and id ~= "" then
                 stmt:reset():clearbind():bind(id):step()
-                deleted = deleted + (tonumber(conn:changes()) or 0)
+                deleted = deleted + 1
             end
         end
         stmt:close()
