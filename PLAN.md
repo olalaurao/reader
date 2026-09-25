@@ -1564,3 +1564,12 @@ Target PW3 consolidated acceptance passed:
 - Reader contained no duplicate highlight child.
 
 Gate 17D / Phase U is complete. `v1.2.0` is authorized as a metadata/docs-only promotion of the physically accepted alpha.9 runtime. No additional device gate is required unless runtime/plugin Lua behavior changes after the accepted alpha.9 code.
+
+
+### v1.2.1 — historical-import batch tuning
+
+Throughput-only patch:
+- EPUB/HTML: 50 imports / 75 locator attempts per Sync;
+- PDF: 5 imports / 30 locator attempts per Sync.
+
+No change to current-document scope or safety semantics. The user explicitly waived another manual device acceptance for this bounded-constant adjustment; CI/package validation remains required.
