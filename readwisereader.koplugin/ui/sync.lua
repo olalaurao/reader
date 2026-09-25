@@ -141,6 +141,7 @@ local function summaryText(report)
         string.format(_("Create queue items processed: %d"), report.highlight_queue_processed or 0),
         string.format(_("Create retries deferred: %d"), report.highlight_create_deferred or 0),
         string.format(_("Create auth waits: %d"), report.highlight_create_auth_waiting or 0),
+        string.format(_("Creates suppressed by Reader collision guard: %d"), report.highlight_creates_suppressed or 0),
         string.format(_("Create queue waiting after sync: %d"), report.highlight_queue_waiting or 0),
         string.format(_("Reconciliation markers verified: %d"), report.highlight_marker_verified or 0),
         string.format(_("Notes updated: %d"), report.notes_updated or 0),
@@ -166,11 +167,14 @@ local function summaryText(report)
         string.format(_("Delete verification pending: %d"), report.delete_verification_pending or 0),
         string.format(_("Annotation remote errors: %d"), report.annotation_remote_errors or 0),
         "",
-        string.format(_("Reader → KOReader import: %s"), report.remote_highlight_import_status or _("not run")),
+        string.format(_("Reader → KOReader pre-sync reconciliation: %s"), report.remote_highlight_import_status or _("not run")),
+        string.format(_("Reader highlight scan mode: %s"), report.remote_highlight_import_scan_mode or _("not run")),
         string.format(_("Reader highlights imported locally: %d"), report.remote_highlight_imported or 0),
         string.format(_("Reader notes preserved locally: %d"), report.remote_highlight_import_notes or 0),
         string.format(_("Reader highlights already linked: %d"), report.remote_highlight_import_linked_skipped or 0),
-        string.format(_("Reader local-position collisions skipped: %d"), report.remote_highlight_import_local_collisions or 0),
+        string.format(_("Existing local highlights linked safely: %d"), report.remote_highlight_import_collisions_linked or 0),
+        string.format(_("Reader local-position collisions: %d"), report.remote_highlight_import_local_collisions or 0),
+        string.format(_("Reader/local collision conflicts: %d"), report.remote_highlight_import_collision_conflicts or 0),
         string.format(_("Reader locator ambiguous: %d"), report.remote_highlight_import_ambiguous or 0),
         string.format(_("Reader locator missing: %d"), report.remote_highlight_import_missing or 0),
         string.format(_("Reader locator invalid/different: %d"), report.remote_highlight_import_invalid or 0),
@@ -304,14 +308,68 @@ end
 function SyncUI:_run(full_rescan)
     local current_path = self.get_current_path()
     Trapper:wrap(function()
+        local import_report = {
+            status = "not_run",
+            imported = 0,
+            notes_imported = 0,
+            linked_skipped = 0,
+            collisions_linked = 0,
+            local_collisions = 0,
+            collision_conflicts = 0,
+            ambiguous = 0,
+            missing = 0,
+            invalid = 0,
+            deferred_by_limit = 0,
+            failures = 0,
+            suppress_outbound_ids = {},
+            suppress_current_document = false,
+        }
+
+        if type(self.remote_highlight_import) == "function"
+            and type(current_path) == "string" and current_path ~= "" then
+            local import_call_ok, prepared = pcall(
+                self.remote_highlight_import,
+                current_path
+            )
+            if import_call_ok and type(prepared) == "table" then
+                import_report = prepared
+            else
+                import_report.status = "error"
+                import_report.failures = 1
+                import_report.suppress_current_document = true
+            end
+
+            if import_report.abort_sync == true then
+                UIManager:show(InfoMessage:new{
+                    text = _(
+                        "Sync cancelled during Reader highlight reconciliation. No outbound Reader write was started."
+                    ),
+                })
+                return
+            end
+        end
+
+        local worker_options = {
+            full_rescan = full_rescan == true,
+            current_path = current_path,
+            suppress_annotation_ids = import_report.suppress_outbound_ids,
+        }
+        if import_report.suppress_current_document == true then
+            if type(import_report.reader_document_id) == "string"
+                and import_report.reader_document_id ~= "" then
+                worker_options.suppress_reader_document_ids = {
+                    import_report.reader_document_id,
+                }
+            else
+                worker_options.suppress_current_path_creates = true
+            end
+        end
+
         local completed, report, err = Trapper:dismissableRunInSubprocess(function()
-            return self.worker:run{
-                full_rescan = full_rescan == true,
-                current_path = current_path,
-            }
+            return self.worker:run(worker_options)
         end, _([[Syncing Reader documents…
 
-Tap to cancel. Local annotations are queued first. Readwise reachability is then verified read-only before any remote write; the incremental watermark is committed only after a successful remote sync.]]))
+Tap to cancel. Reader highlights for the open EPUB are reconciled before outbound annotation creates. Local annotations are then queued and Readwise reachability is verified before any remote write; the incremental watermark is committed only after a successful remote sync.]]))
 
         if not completed then
             UIManager:show(InfoMessage:new{
@@ -320,9 +378,32 @@ Tap to cancel. Local annotations are queued first. Readwise reachability is then
             return
         end
         if not report then
-            UIManager:show(InfoMessage:new{ text = errorText(err) })
+            local text = errorText(err)
+            if (import_report.imported or 0) > 0
+                or (import_report.collisions_linked or 0) > 0 then
+                text = text
+                    .. "\n\n"
+                    .. _(
+                        "Reader → KOReader reconciliation completed before the document-sync failure; those local imports/links were kept."
+                    )
+            end
+            UIManager:show(InfoMessage:new{ text = text })
             return
         end
+
+        report.remote_highlight_import_status = import_report.status or "not_run"
+        report.remote_highlight_import_scan_mode = import_report.scan_mode
+        report.remote_highlight_imported = import_report.imported or 0
+        report.remote_highlight_import_notes = import_report.notes_imported or 0
+        report.remote_highlight_import_linked_skipped = import_report.linked_skipped or 0
+        report.remote_highlight_import_collisions_linked = import_report.collisions_linked or 0
+        report.remote_highlight_import_local_collisions = import_report.local_collisions or 0
+        report.remote_highlight_import_collision_conflicts = import_report.collision_conflicts or 0
+        report.remote_highlight_import_ambiguous = import_report.ambiguous or 0
+        report.remote_highlight_import_missing = import_report.missing or 0
+        report.remote_highlight_import_invalid = import_report.invalid or 0
+        report.remote_highlight_import_deferred = import_report.deferred_by_limit or 0
+        report.remote_highlight_import_failures = import_report.failures or 0
 
         -- Trapper child work deliberately avoids KOReader settings/cache.
         -- Apply metadata and collections in the parent before committing the
@@ -400,32 +481,6 @@ Tap to cancel. Local annotations are queued first. Readwise reachability is then
             end
         else
             report.watermark_advanced = false
-        end
-
-        report.remote_highlight_import_status = "not_run"
-        if type(self.remote_highlight_import) == "function"
-            and type(current_path) == "string" and current_path ~= ""
-            and (report.errors or 0) == 0
-            and (report.mode == "incremental" or report.mode == "full") then
-            local import_call_ok, import_report = pcall(
-                self.remote_highlight_import,
-                current_path
-            )
-            if not import_call_ok or type(import_report) ~= "table" then
-                report.remote_highlight_import_status = "error"
-                report.remote_highlight_import_failures = 1
-            else
-                report.remote_highlight_import_status = import_report.status or "ok"
-                report.remote_highlight_imported = import_report.imported or 0
-                report.remote_highlight_import_notes = import_report.notes_imported or 0
-                report.remote_highlight_import_linked_skipped = import_report.linked_skipped or 0
-                report.remote_highlight_import_local_collisions = import_report.local_collisions or 0
-                report.remote_highlight_import_ambiguous = import_report.ambiguous or 0
-                report.remote_highlight_import_missing = import_report.missing or 0
-                report.remote_highlight_import_invalid = import_report.invalid or 0
-                report.remote_highlight_import_deferred = import_report.deferred_by_limit or 0
-                report.remote_highlight_import_failures = import_report.failures or 0
-            end
         end
 
         UIManager:show(InfoMessage:new{
