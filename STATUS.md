@@ -5071,3 +5071,31 @@ Interpretation:
 **Gate 17D read-only PDF locator is PASSED COMPLETE.**
 
 Next gate: Gate 17D-2, create exactly one Reader PDF highlight through KOReader's native annotation path, sidecar-only, prove the PDF file itself remains unchanged, prove sidecar persistence, link the existing Reader child ID durably, and prove the next ordinary Sync does not create a duplicate remote highlight.
+
+
+## 2026-09-25 — Gate 17D-2 one-item PDF import implemented off-device
+
+Build advanced to `1.2.0-alpha.3`.
+
+Implementation:
+- explicit **Import one Reader PDF highlight (Gate 17D)** action;
+- uses the physically-passed paging locator (`unique_exact` / `unique_boundary`);
+- prefers note-bearing unlinked Reader children;
+- imports at most one safe item per action;
+- local annotation text follows the full native PDF words represented by the KOReader search boxes; Reader child ID remains identity;
+- includes page/rotation/zoom/native pos0/pos1/pboxes;
+- detects existing local PDF geometry primarily by native pboxes, so a different current zoom/rotation cannot create a stacked duplicate;
+- temporarily forces `highlight.highlight_write_into_pdf=false` only around `saveHighlight()` / rollback `deleteHighlight()`;
+- restores the user's previous PDF-embedding preference before every `saveSettings()`;
+- computes a full PDF digest before and after sidecar creation; digest mismatch is a hard stop before durable Reader linking and rolls back the sidecar item;
+- sidecar persistence + imported Reader child ID link reuse the already-proven `RemoteHighlightImport:linkPersisted()` contract;
+- link failure rolls back only the just-created local PDF sidecar annotation;
+- action performs zero Reader POST/PATCH/DELETE;
+- normal Sync is **not yet** changed to bulk-import PDF historical highlights.
+
+Additional hardening:
+- remote highlight cache worker now accepts managed PDF documents for the explicit Gate action;
+- paging locator now carries current PDF rotation/zoom context into persisted pos0/pos1 when KOReader exposes it;
+- tests cover sidecar-only save, preference restoration before saveSettings, note preservation, full-word boundary text, PDF digest integrity failure, durable-link failure rollback, already-linked skip, and native-pbox collision across differing zoom state.
+
+Exact blocker: CI/package must pass on the alpha.3 versioned head before one physical one-item import is authorized.
