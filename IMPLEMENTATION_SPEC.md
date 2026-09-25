@@ -3301,3 +3301,25 @@ Ambiguous/missing/search-text-different samples are safe skips. A full-text roun
 Physical `1.2.0-alpha.1` result: 2 Reader highlights for the PDF, 2 unique searches, 0 ambiguous/missing/invalid, but both were reported as `text_diff` because the original probe incorrectly required literal full-text reconstruction. KOReader source inspection showed that paging search intentionally permits a first-word suffix and last-word prefix while returning full word boxes. Build `1.2.0-alpha.2` corrects the proof without enabling writes.
 
 No PDF historical annotation creation is authorized until the alpha.2 physical position evidence is recorded.
+
+
+## 50.4 Gate 17D-2 — one-item PDF import contract
+
+Gate 17D locator is physically passed. The next step may create exactly one local PDF annotation, but must preserve these invariants:
+
+1. only the currently-open plugin-managed original PDF is eligible;
+2. choose one Reader child ID that is not already durably linked, preferring a note-bearing highlight;
+3. require the passed paging locator result (`unique_exact` or `unique_boundary`);
+4. use the locator's page, native pos0/pos1 and pboxes;
+5. for `unique_boundary`, the local KOReader annotation text reflects the full PDF words covered by the native boxes; Reader child ID remains the remote identity;
+6. immediately before `ReaderHighlight:saveHighlight()`, temporarily set the in-memory `highlight_write_into_pdf=false`;
+7. restore the user's previous `highlight_write_into_pdf` value immediately after the save call, even if it throws;
+8. only after restoration call `ReaderUI:saveSettings()`, so the user's preference is not changed by the plugin;
+9. verify the just-created annotation exists through the authoritative sidecar adapter;
+10. transactionally link the existing Reader child ID using the same imported-link contract as rolling documents;
+11. if sidecar/linking fails, delete only the just-created local annotation with the same temporary sidecar-only PDF-write guard, restore the user's setting, then save settings again;
+12. the explicit Gate 17D-2 import action performs zero Reader POST/PATCH/DELETE;
+13. capture PDF file size + modification timestamp before/after the local operation and require them unchanged as a device-side guard against accidental embedded-PDF annotation writes;
+14. do not integrate PDF historical import into ordinary Sync until one-item persistence + file-unchanged + outbound-dedupe evidence passes physically.
+
+The first PDF local import may expand partial first/last Reader tokens to the complete PDF words represented by KOReader's returned word boxes. No character-level trimming is invented without character geometry.
