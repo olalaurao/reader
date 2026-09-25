@@ -73,7 +73,14 @@ Checkpoint 4 — **PASS** on target PW3:
 - the fixture was still absent from Reader remotely;
 - no crash/freeze occurred.
 
-Current checkpoint: restore connectivity and prove the durable pending create is delivered **exactly once** by one ordinary Sync. Stop again after that report/remote verification before the final restart/log review.
+Checkpoint 5 — **PASS** on target PW3:
+- connectivity was restored without editing/recreating the controlled fixture;
+- one ordinary Sync delivered the pending annotation exactly once;
+- queue waiting reached 0 and no pending/retry_wait/in_flight create remained for the fixture;
+- Reader showed exactly one matching highlight/note on the correct parent document;
+- no duplicate POST/highlight, fatal error or unexpected content replacement occurred.
+
+Current checkpoint: final restart/state persistence + local crash.log secret review. No further annotation mutation is needed.
 
 After installing only the new plugin directory and restarting KOReader:
 
