@@ -321,6 +321,52 @@ return function()
         ))
     end)
 
+    -- Native pboxes, not zoom/rotation context, define an existing PDF
+    -- collision. The colliding Reader child is skipped and a later safe child
+    -- may be imported without stacking duplicate geometry.
+    withStubs(function(UI, shown)
+        local reader_ui, annotations = makeReaderUI()
+        annotations[1] = {
+            local_annotation_id = "existing-geometry",
+            page = 2,
+            pos0 = {
+                page = 2, rotation = 3, zoom = 9,
+                x = 999, y = 999,
+            },
+            pos1 = {
+                page = 2, rotation = 3, zoom = 9,
+                x = 1000, y = 999,
+            },
+            pboxes = {
+                { x = 1, y = 2, w = 30, h = 10 },
+                { x = 40, y = 2, w = 50, h = 10 },
+            },
+            text = "Whole Reader partial word",
+            datetime = "2026-09-24 12:00:00",
+            drawer = "lighten",
+        }
+
+        local importer = makeImporter{}
+        local ui = UI:new{
+            config = { hasAccessToken = function() return true end },
+            importer = importer.api,
+            get_current_path = function() return "/books/book.pdf" end,
+            get_reader_ui = function() return reader_ui end,
+            worker = { run = function() return remoteReport() end },
+            file_digest = function() return "same-digest" end,
+        }
+
+        ui:run()
+
+        assert(#annotations == 2)
+        assert(annotations[1].local_annotation_id == "existing-geometry")
+        assert(annotations[2].text == "Second safe")
+        assert(importer.linkCalls() == 1)
+        local text = shown[#shown].text
+        assert(text:find("Local position collisions skipped: 1", 1, true))
+        assert(text:find("Imported local PDF highlights: 1", 1, true))
+    end)
+
     -- Already-linked first candidate is skipped and exactly one later safe
     -- candidate is imported; the action never imports a batch.
     withStubs(function(UI, shown)
