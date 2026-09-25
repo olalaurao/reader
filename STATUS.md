@@ -346,6 +346,32 @@ Installable Gate 17B build supplied for the next PW3 checkpoint:
 
 No Gate 17C work has begun. Exact blocker is Gate 17B-1 physical import + close/reopen persistence on the same EPUB. Ordinary Sync must not be run until 17B-1 is reported.
 
+## 2026-09-25 — Gate 17B-1 physical import + reopen persistence PASS
+
+User completed the first Gate 17B physical checkpoint on the target PW3 using build `1.1.0-alpha.2` and the same managed EPUB from Gate 17A.
+
+Accepted physical evidence:
+- the explicit **Import one Reader highlight (Gate 17B)** action reported `Imported local highlights: 1`;
+- the imported highlight was visible in the KOReader EPUB;
+- the imported Reader note was present locally;
+- after closing and reopening the EPUB, both the imported highlight and its note remained present;
+- no ordinary Sync had been run before this persistence proof.
+
+Conclusion:
+- local creation through KOReader's native highlight path + sidecar persistence has passed on-device;
+- Reader note transport has passed for the imported item;
+- Gate 17B remains OPEN only for the outbound-deduplication proof and final reopen check;
+- Gate 17C remains blocked.
+
+### Next exact physical checkpoint — Gate 17B-2 outbound dedupe
+1. Keep Wi-Fi ON and the same EPUB available.
+2. Run ordinary **Readwise Reader -> Sync now** exactly once.
+3. In Reader, inspect the exact imported highlight and verify that there is still only **one** remote highlight for that passage/note; the Sync must not create a duplicate child.
+4. Report the Sync result/error text and whether the Reader highlight is still present exactly once.
+5. If no duplicate was created, close/reopen the EPUB once more and verify the imported local highlight/note remain intact. That will close Gate 17B.
+
+Do not run the explicit Gate 17B import action again during this checkpoint.
+
 ## Current milestone
 
 **Phase T / Gate 17A — Reader → KOReader existing-highlight locator spike; V1.0.0 remains released**
