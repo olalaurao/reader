@@ -84,6 +84,88 @@ function RemoteHighlights:upsertMany(highlights, seen_at)
     end)
 end
 
+
+function RemoteHighlights:replaceSnapshot(highlights, seen_at)
+    highlights = highlights or {}
+    seen_at = tonumber(seen_at) or os.time()
+
+    return self.db:transaction(function(conn)
+        conn:exec("DELETE FROM remote_highlights;")
+        local stmt = conn:prepare([[
+            INSERT INTO remote_highlights(
+                reader_highlight_document_id, reader_document_id,
+                content, notes, created_at, updated_at,
+                highlight_offset, highlight_location, last_seen_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+        ]])
+
+        local written = 0
+        for _, remote in ipairs(highlights) do
+            if type(remote) == "table"
+                and type(remote.id) == "string" and remote.id ~= ""
+                and type(remote.parent_id) == "string"
+                and remote.parent_id ~= "" then
+                stmt:reset():clearbind():bind(
+                    remote.id,
+                    remote.parent_id,
+                    remote.content,
+                    remote.notes,
+                    remote.created_at,
+                    remote.updated_at,
+                    remote.highlight_offset,
+                    remote.highlight_location,
+                    seen_at
+                ):step()
+                written = written + 1
+            end
+        end
+        stmt:close()
+        return written
+    end)
+end
+
+function RemoteHighlights:deleteByRemoteIds(ids)
+    ids = ids or {}
+    if #ids == 0 then return 0 end
+
+    return self.db:transaction(function(conn)
+        local stmt = conn:prepare([[
+            DELETE FROM remote_highlights
+            WHERE reader_highlight_document_id = ?;
+        ]])
+        local deleted = 0
+        for _, id in ipairs(ids) do
+            if type(id) == "string" and id ~= "" then
+                stmt:reset():clearbind():bind(id):step()
+                deleted = deleted + (tonumber(conn:changes()) or 0)
+            end
+        end
+        stmt:close()
+        return deleted
+    end)
+end
+
+function RemoteHighlights:deleteByParents(parent_ids)
+    parent_ids = parent_ids or {}
+    if #parent_ids == 0 then return 0 end
+
+    return self.db:transaction(function(conn)
+        local stmt = conn:prepare([[
+            DELETE FROM remote_highlights
+            WHERE reader_document_id = ?;
+        ]])
+        local deleted = 0
+        for _, id in ipairs(parent_ids) do
+            if type(id) == "string" and id ~= "" then
+                stmt:reset():clearbind():bind(id):step()
+                deleted = deleted + (tonumber(conn:changes()) or 0)
+            end
+        end
+        stmt:close()
+        return deleted
+    end)
+end
+
 function RemoteHighlights:listByParent(reader_document_id)
     if type(reader_document_id) ~= "string" or reader_document_id == "" then
         return {}
