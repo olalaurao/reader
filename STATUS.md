@@ -137,6 +137,12 @@ A3 (acceptance steps 15-20) passed on the target PW3. After connectivity returne
 
 A4 (acceptance steps 21-23) passed on the target workflow: Readwise export/sync reached Obsidian, the acceptance wikilinks behaved as expected, and the in-scope note-update path was exercised successfully back to Reader without creating a parallel highlight. CI run 36079750409 for the A3 documentation commit passed. No production change was required. Phase S remains open. Next checkpoint is A5 (steps 24-25): retryable network failure recovery followed by KOReader restart with a pending queue item; both must recover without duplication.
 
+## 2026-09-25 — Acceptance A5 passed
+
+A5 (acceptance steps 24-25) passed on the target PW3. With Wi-Fi unavailable, a new disposable highlight was discovered and retained locally; KOReader was fully closed and reopened while the queue item remained pending; after connectivity returned, Sync recovered the item to the same Reader document exactly once; the following Sync produced no duplicate. This satisfies the Phase-S retryable-network-failure and KOReader-restart-with-pending-queue checks. CI run 36079801327 for the A4 documentation commit passed. No production change was required.
+
+Phase S remains OPEN. The next unresolved V1 acceptance evidence comes from PLAN.md criteria 17-20, which are part of canonical V1 scope even though section 42 of IMPLEMENTATION_SPEC.md does not spell them out: repeat Reader location -> managed Collection projection and Reader tag -> Bookshelf metadata projection on the current acceptance document before marking it finished/archive.
+
 ## Current milestone
 
 **Phase S / V1 acceptance — OPEN; Gates 0–16 PASSED COMPLETE**
