@@ -143,6 +143,12 @@ A5 (acceptance steps 24-25) passed on the target PW3. With Wi-Fi unavailable, a 
 
 Phase S remains OPEN. The next unresolved V1 acceptance evidence comes from PLAN.md criteria 17-20, which are part of canonical V1 scope even though section 42 of IMPLEMENTATION_SPEC.md does not spell them out: repeat Reader location -> managed Collection projection and Reader tag -> Bookshelf metadata projection on the current acceptance document before marking it finished/archive.
 
+## 2026-09-25 — Acceptance A6 passed
+
+A6 (PLAN.md V1 acceptance criteria 17-18) passed on the target PW3. On the same acceptance document, a Reader location change synced to the corresponding managed `Readwise: ...` Collection without creating a second local copy, while the document's non-managed local Collection remained associated. This re-validates location projection and ownership preservation in the integrated V1 flow. CI run 36079933898 on the prior Phase-S handoff passed. No production change was required.
+
+Phase S remains OPEN. The next unresolved integrated criterion is A7 / PLAN.md 19-20: change a Reader document tag, sync, and confirm the same local document receives updated Bookshelf-compatible tag/genre/keyword metadata without creating a Collection per tag.
+
 ## Current milestone
 
 **Phase S / V1 acceptance — OPEN; Gates 0–16 PASSED COMPLETE**
