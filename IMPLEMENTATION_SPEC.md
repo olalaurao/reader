@@ -3323,3 +3323,16 @@ Gate 17D locator is physically passed. The next step may create exactly one loca
 14. do not integrate PDF historical import into ordinary Sync until one-item persistence + file-unchanged + outbound-dedupe evidence passes physically.
 
 The first PDF local import may expand partial first/last Reader tokens to the complete PDF words represented by KOReader's returned word boxes. No character-level trimming is invented without character geometry.
+
+
+## 50.5 PDF sidecar identity verification hardening
+
+Gate 17D-2 alpha.4 physically proved local creation + rollback but failed durable linking.
+
+For PDF imports, deterministic local annotation ID remains the first/normal persisted-sidecar lookup. If that exact ID is absent after KOReader serialization, a verification-only fallback may select a persisted item only when there is exactly one candidate satisfying all of:
+- same page;
+- exact native `pboxes` sequence and coordinates;
+- exact normalized text hash;
+- exact normalized note hash.
+
+This fallback does not redefine remote identity, does not alter legacy PDF local IDs, and does not use fuzzy text. Zero or multiple candidates fail closed. Only the persisted sidecar item's own normalized local ID may then be written to the durable Reader child link.
