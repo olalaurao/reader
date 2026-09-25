@@ -46,17 +46,31 @@ local function samePosition(a, b)
     return a.page == b.page
         and a.x == b.x
         and a.y == b.y
-        and a.rotation == b.rotation
-        and a.zoom == b.zoom
+end
+
+local function sameBoxes(a, b)
+    if type(a) ~= "table" or type(b) ~= "table" or #a ~= #b then
+        return false
+    end
+    for index = 1, #a do
+        local left, right = a[index], b[index]
+        if type(left) ~= "table" or type(right) ~= "table"
+            or left.x ~= right.x or left.y ~= right.y
+            or left.w ~= right.w or left.h ~= right.h then
+            return false
+        end
+    end
+    return #a > 0
 end
 
 local function exactLocalAt(reader_ui, locator)
     for index, item in ipairs(reader_ui.annotation.annotations or {}) do
-        if item.drawer ~= nil
-            and item.page == locator.page
-            and samePosition(item.pos0, locator.pos0)
-            and samePosition(item.pos1, locator.pos1) then
-            return index, item
+        if item.drawer ~= nil and item.page == locator.page then
+            if sameBoxes(item.pboxes, locator.pboxes)
+                or (samePosition(item.pos0, locator.pos0)
+                    and samePosition(item.pos1, locator.pos1)) then
+                return index, item
+            end
         end
     end
 end
@@ -213,10 +227,12 @@ function UI:_createAndLink(path, reader_ui, remote, locator, digest_before)
     -- does not silently change that preference.
     local saved_ok = pcall(reader_ui.saveSettings, reader_ui)
     if not saved_ok then
-        rollbackLocal(reader_ui, index)
+        local rollback_ok = rollbackLocal(reader_ui, index)
         return nil, domainError(
-            "sidecar",
-            "KOReader could not persist the PDF sidecar; the local import was rolled back."
+            rollback_ok and "sidecar" or "rollback",
+            rollback_ok
+                and "KOReader could not persist the PDF sidecar; the local import was rolled back."
+                or "KOReader could not persist the PDF sidecar and rollback also failed. Stop syncing and report this error."
         )
     end
 
@@ -425,6 +441,7 @@ UI._defaultFileDigest = defaultFileDigest
 UI._exactLocalAt = exactLocalAt
 UI._orderedCandidates = orderedCandidates
 UI._rollbackLocal = rollbackLocal
+UI._sameBoxes = sameBoxes
 UI._samePosition = samePosition
 UI._withPdfEmbeddingDisabled = withPdfEmbeddingDisabled
 
