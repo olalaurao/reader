@@ -80,6 +80,15 @@ Report only: whether the offline sync returned safely; whether the recovery sync
 - **Remaining device-only closure:** installation/rollback smoke required by hardening item 50. Gate 16 remains open until that passes.
 - **Next physical test (R4):** back up the current known-good plugin directory plus settings/database; exit KOReader; temporarily disable the plugin by moving its directory out of the active plugins directory while leaving Reader documents/sidecars untouched; relaunch and confirm KOReader starts normally without Readwise Reader; exit again, restore the exact plugin directory, relaunch, confirm Readwise Reader and its settings/token load; open an existing managed article and verify position/highlights/notes; run one online Sync and confirm success without duplicates.
 
+## 2026-09-25 — Gate 16 R4 PASS; Gate 16 complete
+
+- Physical R4 install/rollback smoke passed on the target PW3: KOReader started normally with the plugin temporarily disabled; restoring the same plugin directory restored Readwise Reader; token/settings and existing document progress/highlights/notes were preserved; online Sync succeeded without duplicates; no blocking error was reported.
+- Gate 16 is **PASSED COMPLETE** on PW3 / KOReader v2026.07.1. Phase R now has green evidence for the full hardening sequence, including large-library pagination, storage failure cleanup, malformed/oversized input, Unicode, 429 handling, intermittent network recovery, process restart, full reboot, migration rollback, install/rollback, state preservation and log redaction.
+- No production behavior changed in Phase R; hardening changes are regression/stress tests and documentation.
+- CI entering closure: `1d8830f790d72f2c12e75d9f6e6c64498e429dc8`; push `36078991043` and PR `36078995811` both passed.
+- Spec deviations: none.
+- Next: final CI on this closure commit, merge PR #20 to main if green, then begin Phase S / V1 acceptance. Do not tag v1.0.0 before the complete acceptance script passes.
+
 ## Current milestone
 
 **Phase Q / Gate 15 — PASSED COMPLETE; Phase R / Gate 16 hardening is now unblocked**
