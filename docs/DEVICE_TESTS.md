@@ -3088,3 +3088,29 @@ Use `1.2.0-alpha.4` for the exact same one-item test:
 4. require imported=1, PDF digest unchanged=yes, embed preference restored=yes, Reader writes none;
 5. close/reopen before ordinary Sync and verify highlight + note persistence;
 6. do not run the explicit import action a second time before reporting.
+
+
+### Gate 17D-2 alpha.4 result — DURABLE LINK FAIL / ROLLBACK PASS
+
+Observed:
+- PDF format preflight passed;
+- local PDF sidecar item was created;
+- durable Reader/PDF link failed;
+- just-created local sidecar item was rolled back successfully;
+- no Reader mutation was reported.
+
+Do not repeat alpha.4.
+
+### Gate 17D-2 alpha.5
+
+Install alpha.5 and use the same managed PDF.
+
+Run **Import one Reader PDF highlight (Gate 17D)** exactly once.
+
+Required immediate result:
+- `Imported local PDF highlights: 1`;
+- `PDF file digest unchanged: yes`;
+- `PDF embed preference restored: yes`;
+- `Reader writes from import: none`.
+
+Then close/reopen before ordinary Sync and verify highlight/note persistence. If an error appears, report its full new message because alpha.5 now preserves the exact sidecar/DB failure stage.
