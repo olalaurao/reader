@@ -88,6 +88,77 @@ function Annotations:getById(local_annotation_id)
     return rowToLink(row)
 end
 
+function Annotations:getByReaderRemoteId(reader_highlight_document_id)
+    if type(reader_highlight_document_id) ~= "string" or reader_highlight_document_id == "" then
+        return nil
+    end
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        SELECT
+            local_annotation_id, reader_document_id, reader_highlight_document_id,
+            readwise_v2_highlight_id, created_remote, local_created_at,
+            locator_fingerprint, original_text_hash, last_text_hash, last_note_hash,
+            last_synced_text, last_synced_note, remote_updated_marker,
+            local_deleted_at, sync_state, last_sync_error
+        FROM annotation_links
+        WHERE reader_highlight_document_id = ?
+        LIMIT 1;
+    ]])
+    local row = stmt:bind(reader_highlight_document_id):step()
+    stmt:close()
+    return rowToLink(row)
+end
+
+function Annotations:linkImported(link)
+    assert(type(link) == "table", "link is required")
+    assert(type(link.reader_highlight_document_id) == "string"
+        and link.reader_highlight_document_id ~= "", "reader_highlight_document_id is required")
+
+    return self.db:transaction(function()
+        local existing_remote = self:getByReaderRemoteId(link.reader_highlight_document_id)
+        if existing_remote
+            and existing_remote.local_annotation_id ~= link.local_annotation_id then
+            error("Reader highlight is already linked to a different local annotation")
+        end
+
+        self:upsertLocal{
+            local_annotation_id = link.local_annotation_id,
+            reader_document_id = link.reader_document_id,
+            local_created_at = link.local_created_at,
+            locator_fingerprint = link.locator_fingerprint,
+            original_text_hash = link.original_text_hash,
+            last_text_hash = link.last_text_hash,
+            last_note_hash = link.last_note_hash,
+            sync_state = "synced",
+            last_sync_error = nil,
+        }
+        self:setReaderRemoteLink(
+            link.local_annotation_id,
+            link.reader_highlight_document_id,
+            {
+                text = link.text,
+                note = link.note,
+                text_hash = link.last_text_hash,
+                note_hash = link.last_note_hash,
+                sync_state = "synced",
+            }
+        )
+
+        if link.remote_updated_marker ~= nil then
+            local conn = self.db:getConnection()
+            local stmt = conn:prepare([[
+                UPDATE annotation_links
+                SET remote_updated_marker = ?
+                WHERE local_annotation_id = ?;
+            ]])
+            stmt:bind(link.remote_updated_marker, link.local_annotation_id):step()
+            stmt:close()
+        end
+
+        return self:getById(link.local_annotation_id)
+    end)
+end
+
 function Annotations:listByDocument(reader_document_id)
     local conn = self.db:getConnection()
     local stmt = conn:prepare([[
