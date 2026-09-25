@@ -92,6 +92,7 @@ local function newBatchReport(remote_report)
         collisions_linked = 0,
         local_collisions = 0,
         collision_conflicts = 0,
+        unresolved_collision_risk = 0,
         locator_attempts = 0,
         ambiguous = 0,
         missing = 0,
@@ -140,6 +141,7 @@ local function summaryLines(result, title)
         string.format(_("Existing local highlights linked safely: %d"), result.collisions_linked or 0),
         string.format(_("Exact local-position collisions skipped: %d"), result.local_collisions or 0),
         string.format(_("Local/Reader collision conflicts: %d"), result.collision_conflicts or 0),
+        string.format(_("Unresolved local/Reader collision risks: %d"), result.unresolved_collision_risk or 0),
         string.format(_("Locator attempts: %d"), result.locator_attempts or 0),
         string.format(_("Ambiguous locator matches skipped: %d"), result.ambiguous or 0),
         string.format(_("Missing locator matches skipped: %d"), result.missing or 0),
@@ -264,6 +266,16 @@ function UI:_saveScanProgress(document, remote_report, result, scan_state)
         return
     end
 
+    -- Never advance past an unresolved local/remote collision. Otherwise an
+    -- unchanged historical Reader child would disappear behind updatedAfter
+    -- on the next Sync and the outbound create guard could no longer prove
+    -- that the corresponding local annotation is safe to POST.
+    if (result.collision_conflicts or 0) > 0
+        or (result.unresolved_collision_risk or 0) > 0 then
+        self.sync_meta:delete(scan_state.cursor_key)
+        return
+    end
+
     self.sync_meta:delete(scan_state.cursor_key)
     local started_at = remote_report.scan_started_at
     local query_after = remote_report.proposed_query_after
@@ -370,6 +382,27 @@ function UI:_candidateStates(highlights)
     return states
 end
 
+function UI:_suppressLocalTextMatches(path, reader_ui, remote, result)
+    local matched = 0
+    for _, item in ipairs(reader_ui.annotation.annotations or {}) do
+        if item.drawer ~= nil and item.text == remote.content then
+            local normalized, normalize_err =
+                self.importer:normalizeLocal(path, item)
+            if not normalized then
+                result.failures = result.failures + 1
+                result.status = "error"
+                result.suppress_current_document = true
+                return nil, normalize_err
+            end
+            addSuppressedId(result, normalized.local_annotation_id)
+            matched = matched + 1
+        end
+    end
+    result.unresolved_collision_risk =
+        result.unresolved_collision_risk + matched
+    return true
+end
+
 function UI:_applyRemoteReport(path, reader_ui, document, remote_report, scan_state)
     local result = newBatchReport(remote_report)
     result.reader_document_id = document.reader_id
@@ -408,6 +441,16 @@ function UI:_applyRemoteReport(path, reader_ui, document, remote_report, scan_st
 
             if not locator then
                 addLocatorFailure(result, locator_status)
+                local suppressed_ok, suppress_err =
+                    self:_suppressLocalTextMatches(
+                        path,
+                        reader_ui,
+                        remote,
+                        result
+                    )
+                if not suppressed_ok then
+                    return result, suppress_err
+                end
             else
                 local existing_index, existing_item =
                     exactLocalAt(reader_ui, locator)
