@@ -126,6 +126,18 @@ function ReadwiseReader:init()
         get_current_path = function()
             return self.ui and self.ui.document and self.ui.document.file or nil
         end,
+        remote_highlight_import = function(path)
+            if not self.remote_highlight_import_ui then
+                return {
+                    status = "skipped",
+                    skipped_reason = "unavailable",
+                    imported = 0,
+                    notes_imported = 0,
+                    remote_writes = 0,
+                }
+            end
+            return self.remote_highlight_import_ui:importAfterSync(path)
+        end,
     }
     self.tag_diagnostics_ui = TagDiagnosticsUI:new{
         config = self.config,

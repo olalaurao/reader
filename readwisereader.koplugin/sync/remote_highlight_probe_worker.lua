@@ -31,7 +31,7 @@ function Worker:run(local_path)
         return nil, {
             kind = "worker",
             retryable = true,
-            message = "Gate 17A Reader-highlight probe failed safely.",
+            message = "Reader-highlight fetch failed safely.",
         }
     end
     return report, domain_err

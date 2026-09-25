@@ -5,5 +5,5 @@ local _ = require("gettext")
 return {
     name = "readwisereader",
     fullname = _("Readwise Reader"),
-    description = _([[Synchronize Readwise Reader content and KOReader annotations. Experimental 1.1.0-alpha.2 adds one-item Reader-to-KOReader highlight import for managed EPUB/HTML after exact XPointer validation.]]),
+    description = _([[Synchronize Readwise Reader content and KOReader annotations. Experimental 1.1.0-alpha.3 adds bounded idempotent Reader-to-KOReader historical highlight import for the currently open managed EPUB/HTML, integrated with manual Sync.]]),
 }

@@ -166,6 +166,17 @@ local function summaryText(report)
         string.format(_("Delete verification pending: %d"), report.delete_verification_pending or 0),
         string.format(_("Annotation remote errors: %d"), report.annotation_remote_errors or 0),
         "",
+        string.format(_("Reader → KOReader import: %s"), report.remote_highlight_import_status or _("not run")),
+        string.format(_("Reader highlights imported locally: %d"), report.remote_highlight_imported or 0),
+        string.format(_("Reader notes preserved locally: %d"), report.remote_highlight_import_notes or 0),
+        string.format(_("Reader highlights already linked: %d"), report.remote_highlight_import_linked_skipped or 0),
+        string.format(_("Reader local-position collisions skipped: %d"), report.remote_highlight_import_local_collisions or 0),
+        string.format(_("Reader locator ambiguous: %d"), report.remote_highlight_import_ambiguous or 0),
+        string.format(_("Reader locator missing: %d"), report.remote_highlight_import_missing or 0),
+        string.format(_("Reader locator invalid/different: %d"), report.remote_highlight_import_invalid or 0),
+        string.format(_("Reader imports deferred by batch limit: %d"), report.remote_highlight_import_deferred or 0),
+        string.format(_("Reader import failures: %d"), report.remote_highlight_import_failures or 0),
+        "",
         string.format(
             _("Archive finished documents: %s"),
             report.archive_enabled == false and _("off") or _("on")
@@ -205,6 +216,7 @@ function SyncUI:new(options)
         collections = assert(options.collections, "collections is required"),
         koreader_documents = assert(options.koreader_documents, "koreader_documents is required"),
         get_current_path = options.get_current_path or function() return nil end,
+        remote_highlight_import = options.remote_highlight_import,
         worker = options.worker or Worker,
     }, self)
 end
@@ -388,6 +400,32 @@ Tap to cancel. Local annotations are queued first. Readwise reachability is then
             end
         else
             report.watermark_advanced = false
+        end
+
+        report.remote_highlight_import_status = "not_run"
+        if type(self.remote_highlight_import) == "function"
+            and type(current_path) == "string" and current_path ~= ""
+            and (report.errors or 0) == 0
+            and (report.mode == "incremental" or report.mode == "full") then
+            local import_call_ok, import_report = pcall(
+                self.remote_highlight_import,
+                current_path
+            )
+            if not import_call_ok or type(import_report) ~= "table" then
+                report.remote_highlight_import_status = "error"
+                report.remote_highlight_import_failures = 1
+            else
+                report.remote_highlight_import_status = import_report.status or "ok"
+                report.remote_highlight_imported = import_report.imported or 0
+                report.remote_highlight_import_notes = import_report.notes_imported or 0
+                report.remote_highlight_import_linked_skipped = import_report.linked_skipped or 0
+                report.remote_highlight_import_local_collisions = import_report.local_collisions or 0
+                report.remote_highlight_import_ambiguous = import_report.ambiguous or 0
+                report.remote_highlight_import_missing = import_report.missing or 0
+                report.remote_highlight_import_invalid = import_report.invalid or 0
+                report.remote_highlight_import_deferred = import_report.deferred_by_limit or 0
+                report.remote_highlight_import_failures = import_report.failures or 0
+            end
         end
 
         UIManager:show(InfoMessage:new{

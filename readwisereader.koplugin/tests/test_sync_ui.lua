@@ -32,6 +32,7 @@ local function withStubbedSyncUI(run, options)
         collection_writes = {},
         meta_writes = {},
         worker_calls = {},
+        remote_import_calls = {},
     }
 
     package.preload["gettext"] = function()
@@ -150,6 +151,10 @@ local function newUI(SyncUI, state, watermark, report, ui_options)
         get_current_path = function()
             return ui_options.current_path or "/Readwise/current.html"
         end,
+        remote_highlight_import = ui_options.remote_highlight_import and function(path)
+            state.remote_import_calls[#state.remote_import_calls + 1] = path
+            return ui_options.remote_highlight_import(path)
+        end or nil,
         worker = {
             run = function(_, options)
                 state.worker_calls[#state.worker_calls + 1] = options
@@ -395,5 +400,55 @@ return function()
         assert(state.subprocess_calls == 1)
         assert(state.worker_calls[1].network_available == nil)
         assert(state.shown[#state.shown].text:find("Remote preflight: offline", 1, true))
+    end, { online = false })
+
+    withStubbedSyncUI(function(SyncUI, state)
+        local ui = newUI(SyncUI, state, "watermark", {
+            mode = "incremental",
+            errors = 0,
+            proposed_watermark = "2026-09-25T04:00:00Z",
+            completed_at = "2026-09-25T04:01:00Z",
+            postprocess = {},
+        }, {
+            remote_highlight_import = function(path)
+                assert(path == "/Readwise/current.html")
+                return {
+                    status = "ok",
+                    imported = 4,
+                    notes_imported = 2,
+                    linked_skipped = 3,
+                    local_collisions = 1,
+                    ambiguous = 2,
+                    missing = 1,
+                    invalid = 1,
+                    deferred_by_limit = 5,
+                    failures = 0,
+                }
+            end,
+        })
+        ui:syncNow(false)
+        assert(#state.remote_import_calls == 1)
+        assert(state.remote_import_calls[1] == "/Readwise/current.html")
+        local text = state.shown[#state.shown].text
+        assert(text:find("Reader → KOReader import: ok", 1, true))
+        assert(text:find("Reader highlights imported locally: 4", 1, true))
+        assert(text:find("Reader notes preserved locally: 2", 1, true))
+        assert(text:find("Reader imports deferred by batch limit: 5", 1, true))
+    end)
+
+    withStubbedSyncUI(function(SyncUI, state)
+        local ui = newUI(SyncUI, state, "watermark", {
+            mode = "offline",
+            errors = 0,
+            remote_preflight = "offline",
+            postprocess = {},
+        }, {
+            remote_highlight_import = function()
+                error("must not run while offline")
+            end,
+        })
+        ui:syncNow(false)
+        assert(#state.remote_import_calls == 0)
+        assert(state.shown[#state.shown].text:find("Reader → KOReader import: not_run", 1, true))
     end, { online = false })
 end
