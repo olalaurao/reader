@@ -7,6 +7,29 @@ local function domainError(kind, message)
     return { kind = kind, retryable = false, message = message }
 end
 
+
+local function samePdfBoxes(a, b)
+    if type(a) ~= "table" or type(b) ~= "table" or #a ~= #b or #a == 0 then
+        return false
+    end
+    for index = 1, #a do
+        local left, right = a[index], b[index]
+        if type(left) ~= "table" or type(right) ~= "table"
+            or left.x ~= right.x or left.y ~= right.y
+            or left.w ~= right.w or left.h ~= right.h then
+            return false
+        end
+    end
+    return true
+end
+
+local function pdfPersistedCandidate(normalized, item)
+    return item.page == normalized.page
+        and samePdfBoxes(item.pboxes, normalized.pboxes)
+        and item.text_hash == normalized.text_hash
+        and item.note_hash == normalized.note_hash
+end
+
 function Import:new(options)
     options = options or {}
     return setmetatable({
@@ -106,11 +129,41 @@ function Import:linkPersisted(local_path, remote, local_annotation)
             break
         end
     end
-    if not persisted then
-        return nil, domainError("sidecar", "Created KOReader highlight was not found in the persisted sidecar.")
+
+    -- PDF sidecars may serialize native position context (for example zoom or
+    -- rotation fields) differently from the in-memory item even though the
+    -- durable native page boxes are unchanged. Keep the normal deterministic
+    -- ID lookup first. Only when that fails for a PDF, accept exactly one
+    -- sidecar annotation whose page + pboxes + text/note hashes all match the
+    -- just-created item. This fallback is verification-only; Reader child ID
+    -- remains the remote identity and no fuzzy text matching is introduced.
+    if not persisted and document.local_format == "pdf" then
+        local candidates = {}
+        for _, item in ipairs(scan.annotations or {}) do
+            if pdfPersistedCandidate(normalized, item) then
+                candidates[#candidates + 1] = item
+            end
+        end
+        if #candidates == 1 then
+            persisted = candidates[1]
+        elseif #candidates > 1 then
+            return nil, domainError(
+                "sidecar_ambiguous",
+                "Created PDF highlight matched multiple persisted sidecar annotations."
+            )
+        end
     end
 
-    local ok, linked = pcall(
+    if not persisted then
+        return nil, domainError(
+            "sidecar_lookup",
+            document.local_format == "pdf"
+                and "Created PDF highlight was not found uniquely in the persisted sidecar."
+                or "Created KOReader highlight was not found in the persisted sidecar."
+        )
+    end
+
+    local ok, linked_or_err = pcall(
         self.annotations.linkImported,
         self.annotations,
         {
@@ -127,9 +180,15 @@ function Import:linkPersisted(local_path, remote, local_annotation)
             remote_updated_marker = remote.updated_at,
         }
     )
-    if not ok or not linked then
-        return nil, domainError("db", "Imported highlight could not be linked durably.")
+    if not ok or not linked_or_err then
+        return nil, domainError(
+            "db",
+            ok
+                and "Imported highlight link returned no durable row."
+                or "Imported highlight database transaction failed."
+        )
     end
+    local linked = linked_or_err
 
     return {
         status = "linked",
@@ -139,5 +198,8 @@ function Import:linkPersisted(local_path, remote, local_annotation)
         note = persisted.note,
     }
 end
+
+Import._pdfPersistedCandidate = pdfPersistedCandidate
+Import._samePdfBoxes = samePdfBoxes
 
 return Import
