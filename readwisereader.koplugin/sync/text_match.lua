@@ -542,17 +542,21 @@ function TextMatch.findExactSubstring(remote_content, local_text, options)
     }
 end
 
-function TextMatch.equivalentPlainText(a, b)
-    if type(a) ~= "string" or type(b) ~= "string" then return false end
-    if a == b then return true end
-    local options = {
+function TextMatch.canonicalPlainText(value)
+    if type(value) ~= "string" then return "" end
+    return normalizedWithMap(value, {
         nfc = true,
         collapse_whitespace = true,
         remove_soft_hyphen = true,
         punctuation = true,
-    }
-    return normalizedWithMap(a, options, false)
-        == normalizedWithMap(b, options, false)
+    }, false)
+end
+
+function TextMatch.equivalentPlainText(a, b)
+    if type(a) ~= "string" or type(b) ~= "string" then return false end
+    if a == b then return true end
+    return TextMatch.canonicalPlainText(a)
+        == TextMatch.canonicalPlainText(b)
 end
 
 TextMatch._normalizedWithMap = normalizedWithMap
