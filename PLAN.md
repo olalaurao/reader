@@ -1340,10 +1340,15 @@ Aceite integrado de tags também já repetido:
 - nenhuma Collection por tag criada;
 - nenhuma cópia local duplicada.
 
+Aceite integrado de conclusão também já repetido:
+- documento marcado Finished no KOReader;
+- Sync moveu o mesmo documento para Archive no Reader;
+- arquivo local permaneceu presente e abrindo;
+- sidecar/progresso/highlights/notas permaneceram íntegros.
+
 Ainda faltam, antes de `v1.0.0`:
-1. marcar o documento finished e confirmar Archive remoto sem remover arquivo/sidecar/progresso/anotações locais;
-2. revisar logs finais por token, signed URL e conteúdo privado;
-3. executar o segundo no-op Sync final e confirmar zero novos documentos/highlights;
-4. somente então fechar Phase S, preparar release candidate e tag `v1.0.0`.
+1. revisar logs finais por token, signed URL e conteúdo privado;
+2. executar o segundo no-op Sync final e confirmar zero novos documentos/highlights;
+3. somente então fechar Phase S, preparar release candidate e tag `v1.0.0`.
 
 Não pular esses critérios mesmo quando o comportamento já tiver evidência em gates anteriores: esta fase é a repetição integrada de aceite da V1 no PW3 real.
