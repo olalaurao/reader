@@ -5,6 +5,7 @@ local NetworkMgr = require("ui/network/manager")
 local Trapper = require("ui/trapper")
 local UIManager = require("ui/uimanager")
 local Worker = require("sync/remote_highlight_probe_worker")
+local Locator = require("koreader/remote_highlight_locator")
 local _ = require("gettext")
 
 local UI = {}
@@ -20,35 +21,8 @@ local function clip(value, limit)
 end
 
 local function matchOne(reader_ui, text)
-    local ok, matches = pcall(
-        reader_ui.document.findAllText,
-        reader_ui.document,
-        text,
-        false,
-        0,
-        3,
-        false,
-        0
-    )
-    if not ok then return "error" end
-    if type(matches) ~= "table" or #matches == 0 then return "missing" end
-    if #matches > 1 then return "ambiguous" end
-    local match = matches[1]
-    if type(match.start) ~= "string" or type(match["end"]) ~= "string" then
-        return "invalid_locator"
-    end
-
-    local text_ok, local_text = pcall(
-        reader_ui.document.getTextFromXPointers,
-        reader_ui.document,
-        match.start,
-        match["end"]
-    )
-    if not text_ok or type(local_text) ~= "string" or local_text == "" then
-        return "invalid_locator"
-    end
-    if local_text ~= text then return "text_diff" end
-    return "unique"
+    local _, status = Locator.findUnique(reader_ui, text)
+    return status
 end
 
 function UI:new(options)
