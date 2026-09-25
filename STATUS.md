@@ -236,6 +236,17 @@ Implemented Gate 17A:
 
 No sidecar, annotation, queue, DB-link, or remote mutation path is enabled yet. Gate 17B remains blocked on physical PW3 evidence from a real managed EPUB that already contains Reader highlights.
 
+## 2026-09-25 — Gate 17A off-device implementation green; PW3 probe next
+
+- **Branch / code HEAD validated:** `feature/v1.1-reader-highlight-import` / `8e4d4e42476fdd0bccf0eeaee97f583bbfbe5032`.
+- **Build:** `1.1.0-alpha.1`.
+- **CI:** workflow `36089780096` completed **SUCCESS**. Development checks, full Lua unit suite, installable ZIP build, package-layout verification and artifact upload all passed.
+- **Artifact:** `readwisereader-koplugin-8e4d4e42476fdd0bccf0eeaee97f583bbfbe5032`, artifact id `10844249761`, outer artifact digest `sha256:ef730dacbf74931a53ace718cac6b3d4f56c3839415c8a1dc5378490eb317da5`.
+- **Implemented/verified off-device:** Reader highlight `content` normalization; exact parent filtering; safe EPUB/HTML-only scope; stable remote ordering; at-most-three local probes; unique/ambiguous/missing classification; exact XPointer text round-trip; UI/preflight behavior; PDF rejection in this gate.
+- **Safety:** Gate 17A performs zero Reader writes and zero local annotation/sidecar/DB-link writes.
+- **Production import status:** NOT enabled. Gate 17B is blocked on physical locator evidence.
+- **Next physical test:** install this alpha preserving settings/DB/documents/sidecars; open the same managed EPUB that already has Reader highlights; Wi-Fi ON; run **Readwise Reader → Inspect Reader highlights (Gate 17A)** once; return the full result. PASS requires at least one `Unique exact XPointer matches` and both `Remote writes: none` / `Local writes: none`. Do not create/delete/edit highlights for this probe.
+
 ## Current milestone
 
 **Phase T / Gate 17A — Reader → KOReader existing-highlight locator spike; V1.0.0 remains released**
