@@ -129,6 +129,14 @@ function ReadwiseReader:init()
             return self.ui and self.ui.document and self.ui.document.file or nil
         end,
         remote_highlight_import = function(path)
+            local reader_ui = self.ui
+            local is_open_pdf = reader_ui
+                and reader_ui.paging
+                and reader_ui.document
+                and reader_ui.document.is_pdf == true
+            if is_open_pdf and self.pdf_highlight_import_ui then
+                return self.pdf_highlight_import_ui:prepareForSync(path)
+            end
             if not self.remote_highlight_import_ui then
                 return {
                     status = "skipped",
@@ -220,6 +228,7 @@ function ReadwiseReader:init()
     self.pdf_highlight_import_ui = PdfHighlightImportUI:new{
         config = self.config,
         importer = self.remote_highlight_importer,
+        sync_meta = self.sync_meta,
         get_current_path = function()
             return self.ui and self.ui.document and self.ui.document.file or nil
         end,
