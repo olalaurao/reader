@@ -5654,3 +5654,23 @@ Functional status:
 - no additional Kindle/device test is required for this release unless runtime plugin code changes.
 
 Only repository release bookkeeping remains: create Git tag `v1.2.0` pointing at the final green main closeout commit. This environment currently exposes branch/PR/file/merge operations but no tag-write action, so the tag cannot be created from this chat without an additional GitHub capability.
+
+
+## 2026-09-25 — v1.2.1 batch-throughput patch requested
+
+User explicitly requested higher historical-import throughput and asked to ship the adjustment without another manual Kindle/device test.
+
+Scope is deliberately limited to four existing constants; no locator, identity, persistence, queue, collision, rollback or network behavior changes:
+- EPUB/HTML new imports per Sync: `20 → 50`;
+- EPUB/HTML locator attempts per Sync: `30 → 75`;
+- PDF new imports per Sync: `1 → 5`;
+- PDF locator attempts per Sync: `10 → 30`.
+
+Release version advanced to `1.2.1`.
+
+Risk/validation policy:
+- the underlying EPUB/HTML and PDF import mechanisms remain the v1.2.0 physically accepted implementations;
+- larger batches increase per-Sync CPU/sidecar work, especially on PW3, but preserve the same bounded-loop and fail-closed contracts;
+- per explicit user request, no new physical acceptance is required before this patch is merged;
+- complete automated Lua/packaging CI must still pass on the patch head and again on `main`;
+- if real-device performance or stability regresses, revert the four limits to v1.2.0 values without changing stored state/schema.
