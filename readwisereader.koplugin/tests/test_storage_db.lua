@@ -168,24 +168,49 @@ end
 
 local function testBackupCopySemantics()
     local copied_from, copied_to
+    local checkpoint_calls = 0
+    local wal_conn = {
+        rowexec = function(_, sql)
+            assertEqual(sql, "PRAGMA journal_mode;")
+            return "wal"
+        end,
+        exec = function(_, sql)
+            assertEqual(sql, "PRAGMA wal_checkpoint(FULL);")
+            checkpoint_calls = checkpoint_calls + 1
+        end,
+    }
     local db = DB:new{
         path = "/tmp/readwisereader.sqlite3",
         sq3 = SQ3,
-        device = { canUseWAL = function() return false end },
+        device = { canUseWAL = function() return true end },
         copy_file = function(from, to)
+            assertEqual(checkpoint_calls, 1,
+                "WAL checkpoint must complete before migration backup copy")
             copied_from, copied_to = from, to
             -- KOReader ffiUtil.copyFile returns nil on success.
             return nil
         end,
     }
     local ok, err = pcall(function()
-        db:_backupBeforeMigration(1)
+        db:_backupBeforeMigration(wal_conn, 2)
     end)
     assertEqual(ok, true,
         "nil from KOReader copyFile must mean backup success")
     assertEqual(err, nil)
+    assertEqual(checkpoint_calls, 1)
     assertEqual(copied_from, "/tmp/readwisereader.sqlite3")
     assertEqual(copied_to, "/tmp/readwisereader.sqlite3.bak")
+
+    local truncate_checkpoint_calls = 0
+    local truncate_conn = {
+        rowexec = function() return "truncate" end,
+        exec = function()
+            truncate_checkpoint_calls = truncate_checkpoint_calls + 1
+        end,
+    }
+    db:_backupBeforeMigration(truncate_conn, 2)
+    assertEqual(truncate_checkpoint_calls, 0,
+        "non-WAL migration backup must not issue a WAL checkpoint")
 
     local failing = DB:new{
         path = "/tmp/readwisereader.sqlite3",
@@ -196,11 +221,31 @@ local function testBackupCopySemantics()
         end,
     }
     local failed, message = pcall(function()
-        failing:_backupBeforeMigration(1)
+        failing:_backupBeforeMigration(truncate_conn, 2)
     end)
     assertEqual(failed, false,
         "non-nil KOReader copyFile return must be treated as failure")
     assertTrue(tostring(message):find("synthetic copy failure", 1, true) ~= nil)
+
+    local checkpoint_failure = DB:new{
+        path = "/tmp/readwisereader.sqlite3",
+        sq3 = SQ3,
+        device = { canUseWAL = function() return true end },
+        copy_file = function()
+            error("backup copy must not run after checkpoint failure")
+        end,
+    }
+    local checkpoint_ok, checkpoint_err = pcall(function()
+        checkpoint_failure:_backupBeforeMigration({
+            rowexec = function() return "wal" end,
+            exec = function() error("synthetic checkpoint failure") end,
+        }, 2)
+    end)
+    assertEqual(checkpoint_ok, false,
+        "failed WAL checkpoint must abort migration backup")
+    assertTrue(tostring(checkpoint_err):find(
+        "synthetic checkpoint failure", 1, true
+    ) ~= nil)
 end
 
 
