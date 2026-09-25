@@ -10,9 +10,11 @@ local function validBox(box)
         and type(box.h) == "number" and box.h > 0
 end
 
-local function boxCenter(box, page)
+local function boxCenter(box, page, rotation, zoom)
     return {
         page = page,
+        rotation = rotation,
+        zoom = zoom,
         x = box.x + box.w / 2,
         y = box.y + box.h / 2,
     }
@@ -182,8 +184,12 @@ function Locator.findUnique(reader_ui, text)
     if not relation then return nil, "search_text_diff" end
 
     local page = match.start
-    local pos0 = boxCenter(match.boxes[1], page)
-    local pos1 = boxCenter(match.boxes[#match.boxes], page)
+    local rotation = type(document.getRotation) == "function"
+        and document:getRotation() or nil
+    local zoom = type(document.getZoom) == "function"
+        and document:getZoom() or nil
+    local pos0 = boxCenter(match.boxes[1], page, rotation, zoom)
+    local pos1 = boxCenter(match.boxes[#match.boxes], page, rotation, zoom)
     local evidence, evidence_err = nativeEvidence(document, pos0, pos1)
     if not evidence then return nil, evidence_err end
 
