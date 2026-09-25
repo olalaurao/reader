@@ -3071,3 +3071,20 @@ Required immediate result:
 Then close/reopen the PDF before ordinary Sync and verify the imported highlight remains visible and its note remains present. Do not run the explicit import action a second time before reporting that reopen result.
 
 Only after that persistence proof may ordinary Sync be used to prove that the imported PDF annotation is already linked and does not create a duplicate Reader child.
+
+
+### Gate 17D-2 alpha.3 result — PRECHECK FAIL / NO WRITES
+
+Observed message: `Reader highlight import currently supports EPUB/HTML only.`
+
+This was a shared-importer format gate left over from v1.1. The action stopped before any local/remote mutation. Do not repeat alpha.3.
+
+### Gate 17D-2 alpha.4
+
+Use `1.2.0-alpha.4` for the exact same one-item test:
+1. install preserving DB/settings/documents/sidecars;
+2. open the same managed PDF;
+3. run **Import one Reader PDF highlight (Gate 17D)** exactly once;
+4. require imported=1, PDF digest unchanged=yes, embed preference restored=yes, Reader writes none;
+5. close/reopen before ordinary Sync and verify highlight + note persistence;
+6. do not run the explicit import action a second time before reporting.
