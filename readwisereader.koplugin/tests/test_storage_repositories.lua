@@ -203,8 +203,9 @@ local function testAnnotations()
     assertEqual(edited.sync_state, "local_changed")
 
     local listed = anns:listByDocument("doc-1")
-    assertEqual(#listed, 1)
+    assertEqual(#listed, 2)
     assertEqual(listed[1].local_annotation_id, "ann-1")
+    assertEqual(listed[2].local_annotation_id, "ann-imported")
 
     local deleted = anns:markLocalDeleted("ann-1", 555)
     assertEqual(deleted.local_deleted_at, 555)
