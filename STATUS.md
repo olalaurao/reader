@@ -247,6 +247,20 @@ No sidecar, annotation, queue, DB-link, or remote mutation path is enabled yet. 
 - **Production import status:** NOT enabled. Gate 17B is blocked on physical locator evidence.
 - **Next physical test:** install this alpha preserving settings/DB/documents/sidecars; open the same managed EPUB that already has Reader highlights; Wi-Fi ON; run **Readwise Reader → Inspect Reader highlights (Gate 17A)** once; return the full result. PASS requires at least one `Unique exact XPointer matches` and both `Remote writes: none` / `Local writes: none`. Do not create/delete/edit highlights for this probe.
 
+## 2026-09-25 — Gate 17A attempt 1 BLOCKED by false rolling preflight
+
+Physical attempt 1 on the target PW3 did not reach the Reader/XPointer probe. With the managed EPUB open, the plugin showed `Gate 17A currently supports rolling EPUB/HTML documents only`.
+
+Root cause was identified in the Gate 17A UI preflight, not in the EPUB or Reader data: the alpha compared `reader_ui.rolling ~= true`, but KOReader exposes `ui.rolling` as a module/object for rolling documents rather than the literal boolean `true`. A valid EPUB therefore failed the preflight.
+
+No remote or local annotation write occurred; the failure happened before the worker/probe ran. Existing document/sidecar state was not mutated.
+
+Required fix before retry:
+- treat any non-nil/truthy `reader_ui.rolling` module as rolling;
+- regression-test with a table/object value, not boolean `true`;
+- rerun full CI/package checks;
+- then repeat only the same Gate 17A physical probe.
+
 ## Current milestone
 
 **Phase T / Gate 17A — Reader → KOReader existing-highlight locator spike; V1.0.0 remains released**
