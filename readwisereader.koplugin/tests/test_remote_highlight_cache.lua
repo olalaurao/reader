@@ -50,8 +50,24 @@ local function baselineCase()
             end,
         },
         readwise = {
-            exportUpdated = function()
-                error("historical baseline must not need v2 deletion export")
+            exportUpdated = function(_, options)
+                assert(options.updated_after == "1970-01-01T00:11:40Z")
+                assert(options.include_deleted == true)
+                return {
+                    next_page_cursor = nil,
+                    results = {
+                        {
+                            external_id = "p-raced",
+                            is_deleted = true,
+                            highlights = {
+                                {
+                                    external_id = "h-raced",
+                                    is_deleted = true,
+                                },
+                            },
+                        },
+                    },
+                }
             end,
         },
         repository = repository,
@@ -62,13 +78,13 @@ local function baselineCase()
     local report = assert(cache:refresh())
     assert(report.mode == "historical")
     assert(report.rows_seen == 2 and report.rows_upserted == 2)
-    assert(report.deleted_highlight_ids == 0)
-    assert(report.deleted_parent_ids == 0)
-    assert(report.deletion_pages == 0)
+    assert(report.deleted_highlight_ids == 1)
+    assert(report.deleted_parent_ids == 1)
+    assert(report.deletion_pages == 1)
     assert(calls.replace == 1)
     assert(calls.upsert == 0)
-    assert(calls.delete_ids == 0)
-    assert(calls.delete_parents == 0)
+    assert(calls.delete_ids == 1)
+    assert(calls.delete_parents == 1)
     assert(meta.data[Cache.VERSION_KEY] == Cache.CACHE_VERSION)
     assert(meta.data[Cache.BASELINE_KEY] == "1")
     assert(meta.data[Cache.WATERMARK_KEY] == "1970-01-01T00:16:40Z")
@@ -283,8 +299,10 @@ local function staleCacheVersionForcesReplacementCase()
             end,
         },
         readwise = {
-            exportUpdated = function()
-                error("forced historical rebuild must not use incremental delete feed")
+            exportUpdated = function(_, options)
+                assert(options.updated_after == "1970-01-01T01:18:20Z")
+                assert(options.include_deleted == true)
+                return { next_page_cursor = nil, results = {} }
             end,
         },
         repository = {
