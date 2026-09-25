@@ -1424,3 +1424,31 @@ Próximo incremento: validar experimentalmente como um highlight já existente n
 - zero POST/PATCH/DELETE no Reader.
 
 Só depois do PASS físico decidir inserção de annotation PDF. Multi-page, OCR e ambiguidades continuam sem heurística automática.
+
+
+### 17D-1A — resultado físico alpha.1
+
+No PDF real:
+- Reader pages scanned: 11;
+- Reader highlight records scanned: 1088;
+- highlights do PDF: 2;
+- probes locais: 2;
+- unique exact: 0;
+- ambiguous: 0;
+- missing: 0;
+- text round-trip differences: 2;
+- other/invalid: 0;
+- writes remotos/locais: nenhum.
+
+Isso não indica falha de busca: `text_diff` só acontecia depois de `findAllText()` devolver exatamente um match. A revisão do KOPT mostrou que a busca paging aceita o primeiro termo como sufixo da palavra PDF e o último como prefixo, mas retorna a caixa da palavra inteira.
+
+### 17D-1B — alpha.2
+
+Corrigir apenas o critério do probe:
+- validar que os centros das caixas retornadas caem novamente nas mesmas palavras PDF via `getWordFromPosition`;
+- separar `unique_exact` de `unique_boundary`;
+- manter `getTextFromPositions` apenas como diagnóstico;
+- não adicionar fuzzy matching;
+- continuar com zero writes.
+
+A criação PDF continua bloqueada até esse probe passar fisicamente.
