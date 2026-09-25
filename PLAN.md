@@ -1315,29 +1315,27 @@ Não:
 
 ## 46. Próximo passo
 
-A **Phase Q / Gate 15 passou completa** no PW3 alvo.
+Gates 0–16 estão **PASSED COMPLETE** no PW3 alvo e a Phase R foi mergeada em `main`.
 
-Validado:
-- artigo metadata-only sem perda local e com acknowledgement idempotente;
-- PDF original retido sem replacement após revisão de título;
-- EPUB original retido sem replacement após revisão de título;
-- progresso, sidecars, highlights e notas preservados;
-- replacement automático continua desabilitado.
+Fase atual: **Phase S — V1 acceptance**.
 
-Fase atual: **Phase R / Gate 16 — hardening**.
+A aceitação integrada já repetiu com sucesso:
+- Reader -> Kindle e abertura do artigo;
+- leitura e anotação offline;
+- fila pendente sem perda;
+- Kindle -> Reader com nota Markdown/wikilinks;
+- segundo Sync sem duplicata;
+- Readwise -> Obsidian com wikilinks;
+- update de nota;
+- falha de rede recuperável;
+- reinício do KOReader com fila pendente e recuperação idempotente.
 
-Ordem:
-1. biblioteca grande;
-2. pouco armazenamento;
-3. documento malformado;
-4. documento enorme;
-5. Unicode;
-6. 429;
-7. Wi-Fi/rede intermitente;
-8. force-close;
-9. reboot;
-10. migration;
-11. rollback;
-12. revisão de logs/redaction.
+Ainda faltam, antes de `v1.0.0`:
+1. repetir no documento de aceitação a mudança de location do Reader e a projeção para a Collection `Readwise: ...`, preservando Collections não gerenciadas;
+2. repetir alteração de tag no Reader e projeção nos metadados/Bookshelf sem criar Collection por tag;
+3. marcar o documento finished e confirmar Archive remoto sem remover arquivo/sidecar/progresso/anotações locais;
+4. revisar logs finais por token, signed URL e conteúdo privado;
+5. executar o segundo no-op Sync final e confirmar zero novos documentos/highlights;
+6. somente então fechar Phase S, preparar release candidate e tag `v1.0.0`.
 
-Fazer primeiro todos os testes determinísticos/off-device; pedir teste físico somente quando um item depender realmente do PW3.
+Não pular esses critérios mesmo quando o comportamento já tiver evidência em gates anteriores: esta fase é a repetição integrada de aceite da V1 no PW3 real.
