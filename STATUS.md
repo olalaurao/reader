@@ -116,6 +116,15 @@ Report only: whether the offline sync returned safely; whether the recovery sync
 - **Phase S:** remains OPEN; do not tag V1 yet.
 - **Next physical checkpoint — A2 / section-42 steps 7-14:** on the same article, turn Wi-Fi off; continue reading; create one highlight; attach the exact note `ver [[Foucault]] e [[Biopolítica]]\n\n#pesquisar`; close and reopen the document and confirm the annotation is still present; while still offline run `Sync now`; confirm Sync returns safely and the annotation remains pending/not lost. Do not restore Wi-Fi yet. Report whether offline reading worked, highlight/note survived reopen exactly, offline Sync returned safely, and annotation remained pending.
 
+## 2026-09-25 — Phase S Acceptance A1 PHYSICAL PASS; A2 offline annotation next
+
+- Re-read canonical STATUS/spec/plan and verified current `main` CI before recording this result.
+- **A1 / section-42 steps 1-6:** PHYSICAL PASS on target PW3. User confirmed the online Sync succeeded, the fresh Reader article materialized locally exactly once, opened normally, and a non-zero reading position was established.
+- **CI entering A1:** current `main` `f2c0fe58afdcf650d597d150060078401d539c49` passed push run `36079534163`.
+- No production code change is warranted by A1; observed behavior matches the existing Reader -> Kindle acquisition contract.
+- Phase S remains OPEN. `v1.0.0` remains unauthorized until the complete section-42 acceptance script passes.
+- **Next physical checkpoint A2 / steps 7-14:** on this same acceptance article, turn Wi-Fi off; continue reading; create one highlight; add the exact note `ver [[Foucault]] e [[Biopolítica]]\n\n#pesquisar`; close and reopen the document and confirm the annotation remains; while still offline run `Sync now`; confirm it returns safely and the annotation remains pending/not lost. Do not restore Wi-Fi yet. Report: offline reading worked, exact note survived close/reopen, offline Sync returned safely, annotation remained present/pending, and any error text.
+
 ## Current milestone
 
 **Phase S / V1 acceptance — OPEN; Gates 0–16 PASSED COMPLETE**
