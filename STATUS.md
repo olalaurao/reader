@@ -5476,3 +5476,40 @@ Physical blocker:
 3. run explicit PDF import exactly once;
 4. if success, close/reopen before ordinary Sync and verify highlight/note;
 5. if failure, report the complete structural counter message.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.8 physical one-item import PASS; reopen persistence next
+
+Target PW3 physical result on `1.2.0-alpha.8`:
+- Reader highlights for this PDF: 2;
+- already-linked Reader highlights skipped: 0;
+- local position collisions skipped: 0;
+- ambiguous locators skipped: 0;
+- missing locators skipped: 0;
+- invalid locators skipped: 0;
+- **imported local PDF highlights: 1**;
+- imported Reader note: no;
+- locator class: `unique_boundary`;
+- **PDF file digest unchanged: yes**;
+- **PDF embed preference restored: yes**;
+- **Reader writes from import: none**;
+- UI confirmed: one PDF highlight was saved to the KOReader sidecar and linked to its existing Reader child ID.
+
+This proves on the target device:
+- alpha.8 persisted-number normalization fixed the prior durable-link failure;
+- one Reader PDF child can be created locally through KOReader's native paging annotation path;
+- the original PDF bytes remain unchanged;
+- the user's PDF-embedding preference is restored;
+- the existing Reader child ID is linked durably with zero Reader mutation from the import action.
+
+Gate 17D-2 is not yet fully closed because sidecar survival across a real document reopen has not yet been reported.
+
+Next and only physical checkpoint:
+1. do **not** run the explicit PDF import action again;
+2. do **not** run ordinary Sync yet;
+3. close the same PDF and reopen it normally;
+4. verify that the imported highlight is still visible;
+5. no note check is required for this imported item because the selected Reader highlight had no note;
+6. report only whether the highlight survived the reopen.
+
+If reopen persistence passes, the next gate is one ordinary Sync to prove the linked PDF annotation does not create a duplicate Reader child.
