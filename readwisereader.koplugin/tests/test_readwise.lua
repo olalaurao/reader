@@ -131,11 +131,13 @@ return function()
         }
         local page = assert(api:exportUpdated{
             updated_after = "2026-09-23T15:00:00Z",
+            page_cursor = "cursor-1",
             include_deleted = true,
         })
         assert(page.next_page_cursor == "cursor-2")
         assert(page.results[1].external_id == "reader-parent-1")
         assert(captured.url:find("includeDeleted=true", 1, true))
+        assert(captured.url:find("pageCursor=cursor%-1"))
         assert(captured.url:find("updatedAfter=2026%-09%-23T15%%3A00%%3A00Z"))
     end
 
