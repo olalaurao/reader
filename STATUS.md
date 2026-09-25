@@ -4,6 +4,23 @@
 > Canonical design: `IMPLEMENTATION_SPEC.md`  
 > Roadmap/product intent: `PLAN.md`
 
+## 2026-09-24 — Phase R / Gate 16 hardening session
+
+- **Milestone:** Phase R / Gate 16 — deterministic/off-device hardening in progress. Gate 15 remains passed complete.
+- **Branch / HEAD:** `hardening/gate16-r1` / `91c6f5c8b1b8989c148f9fa0c9574e444a86be3e` before this STATUS commit.
+- **Base inspected:** current `main` HEAD `3a37df88bae65407d3faaa638c7536ad47fe5744` (Gate 15 merge). `STATUS.md`, `IMPLEMENTATION_SPEC.md`, and `PLAN.md` were re-read from current GitHub state before changes.
+- **Files altered:** `readwisereader.koplugin/tests/test_reader_pagination.lua`, `readwisereader.koplugin/tests/test_installer.lua`, `readwisereader.koplugin/tests/test_http.lua`, `readwisereader.koplugin/tests/test_filenames.lua`, and this `STATUS.md`.
+- **Implemented/validated off-device:** no production behavior changed. Added deterministic hardening coverage for a synthetic 12,000-document/120-page Reader corpus; ENOSPC after a streamed download has begun; malformed Reader document records; a single oversized HTTP chunk crossing the configured response ceiling; cancellation during a 429 `Retry-After` wait; and UTF-8/multibyte filename truncation at the byte boundary.
+- **Commits:** `be6be410` large-library pagination stress; `ba655f17` mid-stream disk exhaustion; `f7023bf3` malformed Reader item; `291a4f22` oversized response ceiling; `201ab69e` cancellable 429 backoff; `91c6f5c8` multibyte filename boundary.
+- **Tests/checks:** test cases were added against existing pure-Lua contracts. GitHub Actions had not yet exposed a workflow run for the branch commits at the time of this handoff, so the full `./scripts/dev-check.sh`, Lua unit suite, package/layout build and artifact verification are **pending CI confirmation**; do not mark these new hardening cases passed until CI is green.
+- **Gates concluded this session:** none. Gate 16 remains open.
+- **Physical tests pending:** none requested yet. Per spec, deterministic/off-device hardening must be completed first.
+- **Bugs/failures found:** no new production bug isolated yet. Existing code already has bounded Reader LIST pacing/repeated-cursor protection, raw-source free-space preflight, atomic temp-file install, response byte ceilings, 429 handling, and UTF-8-aware filename truncation; this session adds regression/stress evidence around those contracts.
+- **Technical decisions:** exercise existing safety contracts before changing production code; do not add speculative hardening when the current implementation already expresses the required invariant. Large-library stress intentionally uses 12,000 unique records, materially above the current real library, while keeping the fixture generated in-memory and free of private data.
+- **Spec deviations:** none.
+- **Blockers:** CI result for the new branch tests is the immediate blocker to calling the deterministic cases passed.
+- **Next exact steps, in order:** (1) obtain/verify CI for current branch HEAD and fix any failing fixture; (2) add remaining deterministic Gate 16 coverage for intermittent network/retry state, force-close/reboot persistence and DB migration/rollback invariants where not already covered; (3) perform a focused log/redaction audit and add regression tests for any uncovered sensitive fields; (4) update docs/status with the resulting evidence; (5) only then define the smallest PW3 physical hardening matrix for behavior that cannot be established off-device.
+
 ## Current milestone
 
 **Phase Q / Gate 15 — PASSED COMPLETE; Phase R / Gate 16 hardening is now unblocked**
