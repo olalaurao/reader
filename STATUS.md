@@ -5570,3 +5570,28 @@ Next:
 1. wait for the final branch-head workflow;
 2. audit the packaged alpha.9 ZIP/version/layout;
 3. give the user one consolidated physical acceptance only: normal Sync imports the remaining safe Reader PDF child, close/reopen preserves both, and one unchanged Sync proves idempotence/no duplicates.
+
+
+## 2026-09-25 — Gate 17D-3 alpha.9 physical acceptance PASS; v1.2.0 release closeout
+
+Target PW3 consolidated alpha.9 acceptance supplied by the user: **PASS**.
+
+Observed:
+- ordinary `Sync now` imported the remaining safe Reader PDF highlight into the same managed PDF through the normal pre-Sync path;
+- the PDF therefore reached the expected two local Reader-origin highlights;
+- both highlights survived close/reopen;
+- a second unchanged ordinary Sync created no additional local highlight;
+- Reader remained free of duplicate highlight children.
+
+Conclusion:
+- **Gate 17D-3 PASS COMPLETE**;
+- Phase U / PDF historical Reader → KOReader import is physically accepted on the target PW3 / KOReader v2026.07.1;
+- the accepted runtime behavior is exactly alpha.9; no further feature/runtime change is required for v1.2.0.
+
+Release closeout policy:
+1. promote version metadata only from `1.2.0-alpha.9` to `1.2.0`;
+2. update canonical docs/README/changelog;
+3. run the complete CI/package pipeline on the stable-version branch head;
+4. audit the installable ZIP;
+5. mark PR #22 ready and merge only after green CI;
+6. do not add new runtime behavior between the accepted alpha.9 code and stable v1.2.0.
