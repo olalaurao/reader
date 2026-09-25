@@ -5040,3 +5040,34 @@ Next and only blocker:
 - repeat the same read-only Gate 17D probe on the same PDF with alpha.2;
 - PASS requires `Validated paging positions total >= 1`, `Native endpoint geometry mismatches: 0`, no crash, and both write counters none;
 - a non-zero full-text round-trip diagnostic counter is allowed.
+
+
+## 2026-09-25 — Gate 17D locator alpha.2 PHYSICAL PASS
+
+Target PW3 / KOReader v2026.07.1 physical result:
+- Reader highlight pages scanned: 11;
+- Reader highlight records scanned: 1088;
+- highlights for this PDF: 2;
+- highlights with text: 2;
+- local PDF probes run: 2;
+- unique exact paging matches: 0;
+- unique word-boundary paging matches: 2;
+- **validated paging positions total: 2**;
+- ambiguous matches: 0;
+- missing matches: 0;
+- **native endpoint geometry mismatches: 0**;
+- **search-text relation mismatches: 0**;
+- full-text round-trip differences (diagnostic): 1;
+- other/invalid matches: 0;
+- remote writes: none;
+- local annotation/sidecar writes: none.
+
+Interpretation:
+- both Reader highlights resolve to unique KOReader paging search geometry;
+- both use KOReader's documented first-word-suffix / last-word-prefix boundary behavior;
+- native derived positions map back to the exact PDF endpoint words;
+- the remaining full-text round-trip difference is diagnostic-only and was explicitly allowed by the corrected Gate 17D contract.
+
+**Gate 17D read-only PDF locator is PASSED COMPLETE.**
+
+Next gate: Gate 17D-2, create exactly one Reader PDF highlight through KOReader's native annotation path, sidecar-only, prove the PDF file itself remains unchanged, prove sidecar persistence, link the existing Reader child ID durably, and prove the next ordinary Sync does not create a duplicate remote highlight.
