@@ -1482,3 +1482,16 @@ A criação PDF chegou ao sidecar, mas o vínculo durável falhou e o item local
 - exigir exatamente 1 candidato;
 - preservar erro específico de sidecar/DB na UI;
 - repetir um único import físico.
+
+
+### 17D-2C — alpha.5 sidecar_lookup FAIL
+
+O erro específico mostrou que o item recém-criado não estava sendo encontrado na reabertura do sidecar.
+
+### 17D-2D — alpha.6
+
+- não usar `DocSettings.open()` para a prova imediata de PDF;
+- localizar o sidecar atual com `findSidecarFile(..., true)`;
+- abrir exatamente esse arquivo com `openSettingsFile`;
+- manter ID determinístico + fallback geométrico exato;
+- repetir um único import físico.
