@@ -5076,3 +5076,15 @@ No reinstall and **do not run another Sync first**.
 ### Decision
 - No production change was warranted after exactly-once physical PASS because the remaining risk is process restart persistence/coexistence and actual device-log hygiene.
 - Keeping 0.1.47 unchanged preserves the release-candidate identity through Gate 16 closeout.
+
+
+### Final checkpoint-5 / Gate 16 final-device handoff CI
+- Handoff head before this ledger-only closeout: `8b9f347845bbd00618cc9cb181a8bd5a808674af`.
+- Workflow #1129: **SUCCESS**.
+- Development checks: PASS.
+- Full Lua unit suite: PASS.
+- Installable ZIP build: PASS.
+- Package layout verification: PASS.
+- Artifact upload: PASS.
+- No production/plugin/schema/version change occurred; installed PW3 candidate remains 0.1.47.
+- Only remaining blocker: final KOReader restart/state persistence + local crash.log secret review.
