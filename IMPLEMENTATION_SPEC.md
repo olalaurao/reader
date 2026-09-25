@@ -3266,12 +3266,15 @@ For the currently-open plugin-managed original PDF:
 2. test at most three highlights with text;
 3. call the PDF document's native `findAllText(text, false, 0, 3)`;
 4. reject zero results as missing and multiple results as ambiguous;
-5. for one result, require a valid page number and non-empty native word boxes;
+5. for one result, require a valid page number, non-empty native word boxes and non-empty `matched_text`;
 6. derive native `pos0/pos1` from interior points of the first/last match boxes;
-7. temporarily force `document.configurable.text_wrap = 0` only for the in-memory round-trip call, restoring the prior value even on error;
-8. call `getTextFromPositions(pos0, pos1)`;
-9. require non-empty returned text and literal equality to the Reader highlight text;
-10. report page/position success only; create no KOReader annotation, write no sidecar/DB link, and issue no Reader mutation.
+7. temporarily force `document.configurable.text_wrap = 0` for endpoint/round-trip inspection, restoring the prior value even on error;
+8. call `getWordFromPosition(pos0)` and `getWordFromPosition(pos1)` and require that those native positions land on the exact first/last PDF words returned by `findAllText()`;
+9. classify the Reader query against `matched_text` using KOReader's own paging-search boundary contract:
+   - `unique_exact`: same word-token sequence after whitespace normalization;
+   - `unique_boundary`: only the first Reader token is a suffix of the first PDF word and/or the last Reader token is a prefix of the last PDF word, with every interior token exact. This reflects KOReader's documented search behavior and full-word boxes; it is not fuzzy matching;
+10. `getTextFromPositions(pos0, pos1)` remains diagnostic-only because KOPT independently reconstructs whitespace, line-end hyphenation and complete boundary words;
+11. report page/position success only; create no KOReader annotation, write no sidecar/DB link, and issue no Reader mutation.
 
 The initial spike intentionally does not guess:
 - multi-page Reader highlights;
@@ -3287,11 +3290,14 @@ Those outcomes are measured first and only then may later Gate 17D steps be desi
 On the target PW3 / KOReader v2026.07.1, using an already-local managed original PDF that has at least one existing Reader highlight:
 - Reader highlights for the PDF >= 1;
 - local PDF probes run >= 1;
-- at least one `Unique exact paging match`;
+- at least one validated paging position: `unique_exact` or `unique_boundary`;
+- native endpoint geometry mismatches = 0 for accepted samples;
 - no crash/freeze;
 - Reader writes: none;
 - local annotation/sidecar writes: none.
 
-Ambiguous/missing/text-different samples are safe skips and do not fail the gate as long as at least one real highlight proves the position model.
+Ambiguous/missing/search-text-different samples are safe skips. A full-text round-trip difference by itself is diagnostic and does not invalidate a position whose unique search result and native endpoint words agree.
 
-No PDF historical annotation creation is authorized until this physical evidence is recorded.
+Physical `1.2.0-alpha.1` result: 2 Reader highlights for the PDF, 2 unique searches, 0 ambiguous/missing/invalid, but both were reported as `text_diff` because the original probe incorrectly required literal full-text reconstruction. KOReader source inspection showed that paging search intentionally permits a first-word suffix and last-word prefix while returning full word boxes. Build `1.2.0-alpha.2` corrects the proof without enabling writes.
+
+No PDF historical annotation creation is authorized until the alpha.2 physical position evidence is recorded.
