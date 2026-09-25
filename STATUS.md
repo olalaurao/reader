@@ -99,9 +99,18 @@ Report only: whether the offline sync returned safely; whether the recovery sync
 - **Acceptance A1 (next physical checkpoint; steps 1-6):** begin with the installed plugin and no pending queue items; save one new article in Reader; ensure Wi-Fi is enabled outside KOReader; run `Sync now`; confirm the new article downloads exactly once; open it and read enough to establish a non-zero reading position. Do not create the acceptance highlight/note yet. Report: Sync success/error, article present once, opens normally, and reading position established.
 - **Gate/release state:** Phase S OPEN; `v1.0.0` NOT authorized until the entire section-42 script passes.
 
+## 2026-09-25 — Phase S handoff verified; A1 is the next blocker
+
+- Re-inspected merged `main`, canonical `STATUS.md`, `IMPLEMENTATION_SPEC.md`, and `PLAN.md` before advancing.
+- PR #20 is closed/merged; Phase R landed as `bdbee7262123ae7dd16a38ac9602b436a322d336`. Current `main` before this commit is `0fa5f82cd6491c40ec22b4ceb99e0403dfaf0cc0` (`docs: start Phase S V1 acceptance`).
+- Gate 16 remains PASSED COMPLETE. No later implementation gate may substitute for the section-42 real-device V1 acceptance sequence.
+- No production change is justified before A1: the next missing evidence is physical acquisition/opening of a fresh Reader article on the target PW3.
+- **Exact blocker:** Acceptance A1 / section-42 steps 1-6. Start with no pending queue; save one new article in Reader; Wi-Fi on; `Sync now`; verify exactly one local copy; open it and establish non-zero reading position. Do not create the acceptance highlight/note yet.
+- After A1 PASS, record it before proceeding to the offline annotation portion (steps 7-14).
+
 ## Current milestone
 
-**Phase Q / Gate 15 — PASSED COMPLETE; Phase R / Gate 16 hardening is now unblocked**
+**Phase S / V1 acceptance — OPEN; Gates 0–16 PASSED COMPLETE**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
