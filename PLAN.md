@@ -1315,29 +1315,25 @@ Não:
 
 ## 46. Próximo passo
 
-A **Phase Q / Gate 15 passou completa** no PW3 alvo.
+A candidata **0.1.47** já passou fisicamente no PW3:
+- startup/settings/token;
+- preservação do artigo gerenciado;
+- primeiro Sync Wi-Fi-on;
+- segundo Sync inalterado/no-op;
+- highlight/nota local em offline controlado -> fila durável, sem remote write;
+- restart completo ainda offline -> highlight/nota local + fila SQLite persistiram, diagnóstico read-only sem remote write;
+- reconnect + um único Sync -> fixture entregue exatamente uma vez, fila zerada e nenhuma duplicata.
 
-Validado:
-- artigo metadata-only sem perda local e com acknowledgement idempotente;
-- PDF original retido sem replacement após revisão de título;
-- EPUB original retido sem replacement após revisão de título;
-- progresso, sidecars, highlights e notas preservados;
-- replacement automático continua desabilitado.
+Também ficou coberto off-device que um create já marcado `succeeded` continua sucedido/não-runnable após fechar e reabrir o SQLite em um novo processo.
 
-Fase atual: **Phase R / Gate 16 — hardening**.
+Último checkpoint físico do Gate 16:
+1. não editar/recriar/deletar o fixture nem rodar novo Sync antes;
+2. reiniciar completamente o KOReader;
+3. reabrir o mesmo artigo e confirmar progresso/posição/highlights/notas, incluindo o fixture Gate 16;
+4. confirmar Readwise Reader + Bookshelf carregando normalmente;
+5. confirmar no Reader remoto que o fixture continua existindo uma única vez;
+6. revisar localmente `koreader/crash.log` e exigir ausência de token/Authorization, URL assinada, HTML/conteúdo privado e payload privado de nota/highlight;
+7. se qualquer segredo aparecer, não compartilhar o log bruto e falhar Gate 16;
+8. se tudo passar, fechar Gate 16, mergear PR #19 e iniciar Phase S / aceite final V1.
 
-Ordem:
-1. biblioteca grande;
-2. pouco armazenamento;
-3. documento malformado;
-4. documento enorme;
-5. Unicode;
-6. 429;
-7. Wi-Fi/rede intermitente;
-8. force-close;
-9. reboot;
-10. migration;
-11. rollback;
-12. revisão de logs/redaction.
-
-Fazer primeiro todos os testes determinísticos/off-device; pedir teste físico somente quando um item depender realmente do PW3.
+Gate 16 continua aberto; Phase S continua bloqueada até esse último PASS.

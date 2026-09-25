@@ -69,6 +69,114 @@ return function()
     end
 
     do
+        -- Phase R / Gate 16 large-library stress: walk 5,000 unique
+        -- documents across 50 full Reader pages without accumulating document
+        -- payloads in the caller. This exercises cursor progression and the
+        -- per-document callback path at a scale well above the physical test
+        -- library while keeping rate limiting disabled in deterministic CI.
+        local page_count = 50
+        local page_size = 100
+        local request_index = 0
+        local callback_count = 0
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function()
+                    request_index = request_index + 1
+                    return {
+                        status = 200,
+                        headers = {},
+                        body = tostring(request_index),
+                    }
+                end,
+            },
+            json_decode = function(body)
+                local page = tonumber(body)
+                local results = {}
+                local first = (page - 1) * page_size + 1
+                for offset = 0, page_size - 1 do
+                    results[#results + 1] = {
+                        id = "large-doc-" .. tostring(first + offset),
+                    }
+                end
+                return {
+                    results = results,
+                    nextPageCursor = page < page_count
+                        and ("large-cursor-" .. tostring(page + 1))
+                        or nil,
+                }
+            end,
+            list_min_interval = 0,
+        }
+
+        local report, err = reader:iterateDocuments({}, function(document)
+            callback_count = callback_count + 1
+            assert(document.id == "large-doc-" .. tostring(callback_count))
+        end)
+        assert(err == nil)
+        assert(report.pages == page_count)
+        assert(report.received == page_count * page_size)
+        assert(report.unique == page_count * page_size)
+        assert(report.duplicates == 0)
+        assert(callback_count == page_count * page_size)
+        assert(request_index == page_count)
+    end
+
+    do
+        -- A malformed record inside an otherwise-valid LIST page must be
+        -- isolated during iteration, while valid neighbors continue.
+        local reader = sequenceReader({
+            {
+                results = {
+                    { id = "good-1" },
+                    { title = "missing id" },
+                    { id = "good-2" },
+                },
+            },
+        })
+        local ids = {}
+        local report, err = reader:iterateDocuments({}, function(document)
+            ids[#ids + 1] = document.id
+        end)
+        assert(err == nil)
+        assert(report.pages == 1)
+        assert(report.received == 2)
+        assert(report.unique == 2)
+        assert(report.malformed == 1)
+        assert(table.concat(ids, ",") == "good-1,good-2")
+    end
+
+    do
+        -- A whole page can be unusable record-by-record while still carrying
+        -- a valid cursor. That is not the same as an API empty-page loop:
+        -- skip the malformed records and continue to the next page.
+        local reader = sequenceReader({
+            {
+                results = {
+                    { title = "missing id 1" },
+                    { id = "" },
+                },
+                nextPageCursor = "after-malformed",
+            },
+            {
+                results = {
+                    { id = "valid-after-malformed" },
+                },
+            },
+        })
+        local ids = {}
+        local report, err = reader:iterateDocuments({}, function(document)
+            ids[#ids + 1] = document.id
+        end)
+        assert(err == nil)
+        assert(report.pages == 2)
+        assert(report.malformed == 2)
+        assert(report.received == 1)
+        assert(report.unique == 1)
+        assert(ids[1] == "valid-after-malformed")
+    end
+
+    do
         local reader = sequenceReader({
             {
                 results = { { id = "a" } },
@@ -204,6 +312,70 @@ return function()
         assert(err.page == 1)
         assert(err.report.pages == 0)
         assert(call_index == 3)
+    end
+
+    do
+        -- Missing/invalid Retry-After falls back to bounded configured delays
+        -- (5s, then 15s) before surfacing the third 429.
+        local now = 0
+        local calls = 0
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function()
+                    calls = calls + 1
+                    return nil, {
+                        kind = "rate_limit",
+                        retryable = true,
+                        retry_after = nil,
+                    }
+                end,
+            },
+            json_decode = function() return {} end,
+            clock = function() return now end,
+            sleep = function(seconds) now = now + seconds end,
+            list_min_interval = 0,
+        }
+        local report, err = reader:iterateDocuments({}, function() end)
+        assert(report == nil)
+        assert(err.kind == "rate_limit")
+        assert(calls == 3)
+        assert(now >= 20)
+    end
+
+    do
+        -- Cancellation is checked during a Retry-After wait, not only after it
+        -- completes, so long server backoffs remain dismissable.
+        local now = 0
+        local calls = 0
+        local cancelled = false
+        local reader = Reader:new{
+            config = { getAccessToken = function() return "test-token" end },
+            http = {
+                request = function()
+                    calls = calls + 1
+                    return nil, {
+                        kind = "rate_limit",
+                        retryable = true,
+                        retry_after = 30,
+                    }
+                end,
+            },
+            json_decode = function() return {} end,
+            clock = function() return now end,
+            sleep = function(seconds)
+                now = now + seconds
+                cancelled = true
+            end,
+            list_min_interval = 0,
+        }
+        local report, err = reader:iterateDocuments({
+            is_cancelled = function() return cancelled end,
+        }, function() end)
+        assert(report == nil)
+        assert(err.kind == "cancelled")
+        assert(calls == 1)
+        assert(now <= 0.25)
     end
 
     do

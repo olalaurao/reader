@@ -2834,3 +2834,224 @@ User confirmed the final raw EPUB preservation sequence passed:
 ### Gate 15 — PASS COMPLETE
 
 Article Q1-A/Q2, original PDF and original EPUB preservation are all physically passed on the target PW3. Phase R / Gate 16 hardening is unblocked.
+
+
+## Gate 16 — Phase R hardening / 0.1.47
+
+The complete canonical device procedure is in `docs/GATE16_HARDENING.md`.
+
+Current physical checkpoint:
+1. with KOReader closed, back up the working 0.1.46 plugin, Readwise settings/SQLite DB and relevant Reader documents/sidecars;
+2. install only the 0.1.47 plugin directory;
+3. keep Kindle firmware, jailbreak, KOReader v2026.07.1 and Bookshelf unchanged;
+4. restart KOReader and confirm Readwise Reader/settings load;
+5. open one previously-managed article and confirm existing reading state;
+6. with real internet available, run ordinary **Sync now once** and return the complete report;
+7. stop there until the report is reviewed.
+
+Do not deliberately fill the Kindle filesystem or manufacture malformed/giant private fixtures. Low-disk, malformed, huge-document, Unicode, 429, interrupted-network, restart persistence, migration/rollback and secret-redaction failure modes are covered deterministically off-device before this build is installed.
+
+If the first RC smoke passes, continue the remaining no-op/offline-queue/reboot/reconnect/log-review sequence in `docs/GATE16_HARDENING.md`.
+
+
+## Gate 16 — 0.1.47 RC checkpoint 1 — PASS
+
+User confirmed the requested initial RC smoke passed on the target PW3:
+- plugin 0.1.47 loads;
+- settings/token remain usable;
+- existing managed article preserves reading state and annotations;
+- first ordinary Wi-Fi-on Sync succeeds;
+- no fatal error, duplicate or unexpected content replacement observed.
+
+### Next device checkpoint — unchanged second Sync
+
+1. Make no intentional Reader/local changes.
+2. Keep normal connectivity available.
+3. Run **Sync now exactly once**.
+4. Return the full report.
+
+Expected:
+- no fatal errors;
+- no duplicate document/highlight;
+- no unexpected content download/replacement;
+- no new metadata-only acknowledgement for revisions already settled;
+- no unexpected queue/archive mutation.
+
+Stop after this report. The offline highlight/queue/restart test comes only after this no-op checkpoint passes.
+
+
+## Gate 16 — 0.1.47 RC checkpoint 2 — PASS
+
+User confirmed the unchanged second Sync passed:
+- no intentional changes between Syncs;
+- no fatal error;
+- no duplicate document/highlight;
+- no unexpected content download/replacement;
+- no repeated metadata-only acknowledgement for settled revisions;
+- no unexpected queue/archive mutation.
+
+### Next device checkpoint — controlled offline durable queue
+
+Do not reinstall the plugin. Do not use native Airplane Mode alone.
+
+1. Open an existing managed Reader article while still online.
+2. Ensure KOReader **Restore Wi-Fi connection on resume** is OFF.
+3. Turn Wi-Fi OFF from KOReader's own Network menu.
+4. Open/close Readwise Reader without Sync. If Wi-Fi returns, stop.
+5. While Wi-Fi remains OFF, create one new highlight with exact note:
+   `gate16 rc offline [[Foucault]]`
+   `#queue-test-47`
+6. Close/reopen the article once.
+7. Run **Sync now exactly once** while Wi-Fi remains OFF.
+8. Return the full report and stop before restart/reconnect.
+
+Expected:
+- remote preflight not passed;
+- Annotation sync: `queued_offline` or `queued_offline_partial`;
+- Highlights created: 0;
+- Highlight creates queued durably: >=1;
+- Create queue items processed: 0;
+- Create queue waiting after sync: >=1;
+- Metadata pages: 0;
+- Content pages: 0;
+- no remote note/delete/archive mutation;
+- Errors: 0;
+- fixture not present in Reader yet.
+
+If queue waiting is 0 or any remote create occurs, do not proceed to reboot.
+
+
+## Gate 16 — 0.1.47 RC checkpoint 3 — PASS
+
+User confirmed the controlled offline durable-queue step passed:
+- stable KOReader-offline fixture;
+- new highlight/note persisted locally;
+- remote preflight not passed;
+- annotation sync used the offline queue path;
+- Highlights created: 0;
+- create queued durably: >=1;
+- create queue items processed: 0;
+- create queue waiting: >=1;
+- metadata/content pages: 0;
+- no remote mutation;
+- Errors: 0;
+- fixture absent from Reader remotely.
+
+Automated closeout:
+- added a restart/offline reconnect-diagnostic test;
+- queue snapshot is returned after offline auth failure;
+- marker/parent reads and remote writes do not run;
+- CI #1097: PASS;
+- no production RC change.
+
+### Next device checkpoint — restart while still offline
+
+1. Keep Wi-Fi OFF and **Restore Wi-Fi connection on resume OFF**.
+2. Fully restart KOReader.
+3. Reopen the same managed article.
+4. Confirm the exact local highlight/note still exists:
+   `gate16 rc offline [[Foucault]]`
+   `#queue-test-47`
+5. Do not edit/recreate it.
+6. Run **Readwise Reader → Inspect reconnect queue (Gate 13)** while still offline.
+7. Return that diagnostic and stop before reconnect.
+
+Expected:
+- auth probe not passed (offline/timeout/network-unavailable);
+- Queue pending >=1;
+- Queue retry_wait: 0;
+- Queue in_flight: 0;
+- active recent item pending, remote_id=no;
+- marker scan: not_run;
+- parent metadata/html: not_run;
+- Remote writes: none;
+- fixture still absent from Reader remotely;
+- no crash/freeze.
+
+
+## Gate 16 — 0.1.47 RC checkpoint 4 — PASS
+
+User confirmed the restart-while-still-offline persistence proof passed:
+- Wi-Fi remained OFF and restore-on-resume remained OFF;
+- KOReader was fully restarted into a fresh process;
+- the exact local Gate 16 highlight/note survived unchanged;
+- read-only reconnect diagnostic returned the durable pending queue after offline auth failure;
+- Queue pending remained >=1;
+- Queue retry_wait: 0;
+- Queue in_flight: 0;
+- active item still had no remote id;
+- marker scan: not_run;
+- parent metadata/html: not_run;
+- Remote writes: none;
+- fixture remained absent from Reader remotely;
+- no crash/freeze.
+
+Automated exactly-once hardening before reconnect:
+- offline queue/restart path already creates once after reconnect;
+- test now also constructs a fresh uploader after delivery and proves zero second create/reconcile, queue waiting 0 and status succeeded;
+- ambiguous timeout/server outcomes remain reconcile-before-retry and do not blind POST.
+
+### Next device checkpoint — reconnect exactly once
+
+Do not reinstall or edit/recreate the fixture.
+
+1. Turn Wi-Fi ON from KOReader and ensure connectivity is available.
+2. Run ordinary **Sync now exactly once**.
+3. Return the full report.
+4. In Reader web/app, verify the exact Gate 16 highlight/note appears on the correct document **once**.
+5. Stop before the final restart/log review.
+
+Expected for the controlled fixture:
+- exactly one create or safe reconcile;
+- Create queue waiting after sync: 0;
+- no duplicate highlight/POST;
+- no fatal error;
+- no unexpected content replacement;
+- exact local note/text preserved and linked to the remote highlight.
+
+Do not run a second Sync yet.
+
+
+## Gate 16 — 0.1.47 RC checkpoint 5 — PASS
+
+User confirmed the reconnect exactly-once checkpoint passed:
+- Wi-Fi/connectivity restored without editing or recreating the controlled fixture;
+- one ordinary Sync was run;
+- the pending Gate 16 create was delivered exactly once;
+- create queue waiting reached 0;
+- no pending/retry_wait/in_flight create remained for the controlled fixture;
+- Reader showed exactly one matching highlight/note on the correct parent document;
+- no duplicate POST/highlight;
+- no fatal error;
+- no unexpected document replacement.
+
+Automated final-restart precondition:
+- file-backed SQLite test now marks the restart fixture succeeded, closes/reopens the DB, and proves:
+  - status remains succeeded;
+  - remote highlight id remains persisted;
+  - attempts/payload remain stable;
+  - waiting remains 0;
+  - listCreateWork returns 0 after process reopen.
+
+### Final Gate 16 device checkpoint — restart/state/log review
+
+Do not reinstall and do not run another Sync first.
+
+1. Fully restart KOReader.
+2. Open the same managed article.
+3. Confirm:
+   - position/progress preserved;
+   - prior highlights/notes preserved;
+   - Gate 16 local highlight/note preserved;
+   - Readwise Reader loads;
+   - Bookshelf loads.
+4. Confirm in Reader web/app that the controlled fixture still appears **once**.
+5. Review the current `koreader/crash.log` locally for:
+   - Readwise token or Authorization header;
+   - signed raw URL query/fragment credentials;
+   - dumped private document HTML/content;
+   - dumped private highlight/note payload.
+6. If any sensitive material is present, do **not** send the raw log; report only that the secret review failed.
+7. If none is present, report that the secret review passed.
+
+Expected: all state/coexistence preserved and no sensitive material in the log. If this passes, Gate 16 may close.

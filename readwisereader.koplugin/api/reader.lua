@@ -385,18 +385,25 @@ function Reader:listDocuments(options)
     end
 
     local documents = {}
+    local malformed = 0
     for index, raw in ipairs(payload.results) do
         local document, document_err = normalizeDocument(raw)
         if not document then
-            document_err.index = index
-            return nil, document_err
+            if options.skip_malformed == true then
+                malformed = malformed + 1
+            else
+                document_err.index = index
+                return nil, document_err
+            end
+        else
+            documents[#documents + 1] = document
         end
-        documents[#documents + 1] = document
     end
 
     return {
         results = documents,
         next_page_cursor = next_cursor,
+        malformed = malformed,
     }
 end
 
@@ -707,6 +714,7 @@ function Reader:iterateDocuments(options, callback)
         received = 0,
         unique = 0,
         duplicates = 0,
+        malformed = 0,
     }
 
     while true do
@@ -734,6 +742,10 @@ function Reader:iterateDocuments(options, callback)
 
         local page_options = copyOptions(options)
         page_options.page_cursor = cursor
+        -- Whole-library scans isolate malformed individual records so one
+        -- unusable API item cannot strand otherwise-valid documents on the
+        -- same page. Direct list/get callers remain strict by default.
+        page_options.skip_malformed = true
 
         local page
         local err
@@ -767,7 +779,10 @@ function Reader:iterateDocuments(options, callback)
         end
 
         report.pages = report.pages + 1
-        if #page.results == 0 and page.next_page_cursor ~= nil then
+        report.malformed = report.malformed + (page.malformed or 0)
+        if #page.results == 0
+            and (page.malformed or 0) == 0
+            and page.next_page_cursor ~= nil then
             return nil, {
                 kind = "pagination",
                 retryable = false,

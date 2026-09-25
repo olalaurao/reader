@@ -84,6 +84,31 @@ return function()
     end
 
     do
+        -- Exactly the configured reserve is still allowed; only values below
+        -- it are rejected before any network/download work.
+        local inst = installer()
+        local raw = RawSource:new{
+            http = {
+                request = function(_, request)
+                    assert(request.sink("%PDF-1.7\nreserve-boundary") == 1)
+                    return { status = 200, headers = {} }
+                end,
+            },
+            installer = inst,
+            download_root = "/root",
+            max_bytes = 1024,
+            min_free_bytes = 100,
+            disk_usage = function() return { available = 100 } end,
+        }
+        local result, err = raw:download({
+            category = "pdf",
+            raw_source_url = "https://signed.example/boundary.pdf",
+        }, "/root/boundary.pdf")
+        assert(err == nil)
+        assert(result.path == "/root/boundary.pdf")
+    end
+
+    do
         local raw = RawSource:new{
             http = { request = function() error("must not request") end },
             installer = installer(),

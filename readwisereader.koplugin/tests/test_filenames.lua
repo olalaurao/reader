@@ -13,6 +13,20 @@ return function()
     local emoji = Filenames.build("Thinking 🧠 clearly", "reader-emoji", "html")
     assert(emoji:find("🧠", 1, true))
 
+    local multilingual = Filenames.build(
+        "漢字 café é 👩🏽‍💻 العربية",
+        "reader-multilingual",
+        "html"
+    )
+    assert(multilingual:find("漢字", 1, true))
+    assert(multilingual:find("العربية", 1, true))
+    assert(multilingual:find("👩🏽‍💻", 1, true))
+
+    -- Byte truncation must never cut a multibyte codepoint in half.
+    assert(Filenames._truncateUtf8Bytes("A🧠B", 3) == "A")
+    assert(Filenames._truncateUtf8Bytes("A🧠B", 5) == "A🧠")
+    assert(Filenames._truncateUtf8Bytes("A🧠B", 6) == "A🧠B")
+
     local hostile = Filenames.build("../bad\\path/:*?\"<>| .. title", "reader-hostile", "html")
     assert(not hostile:find("/", 1, true))
     assert(not hostile:find("\\", 1, true))

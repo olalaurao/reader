@@ -157,6 +157,7 @@ return function()
             iterateDocuments = function(_, options, callback)
                 if options.with_html_content then
                     assert(options.location == "new")
+                    assert(options.max_body_bytes == 16 * 1024 * 1024)
                     if options.category == "pdf" then
                         assert(options.with_raw_source_url == true)
                         saw_pdf_raw = true
@@ -240,7 +241,11 @@ return function()
                     callback(doc("a", "new", "Alpha", "u1"))
                     callback(doc("b", "later", "Beta", "u1"))
                 end
-                return { pages = 1, duplicates = 0 }
+                return {
+                    pages = 1,
+                    duplicates = 0,
+                    malformed = options.with_html_content and 1 or 2,
+                }
             end,
         }
         local syncer, repository, meta, installs = newSync{ reader = reader }
@@ -248,6 +253,9 @@ return function()
         assert(err == nil)
         assert(report.mode == "full")
         assert(report.downloaded == 2)
+        -- metadata scan skips 2 malformed records; each of the two
+        -- location/content scans skips 1 more.
+        assert(report.malformed_documents == 4)
         assert(#installs == 2)
         assert(repository.rows.a.local_path == "/Readwise/a.html")
         assert(repository.rows.b.local_path == "/Readwise/b.html")
@@ -669,6 +677,139 @@ return function()
         assert(report.retryable_item_errors == 1)
         assert(report.retryable_error_stages.write == 1)
         assert(meta.values.document_watermark == nil)
+    end
+
+    do
+        -- Intermittent network failure after one metadata item: durable local
+        -- metadata/pending state may be written, but the global watermark must
+        -- remain unchanged so the next Sync can safely replay the overlap.
+        local repository = fakeRepository({
+            a = {
+                reader_id = "a",
+                category = "article",
+                location = "new",
+                title = "Old",
+                remote_updated_at = "u1",
+                materialized_remote_updated_at = "u1",
+                local_path = "/Readwise/a.html",
+                local_format = "html",
+                is_local_present = true,
+                is_managed = true,
+            },
+        })
+        local meta = fakeMeta({
+            document_watermark = "T001000",
+            document_query_after = "T000995",
+            document_filter_scope = "locations=later,new;categories=article",
+            metadata_projection_version = PROJECTION,
+        })
+        local first_reader = {
+            iterateDocuments = function(_, options, callback)
+                assert(options.updated_after == "T000995")
+                callback(doc("a", "new", "Renamed during flaky network", "u2"))
+                return nil, { kind = "timeout", retryable = true }
+            end,
+        }
+        local first_sync, repo = newSync{
+            reader = first_reader,
+            repository = repository,
+            meta = meta,
+            now_values = { 1100, 1101 },
+        }
+        local first_report, first_err = first_sync:sync{}
+        assert(first_report == nil)
+        assert(first_err.kind == "timeout")
+        assert(meta.values.document_watermark == "T001000")
+        assert(meta.values.document_query_after == "T000995")
+        assert(repo.rows.a.remote_updated_at == "u2")
+        assert(repo.rows.a.content_refresh_pending == true)
+
+        local second_reader = {
+            iterateDocuments = function(_, options)
+                assert(options.updated_after == "T000995")
+                return { pages = 1, duplicates = 0, malformed = 0 }
+            end,
+        }
+        local second_sync = newSync{
+            reader = second_reader,
+            repository = repo,
+            meta = meta,
+            now_values = { 1110, 1111 },
+        }
+        local second_report, second_err = second_sync:sync{}
+        assert(second_err == nil)
+        assert(second_report.mode == "incremental")
+        assert(second_report.content_refresh_pending_total == 1)
+        assert(meta.values.document_watermark == "T001110")
+        assert(meta.values.document_query_after == "T001105")
+        assert(repo.rows.a.content_refresh_pending == true,
+            "flaky-network replay must not erase durable refresh evidence")
+    end
+
+    do
+        -- Phase R / Gate 16 intermittent-network recovery: a LIST traversal
+        -- may have already yielded valid metadata before the next request
+        -- times out. Those idempotent upserts may remain, but the watermark
+        -- must not advance. The next sync must rediscover/materialize the same
+        -- document safely instead of stranding or duplicating it.
+        local repository = fakeRepository()
+        local meta = fakeMeta({
+            document_watermark = "T001000",
+            document_query_after = "T000995",
+            document_filter_scope = "locations=later,new;categories=article",
+            metadata_projection_version = PROJECTION,
+        })
+        local first_reader = {
+            iterateDocuments = function(_, options, callback)
+                assert(options.updated_after == "T000995")
+                callback(doc("flaky", "new", "Flaky network", "u1"))
+                return nil, { kind = "timeout", retryable = true }
+            end,
+        }
+        local first_sync, repo, preserved_meta = newSync{
+            reader = first_reader,
+            repository = repository,
+            meta = meta,
+            now_values = { 1100, 1101 },
+        }
+        local first_report, first_err = first_sync:sync{}
+        assert(first_report == nil)
+        assert(first_err.kind == "timeout")
+        assert(preserved_meta.values.document_watermark == "T001000")
+        assert(repo.rows.flaky ~= nil)
+        assert(repo.rows.flaky.is_local_present ~= true)
+
+        local second_reader = {
+            iterateDocuments = function(_, options, callback)
+                assert(options.updated_after == "T000995")
+                callback(doc("flaky", "new", "Flaky network", "u1"))
+                return { pages = 1, duplicates = 0, malformed = 0 }
+            end,
+            getDocument = function(_, id, with_html)
+                assert(id == "flaky")
+                assert(with_html == true)
+                return doc(
+                    "flaky",
+                    "new",
+                    "Flaky network",
+                    "u1",
+                    "<p>Recovered after timeout</p>"
+                )
+            end,
+        }
+        local second_sync, _, _, installs = newSync{
+            reader = second_reader,
+            repository = repo,
+            meta = preserved_meta,
+            now_values = { 1200, 1201 },
+        }
+        local second_report, second_err = second_sync:sync{}
+        assert(second_err == nil)
+        assert(second_report.mode == "incremental")
+        assert(second_report.downloaded == 1)
+        assert(#installs == 1 and installs[1] == "flaky")
+        assert(repo.rows.flaky.local_path == "/Readwise/flaky.html")
+        assert(preserved_meta.values.document_watermark ~= "T001000")
     end
 
     do

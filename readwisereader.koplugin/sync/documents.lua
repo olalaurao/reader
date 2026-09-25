@@ -1,5 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
+local Constants = require("constants")
+
 local DocumentsSync = {}
 DocumentsSync.__index = DocumentsSync
 
@@ -272,6 +274,7 @@ function DocumentsSync:_scanMetadata(watermark, filters, managed_by_id, pending_
     if not scan then return nil, err end
     report.metadata_pages = report.metadata_pages + scan.pages
     report.duplicates_ignored = report.duplicates_ignored + scan.duplicates
+    report.malformed_documents = report.malformed_documents + (scan.malformed or 0)
     return true
 end
 
@@ -286,6 +289,7 @@ function DocumentsSync:_fullMaterialization(filters, report, seen_at)
                     limit = HTML_PAGE_LIMIT,
                     with_html_content = true,
                     with_raw_source_url = category == "pdf" or category == "epub",
+                    max_body_bytes = Constants.MAX_READER_CONTENT_PAGE_BYTES,
                 }, function(document)
                     if document.parent_id ~= nil or seen[document.id] then return end
                     seen[document.id] = true
@@ -304,6 +308,7 @@ function DocumentsSync:_fullMaterialization(filters, report, seen_at)
                 if not scan then return nil, err end
                 report.content_pages = report.content_pages + scan.pages
                 report.duplicates_ignored = report.duplicates_ignored + scan.duplicates
+                report.malformed_documents = report.malformed_documents + (scan.malformed or 0)
             end
         else
             report.unsupported_categories = report.unsupported_categories + 1
@@ -316,7 +321,12 @@ function DocumentsSync:_incrementalMaterialization(filters, pending_new, report,
     for _, reader_id in ipairs(sortedKeys(pending_new)) do
         local category = pending_new[reader_id]
         local wants_raw = category == "pdf" or category == "epub"
-        local document, err = self.reader:getDocument(reader_id, true, wants_raw)
+        local document, err = self.reader:getDocument(
+            reader_id,
+            true,
+            wants_raw,
+            Constants.MAX_READER_DOCUMENT_RESPONSE_BYTES
+        )
         if not document then
             report.errors = report.errors + 1
             self.repository:setLastSyncError(reader_id, err and err.kind or "unknown")
@@ -378,6 +388,7 @@ function DocumentsSync:sync(options)
         metadata_seen = 0,
         child_records = 0,
         duplicates_ignored = 0,
+        malformed_documents = 0,
         downloaded = 0,
         unchanged = 0,
         image_candidates = 0,

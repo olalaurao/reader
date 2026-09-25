@@ -20,7 +20,7 @@ local function safeUrl(url)
     if type(url) ~= "string" then
         return "<invalid-url>"
     end
-    return url:match("^([^?]+)") or url
+    return url:match("^([^?#]+)") or url
 end
 
 local function networkError(message)

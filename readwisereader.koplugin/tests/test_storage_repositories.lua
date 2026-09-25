@@ -377,6 +377,106 @@ local function testQueue()
     db:close()
 end
 
+local function testQueueSurvivesProcessRestart()
+    local path = os.tmpname()
+    os.remove(path)
+
+    local function openFileDB()
+        return DB:new{
+            path = path,
+            sq3 = SQ3,
+            device = { canUseWAL = function() return false end },
+        }
+    end
+
+    -- Simulate a process that queued a create, began the remote operation and
+    -- then was force-closed before it could persist an outcome.
+    local first_db = openFileDB()
+    local first_docs = Documents:new{ db = first_db }
+    local first_queue = Queue:new{ db = first_db }
+    first_docs:upsertRemote({ id = "restart-doc" }, 1)
+    first_queue:prepare({
+        idempotency_key = "create_highlight:restart-ann",
+        operation = "create_highlight",
+        entity_type = "annotation",
+        local_annotation_id = "restart-ann",
+        reader_document_id = "restart-doc",
+        payload_json = "{\"content\":\"persistent\"}",
+        payload_hash = "restart-hash",
+        created_at = 10,
+    })
+    local in_flight = first_queue:markInFlight(
+        "create_highlight:restart-ann",
+        11
+    )
+    assertEqual(in_flight.status, "in_flight")
+    assertEqual(in_flight.attempts, 1)
+    first_db:close()
+
+    -- A new DB object models a fresh KOReader process after force-close/reboot.
+    -- Recovery must never turn an ambiguous create into a blind POST retry.
+    local second_db = openFileDB()
+    local second_queue = Queue:new{ db = second_db }
+    local persisted = second_queue:getByKey("create_highlight:restart-ann")
+    assertEqual(persisted.status, "in_flight")
+    assertEqual(persisted.payload_hash, "restart-hash")
+    assertEqual(persisted.attempts, 1)
+    second_queue:recoverStaleInFlight(20)
+    local recovered = second_queue:getByKey("create_highlight:restart-ann")
+    assertEqual(recovered.status, "blocked")
+    assertEqual(recovered.last_error_kind, "stale_create_in_flight")
+    assertEqual(recovered.attempts, 1)
+    assertEqual(recovered.payload_hash, "restart-hash")
+
+    -- Deferred network work must also survive a second restart and must not
+    -- become runnable before its durable backoff deadline.
+    second_queue:markRetryWait(
+        "create_highlight:restart-ann",
+        "preflight_offline",
+        "offline",
+        100,
+        21
+    )
+    second_db:close()
+
+    local third_db = openFileDB()
+    local third_queue = Queue:new{ db = third_db }
+    assertEqual(#third_queue:listCreateWork(99), 0)
+    local due = third_queue:listCreateWork(100)
+    assertEqual(#due, 1)
+    assertEqual(due[1].status, "pending")
+    assertEqual(due[1].attempts, 1)
+    assertEqual(due[1].payload_hash, "restart-hash")
+
+    -- After the reconnect delivery is durably marked succeeded, a later
+    -- process reopen must not resurrect the create into runnable work.
+    local succeeded = third_queue:markSucceeded(
+        "create_highlight:restart-ann",
+        "remote-restart-ann",
+        101
+    )
+    assertEqual(succeeded.status, "succeeded")
+    assertEqual(third_queue:countCreateWaiting(), 0)
+    third_db:close()
+
+    local fourth_db = openFileDB()
+    local fourth_queue = Queue:new{ db = fourth_db }
+    local delivered = fourth_queue:getByKey("create_highlight:restart-ann")
+    assertEqual(delivered.status, "succeeded")
+    assertEqual(delivered.reader_highlight_document_id, "remote-restart-ann")
+    assertEqual(delivered.attempts, 1)
+    assertEqual(delivered.payload_hash, "restart-hash")
+    assertEqual(fourth_queue:countCreateWaiting(), 0)
+    assertEqual(#fourth_queue:listCreateWork(200), 0,
+        "succeeded reconnect create must not revive after process restart")
+    fourth_db:close()
+
+    os.remove(path)
+    os.remove(path .. "-journal")
+    os.remove(path .. "-wal")
+    os.remove(path .. "-shm")
+end
+
 local function testSyncMeta()
     local db = newDB()
     local meta = SyncMeta:new{ db = db }
@@ -404,5 +504,6 @@ return function()
     testDocuments()
     testAnnotations()
     testQueue()
+    testQueueSurvivesProcessRestart()
     testSyncMeta()
 end

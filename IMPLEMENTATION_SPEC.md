@@ -2933,6 +2933,23 @@ No local annotation/progress loss caused by remote content update/revision. Exis
 - rollback;
 - debug log review for secrets.
 
+### Deterministic/off-device hardening — PASS on 0.1.47 candidate
+
+Before physical RC installation, CI now covers the Phase R order:
+- 5,000-document / 50-page Reader traversal with cursor and duplicate guards;
+- low-space raw preflight plus ENOSPC cleanup/classification for streamed raw and processed HTML writes;
+- malformed-record isolation, including a fully malformed page followed by a valid cursor page;
+- bounded Reader JSON/content responses and processed HTML size;
+- Unicode filenames and multilingual HTML;
+- bounded/cancellable 429 Retry-After behavior;
+- partial metadata scan timeout recovery without watermark advance or duplicate materialization;
+- file-backed queue persistence across process reopen/reboot semantics, including stale ambiguous create blocking;
+- real file-backed v1→v2 migration backup and transaction rollback;
+- schema-v2 compatibility with the known-good 0.1.46 rollback build;
+- static and runtime token/signed-URL/log redaction tripwires.
+
+No physical Gate 16 pass is implied by these tests.
+
 ### Gate 16
 Release candidate stable on target PW3.
 
@@ -3091,25 +3108,35 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Begin **Phase R / Gate 16 hardening** from the merged Gate 15 baseline.
+Complete the **final 0.1.47 Gate 16 PW3 release-candidate checkpoint**.
 
-Order is mandatory:
-1. large library;
-2. low disk;
-3. malformed document;
-4. huge document;
-5. Unicode;
-6. 429 / Retry-After;
-7. intermittent Wi-Fi / retryable network failure;
-8. force-close recovery;
-9. reboot recovery;
-10. migration;
-11. rollback;
-12. debug-log review for secrets.
+Already physically passed:
+- plugin/startup + settings/token preservation;
+- existing managed article reading state preservation;
+- first ordinary Wi-Fi-on Sync;
+- unchanged second Sync/no-op idempotency;
+- controlled offline local highlight/note -> durable create queue with zero remote writes;
+- fresh KOReader restart while still offline -> local annotation + SQLite pending queue persisted, read-only reconnect diagnostic made zero remote writes;
+- reconnect with one ordinary Sync -> controlled fixture delivered exactly once, queue waiting 0, no duplicate.
 
-Rules:
-- implement and automate deterministic cases before asking for PW3 physical testing;
-- preserve existing documents, sidecars, annotations, queue and watermarks;
-- no automatic destructive cleanup;
-- no firmware/KOReader update;
-- do not mark Gate 16 passed until the release-candidate hardening sequence is physically stable on the target PW3.
+Final checkpoint — **restart/state persistence + local log-secret review**:
+1. do not edit/recreate/delete the controlled Gate 16 fixture and do not run another Sync first;
+2. fully restart KOReader once more;
+3. reopen the same managed article;
+4. require progress/position, pre-existing highlights/notes and the Gate 16 local annotation to remain intact;
+5. require Readwise Reader and Bookshelf to load normally;
+6. confirm the controlled fixture remains linked locally and exactly one matching remote highlight still exists in Reader;
+7. inspect the current `koreader/crash.log` **locally** for:
+   - Readwise token / `Authorization` header;
+   - signed raw URL query/fragment credentials;
+   - dumped private document HTML/content;
+   - dumped private annotation/note payload;
+8. if any sensitive material appears, do not share the raw log; Gate 16 fails and the log-redaction defect must be fixed first;
+9. if no sensitive material appears and state/plugin coexistence is intact, return the final checkpoint result.
+
+Deterministic preconditions already green:
+- runtime HTTP tests prove Authorization contents and URL query/fragment secrets are not logged;
+- dev-check rejects direct production logger references to sensitive token/raw URL/HTML/payload fields;
+- succeeded create queue state now has file-backed SQLite coverage proving it remains succeeded/non-runnable after process reopen.
+
+Gate 16 remains **OPEN** until this final physical checkpoint passes. Phase S remains blocked until then.

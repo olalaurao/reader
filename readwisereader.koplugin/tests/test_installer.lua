@@ -151,6 +151,74 @@ return function()
         assert(err.detail == "no_space")
     end
 
+    do
+        -- Processed HTML writes can hit ENOSPC after the temporary file has
+        -- already opened. Preserve the error class, remove the temp file and
+        -- never expose a partial final document.
+        local fake = fakeDeps()
+        fake.deps.open_file = function(path)
+            fake.files[path] = ""
+            return {
+                write = function()
+                    return nil, "No space left on device"
+                end,
+                close = function() return true end,
+                _path = path,
+            }
+        end
+        local installer = Installer:new{ deps = fake.deps }
+        local result, err = installer:install(
+            "<html><body>partial</body></html>",
+            "/root/Articles/full.html"
+        )
+        assert(result == nil)
+        assert(err.kind == "io")
+        assert(err.stage == "write")
+        assert(err.detail == "no_space")
+        assert(err.retryable == true)
+        assert(fake.files["/root/Articles/full.html"] == nil)
+        assert(fake.files["/root/Articles/full.html.tmp"] == nil)
+    end
+
+    do
+        -- Storage can disappear between a successful preflight/open and the
+        -- actual streamed write. ENOSPC must remain retryable, remove the temp
+        -- file and never expose a partial final document.
+        local fake = fakeDeps()
+        fake.deps.open_file = function(path)
+            fake.files[path] = ""
+            return {
+                write = function()
+                    return nil, "No space left on device"
+                end,
+                close = function() return true end,
+                _path = path,
+            }
+        end
+        local installer = Installer:new{ deps = fake.deps }
+        local result, err = installer:installStream(
+            "/root/Books/full.pdf",
+            function(sink)
+                local ok, write_err = sink("%PDF-1.7\npartial")
+                if not ok then
+                    return nil, {
+                        kind = "io",
+                        stage = "write",
+                        retryable = true,
+                        message = tostring(write_err),
+                    }
+                end
+                return { status = 200 }
+            end
+        )
+        assert(result == nil)
+        assert(err.kind == "io")
+        assert(err.stage == "write")
+        assert(err.detail == "no_space")
+        assert(fake.files["/root/Books/full.pdf"] == nil)
+        assert(fake.files["/root/Books/full.pdf.tmp"] == nil)
+    end
+
     assert(Installer._classifyOpenError("Too many open files") == "too_many_open_files")
     assert(Installer._classifyOpenError("File name too long") == "name_too_long")
     assert(Installer._classifyOpenError("Read-only file system") == "read_only")
