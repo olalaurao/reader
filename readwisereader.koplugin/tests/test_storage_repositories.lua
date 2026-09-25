@@ -188,6 +188,28 @@ local function testAnnotations()
         "ann-imported"
     )
 
+    local relink_ok = pcall(function()
+        anns:linkImported({
+            local_annotation_id = "ann-imported",
+            reader_document_id = "doc-1",
+            reader_highlight_document_id = "reader-highlight-different",
+            local_created_at = "2026-09-22 12:30:00",
+            locator_fingerprint = "loc-imported",
+            original_text_hash = "imported-text",
+            last_text_hash = "imported-text",
+            last_note_hash = "imported-note",
+            text = "Imported text",
+            note = "Imported note",
+        })
+    end)
+    assertEqual(relink_ok, false,
+        "one local annotation must never be reassigned to another Reader child")
+    assertEqual(
+        anns:getById("ann-imported").reader_highlight_document_id,
+        "reader-highlight-imported",
+        "failed relink must leave original remote identity intact"
+    )
+
     anns:upsertLocal({
         local_annotation_id = "ann-1",
         reader_document_id = "doc-1",
