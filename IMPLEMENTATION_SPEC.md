@@ -3108,32 +3108,37 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Continue the **0.1.47 Gate 16 PW3 release-candidate smoke** from the physically passed controlled-offline durable-queue checkpoint.
+Continue the **0.1.47 Gate 16 PW3 release-candidate smoke** from the physically passed restart-while-offline persistence checkpoint.
 
 Already physically passed:
 - plugin/startup + settings/token preservation;
 - existing managed article reading state preservation;
 - first ordinary Wi-Fi-on Sync;
 - unchanged second Sync/no-op idempotency;
-- controlled offline local highlight/note -> durable create queue with zero remote writes.
+- controlled offline local highlight/note -> durable create queue with zero remote writes;
+- fresh KOReader restart while still offline -> local annotation + SQLite pending queue persisted, read-only reconnect diagnostic made zero remote writes.
 
-Next checkpoint — **restart while still offline, read-only queue persistence proof**:
-1. keep Wi-Fi OFF and KOReader **Restore Wi-Fi connection on resume** OFF;
-2. fully restart KOReader;
-3. reopen the same managed article and verify the exact Gate 16 highlight/note still exists locally;
-4. do not edit or recreate it;
-5. run **Inspect reconnect queue (Gate 13)** while still offline;
-6. require an auth-failure/offline result with Queue pending >=1, retry_wait=0, in_flight=0, no remote ID on the active item, marker/parent probes not run and Remote writes=none;
-7. verify the fixture still does not exist remotely;
-8. stop before reconnect and return the diagnostic result.
+Deterministic exactly-once coverage before reconnect:
+- offline queued work survives a reconstructed uploader/restart state;
+- reconnect creates the pending highlight once, marks the durable queue succeeded and waiting count reaches zero;
+- a later fresh uploader over the same durable state performs zero further creates/reconciliation for that item;
+- ambiguous timeout/server outcomes remain reconcile-before-retry and never blind-POST duplicates.
 
-The reconnect diagnostic snapshots the SQLite queue **before** its read-only auth probe. Deterministic Gate 16 coverage now proves that an offline auth failure returns that snapshot and does not continue to remote marker/parent reads or any write path.
+Next checkpoint — **reconnect exactly once**:
+1. turn Wi-Fi back ON from KOReader and confirm connectivity is available;
+2. do not edit/recreate the Gate 16 highlight/note;
+3. run ordinary **Sync now exactly once**;
+4. require exactly one create or safe reconcile for the pending fixture;
+5. require create queue waiting after Sync = 0 for the fixture;
+6. require no duplicate highlight/POST, no fatal errors and no unexpected document replacement;
+7. verify in Reader that the exact note/text arrived on the correct parent document once;
+8. return the full Sync report and remote verification result;
+9. stop before the final restart/log-secret review.
 
 Only after this checkpoint passes:
-- turn Wi-Fi back ON;
-- run ordinary Sync exactly once;
-- require exactly one create/reconcile for the pending fixture, queue waiting -> 0 and no duplicate;
-- verify the exact note in Reader;
-- perform the final restart/state/log-redaction checks.
+- restart KOReader one more time;
+- reopen the same article and verify progress/highlights/notes persist;
+- verify plugin + Bookshelf still load;
+- review crash.log locally for token/Authorization/signed URL/private payload leakage.
 
-Gate 16 remains **OPEN** until the entire RC sequence is physically stable.
+Gate 16 remains **OPEN** until the exactly-once reconnect and final restart/log review both pass.
