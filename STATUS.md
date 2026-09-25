@@ -5184,3 +5184,40 @@ Artifact/package:
 - no tests/scripts/.github/dist, SQLite DB/backups, sidecars or crash logs packaged.
 
 Physical blocker remains unchanged: run the explicit one-item PDF import once, then close/reopen before ordinary Sync.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.4 physical durable-link FAIL; alpha.5 fix
+
+Physical alpha.4 result:
+- explicit one-item PDF import passed the PDF format preflight;
+- local sidecar annotation creation proceeded;
+- PDF integrity guard did not report a changed PDF;
+- durable Reader/PDF identity linking failed;
+- UI reported: `The Reader/PDF identity link could not be persisted; the local sidecar item was rolled back.`;
+- rollback succeeded, so no unlinked local annotation was left behind and no Reader mutation occurred.
+
+The alpha.4 UI accidentally discarded the specific second return from `linkPersisted()`, so the exact failing substage was hidden.
+
+Hardening/fix in alpha.5:
+- KOReader annotation normalization now exposes PDF `pboxes` without changing the existing deterministic ID formula;
+- `linkPersisted()` still requires the normal exact local annotation ID first;
+- if and only if that lookup fails for a PDF, it may recover the persisted sidecar item by requiring **exactly one** candidate with:
+  - same page;
+  - exact native pbox sequence/geometry;
+  - exact normalized text hash;
+  - exact normalized note hash;
+- this fallback handles PDF sidecar serialization differences in native pos0/pos1 context without changing old PDF annotation IDs and without fuzzy matching;
+- multiple matching sidecar candidates fail closed as `sidecar_ambiguous`;
+- no matching persisted candidate fails as `sidecar_lookup`;
+- DB link failures remain a separate `db` stage;
+- PDF UI now propagates the specific `linkPersisted()` error message before rolling back the just-created local item.
+
+Regression coverage added:
+- adapter exposes PDF pboxes;
+- in-memory PDF ID differing from persisted sidecar ID is linked through unique exact pbox/text/note evidence;
+- ambiguous duplicate geometry never links;
+- existing EPUB exact-ID behavior remains the primary path.
+
+Build advanced to `1.2.0-alpha.5`.
+
+Next device test remains one explicit PDF import once, then close/reopen before ordinary Sync.
