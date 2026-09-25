@@ -32,9 +32,15 @@ All notable project changes are recorded here.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-25
+
 ### Added
 
-- Experimental `1.2.0-alpha.9` integrates the physically-proven Reader → KOReader PDF importer into ordinary pre-Sync reconciliation for the currently-open managed original PDF. PDF remains conservative on PW3: at most one new local PDF annotation and ten native locator attempts per Sync, with a durable rotation cursor for deferred work. Already-linked children are skipped; exact native-position collisions with compatible notes may link to the existing sidecar item; unresolved or deferred Reader children hold all outbound creates for that PDF for the run rather than risk duplicates. The alpha.8 sidecar-only save, restored embedding preference, unchanged-PDF digest, persisted-number identity, durable-link verification and reference-safe rollback contracts remain unchanged.
+- Stable Reader → KOReader historical highlight/note import for the currently-open managed original PDF. Normal Sync performs conservative paging reconciliation before outbound annotation creates, preserves sidecar-only PDF integrity, durably links existing Reader child IDs, and fails closed on ambiguous/deferred cases rather than risking duplicates.
+
+### Development history
+
+- `1.2.0-alpha.9` integrates the physically-proven Reader → KOReader PDF importer into ordinary pre-Sync reconciliation for the currently-open managed original PDF. PDF remains conservative on PW3: at most one new local PDF annotation and ten native locator attempts per Sync, with a durable rotation cursor for deferred work. Already-linked children are skipped; exact native-position collisions with compatible notes may link to the existing sidecar item; unresolved or deferred Reader children hold all outbound creates for that PDF for the run rather than risk duplicates. The alpha.8 sidecar-only save, restored embedding preference, unchanged-PDF digest, persisted-number identity, durable-link verification and reference-safe rollback contracts remain unchanged.
 
 - Experimental `1.2.0-alpha.8` fixes the remaining Gate 17D-2 PDF identity mismatch exposed by alpha.7 diagnostics (`raw=1`, same page/datetime, but both endpoint positions different). KOReader sidecars serialize numbers with Lua `tostring()`, while the plugin's deterministic annotation canonicalizer preserves up to 17 significant digits. Generated PDF `page/rotation/zoom/x/y` positions are now normalized through the same `tonumber(tostring(value))` round-trip *before* `saveHighlight()`, so the in-memory annotation and reloaded sidecar share the same numeric values. Rollback now tracks the created annotation by table reference and re-resolves its current index before deletion, then verifies it actually left the annotation list.
 
