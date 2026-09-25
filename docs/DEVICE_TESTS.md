@@ -2856,3 +2856,44 @@ The complete integrated V1 acceptance flow passed:
 - final unchanged online Sync reported zero new document downloads, zero new highlights, no repeated Archive mutation and no fatal error.
 
 Result: **Phase S PASSED COMPLETE. V1.0.0 release is authorized after the release-preparation commit passes full CI/package validation.**
+
+
+## Phase T / Gate 17A — Reader → KOReader existing highlight locator
+
+Build: **1.1.0-alpha.1**
+
+Purpose: validate the exact position-mapping contract for highlights that already exist in Reader before allowing any local sidecar mutation.
+
+This gate is deliberately read-only.
+
+### Target fixture
+
+Use the already-managed **EPUB** that exposed the missing feature:
+- the EPUB opens normally in KOReader;
+- it already contains at least one highlight in Readwise Reader;
+- the highlight text exists in the EPUB itself.
+
+### Procedure
+
+1. Install build 1.1.0-alpha.1 preserving settings, SQLite DB, downloaded documents and sidecars.
+2. Restart KOReader.
+3. Open that managed EPUB.
+4. Turn Wi-Fi on outside the plugin and ensure real connectivity.
+5. Open **Readwise Reader → Inspect Reader highlights (Gate 17A)**.
+6. Let the scan finish; it may traverse Reader highlight pages because Reader LIST has no documented parent-id filter.
+7. Capture/return the complete result screen.
+
+### PASS criteria
+
+- `Highlights for this document >= 1`;
+- `Highlights with text >= 1`;
+- `Local match probes run >= 1`;
+- `Unique exact XPointer matches >= 1`;
+- no crash/freeze;
+- `Remote writes: none`;
+- `Local writes: none`;
+- after closing/reopening the EPUB, its existing local highlights/notes/progress are unchanged.
+
+Ambiguous or missing matches are acceptable for some passages; they must be reported and not guessed. Gate 17A fails only if no real Reader highlight can be resolved uniquely, the device becomes unstable, or any local/remote mutation occurs.
+
+Do not proceed to Gate 17B until this result is recorded.
