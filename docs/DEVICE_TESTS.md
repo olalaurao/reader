@@ -3214,3 +3214,15 @@ Using the same managed PDF, which still has one Reader child not yet imported lo
 9. require no additional local import and no remote duplicate.
 
 Report the normal Sync summary fields for Reader → KOReader reconciliation if shown, plus whether both highlights survive reopen and whether the second unchanged Sync is idempotent.
+
+
+### Gate 17D-3 alpha.9 final acceptance — PASS
+
+User confirmed the consolidated target-device acceptance passed:
+- ordinary Sync imported the remaining safe Reader PDF highlight;
+- both Reader-origin PDF highlights were present locally;
+- both survived close/reopen;
+- the second unchanged Sync created no further local import;
+- Reader remained without duplicate highlight children.
+
+Gate 17D / Phase U is complete. Stable v1.2.0 may be a version/docs-only promotion of the accepted alpha.9 runtime.
