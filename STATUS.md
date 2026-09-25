@@ -149,6 +149,12 @@ A6 (PLAN.md V1 acceptance criteria 17-18) passed on the target PW3. On the same 
 
 Phase S remains OPEN. The next unresolved integrated criterion is A7 / PLAN.md 19-20: change a Reader document tag, sync, and confirm the same local document receives updated Bookshelf-compatible tag/genre/keyword metadata without creating a Collection per tag.
 
+## 2026-09-25 — Acceptance A7 passed
+
+A7 (PLAN.md V1 acceptance criteria 19-20) passed on the target PW3. On the same acceptance document, a Reader-side tag change synced into the document's Bookshelf-compatible metadata (tag/genre/keyword) without creating a managed Collection for the tag and without duplicating the local document. CI run 36080108838 for the A6 handoff passed. No production change was required.
+
+Phase S remains OPEN. The remaining physical acceptance is now reduced to: (A8) mark this acceptance document finished, sync, verify Reader Archive plus intact local file/sidecar/progress/annotations; then (A9) inspect final logs for secrets/private content and run one final no-op Sync proving zero new documents/highlights. If both pass, Phase S can close and release-candidate/tag work can proceed off-device.
+
 ## Current milestone
 
 **Phase S / V1 acceptance — OPEN; Gates 0–16 PASSED COMPLETE**
