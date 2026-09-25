@@ -1495,3 +1495,17 @@ O erro específico mostrou que o item recém-criado não estava sendo encontrado
 - abrir exatamente esse arquivo com `openSettingsFile`;
 - manter ID determinístico + fallback geométrico exato;
 - repetir um único import físico.
+
+
+### 17D-2E — alpha.6 sidecar_lookup FAIL
+
+Abrir explicitamente o sidecar atual não resolveu; o problema era o nosso critério paralelo de identidade por pboxes.
+
+### 17D-2F — alpha.7
+
+- manter sidecar atual explícito;
+- usar exatamente o match paging do KOReader: datetime (se ambos têm), page, pos0.x/y, pos1.x/y;
+- exigir candidato único;
+- depois exigir hashes exatos de texto/nota;
+- mostrar contadores estruturais por estágio se ainda falhar;
+- repetir um único import físico.
