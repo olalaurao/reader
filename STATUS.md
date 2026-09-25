@@ -5315,3 +5315,52 @@ Physical blocker:
 3. run explicit PDF import exactly once;
 4. if success, close/reopen before Sync and verify highlight/note;
 5. if failure, report the complete specific message.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.6 physical sidecar_lookup FAIL; alpha.7 native-paging identity fix
+
+Physical alpha.6 result:
+- explicit PDF import again reached post-save durable-link verification;
+- failure remained:
+  `Created PDF highlight was not found uniquely in the persisted sidecar. The local sidecar item was rolled back.`;
+- rollback succeeded;
+- no Reader mutation occurred;
+- therefore the .old/current-sidecar selection fix alone was insufficient.
+
+KOReader v2026.07.1 source audit established the missing contract:
+- `ReaderAnnotation:getMatchFunc()` defines paging annotation matching by:
+  - datetime equality when both items carry datetime;
+  - same page;
+  - same pos0.x/y;
+  - same pos1.x/y;
+- KOReader does **not** use pboxes/text/note as its paging annotation identity matcher;
+- pboxes are rendering geometry and may differ/normalize independently.
+
+Alpha.7 correction:
+- deterministic local annotation ID remains the first persisted lookup;
+- PDF-only fallback now mirrors KOReader native paging identity exactly:
+  - datetime when present on both;
+  - page;
+  - pos0.x/y;
+  - pos1.x/y;
+- exactly one persisted candidate is required;
+- after a positional match, exact normalized text hash + note hash are still required before binding the Reader child ID;
+- no fuzzy text, pbox tolerance or approximate coordinate matching is introduced;
+- current-sidecar-only `scanFlushed()` from alpha.6 remains in force;
+- sidecar diagnostics now expose:
+  - raw annotation count;
+  - normalized annotation count;
+  - malformed/normalization-exception count;
+  - scanned/same-page/same-datetime/same-pos0/same-pos1 counts.
+
+Regression coverage:
+- persisted PDF item may have different pboxes/rotation/zoom context but same KOReader native paging identity and still link safely;
+- multiple native paging matches fail closed;
+- missing pos0/pos1 match reports exact stage counters;
+- generic sidecar scan remains forbidden for PDF post-save verification.
+
+Implementation/diagnostic head `2fb9e274a2342434c3a485a4a99bea30ad4fa315` workflow `36157868966`: **SUCCESS**.
+
+Build advanced to `1.2.0-alpha.7`.
+
+Next physical checkpoint remains one explicit PDF import once, then close/reopen before ordinary Sync. If lookup still fails, the new error counters identify the exact divergent field.
