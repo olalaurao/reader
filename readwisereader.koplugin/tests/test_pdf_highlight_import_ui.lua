@@ -171,6 +171,14 @@ local function makeImporter(options)
                     reader_highlight_document_id = id,
                 } or nil
             end,
+            normalizeLocal = function(_, path, local_item)
+                assert(path == "/books/book.pdf")
+                return {
+                    local_annotation_id = local_item.local_annotation_id,
+                    text = local_item.text,
+                    note = local_item.note,
+                }
+            end,
             linkPersisted = function(_, path, remote, local_item)
                 assert(path == "/books/book.pdf")
                 link_calls = link_calls + 1
@@ -430,4 +438,158 @@ return function()
         assert(text:find("Already-linked Reader highlights skipped: 1", 1, true))
         assert(text:find("Imported local PDF highlights: 1", 1, true))
     end)
+
+    -- Normal Sync pre-reconciliation remains deliberately one-create-per-run.
+    -- If another unlinked Reader child remains, outbound creates for the whole
+    -- current PDF are withheld until a later pass examines it.
+    withStubs(function(UI)
+        local reader_ui, annotations = makeReaderUI()
+        local importer = makeImporter{}
+        local ui = UI:new{
+            config = { hasAccessToken = function() return true end },
+            importer = importer.api,
+            get_current_path = function() return "/books/book.pdf" end,
+            get_reader_ui = function() return reader_ui end,
+            worker = { run = function()
+                local report = remoteReport()
+                report.cache_mode = "incremental"
+                return report
+            end },
+            file_digest = function() return "same-digest" end,
+            max_imports = 1,
+            max_locator_attempts = 10,
+        }
+
+        local result = ui:prepareForSync("/books/book.pdf")
+        assert(result.status == "partial")
+        assert(result.imported == 1)
+        assert(result.notes_imported == 1)
+        assert(result.deferred_by_limit == 1)
+        assert(result.suppress_current_document == true)
+        assert(#annotations == 1)
+        assert(importer.linked["remote-note"] == "local-1")
+    end)
+
+    -- After the physically-proven first child is already linked, the next
+    -- ordinary Sync may import the next safe PDF child with no blanket hold.
+    withStubs(function(UI)
+        local reader_ui, annotations = makeReaderUI()
+        local importer = makeImporter{
+            linked = { ["remote-note"] = "existing-local" },
+        }
+        local ui = UI:new{
+            config = { hasAccessToken = function() return true end },
+            importer = importer.api,
+            get_current_path = function() return "/books/book.pdf" end,
+            get_reader_ui = function() return reader_ui end,
+            worker = { run = function()
+                local report = remoteReport()
+                report.cache_mode = "incremental"
+                return report
+            end },
+            file_digest = function() return "same-digest" end,
+            max_imports = 1,
+            max_locator_attempts = 10,
+        }
+
+        local result = ui:prepareForSync("/books/book.pdf")
+        assert(result.status == "ok")
+        assert(result.imported == 1)
+        assert(result.linked_skipped == 1)
+        assert(result.deferred_by_limit == 0)
+        assert(result.suppress_current_document == false)
+        assert(#annotations == 1)
+        assert(annotations[1].text == "Second safe")
+        assert(importer.linked["remote-second"] == "local-1")
+    end)
+
+    -- An exact native PDF-position collision with the same note is linked to
+    -- the existing sidecar annotation instead of creating stacked geometry.
+    withStubs(function(UI)
+        local reader_ui, annotations = makeReaderUI()
+        annotations[1] = {
+            local_annotation_id = "existing-geometry",
+            page = 2,
+            pos0 = { page = 2, x = 999, y = 999 },
+            pos1 = { page = 2, x = 1000, y = 999 },
+            pboxes = {
+                { x = 1, y = 2, w = 30, h = 10 },
+                { x = 40, y = 2, w = 50, h = 10 },
+            },
+            text = "Whole Reader partial word",
+            note = "Reader note",
+            datetime = "2026-09-24 12:00:00",
+            drawer = "lighten",
+        }
+        local importer = makeImporter{
+            linked = { ["remote-second"] = "already-second" },
+        }
+        local digest_calls = 0
+        local ui = UI:new{
+            config = { hasAccessToken = function() return true end },
+            importer = importer.api,
+            get_current_path = function() return "/books/book.pdf" end,
+            get_reader_ui = function() return reader_ui end,
+            worker = { run = function()
+                local report = remoteReport()
+                report.cache_mode = "incremental"
+                return report
+            end },
+            file_digest = function()
+                digest_calls = digest_calls + 1
+                return "same-digest"
+            end,
+        }
+
+        local result = ui:prepareForSync("/books/book.pdf")
+        assert(result.status == "ok")
+        assert(result.imported == 0)
+        assert(result.collisions_linked == 1)
+        assert(result.linked_skipped == 1)
+        assert(result.suppress_current_document == false)
+        assert(importer.linked["remote-note"] == "existing-geometry")
+        assert(#annotations == 1)
+        assert(digest_calls == 0)
+    end)
+
+    -- If the Reader child cannot be located natively in the PDF, no guessing
+    -- occurs and all outbound creates for this PDF are held for that run.
+    withStubs(function(UI)
+        local reader_ui = makeReaderUI()
+        local importer = makeImporter{}
+        local ui = UI:new{
+            config = { hasAccessToken = function() return true end },
+            importer = importer.api,
+            get_current_path = function() return "/books/book.pdf" end,
+            get_reader_ui = function() return reader_ui end,
+            worker = { run = function()
+                return {
+                    reader_document_id = "pdf-parent",
+                    local_format = "pdf",
+                    parent_highlight_records = 1,
+                    cache_mode = "incremental",
+                    remote_highlights = {
+                        {
+                            id = "remote-ambiguous",
+                            parent_id = "pdf-parent",
+                            content = "Repeated",
+                            note_present = false,
+                        },
+                    },
+                }
+            end },
+            file_digest = function()
+                error("digest must not run for an unresolved locator")
+            end,
+        }
+
+        local result = ui:prepareForSync("/books/book.pdf")
+        assert(result.status == "partial")
+        assert(result.imported == 0)
+        assert(result.ambiguous == 1)
+        assert(result.unresolved_collision_risk == 1)
+        assert(result.suppress_current_document == true)
+        assert(#result.suppress_outbound_ids == 0)
+    end)
+
 end
