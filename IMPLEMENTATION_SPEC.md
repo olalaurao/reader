@@ -3420,3 +3420,14 @@ The target PW3 / KOReader v2026.07.1 consolidated alpha.9 acceptance passed:
 5. Reader remained free of duplicate highlight children.
 
 Therefore Phase U is complete and the accepted alpha.9 runtime may be promoted to `v1.2.0` without additional behavior changes. Any runtime/plugin Lua change after this acceptance reopens regression review; version strings, release docs and packaging metadata do not.
+
+
+## 50.11 v1.2.1 throughput-only batch tuning
+
+After v1.2.0 physical acceptance, v1.2.1 changes only bounded batch constants for the currently-open document:
+- rolling EPUB/HTML: `REMOTE_HIGHLIGHT_IMPORT_MAX_PER_SYNC = 50`, `REMOTE_HIGHLIGHT_IMPORT_MAX_LOCATOR_ATTEMPTS = 75`;
+- PDF: `PDF_REMOTE_HIGHLIGHT_IMPORT_MAX_PER_SYNC = 5`, `PDF_REMOTE_HIGHLIGHT_IMPORT_MAX_LOCATOR_ATTEMPTS = 30`.
+
+All v1.2.0 safety contracts remain unchanged: exact remote identity, unique/safe locator requirements, collision suppression, sidecar persistence verification, durable Reader-child links, zero Reader mutation during import, PDF sidecar-only creation, unchanged PDF bytes, rollback, and pre-Sync outbound deduplication.
+
+This is a performance/throughput tuning patch, not a new locator or identity gate. Per explicit user request it is released without a new physical PW3 acceptance; automated Lua and package CI remain required.
