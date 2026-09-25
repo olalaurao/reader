@@ -5,5 +5,5 @@ local _ = require("gettext")
 return {
     name = "readwisereader",
     fullname = _("Readwise Reader"),
-    description = _([[Synchronize Readwise Reader content and KOReader annotations. v1.2.0-alpha.3 adds a one-item sidecar-only Reader-to-KOReader PDF highlight import on top of the physically-passed Gate 17D paging locator.]]),
+    description = _([[Synchronize Readwise Reader content and KOReader annotations. v1.2.0-alpha.4 fixes the shared importer format gate so the one-item sidecar-only Reader-to-KOReader PDF highlight flow can reach its validated PDF path.]]),
 }
