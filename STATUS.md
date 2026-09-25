@@ -89,6 +89,16 @@ Report only: whether the offline sync returned safely; whether the recovery sync
 - Spec deviations: none.
 - Next: final CI on this closure commit, merge PR #20 to main if green, then begin Phase S / V1 acceptance. Do not tag v1.0.0 before the complete acceptance script passes.
 
+## 2026-09-25 — Phase R merged; Phase S / V1 acceptance started
+
+- **Gate 16 / Phase R:** PASSED COMPLETE on target PW3 / KOReader v2026.07.1, including R4 installation/rollback smoke.
+- **Merge:** PR #20 merged to `main` as `bdbee7262123ae7dd16a38ac9602b436a322d336` after branch CI on `d560972a2af0e9bc9256178a1950f92d3b7f1781` passed for both push (`36079141231`) and PR (`36079143999`).
+- **Production changes in Phase R:** none; tests/docs only.
+- **Current phase:** Phase S / V1 acceptance. Per IMPLEMENTATION_SPEC section 42, the complete acceptance script must pass on the actual PW3 before `v1.0.0` may be tagged.
+- **No off-device implementation is justified before acceptance begins:** the first unresolved evidence is physical Reader -> Kindle acquisition on a fresh Reader article. Existing deterministic suites already cover the underlying pagination/download/install contracts; do not manufacture a substitute for the real-device acceptance path.
+- **Acceptance A1 (next physical checkpoint; steps 1-6):** begin with the installed plugin and no pending queue items; save one new article in Reader; ensure Wi-Fi is enabled outside KOReader; run `Sync now`; confirm the new article downloads exactly once; open it and read enough to establish a non-zero reading position. Do not create the acceptance highlight/note yet. Report: Sync success/error, article present once, opens normally, and reading position established.
+- **Gate/release state:** Phase S OPEN; `v1.0.0` NOT authorized until the entire section-42 script passes.
+
 ## Current milestone
 
 **Phase Q / Gate 15 — PASSED COMPLETE; Phase R / Gate 16 hardening is now unblocked**
