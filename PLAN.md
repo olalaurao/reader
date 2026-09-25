@@ -1321,25 +1321,19 @@ A candidata **0.1.47** já passou fisicamente no PW3:
 - primeiro Sync Wi-Fi-on;
 - segundo Sync inalterado/no-op;
 - highlight/nota local em offline controlado -> fila durável, sem remote write;
-- restart completo ainda offline -> highlight/nota local + fila SQLite persistiram, diagnóstico read-only sem remote write.
+- restart completo ainda offline -> highlight/nota local + fila SQLite persistiram, diagnóstico read-only sem remote write;
+- reconnect + um único Sync -> fixture entregue exatamente uma vez, fila zerada e nenhuma duplicata.
 
-A cobertura determinística também prova o caminho de reconnect exatamente uma vez: a fila pendente vira succeeded após uma única criação, waiting vai a zero e um novo uploader/ciclo posterior não cria novamente; outcomes ambíguos continuam sem blind retry.
+Também ficou coberto off-device que um create já marcado `succeeded` continua sucedido/não-runnable após fechar e reabrir o SQLite em um novo processo.
 
-Próximo checkpoint físico: **reconnect + um único Sync exactly-once**.
+Último checkpoint físico do Gate 16:
+1. não editar/recriar/deletar o fixture nem rodar novo Sync antes;
+2. reiniciar completamente o KOReader;
+3. reabrir o mesmo artigo e confirmar progresso/posição/highlights/notas, incluindo o fixture Gate 16;
+4. confirmar Readwise Reader + Bookshelf carregando normalmente;
+5. confirmar no Reader remoto que o fixture continua existindo uma única vez;
+6. revisar localmente `koreader/crash.log` e exigir ausência de token/Authorization, URL assinada, HTML/conteúdo privado e payload privado de nota/highlight;
+7. se qualquer segredo aparecer, não compartilhar o log bruto e falhar Gate 16;
+8. se tudo passar, fechar Gate 16, mergear PR #19 e iniciar Phase S / aceite final V1.
 
-1. ligar Wi-Fi novamente pelo KOReader;
-2. não editar/recriar o fixture;
-3. rodar **Sync now exatamente uma vez**;
-4. exigir uma única criação/reconciliação segura do fixture;
-5. exigir queue waiting = 0 para ele;
-6. confirmar ausência de duplicata e de erro fatal/replacement inesperado;
-7. conferir no Reader que o highlight/nota chegou uma única vez no documento correto;
-8. parar e devolver o relatório antes do restart final.
-
-Só depois desse PASS:
-- restart final;
-- persistência de progresso/highlights/notas;
-- plugin + Bookshelf carregando;
-- revisão local de `crash.log` por token/Authorization/URL assinada/private payload.
-
-Gate 16 continua aberto; Phase S continua bloqueada.
+Gate 16 continua aberto; Phase S continua bloqueada até esse último PASS.
