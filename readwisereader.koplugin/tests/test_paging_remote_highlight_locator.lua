@@ -47,6 +47,32 @@ end
 
 return function()
     do
+        local raw = 123.12345678901234567
+        local persisted = Locator._persistedNumber(raw)
+        assert(persisted == tonumber(tostring(raw)))
+        assert(tostring(persisted) == tostring(raw),
+            "persisted PDF numbers must already match KOReader dump/reload representation")
+
+        local box = {
+            x = 10.123456789012345,
+            y = 20.987654321098765,
+            w = 3.333333333333333,
+            h = 7.777777777777777,
+        }
+        local pos = Locator._boxCenter(
+            box,
+            2,
+            0,
+            1.2345678901234567
+        )
+        local raw_x = box.x + box.w / 2
+        local raw_y = box.y + box.h / 2
+        assert(pos.x == tonumber(tostring(raw_x)))
+        assert(pos.y == tonumber(tostring(raw_y)))
+        assert(pos.zoom == tonumber(tostring(1.2345678901234567)))
+    end
+
+    do
         local match = {
             start = 7,
             matched_text = "Exact passage",
