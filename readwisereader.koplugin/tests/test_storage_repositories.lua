@@ -158,6 +158,35 @@ local function testAnnotations()
     assertEqual(linked.readwise_v2_highlight_id, 12345)
     assertEqual(linked.created_remote, true)
     assertEqual(linked.last_synced_note, "[[Foucault]]")
+    assertEqual(
+        anns:getByReaderRemoteId("reader-highlight-1").local_annotation_id,
+        "ann-1",
+        "remote Reader highlight id must resolve to its local annotation"
+    )
+
+    local imported = anns:linkImported({
+        local_annotation_id = "ann-imported",
+        reader_document_id = "doc-1",
+        reader_highlight_document_id = "reader-highlight-imported",
+        local_created_at = "2026-09-22 12:30:00",
+        locator_fingerprint = "loc-imported",
+        original_text_hash = "imported-text",
+        last_text_hash = "imported-text",
+        last_note_hash = "imported-note",
+        text = "Imported text",
+        note = "Imported note",
+        remote_updated_marker = "2026-09-22T12:31:00Z",
+    })
+    assertEqual(imported.reader_highlight_document_id, "reader-highlight-imported")
+    assertEqual(imported.created_remote, true)
+    assertEqual(imported.sync_state, "synced")
+    assertEqual(imported.last_synced_text, "Imported text")
+    assertEqual(imported.last_synced_note, "Imported note")
+    assertEqual(imported.remote_updated_marker, "2026-09-22T12:31:00Z")
+    assertEqual(
+        anns:getByReaderRemoteId("reader-highlight-imported").local_annotation_id,
+        "ann-imported"
+    )
 
     anns:upsertLocal({
         local_annotation_id = "ann-1",
