@@ -207,6 +207,7 @@ local function scanSettings(self, settings, reader_document_id, source_candidate
         status = "ok",
         source_candidate = source_candidate,
         annotations = normalized,
+        raw_annotations = #annotations,
         malformed = malformed,
         normalize_exceptions = normalize_exceptions,
     }
