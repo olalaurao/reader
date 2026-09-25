@@ -192,7 +192,11 @@ function Import:linkPersisted(local_path, remote, local_annotation)
             return nil, domainError(
                 "sidecar_lookup",
                 string.format(
-                    "Created PDF highlight was not found by KOReader native paging identity (scanned=%d, same_page=%d, same_datetime=%d, same_pos0=%d, same_pos1=%d).",
+                    "Created PDF highlight was not found by KOReader native paging identity (raw=%d, normalized=%d, malformed=%d, normalize_exceptions=%d, scanned=%d, same_page=%d, same_datetime=%d, same_pos0=%d, same_pos1=%d).",
+                    tonumber(scan.raw_annotations) or 0,
+                    #(scan.annotations or {}),
+                    tonumber(scan.malformed) or 0,
+                    tonumber(scan.normalize_exceptions) or 0,
                     stats.scanned,
                     stats.same_page,
                     stats.same_datetime,
