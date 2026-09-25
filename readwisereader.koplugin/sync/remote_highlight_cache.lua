@@ -5,6 +5,8 @@ local Constants = require("constants")
 local Cache = {}
 Cache.__index = Cache
 
+local CACHE_VERSION = "reader-highlight-cache-v2-delete-aware-1"
+local VERSION_KEY = "remote_highlight_cache_version"
 local BASELINE_KEY = "remote_highlight_cache_baseline"
 local WATERMARK_KEY = "remote_highlight_cache_watermark"
 local QUERY_AFTER_KEY = "remote_highlight_cache_query_after"
@@ -107,7 +109,9 @@ function Cache:_deletedSince(updated_after)
 end
 
 function Cache:refresh()
+    local cache_version = self.sync_meta:get(VERSION_KEY)
     local baseline = self.sync_meta:get(BASELINE_KEY) == "1"
+        and cache_version == CACHE_VERSION
     local query_after = baseline and self.sync_meta:get(QUERY_AFTER_KEY) or nil
     if baseline and (type(query_after) ~= "string" or query_after == "") then
         baseline = false
@@ -175,6 +179,7 @@ function Cache:refresh()
         started_epoch - (Constants.REMOTE_HIGHLIGHT_IMPORT_OVERLAP_SECONDS or 300)
     ))
     self.sync_meta:setMany({
+        [VERSION_KEY] = CACHE_VERSION,
         [BASELINE_KEY] = "1",
         [WATERMARK_KEY] = started_at,
         [QUERY_AFTER_KEY] = proposed_query_after,
@@ -213,6 +218,8 @@ function Cache:listForDocument(reader_document_id)
     }
 end
 
+Cache.CACHE_VERSION = CACHE_VERSION
+Cache.VERSION_KEY = VERSION_KEY
 Cache.BASELINE_KEY = BASELINE_KEY
 Cache.WATERMARK_KEY = WATERMARK_KEY
 Cache.QUERY_AFTER_KEY = QUERY_AFTER_KEY
