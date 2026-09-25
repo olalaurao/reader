@@ -3007,3 +3007,32 @@ Required PASS:
 - `Local annotation/sidecar writes: none`.
 
 Ambiguous/missing/text-round-trip-different samples are safe skips. Do not create/import a PDF highlight yet.
+
+
+### Gate 17D alpha.1 physical result — FAIL / informative
+
+Observed on target PW3:
+- 11 Reader pages / 1088 Reader highlight records;
+- 2 highlights belonged to the PDF;
+- 2 local probes;
+- 0 exact, 0 ambiguous, 0 missing, 2 text round-trip differences, 0 invalid;
+- remote writes none;
+- local annotation/sidecar writes none.
+
+Do not repeat alpha.1. Its literal full-text round-trip criterion was invalid for partial PDF boundary words.
+
+### Gate 17D alpha.2 — corrected read-only probe
+
+Install `1.2.0-alpha.2`, open the same managed PDF, Wi-Fi ON, and run **Inspect PDF Reader highlights (Gate 17D)** once.
+
+PASS now requires:
+- `Highlights for this PDF >= 1`;
+- `Local PDF probes run >= 1`;
+- `Validated paging positions total >= 1`;
+- accepted positions appear as either `Unique exact paging matches` or `Unique word-boundary paging matches`;
+- `Native endpoint geometry mismatches: 0`;
+- no crash/freeze;
+- `Remote writes: none`;
+- `Local annotation/sidecar writes: none`.
+
+The `Full-text round-trip differences (diagnostic)` counter may be non-zero and is not by itself a failure.
