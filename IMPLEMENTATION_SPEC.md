@@ -3381,3 +3381,30 @@ Before using generated paging positions for PDF annotation creation:
 5. existing stored annotation identities are not rewritten.
 
 Rollback must track the created local annotation by object reference, not assume its original numeric list index remains stable.
+
+
+## 50.9 Gate 17D-2 physical closure and Gate 17D-3 normal-Sync integration
+
+Target PW3 evidence for `1.2.0-alpha.8` completed the one-item contract:
+- the imported Reader-origin PDF highlight survived a real close/reopen;
+- ordinary `Sync now` completed without removing it;
+- the existing Reader highlight was not duplicated remotely.
+
+Therefore Gate 17D-2 is **PASS COMPLETE**. The fact that only one local PDF highlight was visible before that Sync is expected: the explicit Gate 17D-2 action was intentionally capped at exactly one local import even when the Reader parent had more children.
+
+Gate 17D-3 may integrate the proven PDF path into normal pre-Sync reconciliation, under these additional constraints:
+
+1. only the currently-open managed original paging PDF is eligible; do not background-open or scan arbitrary PDFs from the library;
+2. dispatch PDF to the paging reconciler before outbound annotation queue processing, while EPUB/HTML keep the existing rolling reconciler;
+3. use the shared historical Reader cache/worker; Reader writes from the import phase remain zero;
+4. create at most `PDF_REMOTE_HIGHLIGHT_IMPORT_MAX_PER_SYNC = 1` new local PDF annotation per Sync while the feature is in alpha;
+5. attempt at most `PDF_REMOTE_HIGHLIGHT_IMPORT_MAX_LOCATOR_ATTEMPTS = 10` native locators per Sync and persist a per-document rotation cursor when work is deferred, preventing a permanently ambiguous early child from starving later children;
+6. already-linked Reader child IDs are skipped;
+7. an exact native-position collision may be linked to the existing local annotation only when its note is compatible; otherwise suppress that specific local outbound create;
+8. if an unlinked Reader child is ambiguous, missing or otherwise lacks a safe native PDF locator, suppress **all outbound creates for the current PDF for that Sync** because Reader text can begin/end mid-word and cannot safely identify a specific local PDF counterpart without geometry;
+9. if work is deferred by the conservative one-create batch limit, also suppress all outbound creates for the current PDF until a later pre-Sync pass has examined the remaining remote children;
+10. any PDF annotation creation still uses the alpha.8 contract: persisted-form numeric positions, temporary `highlight_write_into_pdf=false`, restored preference before `saveSettings`, current-sidecar verification, exact durable Reader-child linking, full PDF digest unchanged check and reference-safe rollback;
+11. cancellation aborts Sync before outbound writes; cache/locator/link failure fails closed for current-PDF outbound creates without invalidating unrelated document synchronization;
+12. when no unresolved/deferred PDF child remains, ordinary outbound annotation sync proceeds normally.
+
+Final physical acceptance for alpha.9 should use the same PDF state: one ordinary Sync should import the remaining safe unlinked Reader child (if present) through the normal Sync path; a second unchanged Sync must import/create nothing and must not duplicate either Reader child. This is one consolidated acceptance, not a sequence of new implementation gates.
