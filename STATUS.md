@@ -5627,3 +5627,30 @@ Remaining release plumbing only:
 3. merge to `main`;
 4. verify `main` CI/package;
 5. create stable tag `v1.2.0` when a tag-writing mechanism is available.
+
+
+## 2026-09-25 — v1.2.0 merged to main; final release closeout
+
+PR #22 was marked ready after the stable-version branch head passed CI and package audit, then merged to `main`.
+
+Merge:
+- PR #22: `v1.2.0: Reader → KOReader PDF historical highlight sync`;
+- merge commit: `ad5a8d90eea6e541feebcc59564a199e4fecc905`;
+- runtime behavior is the physically accepted alpha.9 implementation; the stable promotion changed only version/release metadata and documentation.
+
+Main validation:
+- workflow `36169554325`: **SUCCESS**;
+- artifact id: `10879747335`;
+- outer artifact digest: `sha256:1f0d7c7d7f36479cb6cd7db014ea9334dd27173e86b3c6a6c195cf7888a11cec`;
+- audited installable ZIP SHA-256: `0c91d60b498e49e9d844832867e2026ba1e6ed24b373fb4ba4db4590ea7dda9a`;
+- installable root exactly `readwisereader.koplugin/`;
+- 75 packaged files;
+- packaged version `1.2.0`;
+- no tests, `.github`, SQLite DB/backups, sidecars or crash logs packaged.
+
+Functional status:
+- Gate 17D / Phase U: **PASS COMPLETE**;
+- v1.2.0 runtime: **physically accepted and merged**;
+- no additional Kindle/device test is required for this release unless runtime plugin code changes.
+
+Only repository release bookkeeping remains: create Git tag `v1.2.0` pointing at the final green main closeout commit. This environment currently exposes branch/PR/file/merge operations but no tag-write action, so the tag cannot be created from this chat without an additional GitHub capability.
