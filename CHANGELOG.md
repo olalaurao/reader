@@ -34,6 +34,8 @@ All notable project changes are recorded here.
 
 ### Added
 
+- Experimental `1.2.0-alpha.7` fixes the remaining Gate 17D-2 `sidecar_lookup` mismatch by using KOReader's own paging annotation match contract for persisted PDF lookup: datetime when present, page, pos0.x/y and pos1.x/y. Deterministic local ID remains first; the native paging match is a unique-only fallback. Exact text/note hashes are still required after the positional match. Sidecar lookup failures now report raw/normalized/malformed counts plus same-page/datetime/endpoint counts so any remaining mismatch is directly observable.
+
 - Experimental `1.2.0-alpha.6` fixes the Gate 17D-2 physical `sidecar_lookup` failure. Immediately after `ReaderUI:saveSettings()`, PDF import verification now resolves the current sidecar with `DocSettings:findSidecarFile()` and opens that exact file via `openSettingsFile()` instead of the generic `DocSettings:open()` path, which intentionally considers `.old` recovery candidates. The exact-ID lookup plus exact pbox/text/note fallback is unchanged; only the freshly-flushed file source is made authoritative for the just-created PDF annotation.
 
 - Experimental `1.2.0-alpha.5` fixes the Gate 17D-2 physical durable-link failure. PDF annotation normalization now exposes native `pboxes`; persisted-sidecar verification still tries the deterministic local ID first, then for PDF only accepts exactly one same-page + exact-pboxes + exact text/note-hash candidate if serialization changed the local ID. Multiple candidates fail closed. The PDF UI now preserves the specific link failure stage instead of collapsing every failure into a generic message.
