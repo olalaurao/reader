@@ -3244,3 +3244,54 @@ A library-wide bulk migration is a separate future feature and must preserve the
 ### 49.12 Next gate
 
 Gate 17D is the next canonical implementation gate after the v1.1.0 stable tag: validate PDF/paging locator behavior experimentally on the target KOReader/PW3 before implementing any historical Reader → KOReader PDF annotation creation.
+
+
+# 50. Phase U — Gate 17D PDF/paging historical-highlight locator
+
+## 50.1 Why PDF is separately gated
+
+KOReader v2026.07.1 uses different position models:
+- rolling EPUB/HTML search returns XPointer start/end positions;
+- paging PDF `findAllText()` returns a page number plus native word boxes;
+- PDF highlight persistence uses `pos0/pos1` page coordinates plus `pboxes`.
+
+Therefore no Reader DOM offset and no EPUB XPointer behavior may be reused as a PDF locator.
+
+## 50.2 Gate 17D read-only probe contract
+
+Build `1.2.0-alpha.1` must remain read-only.
+
+For the currently-open plugin-managed original PDF:
+1. fetch Reader highlight children by exact parent ID;
+2. test at most three highlights with text;
+3. call the PDF document's native `findAllText(text, false, 0, 3)`;
+4. reject zero results as missing and multiple results as ambiguous;
+5. for one result, require a valid page number and non-empty native word boxes;
+6. derive native `pos0/pos1` from interior points of the first/last match boxes;
+7. temporarily force `document.configurable.text_wrap = 0` only for the in-memory round-trip call, restoring the prior value even on error;
+8. call `getTextFromPositions(pos0, pos1)`;
+9. require non-empty returned text and literal equality to the Reader highlight text;
+10. report page/position success only; create no KOReader annotation, write no sidecar/DB link, and issue no Reader mutation.
+
+The initial spike intentionally does not guess:
+- multi-page Reader highlights;
+- OCR-only/scanned PDFs;
+- repeated identical text;
+- fuzzy whitespace/punctuation equivalence;
+- PDF annotation creation.
+
+Those outcomes are measured first and only then may later Gate 17D steps be designed.
+
+## 50.3 Gate 17D PASS criteria
+
+On the target PW3 / KOReader v2026.07.1, using an already-local managed original PDF that has at least one existing Reader highlight:
+- Reader highlights for the PDF >= 1;
+- local PDF probes run >= 1;
+- at least one `Unique exact paging match`;
+- no crash/freeze;
+- Reader writes: none;
+- local annotation/sidecar writes: none.
+
+Ambiguous/missing/text-different samples are safe skips and do not fail the gate as long as at least one real highlight proves the position model.
+
+No PDF historical annotation creation is authorized until this physical evidence is recorded.
