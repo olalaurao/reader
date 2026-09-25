@@ -3036,3 +3036,18 @@ PASS now requires:
 - `Local annotation/sidecar writes: none`.
 
 The `Full-text round-trip differences (diagnostic)` counter may be non-zero and is not by itself a failure.
+
+
+### Gate 17D locator alpha.2 — PHYSICAL PASS
+
+Observed:
+- 2 Reader highlights for the PDF;
+- 2 probes;
+- 2 unique word-boundary matches;
+- validated paging positions total = 2;
+- endpoint geometry mismatches = 0;
+- search-text relation mismatches = 0;
+- one full-text round-trip diagnostic difference;
+- remote/local writes none.
+
+Gate 17D locator is closed. Next physical gate will be one-item PDF sidecar-only import; do not run it until a dedicated build is supplied.
