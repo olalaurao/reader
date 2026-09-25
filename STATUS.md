@@ -193,6 +193,21 @@ This closes IMPLEMENTATION_SPEC section 42 steps 31-32 and the final PLAN.md V1 
 
 Release authorization: `v1.0.0` is now allowed after release-version/documentation preparation and a green full CI/package run. Do not change the validated sync behavior during release preparation.
 
+## 2026-09-25 — V1 release candidate green on main
+
+- **Milestone:** Phase S / V1 acceptance PASSED COMPLETE; runtime version is now `1.0.0`.
+- **Branch / validated release HEAD:** `main` at `221a8a6a7cd2c39b09bed8c87829a9f5cd908d0d` before this documentation-only closeout commit. It is byte-for-byte the release candidate that was tested on `release/v1.0.0` and then fast-forwarded to `main`.
+- **Files changed by the release-preparation commit:** `STATUS.md`, `IMPLEMENTATION_SPEC.md`, `PLAN.md`, `README.md`, `CHANGELOG.md`, `docs/DEVICE_TESTS.md`, `readwisereader.koplugin/constants.lua`, and `readwisereader.koplugin/_meta.lua`.
+- **Production behavior changes:** none. Only version/metadata/documentation changed after physical acceptance.
+- **Automated validation:** workflow `36081055755` on release commit `221a8a6a...` completed **SUCCESS**. Development checks, full Lua unit suite, installable ZIP build, package-layout verification, and artifact upload all passed.
+- **Release artifact:** `readwisereader-koplugin-221a8a6a7cd2c39b09bed8c87829a9f5cd908d0d`, artifact id `10842220953`, artifact digest `sha256:1453dbd54441880749aa0652315f471e4b66d2feff84a26108d7bfb9c71d1486`.
+- **Physical acceptance:** A1-A9 PASS; no device test remains pending for V1.
+- **Bugs/failures:** none open that block V1; no release-preparation CI failure.
+- **Technical decision:** freeze runtime behavior between the accepted build and V1 tag; release preparation only changes version/docs.
+- **Spec deviations:** none.
+- **Only remaining release action:** create Git tag `v1.0.0` pointing at the final green `main` documentation-closeout commit. The currently available GitHub connector does not expose tag/ref creation for tags, so do not substitute a branch for a tag.
+- **Next step:** after this docs-only closeout commit passes CI, create `v1.0.0` at that exact green `main` SHA. No further Kindle test is required unless runtime code changes.
+
 ## Current milestone
 
 **V1 acceptance / Phase S — PASSED COMPLETE; release `v1.0.0` in finalization**

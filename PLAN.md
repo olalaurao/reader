@@ -1315,26 +1315,14 @@ Não:
 
 ## 46. Próximo passo
 
-**V1 acceptance / Phase S: PASSED COMPLETE** no Kindle PW3 real com KOReader v2026.07.1.
+**V1 acceptance / Phase S: PASSED COMPLETE.**
 
-O fluxo integrado validou:
-- Reader -> Kindle, abertura e leitura offline;
-- highlight/nota persistentes offline e fila durável;
-- Kindle -> Reader sem duplicação;
-- Markdown e `[[wikilinks]]` até Obsidian;
-- update de nota;
-- falha de rede e restart do KOReader com recuperação idempotente;
-- location -> Collection preservando Collections locais;
-- tags -> metadados/Bookshelf sem Collection por tag;
-- Finished -> Archive preservando arquivo/sidecar/progresso/anotações;
-- log real sem token/signed URL/conteúdo privado completo;
-- no-op Sync final com zero novos documentos/highlights e sem repetição de Archive.
+A release `1.0.0` foi preparada sem mudança de comportamento e o candidato `221a8a6a7cd2c39b09bed8c87829a9f5cd908d0d` passou o CI completo e foi promovido por fast-forward para `main`.
 
-Próximo passo: **finalizar a release `v1.0.0`**, sem adicionar comportamento novo:
-1. versão/metadados `1.0.0`;
-2. documentação/changelog final;
-3. CI completo + ZIP instalável;
-4. apontar `main` para o candidato verde;
-5. tag `v1.0.0` no commit verde exato.
+Não há mais teste físico pendente para a V1.
 
-A V1 está funcionalmente aceita; qualquer mudança de comportamento após este ponto exige nova avaliação de regressão antes da tag.
+Único passo restante:
+1. deixar o commit documental de fechamento passar o mesmo CI;
+2. criar a tag Git `v1.0.0` apontando para esse `main` verde exato.
+
+Não adicionar comportamento novo antes da tag. Se runtime/plugin Lua mudar, reavaliar regressão antes de liberar.
