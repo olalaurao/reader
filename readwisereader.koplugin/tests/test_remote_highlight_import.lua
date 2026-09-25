@@ -186,4 +186,173 @@ return function()
         assert(err.kind == "format")
     end
 
+    do
+        local linked_payload
+        local importer = Import:new{
+            documents = {
+                getByLocalPath = function(_, path)
+                    assert(path == "/books/book.pdf")
+                    return {
+                        reader_id = "pdf-parent",
+                        local_path = path,
+                        local_format = "pdf",
+                        is_local_present = true,
+                        is_managed = true,
+                    }
+                end,
+            },
+            annotations = {
+                getByReaderRemoteId = function() return nil end,
+                linkImported = function(_, payload)
+                    linked_payload = payload
+                    return {
+                        local_annotation_id = payload.local_annotation_id,
+                        reader_highlight_document_id =
+                            payload.reader_highlight_document_id,
+                        created_remote = true,
+                        sync_state = "synced",
+                    }
+                end,
+            },
+            adapter = {
+                normalize = function(_, reader_id, item)
+                    assert(reader_id == "pdf-parent")
+                    assert(item.text == "PDF selected text")
+                    return {
+                        local_annotation_id = "ko-in-memory",
+                        locator_fingerprint = "loc-in-memory",
+                        datetime = "2026-09-25 12:00:00",
+                        text = item.text,
+                        note = item.note,
+                        text_hash = "pdf-text-hash",
+                        note_hash = "pdf-note-hash",
+                        page = 2,
+                        pboxes = {
+                            { x = 10, y = 20, w = 30, h = 10 },
+                            { x = 50, y = 20, w = 40, h = 10 },
+                        },
+                    }
+                end,
+                scan = function(_, path, reader_id)
+                    assert(path == "/books/book.pdf")
+                    assert(reader_id == "pdf-parent")
+                    return {
+                        authoritative = true,
+                        annotations = {
+                            {
+                                local_annotation_id = "ko-sidecar",
+                                locator_fingerprint = "loc-sidecar",
+                                datetime = "2026-09-25 12:00:00",
+                                text = "PDF selected text",
+                                note = "PDF note",
+                                text_hash = "pdf-text-hash",
+                                note_hash = "pdf-note-hash",
+                                page = 2,
+                                pboxes = {
+                                    { x = 10, y = 20, w = 30, h = 10 },
+                                    { x = 50, y = 20, w = 40, h = 10 },
+                                },
+                            },
+                        },
+                    }
+                end,
+            },
+        }
+
+        local result, err = importer:linkPersisted(
+            "/books/book.pdf",
+            {
+                id = "reader-pdf-highlight",
+                parent_id = "pdf-parent",
+                updated_at = "2026-09-25T12:00:01Z",
+            },
+            {
+                drawer = "lighten",
+                text = "PDF selected text",
+                note = "PDF note",
+                page = 2,
+                pboxes = {
+                    { x = 10, y = 20, w = 30, h = 10 },
+                    { x = 50, y = 20, w = 40, h = 10 },
+                },
+            }
+        )
+        assert(err == nil)
+        assert(result.status == "linked")
+        assert(result.local_annotation_id == "ko-sidecar",
+            "PDF persisted geometry fallback must link the sidecar identity")
+        assert(linked_payload.local_annotation_id == "ko-sidecar")
+        assert(linked_payload.reader_highlight_document_id
+            == "reader-pdf-highlight")
+        assert(linked_payload.locator_fingerprint == "loc-sidecar")
+    end
+
+    do
+        local importer = Import:new{
+            documents = {
+                getByLocalPath = function()
+                    return {
+                        reader_id = "pdf-parent",
+                        local_path = "/books/book.pdf",
+                        local_format = "pdf",
+                        is_local_present = true,
+                        is_managed = true,
+                    }
+                end,
+            },
+            annotations = {
+                getByReaderRemoteId = function() return nil end,
+                linkImported = function()
+                    error("ambiguous PDF sidecar lookup must not link")
+                end,
+            },
+            adapter = {
+                normalize = function()
+                    return {
+                        local_annotation_id = "ko-in-memory",
+                        locator_fingerprint = "loc-in-memory",
+                        datetime = "2026-09-25 12:00:00",
+                        text = "PDF selected text",
+                        note = nil,
+                        text_hash = "same-text",
+                        note_hash = "same-note",
+                        page = 2,
+                        pboxes = {
+                            { x = 1, y = 2, w = 3, h = 4 },
+                        },
+                    }
+                end,
+                scan = function()
+                    local function item(id)
+                        return {
+                            local_annotation_id = id,
+                            locator_fingerprint = "loc-" .. id,
+                            datetime = "2026-09-25 12:00:00",
+                            text = "PDF selected text",
+                            note = nil,
+                            text_hash = "same-text",
+                            note_hash = "same-note",
+                            page = 2,
+                            pboxes = {
+                                { x = 1, y = 2, w = 3, h = 4 },
+                            },
+                        }
+                    end
+                    return {
+                        authoritative = true,
+                        annotations = { item("ko-a"), item("ko-b") },
+                    }
+                end,
+            },
+        }
+
+        local result, err = importer:linkPersisted(
+            "/books/book.pdf",
+            { id = "reader-pdf-highlight", parent_id = "pdf-parent" },
+            { drawer = "lighten", text = "PDF selected text" }
+        )
+        assert(result == nil)
+        assert(err.kind == "sidecar_ambiguous")
+    end
+
 end
