@@ -3408,3 +3408,15 @@ Gate 17D-3 may integrate the proven PDF path into normal pre-Sync reconciliation
 12. when no unresolved/deferred PDF child remains, ordinary outbound annotation sync proceeds normally.
 
 Final physical acceptance for alpha.9 should use the same PDF state: one ordinary Sync should import the remaining safe unlinked Reader child (if present) through the normal Sync path; a second unchanged Sync must import/create nothing and must not duplicate either Reader child. This is one consolidated acceptance, not a sequence of new implementation gates.
+
+
+## 50.10 Gate 17D-3 physical acceptance — PASS COMPLETE
+
+The target PW3 / KOReader v2026.07.1 consolidated alpha.9 acceptance passed:
+1. ordinary Sync imported the remaining safe unlinked Reader PDF child through the normal pre-Sync path;
+2. the previously imported PDF highlight remained intact;
+3. both Reader-origin local PDF highlights survived close/reopen;
+4. a second unchanged Sync imported/created nothing additional;
+5. Reader remained free of duplicate highlight children.
+
+Therefore Phase U is complete and the accepted alpha.9 runtime may be promoted to `v1.2.0` without additional behavior changes. Any runtime/plugin Lua change after this acceptance reopens regression review; version strings, release docs and packaging metadata do not.
