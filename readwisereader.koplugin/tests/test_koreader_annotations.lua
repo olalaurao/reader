@@ -231,4 +231,70 @@ return function()
         assert(result.authoritative == true)
         assert(#result.annotations == 0)
     end
+    do
+        local generic_open_called = 0
+        local current_file_opened
+        local doc_settings = {
+            open = function()
+                generic_open_called = generic_open_called + 1
+                return {
+                    source_candidate = "/book.sdr/metadata.pdf.lua.old",
+                    readSetting = function(_, key)
+                        assert(key == "annotations")
+                        return {}
+                    end,
+                }
+            end,
+            findSidecarFile = function(_, path, no_legacy)
+                assert(path == "/book.pdf")
+                assert(no_legacy == true)
+                return "/book.sdr/metadata.pdf.lua", "doc"
+            end,
+            openSettingsFile = function(path)
+                current_file_opened = path
+                return {
+                    readSetting = function(_, key)
+                        assert(key == "annotations")
+                        return {
+                            {
+                                datetime = "2026-09-25 12:00:00",
+                                drawer = "lighten",
+                                text = "Fresh PDF highlight",
+                                note = "Fresh note",
+                                page = 2,
+                                pos0 = { page = 2, x = 10, y = 20 },
+                                pos1 = { page = 2, x = 80, y = 20 },
+                                pboxes = {
+                                    { x = 1, y = 2, w = 30, h = 10 },
+                                    { x = 40, y = 2, w = 50, h = 10 },
+                                },
+                            },
+                        }
+                    end,
+                }
+            end,
+        }
+        local adapter = KOReaderAnnotations:new{
+            doc_settings = doc_settings,
+            hasher = hasher,
+        }
+
+        local fresh = assert(adapter:scanFlushed("/book.pdf", "reader-pdf"))
+        assert(generic_open_called == 0,
+            "fresh PDF verification must not use generic DocSettings.open")
+        assert(current_file_opened == "/book.sdr/metadata.pdf.lua")
+        assert(fresh.authoritative == true)
+        assert(fresh.source_candidate == "/book.sdr/metadata.pdf.lua")
+        assert(#fresh.annotations == 1)
+        assert(fresh.annotations[1].text == "Fresh PDF highlight")
+        assert(fresh.annotations[1].note == "Fresh note")
+        assert(#fresh.annotations[1].pboxes == 2)
+
+        local generic = assert(adapter:scan("/book.pdf", "reader-pdf"))
+        assert(generic_open_called == 1)
+        assert(generic.authoritative == true)
+        assert(#generic.annotations == 0,
+            "generic scan fixture intentionally models the stale .old candidate")
+    end
+
 end
