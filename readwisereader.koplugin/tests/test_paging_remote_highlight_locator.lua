@@ -258,7 +258,9 @@ return function()
             readerUI(document),
             "Wanted"
         )
-        assert(locator == nil and status == "error")
+        assert(status == "unique_exact")
+        assert(locator.roundtrip_status == "error")
+        assert(locator.roundtrip_matches_search == false)
         assert(document.configurable.text_wrap == 1,
             "text_wrap must be restored after full-text diagnostic failure")
     end
