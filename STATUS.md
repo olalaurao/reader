@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-**Phase R / Gate 16 — 0.1.47 RC startup/no-op/offline durable queue PASSED; restart-while-offline queue persistence is current**
+**Phase R / Gate 16 — restart-while-offline persistence PASSED; reconnect exactly-once is the current physical blocker**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
@@ -4845,3 +4845,112 @@ No reinstall and no new ZIP are needed.
 - No spec deviation.
 - No production change in this handoff because all deterministic preconditions for the restart checkpoint are already covered and green.
 - Keeping the installed 0.1.47 unchanged preserves the integrity of the release-candidate physical sequence.
+
+
+## Gate 16 RC checkpoint 4 — restart while offline PHYSICAL PASS
+
+User confirmed every required restart-persistence criterion passed on the already-installed 0.1.47 RC.
+
+Accepted physical result:
+- Wi-Fi remained OFF and KOReader Restore Wi-Fi connection on resume remained OFF;
+- KOReader was fully exited/restarted into a fresh process;
+- the exact controlled local annotation remained present unchanged:
+  - `gate16 rc offline [[Foucault]]`
+  - `#queue-test-47`;
+- **Inspect reconnect queue (Gate 13)** completed through the expected offline/auth-failure path;
+- auth did not pass;
+- queue pending remained >=1;
+- queue retry_wait = 0 for the controlled fixture;
+- queue in_flight = 0;
+- the active item still had no remote id;
+- marker scan remained not_run;
+- parent metadata/HTML probes remained not_run;
+- Remote writes = none;
+- the fixture was still absent from Reader remotely;
+- no crash/freeze occurred.
+
+Conclusion:
+- Gate 16 restart-while-offline persistence is **PASSED physically**;
+- the durable pending create survived a real KOReader process restart exactly as the file-backed SQLite tests predicted;
+- reconnect is now authorized;
+- final restart/log review remains blocked until exactly-once delivery passes.
+
+### Additional off-device exactly-once hardening in this continuation
+- audited `sync/annotation_upload.lua`, `storage/queue.lua`, worker recovery ordering and existing annotation-upload tests;
+- existing coverage already proved:
+  - never-attempted offline item does not POST while offline;
+  - reconstructed uploader after reconnect delivers exactly one create;
+  - queue waiting reaches zero and remote link is persisted;
+  - timeout/5xx ambiguous outcomes reconcile before any retry and never blind-POST duplicates;
+  - succeeded/local-linked annotations are not created again on later normal sync;
+- strengthened `tests/test_annotation_upload.lua` in commit `a6cf8d5f34f6762ef84034cf92c82a6a019e9a16`:
+  - after offline -> restart -> reconnect delivery, constructs another fresh uploader over the same durable state;
+  - proves second processing creates 0;
+  - reconciles 0;
+  - waiting remains 0;
+  - total remote creates remains exactly 1;
+  - queue row remains succeeded.
+- CI #1105 on that test-hardening commit: **SUCCESS**.
+
+### Canonical docs updated
+- `docs/GATE16_HARDENING.md`: checkpoint 4 PASS, current checkpoint exactly-once reconnect;
+- `IMPLEMENTATION_SPEC.md`: immediate action advanced to reconnect exactly-once;
+- `PLAN.md`: roadmap advanced to one reconnect Sync;
+- `docs/DEVICE_TESTS.md`: checkpoint 4 recorded with exact next physical procedure;
+- `STATUS.md`: this resumable handoff.
+
+### Branch / HEAD before STATUS closeout
+- Branch: `phase-r/hardening-gate16`.
+- PR #19 remains draft and mergeable.
+- Head before this STATUS-only closeout: `51b8b72940f4a88f915c95f3878e1ced6b4fd751`.
+- Installed device candidate remains **0.1.47**.
+- No production/plugin/schema/version file changed in this continuation; only one test and canonical documentation changed.
+- No reinstall/new ZIP is required.
+
+### Test / CI state
+- Prior checkpoint handoff CI #1103: PASS.
+- Exactly-once hardening CI #1105: PASS.
+- Full development checks: PASS.
+- Full Lua unit suite: PASS.
+- Installable ZIP build: PASS.
+- Package layout verification: PASS.
+- Artifact upload: PASS.
+- Final STATUS-handoff CI must pass before stopping.
+
+### Gates
+- Gates 0–15: PASSED.
+- Gate 16 deterministic hardening: PASSED.
+- Gate 16 RC startup/state/first Sync: PASSED.
+- Gate 16 unchanged second Sync: PASSED.
+- Gate 16 controlled offline durable queue: PASSED.
+- Gate 16 restart-while-offline persistence: **PASSED**.
+- Gate 16 reconnect exactly-once: **CURRENT PHYSICAL BLOCKER**.
+- Gate 16 final restart/state/log-secret review: BLOCKED.
+- Phase S: BLOCKED by Gate 16.
+
+### Exact next physical checkpoint — reconnect exactly once
+No reinstall, no new highlight and no second diagnostic are needed.
+
+1. Turn Wi-Fi **ON from KOReader** and confirm normal connectivity is available.
+2. Leave the controlled Gate 16 highlight/note unchanged; do not recreate/edit it.
+3. Run ordinary **Sync now exactly once**.
+4. Require for this controlled fixture:
+   - remote preflight passes;
+   - exactly one highlight create **or** one safe reconciliation outcome;
+   - Create queue waiting after sync = **0**;
+   - no create remains pending/retry_wait/in_flight for this fixture;
+   - no duplicate POST/highlight;
+   - no fatal Errors;
+   - no unexpected document replacement/content download caused by this annotation delivery.
+5. In Reader web/app, open the correct parent document and verify the exact fixture arrived **once** with the expected note text/tags.
+6. Return the full Sync report plus confirmation that Reader contains exactly one matching highlight.
+7. **Stop there:** do not run another Sync and do not do the final restart/log review until this report is reviewed.
+
+### Bugs / failures
+- No new production bug found.
+- No failed automated test.
+- No spec deviation.
+
+### Decision
+- No production change was made because the exactly-once behavior is already implemented and the missing proof was test coverage + physical reconnect validation.
+- Keeping the installed 0.1.47 unchanged preserves RC identity across the physical sequence.
