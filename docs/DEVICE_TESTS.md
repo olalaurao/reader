@@ -2897,3 +2897,18 @@ Use the already-managed **EPUB** that exposed the missing feature:
 Ambiguous or missing matches are acceptable for some passages; they must be reported and not guessed. Gate 17A fails only if no real Reader highlight can be resolved uniquely, the device becomes unstable, or any local/remote mutation occurs.
 
 Do not proceed to Gate 17B until this result is recorded.
+
+
+### Gate 17A physical result — PASS
+
+Target PW3 / KOReader v2026.07.1:
+- 11 Reader highlight pages / 1086 highlight records scanned;
+- 70 highlight children matched the open EPUB parent ID;
+- 70 had text;
+- 3 local probes were run;
+- 3/3 produced unique exact XPointer matches;
+- 0 ambiguous, 0 missing, 0 invalid;
+- remote writes: none;
+- local writes: none.
+
+Result: **PASS**. Reader → KOReader historical-highlight position mapping for rolling EPUB is physically proven enough to enter Gate 17B local insertion.
