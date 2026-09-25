@@ -236,8 +236,6 @@ function UI:_scanState(document)
     local cursor_key = stateKey("remote_highlight_cursor:", id)
     return {
         cursor_key = cursor_key,
-        cache_baseline_complete =
-            self.sync_meta:get("remote_highlight_cache_baseline") == "1",
         cursor_id = self.sync_meta:get(cursor_key),
     }
 end
@@ -525,13 +523,9 @@ function UI:prepareForSync(path)
     local scan_state = self:_scanState(document)
     local remote_report, fetch_err = self:_fetchRemote(
         path,
-        scan_state.cache_baseline_complete
-            and _([[Checking recent Reader highlights before outbound annotation sync…
+        _([[Reconciling Reader highlights before outbound annotation sync…
 
-Tap to cancel Sync now. No Reader mutation is performed by this check.]])
-            or _([[Reconciling historical Reader highlights before outbound annotation sync…
-
-Tap to cancel Sync now. No Reader mutation is performed by this check.]]),
+The first run may build a historical cache; later runs are incremental. Tap to cancel Sync now. No Reader mutation is performed by this check.]]),
         scan_state
     )
     if not remote_report then
@@ -575,13 +569,9 @@ function UI:run()
         local scan_state = self:_scanState(document)
         local remote_report, fetch_err = self:_fetchRemote(
             path,
-            scan_state.cache_baseline_complete
-                and _([[Checking recent Reader highlights for the open document…
+            _([[Reconciling Reader highlights for the open document…
 
-Tap to cancel. No Reader mutation is performed.]])
-                or _([[Fetching historical Reader highlights for the open document…
-
-Tap to cancel. No Reader mutation is performed. Local highlights are created only for exact unique KOReader XPointer matches.]]),
+The first run may build a historical cache; later runs are incremental. Tap to cancel. No Reader mutation is performed by the network/cache refresh. Local highlights are created only for exact unique KOReader XPointer matches.]]),
             scan_state
         )
         if not remote_report then
