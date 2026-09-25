@@ -85,8 +85,7 @@ local function boundaryRelation(reader_text, matched_text)
 end
 
 local function nativeEvidence(document, pos0, pos1)
-    if type(document.getWordFromPosition) ~= "function"
-        or type(document.getTextFromPositions) ~= "function" then
+    if type(document.getWordFromPosition) ~= "function" then
         return nil, "unsupported"
     end
 
@@ -94,14 +93,30 @@ local function nativeEvidence(document, pos0, pos1)
     local previous_wrap = configurable and configurable.text_wrap or nil
     if configurable then configurable.text_wrap = 0 end
 
-    local ok, first_word, last_word, selected = pcall(function()
+    local endpoint_ok, first_word, last_word = pcall(function()
         return document:getWordFromPosition(pos0),
-            document:getWordFromPosition(pos1),
-            document:getTextFromPositions(pos0, pos1)
+            document:getWordFromPosition(pos1)
     end)
 
+    local selected
+    local roundtrip_status = "unavailable"
+    if endpoint_ok and type(document.getTextFromPositions) == "function" then
+        local roundtrip_ok, roundtrip_result = pcall(
+            document.getTextFromPositions,
+            document,
+            pos0,
+            pos1
+        )
+        if roundtrip_ok then
+            selected = roundtrip_result
+            roundtrip_status = "ok"
+        else
+            roundtrip_status = "error"
+        end
+    end
+
     if configurable then configurable.text_wrap = previous_wrap end
-    if not ok then return nil, "error" end
+    if not endpoint_ok then return nil, "error" end
     if type(first_word) ~= "table" or type(first_word.word) ~= "string"
         or type(last_word) ~= "table" or type(last_word.word) ~= "string" then
         return nil, "invalid_locator"
@@ -111,6 +126,7 @@ local function nativeEvidence(document, pos0, pos1)
         first_word = first_word.word,
         last_word = last_word.word,
         selected = selected,
+        roundtrip_status = roundtrip_status,
     }
 end
 
@@ -198,6 +214,7 @@ function Locator.findUnique(reader_ui, text)
         first_word = relation.first_word,
         last_word = relation.last_word,
         roundtrip_text = roundtrip_text,
+        roundtrip_status = evidence.roundtrip_status,
         roundtrip_matches_search = roundtrip_matches_search,
     }, relation.kind == "exact"
         and "unique_exact" or "unique_boundary"
