@@ -20,6 +20,7 @@ return function()
         reader = {
             iterateDocuments = function(_, options, callback)
                 assert(options.category == "highlight")
+                assert(options.updated_after == "2026-09-25T03:55:00Z")
                 assert(options.limit == 100)
                 assert(options.with_html_content == false)
                 assert(options.with_raw_source_url == false)
@@ -42,7 +43,9 @@ return function()
         },
     }
 
-    local report, err = probe:run("/books/book.epub")
+    local report, err = probe:run("/books/book.epub", {
+        updated_after = "2026-09-25T03:55:00Z",
+    })
     assert(err == nil)
     assert(report.reader_document_id == "parent-1")
     assert(report.local_format == "epub")
@@ -57,6 +60,7 @@ return function()
     assert(report.remote_highlights[2].note_present == true)
     assert(report.remote_highlights[2].notes == "note")
     assert(report.remote_highlights[2].parent_id == "parent-1")
+    assert(report.updated_after == "2026-09-25T03:55:00Z")
     assert(report.remote_writes == 0 and report.local_writes == 0)
 
     local bad = Probe:new{
