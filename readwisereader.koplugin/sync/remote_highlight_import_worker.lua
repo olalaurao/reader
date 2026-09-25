@@ -36,10 +36,11 @@ function Worker:run(local_path)
             )
         end
         if document.local_format ~= "epub"
-            and document.local_format ~= "html" then
+            and document.local_format ~= "html"
+            and document.local_format ~= "pdf" then
             return nil, domainError(
                 "format",
-                "Reader highlight import currently supports EPUB/HTML only."
+                "Reader highlight import supports managed EPUB/HTML/PDF documents only."
             )
         end
 
