@@ -1335,11 +1335,15 @@ Aceite integrado adicional já repetido:
 - Collections locais não gerenciadas preservadas;
 - nenhuma cópia local duplicada criada pela mudança de location.
 
+Aceite integrado de tags também já repetido:
+- alteração de tag no Reader projetada para metadados/Bookshelf do mesmo documento;
+- nenhuma Collection por tag criada;
+- nenhuma cópia local duplicada.
+
 Ainda faltam, antes de `v1.0.0`:
-1. repetir alteração de tag no Reader e projeção nos metadados/Bookshelf sem criar Collection por tag;
-2. marcar o documento finished e confirmar Archive remoto sem remover arquivo/sidecar/progresso/anotações locais;
-3. revisar logs finais por token, signed URL e conteúdo privado;
-4. executar o segundo no-op Sync final e confirmar zero novos documentos/highlights;
-5. somente então fechar Phase S, preparar release candidate e tag `v1.0.0`.
+1. marcar o documento finished e confirmar Archive remoto sem remover arquivo/sidecar/progresso/anotações locais;
+2. revisar logs finais por token, signed URL e conteúdo privado;
+3. executar o segundo no-op Sync final e confirmar zero novos documentos/highlights;
+4. somente então fechar Phase S, preparar release candidate e tag `v1.0.0`.
 
 Não pular esses critérios mesmo quando o comportamento já tiver evidência em gates anteriores: esta fase é a repetição integrada de aceite da V1 no PW3 real.
