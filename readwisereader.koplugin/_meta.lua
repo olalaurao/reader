@@ -5,5 +5,5 @@ local _ = require("gettext")
 return {
     name = "readwisereader",
     fullname = _("Readwise Reader"),
-    description = _([[Synchronize Readwise Reader content and KOReader annotations. v1.2.0-alpha.8 normalizes generated PDF paging coordinates to KOReader's persisted numeric representation before save and makes rollback reference-safe.]]),
+    description = _([[Synchronize Readwise Reader content and KOReader annotations. v1.2.0-alpha.9 integrates the physically-proven Reader → KOReader PDF importer into normal pre-Sync reconciliation with conservative outbound dedupe guards.]]),
 }
