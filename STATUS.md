@@ -5513,3 +5513,27 @@ Next and only physical checkpoint:
 6. report only whether the highlight survived the reopen.
 
 If reopen persistence passes, the next gate is one ordinary Sync to prove the linked PDF annotation does not create a duplicate Reader child.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.8 reopen persistence PASS; outbound dedupe next
+
+Target PW3 physical follow-up on `1.2.0-alpha.8`:
+- the Reader-origin PDF highlight imported in the previous checkpoint remained visible after closing and reopening the same PDF normally;
+- no second explicit PDF import was run;
+- ordinary Sync had not yet been run at the time of this checkpoint.
+
+Conclusion:
+- Gate 17D-2 sidecar persistence across a real document reopen is **PASS**;
+- the imported annotation is not merely an in-memory artifact;
+- the durable Reader-child link and unchanged-PDF safeguards from the prior checkpoint remain the basis for outbound dedupe.
+
+Per IMPLEMENTATION_SPEC 50.4, PDF historical import still must **not** be integrated into ordinary Sync until outbound dedupe is proved physically.
+
+Next and only physical checkpoint:
+1. with the same PDF/highlight state, run ordinary **Sync now** once;
+2. verify in Reader that the already-existing remote highlight was not duplicated;
+3. verify the local imported highlight is still present;
+4. if Sync reports an error, record the exact message;
+5. do not run the explicit PDF import action again.
+
+If this passes, Gate 17D-2 has the required one-item persistence + file-unchanged + outbound-dedupe evidence and off-device work may proceed to normal-Sync PDF import integration.
