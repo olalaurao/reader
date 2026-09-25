@@ -5133,3 +5133,27 @@ Exact next device sequence:
 6. do not run the explicit PDF import action a second time before reporting this persistence result.
 
 Only after 17D-2 persistence passes may ordinary Sync be used to prove outbound dedupe and then bulk PDF integration be implemented.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.3 physical preflight FAIL; alpha.4 fix
+
+Physical alpha.3 result:
+- user selected the explicit PDF import action;
+- UI displayed: `Reader highlight import currently supports EPUB/HTML only.`;
+- the action stopped during preflight before PDF digesting, local annotation creation, sidecar write, durable link or any Reader mutation.
+
+Root cause:
+- `ui/pdf_highlight_import.lua` correctly allowed a paging PDF;
+- `sync/remote_highlight_import_worker.lua` had already been widened to EPUB/HTML/PDF;
+- but the shared durable importer `sync/remote_highlight_import.lua:getDocument()` still rejected every format except EPUB/HTML;
+- the alpha.3 PDF UI test used a mocked importer whose `getDocument()` already returned a PDF, so that cross-module regression was not covered.
+
+Fix:
+- shared `Import:getDocument()` now accepts managed local `epub`, `html` and `pdf`;
+- unsupported formats remain rejected;
+- added direct real-importer regression coverage proving PDF acceptance and unsupported-format rejection;
+- no sidecar-only, digest-integrity, note, rollback, remote-link or no-Reader-write invariant was relaxed.
+
+Build advanced to `1.2.0-alpha.4`.
+
+Next physical checkpoint remains the same one-item Gate 17D-2 sequence, but **do not retest alpha.3**.
