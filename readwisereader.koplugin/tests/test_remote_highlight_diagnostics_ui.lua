@@ -55,7 +55,7 @@ return function()
     withStubs(function(UI, shown)
         local calls = 0
         local reader_ui = {
-            rolling = true,
+            rolling = {},
             document = {
                 findAllText = function(_, text)
                     calls = calls + 1
