@@ -5157,3 +5157,30 @@ Fix:
 Build advanced to `1.2.0-alpha.4`.
 
 Next physical checkpoint remains the same one-item Gate 17D-2 sequence, but **do not retest alpha.3**.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.4 preflight hotfix off-device green
+
+Final alpha.4 handoff head before this STATUS-only record: `13eb9d30555bd6cb86772c2f06137fa5924ded9f`.
+
+Regression fixed:
+- shared `RemoteHighlightImport:getDocument()` now accepts managed local `pdf` in addition to `epub/html`;
+- unsupported formats remain rejected;
+- a direct non-mocked regression test covers PDF acceptance so this cannot be hidden by the PDF UI mock again.
+
+CI:
+- push workflow `36151804852`: **SUCCESS** on the alpha.4 handoff head;
+- implementation fix/test workflows also passed on `dca1fba3...` / `c3e66470...`;
+- full development checks, Lua suite, package build/layout and artifact upload passed.
+
+Artifact/package:
+- artifact id: `10871219502`;
+- outer artifact digest: `sha256:7e642a33e200988a9df9b99928ba3e1d08e44220b633be71ece9c0cc1dbabf3b`;
+- installable ZIP SHA-256: `461d9f87872e24375153561aed692019e79e5ae94569c68125a18c92a15ec747`;
+- root exactly `readwisereader.koplugin/`;
+- 83 entries;
+- packaged version/meta: `1.2.0-alpha.4`;
+- packaged shared importer explicitly contains the PDF allow-path;
+- no tests/scripts/.github/dist, SQLite DB/backups, sidecars or crash logs packaged.
+
+Physical blocker remains unchanged: run the explicit one-item PDF import once, then close/reopen before ordinary Sync.
