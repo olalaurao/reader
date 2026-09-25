@@ -4771,3 +4771,77 @@ If the pending queue disappears, the local highlight/note disappears, auth unexp
 - Artifact upload: PASS.
 - No production plugin file/schema/version changed; the installed RC remains 0.1.47.
 - Exact blocker remains only the restart-while-offline read-only queue persistence proof above.
+
+
+## Gate 16 restart-persistence handoff audit
+
+### Estado retomado
+- Branch: `phase-r/hardening-gate16`.
+- PR #19 remains draft and mergeable.
+- HEAD audited before this STATUS-only handoff: `19dd5c05c14496161ae3715767d7c6f042ad6c37`.
+- Workflow #1101 on that head: **SUCCESS**.
+- Installed device candidate remains **0.1.47**; no production/plugin/schema/version change is required for the next checkpoint.
+
+### Off-device audit completed
+- Re-read the canonical current state from `STATUS.md`, `IMPLEMENTATION_SPEC.md`, `PLAN.md` and `docs/GATE16_HARDENING.md`.
+- Audited `sync/reconnect_probe_worker.lua` and `tests/test_reconnect_probe_worker.lua`.
+- The reconnect diagnostic snapshots the durable create queue **before** remote auth probing.
+- Deterministic offline-auth coverage proves:
+  - stage completes as `done_auth_failure`;
+  - offline auth is retryable and not passed;
+  - queue pending/retry_wait/in_flight counts are returned from the persisted snapshot;
+  - the active item remains pending with no remote id;
+  - marker scan remains `not_run`;
+  - parent metadata/HTML probes remain `not_run`;
+  - text matching is not entered;
+  - `remote_writes = 0`.
+- Separate file-backed SQLite coverage already proves queue rows and retry deadlines survive process close/reopen and stale ambiguous creates do not become blind retries.
+- No additional deterministic code change is warranted before the physical restart checkpoint.
+
+### Test / CI state
+- Gate 16 checkpoint-3 hardening test commit `9637dcabb6b542805a00160e2ead68e4be66c776`: CI #1097 PASS.
+- Checkpoint-3 handoff docs commit `d2ee6f862bda90cc9c1bebcacdafe2b4ec598699`: CI #1099 PASS.
+- Current audited head `19dd5c05c14496161ae3715767d7c6f042ad6c37`: CI #1101 PASS.
+- Full development checks, Lua tests, ZIP build, package-layout verification and artifact upload all passed.
+- No failed automated test remains.
+
+### Gates
+- Gates 0–15: PASSED.
+- Gate 16 deterministic hardening: PASSED.
+- Gate 16 RC startup/state/first Sync: PASSED.
+- Gate 16 unchanged second Sync: PASSED.
+- Gate 16 controlled offline durable queue: PASSED.
+- Gate 16 restart-while-offline persistence: **CURRENT PHYSICAL BLOCKER**.
+- Gate 16 reconnect exactly-once: blocked by restart-persistence proof.
+- Gate 16 final restart/state/log review: blocked.
+- Phase S: blocked by Gate 16.
+
+### Exact next physical checkpoint
+No reinstall and no new ZIP are needed.
+
+1. Keep Wi-Fi **OFF** and KOReader **Restore Wi-Fi connection on resume OFF**.
+2. Fully exit/restart KOReader so the plugin/database are opened by a fresh process.
+3. Reopen the same managed article.
+4. Verify the exact local Gate 16 fixture still exists:
+   - `gate16 rc offline [[Foucault]]`
+   - `#queue-test-47`
+5. Do not edit or recreate it.
+6. Run **Inspect reconnect queue (Gate 13)** while still offline.
+7. Require:
+   - stage `done_auth_failure` (or equivalent completed auth-failure stage);
+   - auth probe not passed, with offline/timeout/retryable network-unavailable classification;
+   - queue pending >= 1;
+   - queue retry_wait = 0 for this controlled fixture;
+   - queue in_flight = 0;
+   - active/recent create item still has no remote id;
+   - marker scan not run;
+   - parent metadata/HTML probes not run;
+   - remote writes none;
+   - no crash/freeze.
+8. Confirm from another connected device that this new fixture still does not exist in Reader remotely.
+9. Stop before reconnect: do **not** turn Wi-Fi ON and do **not** run normal Sync yet.
+
+### Decision / deviations
+- No spec deviation.
+- No production change in this handoff because all deterministic preconditions for the restart checkpoint are already covered and green.
+- Keeping the installed 0.1.47 unchanged preserves the integrity of the release-candidate physical sequence.
