@@ -1468,3 +1468,17 @@ Depois do PASS físico do locator alpha.2:
 - conferir size+mtime do PDF antes/depois;
 - zero writes no Reader durante a ação;
 - só integrar ao Sync depois de provar persistência e dedupe remoto.
+
+
+### 17D-2A — alpha.4 durable-link FAIL
+
+A criação PDF chegou ao sidecar, mas o vínculo durável falhou e o item local foi revertido com sucesso.
+
+### 17D-2B — alpha.5
+
+- manter ID determinístico como lookup principal;
+- expor `pboxes` no adapter;
+- se o ID mudar após serialização PDF, permitir fallback somente por page + pboxes exatas + hashes exatos de texto/nota;
+- exigir exatamente 1 candidato;
+- preservar erro específico de sidecar/DB na UI;
+- repetir um único import físico.
