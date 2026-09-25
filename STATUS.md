@@ -280,6 +280,25 @@ Regression coverage now stubs `rolling = {}` so this exact KOReader runtime shap
 
 Gate 17A remains OPEN only for the physical retry. Repeat the same read-only test on the same managed EPUB with existing Reader highlights. No annotation should be created yet.
 
+## 2026-09-25 — Gate 17A PHYSICAL PASS
+
+Target PW3 physical result after the rolling-preflight fix:
+- Reader highlight pages scanned: **11**;
+- Reader highlight records scanned: **1086**;
+- exact highlights belonging to the open managed EPUB: **70**;
+- highlights with text: **70**;
+- local match probes run: **3**;
+- unique exact XPointer matches: **3/3**;
+- ambiguous matches: **0**;
+- missing matches: **0**;
+- other/invalid matches: **0**;
+- remote writes: **none**;
+- local writes: **none**.
+
+This proves the Gate 17A architecture on the real target: Reader highlight child identity can be filtered by exact `parent_id`, and at least the sampled existing Reader highlight texts can be resolved unambiguously to real CRengine XPointer ranges in the original local EPUB. No Reader DOM locator was reused as a KOReader position.
+
+Gate 17A is **PASSED COMPLETE**. Gate 17B is unblocked: import exactly one existing Reader highlight into the currently-open EPUB through KOReader's native highlight path, preserve its Reader note literally, persist the sidecar, immediately link the resulting local annotation ID to the existing Reader highlight child ID in SQLite, and prove reopen persistence plus no outbound duplicate on the next Sync.
+
 ## Current milestone
 
 **Phase T / Gate 17A — Reader → KOReader existing-highlight locator spike; V1.0.0 remains released**
