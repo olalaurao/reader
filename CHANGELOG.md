@@ -34,6 +34,8 @@ All notable project changes are recorded here.
 
 ### Added
 
+- Experimental `1.2.0-alpha.5` fixes the Gate 17D-2 physical durable-link failure. PDF annotation normalization now exposes native `pboxes`; persisted-sidecar verification still tries the deterministic local ID first, then for PDF only accepts exactly one same-page + exact-pboxes + exact text/note-hash candidate if serialization changed the local ID. Multiple candidates fail closed. The PDF UI now preserves the specific link failure stage instead of collapsing every failure into a generic message.
+
 - Experimental `1.2.0-alpha.4` fixes the Gate 17D-2 preflight regression where the shared durable-link importer still rejected `pdf` even though the PDF UI and cache worker already supported it. The shared importer now accepts managed `epub`/`html`/`pdf` and still rejects unsupported formats. A direct regression test covers real `Import:getDocument()` PDF acceptance so the PDF UI can no longer pass only through mocks.
 
 - Experimental `1.2.0-alpha.3` Gate 17D-2 adds an explicit one-item PDF import. It forces KOReader PDF embedding off only during save/delete, restores the user's setting before sidecar persistence, verifies the PDF byte digest is unchanged, preserves Reader notes, uses native pboxes for collision detection, verifies the saved sidecar through the existing durable imported-link path, and rolls the local item back on integrity/link failure. Ordinary Sync integration remains disabled until physical persistence/dedupe proof.
