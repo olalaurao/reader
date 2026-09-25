@@ -1359,3 +1359,19 @@ Depois do PASS:
 - Gate 17B implementa import local + vínculo DB + dedupe/reopen;
 - Gate 17C integra import ao Sync/manual workflow e cobre notas;
 - Gate 17D trata PDF separadamente se ainda for desejado.
+
+
+### Gate 17A — resultado
+
+**PASS físico.** No EPUB real: 70 highlights Reader pertenciam ao documento; 3/3 probes retornaram XPointers únicos exatos; 0 ambiguidades/misses; zero writes.
+
+### Gate 17B — estado atual
+
+`1.1.0-alpha.2` está implementado e CI-green para importar **um** highlight remoto já existente por vez, usando o caminho nativo do KOReader e vínculo durável ao Reader child ID. Antes de liberar importação em lote, validar no PW3:
+- criação local de uma annotation;
+- nota Reader preservada quando presente;
+- sidecar persistente após close/reopen;
+- próximo Sync não cria um segundo highlight no Reader;
+- repetição/restart não perde o vínculo.
+
+Gate 17C (bulk + idempotência + integração estável ao fluxo manual) só começa depois desse PASS.
