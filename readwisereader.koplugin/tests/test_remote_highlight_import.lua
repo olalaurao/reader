@@ -233,11 +233,15 @@ return function()
                         },
                     }
                 end,
-                scan = function(_, path, reader_id)
+                scan = function()
+                    error("PDF import must not verify via generic sidecar scan")
+                end,
+                scanFlushed = function(_, path, reader_id)
                     assert(path == "/books/book.pdf")
                     assert(reader_id == "pdf-parent")
                     return {
                         authoritative = true,
+                        source_candidate = "/books/book.sdr/metadata.pdf.lua",
                         annotations = {
                             {
                                 local_annotation_id = "ko-sidecar",
@@ -323,6 +327,9 @@ return function()
                     }
                 end,
                 scan = function()
+                    error("PDF import must not verify via generic sidecar scan")
+                end,
+                scanFlushed = function()
                     local function item(id)
                         return {
                             local_annotation_id = id,
@@ -340,6 +347,7 @@ return function()
                     end
                     return {
                         authoritative = true,
+                        source_candidate = "/books/book.sdr/metadata.pdf.lua",
                         annotations = { item("ko-a"), item("ko-b") },
                     }
                 end,
