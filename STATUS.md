@@ -4912,3 +4912,59 @@ Implementation decision:
 - no PDF annotation creation until PW3 proof.
 
 Build under implementation: `1.2.0-alpha.1`.
+
+
+## 2026-09-25 — Gate 17D alpha.1 off-device green; physical PDF probe next
+
+Implementation/package HEAD before this STATUS-only closeout: `9f8fdf080a2f0b674652e9612bed93511af164e6`.
+
+Implemented:
+- paging/PDF locator using KOReader's native `findAllText()` page/box results;
+- native single-page `pos0/pos1` reconstruction from interior first/last word-box coordinates;
+- `getTextFromPositions()` literal round-trip with `text_wrap=0` temporarily and restoration on success/error;
+- unique/missing/ambiguous/text-different/invalid classification;
+- exact Reader parent filtering for managed original PDFs;
+- cancellable read-only Gate 17D UI;
+- no annotation create/link path enabled.
+
+Deterministic coverage:
+- unique paging match;
+- repeated text ambiguity;
+- missing text;
+- literal round-trip difference;
+- invalid boxes;
+- engine exception with `text_wrap` restoration;
+- exact PDF parent filtering and note retention;
+- non-PDF rejection;
+- UI result counters and explicit no-write report.
+
+CI:
+- workflow `36146267184` on `9f8fdf080a2f0b674652e9612bed93511af164e6`: **SUCCESS**;
+- development checks: PASS;
+- complete Lua suite: PASS;
+- installable ZIP: PASS;
+- package layout: PASS;
+- artifact upload: PASS.
+
+Package audit:
+- artifact id: `10869274874`;
+- outer artifact digest: `sha256:5607da769c92b28c52de60b6d9bf1279f89427979934efec17fd208f188b08bc`;
+- installable inner ZIP SHA-256: `f0f10e0f765303a36d30079937c4b4a8acb8077b1703181f643b8743c5afcbf5`;
+- package root: exactly `readwisereader.koplugin/`;
+- 82 entries;
+- packaged version: `1.2.0-alpha.1`;
+- no tests/scripts/settings/SQLite DB/backups/sidecars/logs packaged.
+
+Gate state:
+- Gate 17D implementation is OFF-DEVICE GREEN;
+- PDF historical annotation creation remains disabled;
+- exact blocker is one real PW3 read-only PDF locator probe.
+
+Next physical checkpoint:
+1. install `1.2.0-alpha.1` preserving settings/DB/documents/sidecars;
+2. open an already-local plugin-managed original PDF that already has at least one Reader highlight;
+3. Wi-Fi ON;
+4. run **Readwise Reader → Inspect PDF Reader highlights (Gate 17D)** exactly once;
+5. return the complete result screen.
+
+PASS requires at least one `Unique exact paging matches`, no crash, and both remote/local annotation writes reported none.
