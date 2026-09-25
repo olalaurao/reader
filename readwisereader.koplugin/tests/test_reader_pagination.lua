@@ -206,6 +206,30 @@ return function()
         assert(call_index == 3)
     end
 
+
+    do
+        -- Gate 16 / malformed remote item: a bad document must fail closed
+        -- with a bounded decode error instead of reaching the callback.
+        local reader = sequenceReader({
+            {
+                results = {
+                    { id = "valid" },
+                    { title = "missing id" },
+                },
+            },
+        })
+        local callbacks = 0
+        local report, err = reader:iterateDocuments({}, function()
+            callbacks = callbacks + 1
+        end)
+        assert(report == nil)
+        assert(err.kind == "decode")
+        assert(err.index == 2)
+        assert(err.page == 1)
+        assert(callbacks == 0)
+    end
+
+
     do
         local reader = sequenceReader({
             {
