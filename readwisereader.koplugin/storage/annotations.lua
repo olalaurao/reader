@@ -121,6 +121,15 @@ function Annotations:linkImported(link)
             error("Reader highlight is already linked to a different local annotation")
         end
 
+        local existing_local = self:getById(link.local_annotation_id)
+        if existing_local
+            and existing_local.reader_highlight_document_id ~= nil
+            and existing_local.reader_highlight_document_id ~= ""
+            and existing_local.reader_highlight_document_id
+                ~= link.reader_highlight_document_id then
+            error("Local annotation is already linked to a different Reader highlight")
+        end
+
         self:upsertLocal{
             local_annotation_id = link.local_annotation_id,
             reader_document_id = link.reader_document_id,
