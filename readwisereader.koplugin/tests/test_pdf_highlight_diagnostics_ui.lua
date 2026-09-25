@@ -46,11 +46,19 @@ local function withStubs(run)
         return {
             findUnique = function(_, text)
                 if text == "Unique" then
-                    return { page = 4 }, "unique"
+                    return {
+                        page = 4,
+                        roundtrip_matches_search = true,
+                    }, "unique_exact"
+                elseif text == "Boundary" then
+                    return {
+                        page = 5,
+                        roundtrip_matches_search = false,
+                    }, "unique_boundary"
                 elseif text == "Repeated" then
                     return nil, "ambiguous"
-                elseif text == "Different" then
-                    return nil, "text_diff"
+                elseif text == "Geometry" then
+                    return nil, "geometry_mismatch"
                 end
                 return nil, "missing"
             end,
@@ -86,13 +94,14 @@ return function()
                     return {
                         pages = 2,
                         records_scanned = 4,
-                        parent_highlight_records = 4,
-                        highlights_with_text = 4,
+                        parent_highlight_records = 5,
+                        highlights_with_text = 5,
                         remote_highlights = {
                             { id = "1", content = "Unique" },
-                            { id = "2", content = "Repeated" },
-                            { id = "3", content = "Different" },
-                            { id = "4", content = "Missing" },
+                            { id = "2", content = "Boundary" },
+                            { id = "3", content = "Repeated" },
+                            { id = "4", content = "Geometry" },
+                            { id = "5", content = "Missing" },
                         },
                     }
                 end,
@@ -102,8 +111,10 @@ return function()
         local text = shown[#shown].text
         assert(text:find("Local PDF probes run: 3", 1, true))
         assert(text:find("Unique exact paging matches: 1", 1, true))
+        assert(text:find("Unique word-boundary paging matches: 1", 1, true))
+        assert(text:find("Validated paging positions total: 2", 1, true))
         assert(text:find("Ambiguous matches: 1", 1, true))
-        assert(text:find("Text round-trip differences: 1", 1, true))
+        assert(text:find("Full-text round-trip differences (diagnostic): 1", 1, true))
         assert(text:find("Remote writes: none", 1, true))
         assert(text:find("Local annotation/sidecar writes: none", 1, true))
     end)
