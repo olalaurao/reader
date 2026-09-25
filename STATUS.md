@@ -5099,3 +5099,37 @@ Additional hardening:
 - tests cover sidecar-only save, preference restoration before saveSettings, note preservation, full-word boundary text, PDF digest integrity failure, durable-link failure rollback, already-linked skip, and native-pbox collision across differing zoom state.
 
 Exact blocker: CI/package must pass on the alpha.3 versioned head before one physical one-item import is authorized.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.3 off-device green; one-item PDF import ready
+
+Validated implementation/test head: `8f8230360887998c619176d00a9db9460fdbb939`.
+
+CI workflow `36150715913`: **SUCCESS**.
+- development checks: PASS;
+- complete Lua unit suite: PASS;
+- installable ZIP: PASS;
+- package-layout verification: PASS;
+- artifact upload: PASS.
+
+Artifact/package audit:
+- artifact id: `10871337473`;
+- outer artifact digest: `sha256:0f3ef3899bbd77c650e4861f5561a98fa3d6a3abbdc2e14c45f8c992ab1fb8fd`;
+- installable ZIP SHA-256: `873a30cfc888d617adcdad21eabf6c0b5e9821dc0d03ea053151f3ce9b9e34cb`;
+- root exactly `readwisereader.koplugin/`;
+- 83 entries;
+- packaged version/meta: `1.2.0-alpha.3`;
+- required PDF locator/import/cache-worker files present;
+- no tests/scripts/.github/dist, SQLite DB/backups, sidecars or crash logs packaged.
+
+Gate 17D-2 is now blocked only on physical one-item proof.
+
+Exact next device sequence:
+1. install `1.2.0-alpha.3` preserving DB/settings/documents/sidecars;
+2. open the same managed PDF whose alpha.2 locator passed;
+3. run **Import one Reader PDF highlight (Gate 17D)** exactly once;
+4. require imported=1, PDF digest unchanged=yes, embed preference restored=yes, Reader writes none;
+5. close/reopen the PDF before ordinary Sync and verify the imported highlight remains visible; if it carried a Reader note, verify the note;
+6. do not run the explicit PDF import action a second time before reporting this persistence result.
+
+Only after 17D-2 persistence passes may ordinary Sync be used to prove outbound dedupe and then bulk PDF integration be implemented.
