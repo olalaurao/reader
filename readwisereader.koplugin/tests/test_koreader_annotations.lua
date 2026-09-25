@@ -91,6 +91,10 @@ return function()
             page = 4,
             pos0 = pos0a,
             pos1 = { x = 30, y = 40, page = 4 },
+            pboxes = {
+                { x = 10, y = 20, w = 5, h = 6 },
+                { x = 20, y = 20, w = 7, h = 6 },
+            },
         }
         local b = {
             datetime = a.datetime,
@@ -99,6 +103,7 @@ return function()
             page = a.page,
             pos0 = pos0b,
             pos1 = { page = 4, y = 40, x = 30 },
+            pboxes = a.pboxes,
         }
         local adapter = KOReaderAnnotations:new{
             doc_settings = docSettings({}, "/pdf.sdr/metadata.pdf.lua"),
@@ -108,6 +113,9 @@ return function()
         local ib = assert(adapter:normalize("reader-pdf", b))
         assert(ia.local_annotation_id == ib.local_annotation_id,
             "PDF locator table key order must not affect identity")
+        assert(#ia.pboxes == 2)
+        assert(ia.pboxes[1].x == 10 and ia.pboxes[2].w == 7,
+            "PDF native page boxes must be exposed for persisted-sidecar verification")
     end
 
     do
