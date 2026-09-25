@@ -5674,3 +5674,32 @@ Risk/validation policy:
 - per explicit user request, no new physical acceptance is required before this patch is merged;
 - complete automated Lua/packaging CI must still pass on the patch head and again on `main`;
 - if real-device performance or stability regresses, revert the four limits to v1.2.0 values without changing stored state/schema.
+
+
+## 2026-09-25 — v1.2.1 batch tuning merged to main
+
+User requested the throughput increase without another manual Kindle/device test.
+
+Final v1.2.1 limits:
+- EPUB/HTML: **50** new Reader-origin highlights per `Sync now`, **75** locator attempts;
+- PDF: **5** new Reader-origin highlights per `Sync now`, **30** locator attempts.
+
+Safety/architecture unchanged from v1.2.0:
+- current-document scope;
+- exact Reader child identity;
+- safe unique locator/collision rules;
+- sidecar persistence verification;
+- durable Reader-child link;
+- PDF sidecar-only write + unchanged PDF bytes;
+- rollback and outbound dedupe/fail-closed suppression.
+
+Validation before merge:
+- branch head `4b12572e537c678382c051d4b67a72d66654fbc1`;
+- push workflow `36170851216`: **SUCCESS**;
+- PR workflow `36170886555`: **SUCCESS**;
+- installable branch ZIP SHA-256: `cca25a891a5c77f6a1632c1c6baaf4f369bdf0ad7fc49e7a850343b7365ea0c2`;
+- package root exactly `readwisereader.koplugin/`, 75 files, version `1.2.1`, correct 50/75 and 5/30 constants, no tests/.github/DB/sidecars/crash logs.
+
+PR #23 merged to `main` at `dc8883ebca0155f81d0e7230d6150ceeecf80cee`.
+
+No physical acceptance is claimed for the larger batch sizes; this is explicitly a user-authorized throughput patch over the already physically accepted v1.2.0 import mechanisms. If PW3 performance regresses, restore the four v1.2.0 limits.
