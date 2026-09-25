@@ -69,6 +69,7 @@ local function baselineCase()
     assert(calls.upsert == 0)
     assert(calls.delete_ids == 0)
     assert(calls.delete_parents == 0)
+    assert(meta.data[Cache.VERSION_KEY] == Cache.CACHE_VERSION)
     assert(meta.data[Cache.BASELINE_KEY] == "1")
     assert(meta.data[Cache.WATERMARK_KEY] == "1970-01-01T00:16:40Z")
     assert(meta.data[Cache.QUERY_AFTER_KEY] == "1970-01-01T00:11:40Z")
@@ -77,6 +78,7 @@ end
 local function incrementalDeletionCase()
     local calls = {}
     local meta = newMeta{
+        [Cache.VERSION_KEY] = Cache.CACHE_VERSION,
         [Cache.BASELINE_KEY] = "1",
         [Cache.WATERMARK_KEY] = "old-watermark",
         [Cache.QUERY_AFTER_KEY] = "2026-09-25T03:55:00Z",
@@ -190,6 +192,7 @@ end
 local function deletionFailureIsFailClosedCase()
     local mutated = 0
     local meta = newMeta{
+        [Cache.VERSION_KEY] = Cache.CACHE_VERSION,
         [Cache.BASELINE_KEY] = "1",
         [Cache.WATERMARK_KEY] = "old-watermark",
         [Cache.QUERY_AFTER_KEY] = "old-query",
@@ -229,6 +232,7 @@ end
 
 local function repeatedDeletionCursorFailsCase()
     local meta = newMeta{
+        [Cache.VERSION_KEY] = Cache.CACHE_VERSION,
         [Cache.BASELINE_KEY] = "1",
         [Cache.QUERY_AFTER_KEY] = "old-query",
     }
@@ -258,9 +262,56 @@ local function repeatedDeletionCursorFailsCase()
     assert(err.kind == "pagination")
 end
 
+local function staleCacheVersionForcesReplacementCase()
+    local meta = newMeta{
+        [Cache.VERSION_KEY] = "old-experimental-cache",
+        [Cache.BASELINE_KEY] = "1",
+        [Cache.WATERMARK_KEY] = "old-watermark",
+        [Cache.QUERY_AFTER_KEY] = "old-query",
+    }
+    local replaced = 0
+    local cache = Cache:new{
+        reader = {
+            iterateDocuments = function(_, options, callback)
+                assert(options.updated_after == nil,
+                    "stale cache version must force a full v3 baseline")
+                callback{
+                    id = "fresh-h", parent_id = "fresh-p", category = "highlight",
+                    content = "Fresh",
+                }
+                return { pages = 1, unique = 1, duplicates = 0 }
+            end,
+        },
+        readwise = {
+            exportUpdated = function()
+                error("forced historical rebuild must not use incremental delete feed")
+            end,
+        },
+        repository = {
+            replaceSnapshot = function(_, rows)
+                replaced = replaced + 1
+                assert(#rows == 1 and rows[1].id == "fresh-h")
+                return 1
+            end,
+            upsertMany = function() error("stale cache must not incrementally upsert") end,
+            deleteByRemoteIds = function() error("stale cache must not apply tombstones") end,
+            deleteByParents = function() error("stale cache must not apply tombstones") end,
+        },
+        sync_meta = meta,
+        now = function() return 5000 end,
+    }
+
+    local report = assert(cache:refresh())
+    assert(report.mode == "historical")
+    assert(replaced == 1)
+    assert(meta.data[Cache.VERSION_KEY] == Cache.CACHE_VERSION)
+    assert(meta.data[Cache.BASELINE_KEY] == "1")
+end
+
 return function()
     baselineCase()
     incrementalDeletionCase()
     deletionFailureIsFailClosedCase()
     repeatedDeletionCursorFailsCase()
+    staleCacheVersionForcesReplacementCase()
 end
