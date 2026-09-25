@@ -4,7 +4,11 @@ A KOReader plugin project for using a Kindle as an offline reading client for Re
 
 ## Current status
 
-**V1 is accepted on the target Kindle Paperwhite 3 / KOReader v2026.07.1.** The complete integrated acceptance flow passed: Reader documents sync to Kindle, reading/annotations work offline, highlights and notes sync back without duplicates, Markdown/`[[wikilinks]]` survive through Readwise to Obsidian, Reader locations/tags project into KOReader/Bookshelf metadata, Finished archives remotely without deleting local reading state, queue/retry/restart recovery is durable, and the final no-op Sync is idempotent.
+**V1.0.0 is accepted on the target Kindle Paperwhite 3 / KOReader v2026.07.1.** The complete integrated acceptance flow passed: Reader documents sync to Kindle, reading/annotations work offline, highlights and notes sync back without duplicates, Markdown/`[[wikilinks]]` survive through Readwise to Obsidian, Reader locations/tags project into KOReader/Bookshelf metadata, Finished archives remotely without deleting local reading state, queue/retry/restart recovery is durable, and the final no-op Sync is idempotent.
+
+**v1.1.0-rc.1 adds historical Reader → KOReader highlight/note import for the currently-open managed rolling EPUB/HTML.** It reconciles those remote highlights before outbound annotation creates, uses a durable historical/incremental cache, suppresses unsafe collisions instead of creating duplicates, and preserves notes through KOReader's native sidecar path. The RC is off-device hardened but still requires the single final PW3 acceptance in `docs/DEVICE_TESTS.md` before stable v1.1.0.
+
+PDF/paging historical Reader → KOReader import is deliberately not part of v1.1.0; it remains a separate future locator spike. Existing PDF/EPUB reading and Kindle → Reader annotation sync are unchanged.
 
 The Gate 2 action performs a metadata-only full Reader-library scan with cursor guards, ID deduplication, request pacing, bounded `Retry-After` recovery and cancellable KOReader UI. It reports counts by location/category. **It does not download or change Reader documents and does not perform remote writes.**
 
@@ -50,6 +54,16 @@ KOReader's `LuaSettings` files are plaintext. The access token is therefore stor
 
 The UI never displays the saved value after saving it, and normal plugin logs never include the Authorization header/token.
 
+### v1.1 local highlight cache and rollback
+
+v1.1 schema v3 stores a local SQLite cache of Reader highlight text/notes so normal Sync does not have to rescan the entire Reader highlight corpus every time. This cache is private local data and is not logged.
+
+Before the v2→v3 migration, the plugin checkpoints SQLite WAL when necessary and copies the pre-migration database to:
+
+`koreader/settings/readwisereader.sqlite3.bak`
+
+To downgrade to a v1.0 build after v1.1 has opened the database, exit KOReader, restore the older plugin, and restore that `.bak` file as `readwisereader.sqlite3`. Do not delete Reader documents or KOReader sidecars, and do not run a schema-v2 plugin against the migrated schema-v3 database.
+
 To remove the credential, use **Access token → Clear**. Removing only the plugin directory does **not** remove the settings file. For a full manual cleanup, close KOReader and remove both:
 
 - `koreader/plugins/readwisereader.koplugin/`
@@ -86,7 +100,7 @@ The ZIP root expands to `readwisereader.koplugin/`. Development tests are exclud
 
 This repository is licensed under AGPL-3.0. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md).
 
-The community Readwise Reader plugin is used as an architectural/reference source and is also AGPL-3.0. The current implementation follows KOReader v2025.04 patterns while replacing the legacy monolithic architecture incrementally behind physical gates.
+The community Readwise Reader plugin is used as an architectural/reference source and is also AGPL-3.0. The current implementation targets KOReader v2026.07.1 on the validated PW3 baseline while retaining the project's gate-driven compatibility and rollback discipline.
 
 
 ## Gate 3 first article — PASSED

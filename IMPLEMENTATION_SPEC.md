@@ -3,7 +3,7 @@
 > **Canonical execution spec**  
 > **Repository:** `olalaurao/reader`  
 > **Target V1 device:** Kindle Paperwhite 3 / 7th gen (PW3), firmware 5.16.2.1.1, KUAL. KOReader `v2025.04` is the validated baseline through Gate 4; planned migration target is official `v2026.07.1` at Gate 4A.  
-> **Last verified:** 2026-09-23  
+> **Last verified:** 2026-09-25  
 > **Companion roadmap:** `PLAN.md`  
 > **Progress ledger:** `STATUS.md`
 >
@@ -3093,79 +3093,142 @@ Existing Readwise plugin reference:
 
 Gate 17A is **PASSED COMPLETE** on the target PW3.
 
-Gate 17B physical evidence:
-- 17B-1 import + note + first close/reopen persistence: **PASS**;
-- 17B-2 ordinary Sync outbound dedupe: **PASS** (remote highlight remained exactly once; note remained correct);
-- final post-Sync close/reopen persistence check: **PENDING explicit report**.
+Gate 17B physical evidence already established on `1.1.0-alpha.2`:
+- one existing Reader highlight imported through KOReader's native highlight path: **PASS**;
+- Reader note preserved locally: **PASS**;
+- first close/reopen sidecar persistence: **PASS**;
+- subsequent ordinary Sync created no duplicate Reader child and preserved the remote note: **PASS**.
 
-Therefore Gate 17B remains open only for that final reopen. Before installing a Gate 17C build, close/reopen the same EPUB once on `1.1.0-alpha.2` and require the imported highlight/note to remain intact.
+One formal Gate 17B observation was not separately reported: a second close/reopen *after* that ordinary Sync. At the user's explicit request, no more intermediate physical checkpoints will be required. This criterion is **deferred, not passed**, and is folded into the single final v1.1 RC acceptance session below.
 
-A Gate 17C implementation candidate (`1.1.0-alpha.3`) is already off-device green, but physical Gate 17C execution remains blocked until the final Gate 17B reopen passes.
+Gate 17C is implemented off-device as the v1.1 release candidate. The old alpha.3 ordering ("document Sync first, import afterwards") was deliberately replaced after audit because it could allow a local-only annotation to POST to Reader before an existing remote counterpart was reconciled. The canonical order is now **Reader → KOReader reconciliation first, then outbound create processing with explicit suppression guards**.
+
+Gate 17D (PDF/paging historical-highlight import) is **outside the v1.1.0 RC scope**. It remains a separately-gated future spike. Existing PDF reading and Kindle → Reader annotation sync remain V1 functionality; only historical Reader → KOReader import is limited to rolling EPUB/HTML in this release candidate.
 
 ---
 
 # 49. Phase T — Reader → KOReader historical highlight import
 
 ## 49.1 Identity
-Remote identity is exact Reader parent document ID + exact Reader highlight child ID. Text is a locator input, not identity.
+
+Remote identity is exact Reader parent document ID + exact Reader highlight child ID. Text is a locator input, never identity.
+
+A local annotation may be linked to at most one Reader highlight child, and one Reader child may not be rebound to a different local annotation. Any identity collision fails closed.
 
 ## 49.2 EPUB/HTML mapping
-Reader DOM positions are not portable to an original EPUB's CRengine DOM. Search the actual open local document via KOReader, use returned XPointers, round-trip the selected text, and reject multiple candidates.
 
-## 49.3 Planned insertion after Gate 17A
-Use the currently-open ReaderUI. Construct a normal KOReader highlight from validated XPointers, preserve Reader note literally, insert through KOReader's annotation/event path, persist the sidecar, then immediately persist the remote child-ID link in SQLite before a later outbound scan can queue a duplicate create.
+Reader DOM positions are not portable to an original EPUB's CRengine DOM. For a currently-open rolling EPUB/HTML document:
+- search the actual local document through KOReader `findAllText()`;
+- accept exactly one result;
+- require valid start/end XPointers;
+- round-trip those XPointers through `getTextFromXPointers()`;
+- require literal equality with the Reader highlight passage;
+- reject ambiguous, missing, invalid or text-different results.
 
-## 49.4 Dedupe
-Skip when the Reader child ID is already linked. Never dedupe unrelated highlights by text alone.
+Reader `highlight_location` and `highlight_offset` are never reused as KOReader positions.
 
-## 49.5 Sequence
-- Gate 17A: read-only EPUB/HTML locator probe.
-- Gate 17B: explicit current-document import, notes + reopen persistence + no outbound duplicate.
-- Gate 17C: idempotent repeat + stable manual Sync integration.
-- Gate 17D: PDF/paging locator spike, separately gated.
+## 49.3 Local insertion contract
 
+For a safely located Reader highlight:
+1. construct a normal KOReader selected-text payload using the validated XPointers;
+2. create the annotation through `ReaderHighlight:saveHighlight()`;
+3. preserve the Reader note literally;
+4. call `ReaderUI:saveSettings()`;
+5. reopen the sidecar through the normal KOReader annotation adapter;
+6. require the newly-created deterministic local annotation ID to exist in that authoritative sidecar;
+7. transactionally link that local ID to the pre-existing Reader highlight child ID;
+8. if sidecar verification or durable linking fails, roll back only the just-created local annotation and save settings again.
 
+The import path itself performs zero Reader POST/PATCH/DELETE operations.
 
-## 49.6 Gate 17B implementation contract
+## 49.4 Existing-local collision rules
 
-The one-item import action is intentionally parent-process/local-document work after a read-only child-process Reader scan.
+Before creating a local annotation:
+- if the Reader child ID is already durably linked, skip it;
+- if the exact target XPointer range already contains a local highlight with an equivalent note, link that existing local highlight instead of creating an overlapping duplicate;
+- if the exact range exists but note/identity cannot be reconciled safely, do not link or overwrite either side and suppress that local annotation's outbound create for the current Sync;
+- if the Reader passage is ambiguous/missing locally, any local annotation with conservative equivalent plain text (NFC, whitespace/NBSP, soft-hyphen and conservative punctuation normalization) is also suppressed from outbound creation for that Sync;
+- text equality alone never creates a durable remote identity link.
 
-Order is mandatory:
-1. skip Reader child IDs already linked in SQLite;
-2. find one exact unique local XPointer range (note-bearing Reader highlights are preferred);
-3. skip an exact local locator collision rather than creating an overlapping duplicate;
-4. create one annotation through KOReader `ReaderHighlight:saveHighlight()`;
-5. call `ReaderUI:saveSettings()`;
-6. re-open the sidecar through the normal KOReader annotation adapter and prove the newly-created local annotation ID exists there;
-7. transactionally create/update the annotation-link row and attach the pre-existing Reader child ID as `created_remote/synced`;
-8. if durable link fails, remove the just-created local annotation and save settings again;
-9. never issue Reader POST/PATCH/DELETE from the import action.
+## 49.5 Gate sequence and scope
 
-This ordering ensures normal later KOReader -> Reader scanning sees the imported annotation as an already-linked remote entity rather than a new create candidate.
+- Gate 17A: read-only rolling EPUB/HTML locator probe — **PASSED physically**.
+- Gate 17B: one-item local import + note + durable link + initial reopen + outbound dedupe — physical evidence passed except one redundant post-Sync reopen observation, deferred into final RC acceptance.
+- Gate 17C: bounded, idempotent manual-Sync integration — implemented/off-device hardened; final PW3 acceptance pending.
+- Gate 17D: PDF/paging locator spike — **deferred outside v1.1.0** and must not be inferred from rolling-document behavior.
 
-## 49.7 Gate 17C implementation contract
+## 49.6 Pre-Sync reconciliation order
 
-Gate 17C turns the proven one-item path into a bounded, idempotent current-document batch integrated with the existing **manual Sync now** workflow.
+For an ordinary manual `Sync now` while a managed rolling EPUB/HTML is open:
 
-Rules:
-1. the normal document/annotation Sync worker runs first; Reader → KOReader import never runs inside the child worker because KOReader `ReaderUI`/sidecar mutation must stay in the parent process;
-2. only a successful online/full document Sync with the same currently-open managed rolling EPUB/HTML may trigger the import pass;
-3. after the document watermark/postprocess commit, fetch Reader highlight children read-only in a second cancellable subprocess;
-4. in the parent, skip every Reader child ID already durably linked before any text-location work;
-5. bound each pass to **20 newly-created local annotations** and **30 locator attempts**; excess unlinked candidates are deferred to a later manual Sync;
-6. preserve note-bearing candidates first, but identity remains Reader child ID + parent ID, never text;
-7. accept only exact unique KOReader XPointer matches; ambiguous, missing, invalid/different results are skipped;
-8. skip exact local-position collisions without inventing a remote identity link for an unrelated local annotation;
-9. for every created item, preserve the Gate 17B safety order: `saveHighlight()` → `saveSettings()` → authoritative sidecar verification → transactional remote-ID link;
-10. if one item cannot persist/link, roll back that just-created local annotation and stop the batch; earlier successfully-linked imports remain valid;
-11. post-Sync import cancellation/failure is reported separately and must not roll back or mark failed an already-successful document Sync/watermark commit;
-12. import performs **zero Reader POST/PATCH/DELETE** operations;
-13. a repeated Sync must never recreate an already-linked local import; when all uniquely locatable candidates are linked, a further unchanged Sync imports zero.
+1. In the parent KOReader process, identify the current managed document and enter the Reader → KOReader reconciliation flow **before** the normal sync worker can process any highlight-create POST.
+2. Refresh the durable remote-highlight cache in a cancellable subprocess. KOReader `ReaderUI`/sidecar mutation remains parent-process only.
+3. Return the complete cached highlight set for the current Reader parent ID to the parent process.
+4. Import/link only safe candidates in the parent, bounded as described below.
+5. Produce exact suppression guards for any local annotations whose remote counterpart cannot be safely reconciled.
+6. Only then start the normal document/annotation Sync worker, passing those suppression guards.
+7. The worker may queue local work normally, but a suppressed create intent remains pending with **attempts unchanged** and performs zero POST in that run.
 
-Physical Gate 17C closure must prove on the target PW3:
-- at least two historical Reader highlights import in one Sync-driven batch;
-- at least one imported note survives close/reopen;
-- the prior Gate 17B linked item is skipped, not recreated;
-- a second Sync creates zero outbound Reader duplicates for the newly-imported local items;
-- bounded continuation works when more than one batch is required;
-- after all importable candidates are linked/deferred only for non-unique safety reasons, one unchanged Sync imports zero new local highlights.
+Cancellation during the pre-Sync reconciliation aborts `Sync now` before outbound Reader writes begin. A non-cancelled reconciliation failure does not authorize a risky create: the current document's outbound highlight creates are suppressed for that run, while unrelated safe document/queue work may continue.
+
+## 49.7 Bounded batch / starvation contract
+
+Each parent-process reconciliation pass:
+- creates at most **20** new local annotations;
+- attempts at most **30** KOReader locators;
+- prioritizes note-bearing Reader highlights;
+- skips already-linked Reader child IDs before locator work;
+- stores a per-document cursor when the batch limit defers remaining candidates;
+- rotates after that cursor on the next run so early ambiguous candidates cannot permanently starve later unique candidates;
+- clears the cursor after the bounded set has been fully considered.
+
+A repeated unchanged Sync must never recreate an already-linked local annotation or POST an imported annotation back to Reader as a new child.
+
+## 49.8 Durable remote-highlight cache
+
+Historical Reader highlight discovery is global because Reader v3 LIST does not document a parent-ID filter and the real library already required 11 pages / 1086 highlight records.
+
+To avoid paying that cost on every Sync:
+
+1. SQLite schema v3 contains a local `remote_highlights` cache keyed by exact Reader highlight child ID and indexed by parent ID.
+2. The first cache build (or any cache-semantics version mismatch) performs a full Reader v3 `category=highlight` traversal and atomically **replaces** the snapshot; stale rows from partial/older experimental caches cannot survive.
+3. Even the historical baseline queries only the 5-minute overlap window of Readwise v2 EXPORT with `includeDeleted=true` before publishing the snapshot. This closes the race where a highlight is deleted after an early v3 page was read.
+4. Later refreshes use Reader v3 `updatedAfter` with the same overlap plus Readwise v2 EXPORT `updatedAfter + includeDeleted=true`.
+5. v2 tombstones are applied by exact `external_id` to cached Reader parent/child IDs. The code does not rely on an unstable `source` label for deletion identity.
+6. A failed/repeated-cursor/malformed deletion feed is fail-closed: cache rows and cache watermark are not advanced, and current-document outbound creates remain suppressed.
+7. After refresh, the parent process receives the **full cached set for the current parent**, not only the incremental delta. Historical ambiguous/collision candidates therefore remain visible to the safety guard without another full Reader traversal.
+8. Remote highlight text/notes in this cache are local private data. They are never logged and are used only for synchronization/position reconciliation.
+
+The cache has its own semantic version marker. A stale experimental cache version forces a new historical replacement even when the SQL schema version is unchanged.
+
+## 49.9 Database migration / rollback contract
+
+The v1.1 RC migrates the plugin database from schema v2 to schema v3.
+
+Before any migration:
+- if SQLite is using WAL, force a full WAL checkpoint;
+- copy the pre-migration database to `readwisereader.sqlite3.bak`;
+- only then run the transactional migration.
+
+Migration failure rolls back the SQL transaction and preserves the prior schema/data.
+
+After a successful v2 → v3 migration, an older v1.0 plugin (schema v2) must not be run against the schema-v3 database. To downgrade, exit KOReader, restore the older plugin, and restore the pre-migration `.bak` database. Reader documents and KOReader sidecars are not part of this database rollback and must not be deleted.
+
+## 49.10 Final v1.1 RC physical acceptance
+
+Per the user's request, all remaining device evidence is consolidated into **one final PW3 acceptance session** rather than incremental checkpoints.
+
+Use the same managed rolling EPUB already proven in Gates 17A/17B. The acceptance session must establish all of the following before v1.1.0 can be tagged stable:
+
+1. RC installs/restarts normally and the migrated plugin settings/database load.
+2. First `Sync now` completes without a fatal error; historical-cache construction may make this first run noticeably heavier than later incremental runs.
+3. At least two previously-existing Reader highlights are imported locally in a Sync-driven batch when safe candidates remain, and at least one imported Reader note is preserved.
+4. The already-imported Gate 17B highlight is skipped/linked rather than duplicated.
+5. Close/reopen after Sync preserves the Gate 17B item plus newly-imported highlights/notes. This also satisfies the deferred final Gate 17B reopen criterion.
+6. If the report shows `Reader imports deferred by batch limit > 0`, run ordinary Sync again within the same acceptance session until that counter reaches 0; each run must remain bounded and safe.
+7. No imported/reconciled local annotation is POSTed back to Reader as a duplicate. Collision-suppressed queue items may remain pending; they must not be blindly POSTed.
+8. A final unchanged Sync imports 0 new local highlights, creates no duplicate remote highlight, reports no import failure, and leaves progress/sidecars/annotations intact.
+9. KOReader remains responsive and the EPUB opens/reflows normally after the migration/import sequence.
+10. No PDF/paging historical import is exercised or claimed by this gate.
+
+Until this single final session passes, Gate 17C and v1.1.0 stable remain **physically unaccepted**, even though the RC can be off-device green.

@@ -2858,117 +2858,102 @@ The complete integrated V1 acceptance flow passed:
 Result: **Phase S PASSED COMPLETE. V1.0.0 release is authorized after the release-preparation commit passes full CI/package validation.**
 
 
-## Phase T / Gate 17A — Reader → KOReader existing highlight locator
+## Phase T — Reader → KOReader historical highlights
 
-Build: **1.1.0-alpha.1**
+Target: PW3 / KOReader v2026.07.1. Production scope for v1.1.0: **currently-open managed rolling EPUB/HTML only**.
 
-Purpose: validate the exact position-mapping contract for highlights that already exist in Reader before allowing any local sidecar mutation.
+### Gate 17A — physical PASS
 
-This gate is deliberately read-only.
-
-### Target fixture
-
-Use the already-managed **EPUB** that exposed the missing feature:
-- the EPUB opens normally in KOReader;
-- it already contains at least one highlight in Readwise Reader;
-- the highlight text exists in the EPUB itself.
-
-### Procedure
-
-1. Install build 1.1.0-alpha.1 preserving settings, SQLite DB, downloaded documents and sidecars.
-2. Restart KOReader.
-3. Open that managed EPUB.
-4. Turn Wi-Fi on outside the plugin and ensure real connectivity.
-5. Open **Readwise Reader → Inspect Reader highlights (Gate 17A)**.
-6. Let the scan finish; it may traverse Reader highlight pages because Reader LIST has no documented parent-id filter.
-7. Capture/return the complete result screen.
-
-### PASS criteria
-
-- `Highlights for this document >= 1`;
-- `Highlights with text >= 1`;
-- `Local match probes run >= 1`;
-- `Unique exact XPointer matches >= 1`;
-- no crash/freeze;
-- `Remote writes: none`;
-- `Local writes: none`;
-- after closing/reopening the EPUB, its existing local highlights/notes/progress are unchanged.
-
-Ambiguous or missing matches are acceptable for some passages; they must be reported and not guessed. Gate 17A fails only if no real Reader highlight can be resolved uniquely, the device becomes unstable, or any local/remote mutation occurs.
-
-Do not proceed to Gate 17B until this result is recorded.
-
-
-### Gate 17A physical result — PASS
-
-Target PW3 / KOReader v2026.07.1:
-- 11 Reader highlight pages / 1086 highlight records scanned;
-- 70 highlight children matched the open EPUB parent ID;
+Using the real managed EPUB:
+- 11 Reader highlight pages / 1086 records scanned;
+- 70 highlight children belonged to the EPUB;
 - 70 had text;
-- 3 local probes were run;
-- 3/3 produced unique exact XPointer matches;
-- 0 ambiguous, 0 missing, 0 invalid;
+- 3/3 sampled passages resolved to unique exact KOReader XPointer ranges;
+- 0 ambiguous/missing/invalid samples;
 - remote writes: none;
 - local writes: none.
 
-Result: **PASS**. Reader → KOReader historical-highlight position mapping for rolling EPUB is physically proven enough to enter Gate 17B local insertion.
+### Gate 17B — physical evidence
 
+Build `1.1.0-alpha.2`:
+- one Reader highlight imported locally: PASS;
+- Reader note preserved: PASS;
+- first close/reopen persistence: PASS;
+- ordinary Sync after import: PASS;
+- no duplicate Reader child after that Sync: PASS;
+- remote note remained correct: PASS.
 
-## Phase T / Gate 17B — one Reader highlight import
+The only unreported formal item was a **second close/reopen after that Sync**. At the user's explicit request, this is deferred into the final RC acceptance below instead of requiring another intermediate test. Do not retroactively mark it passed before that final session.
 
-Build: **1.1.0-alpha.2**
+### Gate 17C — off-device RC contract
 
-Use the same managed EPUB from Gate 17A.
+The final candidate intentionally differs from early `1.1.0-alpha.3`:
+- Reader → KOReader reconciliation runs **before** outbound create processing;
+- risky current-document creates are suppressed rather than POSTed;
+- first run builds a global historical Reader-highlight cache;
+- later runs refresh it incrementally;
+- Readwise v2 EXPORT `includeDeleted=true` supplies deletion tombstones by exact external ID;
+- cache/version/watermark do not advance on incomplete deletion verification;
+- import remains bounded to 20 new local annotations / 30 locator attempts per run;
+- per-document cursor prevents ambiguous early candidates from starving later candidates;
+- exact unique XPointer is still mandatory;
+- note is preserved literally;
+- save sidecar + authoritative reopen + durable Reader-child link are mandatory before an import counts;
+- failure rolls back only the just-created local item;
+- schema v2→v3 migration checkpoints WAL and creates `readwisereader.sqlite3.bak` before the transaction.
 
-### Checkpoint 17B-1 — import + reopen (do not Sync yet)
+### Gate 17D — not part of this RC
 
-1. Install alpha.2 preserving settings, SQLite DB, documents and sidecars; restart KOReader.
-2. Open the same EPUB; Wi-Fi ON.
-3. Run **Readwise Reader → Import one Reader highlight (Gate 17B)** exactly once.
-4. Require:
-   - `Imported local highlights: 1`;
-   - `Remote identity linked durably: yes`;
-   - `Sidecar persistence verified: yes`;
-   - `Remote writes: none`.
+PDF/paging historical Reader → KOReader import remains a separate future spike. Do not test or claim it as part of v1.1.0. Existing PDF reading and Kindle → Reader annotation sync are unchanged.
+
+## v1.1.0-rc.1 — single final PW3 acceptance session
+
+No additional intermediate checkpoints are required. Do this only once the final RC ZIP is supplied.
+
+### Before install
+
+1. Exit KOReader.
+2. Keep the existing Reader documents and KOReader sidecars untouched.
+3. Make a normal backup of `koreader/plugins/readwisereader.koplugin/` and `koreader/settings/` if convenient.
+4. Install the RC plugin folder over the old plugin folder, preserving settings/documents/sidecars.
+5. Restart KOReader.
+
+On first DB open, v1.1 migrates schema v2→v3. The plugin itself creates a pre-migration `readwisereader.sqlite3.bak`. If a downgrade to v1.0 becomes necessary, exit KOReader, restore the old plugin and restore this `.bak` as `readwisereader.sqlite3`; do not run v1.0 against a schema-v3 database.
+
+### Acceptance
+
+Use the **same managed EPUB** from Gates 17A/17B and keep Wi-Fi on.
+
+1. Open the EPUB.
+2. Run ordinary **Readwise Reader → Sync now**.
+3. The first RC run may be heavier because it constructs the historical cache. It must finish without a fatal error/crash.
+4. In the report require:
+   - Reader → KOReader pre-sync reconciliation is not a fatal error;
+   - Reader import failures = 0;
+   - at least 2 historical Reader highlights imported locally if at least 2 safe/unlinked candidates remain;
+   - the old Gate 17B item is counted as already linked/skipped rather than recreated;
+   - collision/ambiguous counters may be non-zero, but such cases must be skipped/suppressed rather than guessed.
 5. Close the EPUB and reopen it.
-6. Confirm the newly imported highlight is visibly present. If the result said `Imported note present: yes`, open/check that highlight and confirm the Reader note is intact.
-7. Do **not** run ordinary Sync until this checkpoint is reported.
+6. Confirm:
+   - the prior Gate 17B imported highlight still exists;
+   - newly imported highlights still exist;
+   - at least one imported Reader note is intact when note-bearing candidates were imported.
+7. If `Reader imports deferred by batch limit > 0`, run ordinary Sync again. Continue within this same acceptance session until the deferred counter reaches 0.
+8. Throughout those runs, no imported/reconciled local highlight may be created as a second Reader child. A collision-suppressed create may remain queued; it must not be POSTed blindly.
+9. Run **one final unchanged Sync**.
+10. Require:
+    - Reader highlights imported locally = 0;
+    - Reader import failures = 0;
+    - no new duplicate Reader highlight;
+    - EPUB progress/position, pre-existing highlights/notes and imported highlights/notes remain intact;
+    - KOReader remains responsive and the EPUB still opens/reflows normally.
 
-If 17B-1 passes, checkpoint 17B-2 is one ordinary Sync followed by proof that no duplicate Reader highlight was created and the local import remains intact.
+### PASS meaning
 
-### Gate 17B physical results to date
+If all items above pass:
+- the deferred Gate 17B post-Sync reopen criterion is satisfied;
+- Gate 17C is physically accepted;
+- v1.1.0 rolling EPUB/HTML historical import is accepted;
+- stable `v1.1.0` may be merged/tagged.
 
-17B-1: **PASS**
-- one Reader highlight imported locally;
-- Reader note present;
-- sidecar persistence survived close/reopen.
-
-17B-2 outbound dedupe: **PASS**
-- ordinary Sync succeeded;
-- the same remote Reader highlight remained exactly once;
-- its note remained correct.
-
-Final Gate 17B closure action still pending explicit report:
-1. on `1.1.0-alpha.2`, close the EPUB after that Sync;
-2. reopen it;
-3. confirm the imported highlight and note still exist locally.
-
-Do not install/test Gate 17C until this final reopen is confirmed.
-
-## Phase T / Gate 17C — bounded bulk import + Sync integration
-
-Candidate build: **1.1.0-alpha.3** (off-device CI green; physical test blocked until Gate 17B final reopen).
-
-When authorized, use the same managed EPUB:
-1. install alpha.3 preserving settings/SQLite/documents/sidecars and restart KOReader;
-2. open the EPUB with Wi-Fi on and no new disposable local annotations pending;
-3. run ordinary **Sync now** once;
-4. require `Reader → KOReader import: ok`, `Reader highlights imported locally >= 2`, `Reader import failures: 0`, and `Highlights created: 0` for outbound Kindle → Reader work;
-5. require the already-linked Gate 17B Reader child to appear in the `Reader highlights already linked` count rather than being recreated;
-6. close/reopen the EPUB and inspect at least two newly-imported highlights; where notes exist, verify at least one imported note literally;
-7. run **Sync now** again;
-8. require no outbound duplicate creation for those imported highlights (`Highlights created: 0`), while the next bounded Reader → KOReader batch may import additional historical highlights;
-9. repeat Sync only as needed until `Reader imports deferred by batch limit: 0`;
-10. then run one additional unchanged Sync and require `Reader highlights imported locally: 0`, no outbound duplicates, and all previously-imported highlights/notes still present.
-
-Ambiguous/missing/invalid locator skips or exact local-position collision skips are safe outcomes and must never be auto-forced.
+If any item fails, preserve the RC database/sidecar/log state and report the exact Sync summary/error; do not delete documents or sidecars to retry.

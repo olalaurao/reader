@@ -4748,3 +4748,65 @@ Accepted physical result:
 - branch Phase R from merged `main`;
 - harden in spec order: large library, low disk, malformed document, huge document, Unicode, 429, intermittent Wi-Fi, force-close, reboot, migration, rollback, debug-log secret review;
 - do all deterministic/off-device tests first; stop only when the next item genuinely requires a PW3 physical test.
+
+
+## 2026-09-25 — v1.1.0-rc.1 release freeze prepared; one final PW3 acceptance remains
+
+User requested that no further intermediate device checkpoints be required. That changes test cadence, **not gate truth**: missing physical observations remain pending until the single final RC acceptance session.
+
+### Scope / gate state
+- Gate 17A rolling EPUB locator: **PASSED physically**.
+- Gate 17B one-item import, note, first reopen and outbound dedupe: **PASSED physically**.
+- Gate 17B redundant post-Sync reopen: **deferred into final RC acceptance; not separately marked PASS**.
+- Gate 17C bounded/idempotent Sync integration: **implementation + deterministic hardening complete; final PW3 acceptance pending**.
+- Gate 17D PDF/paging historical import: **explicitly deferred outside v1.1.0**. Existing V1 PDF/EPUB reading and Kindle → Reader sync remain unchanged.
+
+### Architecture correction after alpha.3 audit
+The early alpha.3 design ran Reader → KOReader import after ordinary Sync. Audit found a duplicate-risk ordering: a local-only annotation could be POSTed before the plugin reconciled an already-existing Reader highlight at the same passage.
+
+The canonical RC order is now:
+1. parent-process Reader → KOReader reconciliation for the currently-open managed rolling document;
+2. cancellable child refresh of the remote-highlight cache;
+3. bounded local import/link/collision analysis;
+4. explicit suppression set for unsafe local create candidates;
+5. only then the ordinary child Sync worker, which keeps suppressed create intents pending with attempts unchanged and performs zero POST for them.
+
+Cancellation during reconciliation aborts Sync before outbound writes. Non-cancelled reconciliation failure suppresses current-document highlight creates rather than authorizing a blind POST.
+
+### Remote-highlight cache / deletion safety
+- schema v3 adds global `remote_highlights`, keyed by exact Reader highlight child ID and indexed by parent;
+- first build atomically replaces the historical snapshot;
+- cache semantics are separately versioned, so an old alpha cache forces rebuild even without another SQL migration;
+- historical baseline also checks a bounded 5-minute Readwise v2 EXPORT `includeDeleted=true` window before publishing, closing a deletion race during pagination;
+- later refreshes use Reader v3 `updatedAfter` + Readwise v2 deletion tombstones with the same overlap;
+- tombstones are applied by exact `external_id`, not an unstable source label;
+- failed/malformed/repeated-cursor deletion verification does not mutate/advance the cache;
+- full cached rows for the current parent are returned every run, so old ambiguous/collision candidates remain visible to the guard without a full Reader traversal.
+
+### Local safety hardening
+- max 20 new local annotations / 30 locators per run;
+- per-document cursor prevents starvation behind repeated ambiguous passages;
+- exact unique XPointer + literal round-trip remains mandatory;
+- existing exact-position local highlight with compatible note may be linked instead of duplicated;
+- note/identity conflict is not merged; its local create is suppressed;
+- conservative equivalent-text detection only suppresses risky outbound creates; text alone never assigns durable identity;
+- local annotation ↔ Reader child rebinding is rejected transactionally;
+- each new import remains saveHighlight → saveSettings → authoritative sidecar re-read → durable remote-ID link, with just-created-local rollback on failure.
+
+### Migration / rollback hardening
+v1.1 moves the DB from schema v2 to v3. Before migration:
+- SQLite WAL is checkpointed when active;
+- the v2 database is copied to `readwisereader.sqlite3.bak`;
+- migration remains transactional.
+
+Tests cover fresh schema, v1→current, v2→v3 data preservation, interrupted-v3 rollback, WAL checkpoint-before-copy, copy failure, and cache repository replacement/deletion.
+
+Downgrade contract: an older schema-v2 plugin must be paired with the pre-migration `.bak`; do not run v1.0 against the schema-v3 DB.
+
+### CI / testing state at release-freeze preparation
+The hardening sequence has repeatedly passed full syntax/dev checks and the complete Lua suite. A new final CI/package run is required on the release-freeze commit that changes version/docs to `1.1.0-rc.1`. Stable v1.1.0 is **not** authorized before both that CI and the consolidated PW3 acceptance pass.
+
+### Single final physical acceptance
+Follow the v1.1.0-rc.1 section in `docs/DEVICE_TESTS.md`: install once, open the same Gate 17 EPUB, Sync/import bounded batches until no items are deferred, close/reopen to verify old/new highlights + notes, then run one unchanged Sync and require zero new imports/duplicates/fatal errors with document state intact.
+
+No further intermediate device request should be inserted before that final RC handoff unless off-device work uncovers a new safety blocker.

@@ -1,7 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
 return {
-    VERSION = "1.1.0-alpha.3",
+    VERSION = "1.1.0-rc.1",
     SETTINGS_FILENAME = "readwisereader.lua",
     DEFAULT_DOWNLOAD_ROOT = "/mnt/us/documents/Readwise",
     DEFAULT_SYNC_LOCATIONS = { "new", "later" },

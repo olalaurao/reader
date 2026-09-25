@@ -32,6 +32,15 @@ All notable project changes are recorded here.
 
 ## [Unreleased]
 
+### Release candidate
+
+- `1.1.0-rc.1` changes historical Reader → KOReader import to a pre-Sync reconciliation so an existing remote highlight is resolved before any local create can POST a duplicate back to Reader.
+- Adds SQLite schema v3 global remote-highlight cache: historical Reader v3 baseline, incremental `updatedAfter`, a 5-minute overlap, cache semantic versioning, and Readwise v2 `EXPORT includeDeleted=true` tombstones keyed by exact external IDs.
+- Unsafe exact-position/note conflicts and ambiguous equivalent-text candidates suppress outbound creates for that run rather than guessing identity. Suppressed durable queue items remain unattempted.
+- Adds bounded/starvation-safe batches (20 new annotations / 30 locator attempts), native KOReader sidecar persistence verification, durable child-ID linking, and per-item rollback.
+- Hardens v2→v3 migration rollback by checkpointing WAL before the automatic pre-migration `readwisereader.sqlite3.bak` copy; deterministic tests cover v1/v2 migration, v3 rollback, cache replacement, tombstones, pagination and restart-safe queue semantics.
+- v1.1.0 scope is rolling EPUB/HTML historical import. PDF/paging historical import is explicitly deferred to Gate 17D rather than extrapolated from CRengine rolling-document XPointers.
+
 ### Added
 
 - Experimental `1.1.0-alpha.3` adds bounded/idempotent historical Reader → KOReader highlight batches for the currently-open managed rolling EPUB/HTML and integrates them after successful manual `Sync now`. Each run creates at most 20 annotations / attempts at most 30 locators, preserves Reader notes, skips already-linked IDs and unsafe locator/collision cases, and keeps the proven sidecar-verification + durable-link rollback contract. A cancelled/failed post-Sync import is reported separately and does not invalidate an already-completed document Sync.
