@@ -5364,3 +5364,33 @@ Implementation/diagnostic head `2fb9e274a2342434c3a485a4a99bea30ad4fa315` workfl
 Build advanced to `1.2.0-alpha.7`.
 
 Next physical checkpoint remains one explicit PDF import once, then close/reopen before ordinary Sync. If lookup still fails, the new error counters identify the exact divergent field.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.7 off-device green; KOReader-native PDF identity handoff ready
+
+Final alpha.7 package head before this STATUS-only record: `115fa779bbd785da9b2d859413117416a83fbe04`.
+
+CI workflow `36158082771`: **SUCCESS**.
+- development checks: PASS;
+- complete Lua suite: PASS;
+- installable ZIP build: PASS;
+- package-layout verification: PASS;
+- artifact upload: PASS.
+
+Artifact/package audit:
+- artifact id: `10874166672`;
+- outer artifact digest: `sha256:c53434aeb116ab530239ffebd2535d1276059b43ad72204879926d27f5028fc7`;
+- installable ZIP SHA-256: `0e0fe02e45125be05f095068796883af76e70fb85bb705a43b2357afd2cfadfb`;
+- root exactly `readwisereader.koplugin/`;
+- 75 packaged files;
+- packaged version/meta: `1.2.0-alpha.7`;
+- packaged shared importer contains `pdfNativeMatch()`, `samePagingPos()`, staged sidecar counters and exact text/note post-match validation;
+- packaged annotation adapter reports raw normalization counts;
+- no tests/scripts/.github/dist, SQLite DB/backups, sidecars or crash logs packaged.
+
+Physical blocker:
+1. install alpha.7;
+2. use the same managed PDF;
+3. run explicit PDF import exactly once;
+4. if success, close/reopen before ordinary Sync and verify highlight/note;
+5. if failure, report the full structural counter message. No further blind matcher changes should be made without those counters.
