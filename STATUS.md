@@ -4888,3 +4888,27 @@ Usage clarification recorded:
 - to import all highlights today, open each managed rolling EPUB/HTML and Sync until its deferred-import counter reaches 0.
 
 After the stable tag, resume exactly at Gate 17D with a read-only PDF/paging locator spike. Do not infer PDF locator semantics from EPUB XPointers.
+
+
+## 2026-09-25 — v1.1.0 merged green; Gate 17D read-only implementation started
+
+- PR #21 merged to `main` as `d3d23e8f70dddad009a76a30a4c143303429b1f5`.
+- Final `main` workflow `36145328585`: SUCCESS.
+- Stable plugin code on `main` reports version `1.1.0`.
+- The available GitHub connector can merge/branch/update files but exposes no Git-tag creation action; therefore the requested `v1.1.0` Git tag could not be created from this session and is not falsely recorded as created.
+- New branch: `feature/v1.2-pdf-highlight-probe`, based exactly on green stable `main`.
+
+Gate 17D source validation against KOReader v2026.07.1 established:
+- PDF is a paging document;
+- PDF `findAllText()` returns page + word boxes rather than XPointers;
+- PDF `getTextFromPositions()` consumes page/x/y positions and returns text + page boxes;
+- `ReaderHighlight:saveHighlight()` persists paging highlights using `pos0/pos1` and `pboxes`;
+- existing KOReader code itself switches to native (`text_wrap=0`) positions for paging/PDF position work.
+
+Implementation decision:
+- Gate 17D first step is read-only only;
+- single-page, unique, literal text round-trip is the only accepted success;
+- multi-page/OCR/repeated/fuzzy cases are measured, not guessed;
+- no PDF annotation creation until PW3 proof.
+
+Build under implementation: `1.2.0-alpha.1`.
