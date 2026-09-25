@@ -1320,24 +1320,26 @@ A candidata **0.1.47** já passou fisicamente no PW3:
 - preservação do artigo gerenciado;
 - primeiro Sync Wi-Fi-on;
 - segundo Sync inalterado/no-op;
-- highlight/nota local em offline controlado -> fila durável, sem remote write.
+- highlight/nota local em offline controlado -> fila durável, sem remote write;
+- restart completo ainda offline -> highlight/nota local + fila SQLite persistiram, diagnóstico read-only sem remote write.
 
-Próximo checkpoint físico: **restart do KOReader ainda offline + prova read-only da fila**, sem reconnect ainda.
+A cobertura determinística também prova o caminho de reconnect exatamente uma vez: a fila pendente vira succeeded após uma única criação, waiting vai a zero e um novo uploader/ciclo posterior não cria novamente; outcomes ambíguos continuam sem blind retry.
 
-1. manter Wi-Fi OFF e `Restore Wi-Fi connection on resume` OFF;
-2. reiniciar completamente o KOReader;
-3. reabrir o mesmo artigo e confirmar o highlight/nota `gate16 rc offline [[Foucault]]` + `#queue-test-47`;
-4. rodar **Inspect reconnect queue (Gate 13)** ainda offline;
-5. exigir auth probe não-passed, Queue pending >=1, retry_wait=0, in_flight=0, item sem remote ID, marker/parent probes não executados e Remote writes=none;
-6. confirmar que o fixture ainda não existe no Reader remoto;
-7. parar antes de ligar Wi-Fi.
+Próximo checkpoint físico: **reconnect + um único Sync exactly-once**.
+
+1. ligar Wi-Fi novamente pelo KOReader;
+2. não editar/recriar o fixture;
+3. rodar **Sync now exatamente uma vez**;
+4. exigir uma única criação/reconciliação segura do fixture;
+5. exigir queue waiting = 0 para ele;
+6. confirmar ausência de duplicata e de erro fatal/replacement inesperado;
+7. conferir no Reader que o highlight/nota chegou uma única vez no documento correto;
+8. parar e devolver o relatório antes do restart final.
 
 Só depois desse PASS:
-- reconnect;
-- Sync exatamente uma vez;
-- uma única criação/reconciliação remota;
-- fila zerada e nenhuma duplicata;
-- restart final/persistência;
-- revisão local do `crash.log` por token/Authorization/URL assinada/private payload.
+- restart final;
+- persistência de progresso/highlights/notas;
+- plugin + Bookshelf carregando;
+- revisão local de `crash.log` por token/Authorization/URL assinada/private payload.
 
 Gate 16 continua aberto; Phase S continua bloqueada.
