@@ -151,6 +151,46 @@ return function()
         assert(err.detail == "no_space")
     end
 
+
+    do
+        -- Gate 16 / low-storage: ENOSPC after a stream has already started
+        -- must remove the partial .tmp and never expose a truncated final file.
+        local fake = fakeDeps()
+        local writes = 0
+        fake.deps.open_file = function(path)
+            fake.files[path] = ""
+            return {
+                _path = path,
+                write = function(_, chunk)
+                    writes = writes + 1
+                    if writes == 1 then
+                        fake.files[path] = fake.files[path] .. chunk
+                        return true
+                    end
+                    return nil, "No space left on device"
+                end,
+                close = function() return true end,
+            }
+        end
+        local installer = Installer:new{ deps = fake.deps }
+        local result, err = installer:installStream(
+            "/root/Books/full.pdf",
+            function(sink)
+                assert(sink("%PDF-1.7\\n") == 1)
+                local ok = sink("body")
+                assert(ok == nil)
+                return nil, "producer stopped after sink failure"
+            end
+        )
+        assert(result == nil)
+        assert(err.kind == "io")
+        assert(err.stage == "write")
+        assert(err.detail == "no_space")
+        assert(fake.files["/root/Books/full.pdf"] == nil)
+        assert(fake.files["/root/Books/full.pdf.tmp"] == nil)
+    end
+
+
     assert(Installer._classifyOpenError("Too many open files") == "too_many_open_files")
     assert(Installer._classifyOpenError("File name too long") == "name_too_long")
     assert(Installer._classifyOpenError("Read-only file system") == "read_only")
