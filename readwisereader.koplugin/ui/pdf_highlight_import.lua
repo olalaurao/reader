@@ -96,12 +96,25 @@ local function withPdfEmbeddingDisabled(reader_ui, fn)
     return unpack(results)
 end
 
-local function rollbackLocal(reader_ui, index)
+local function annotationIndex(reader_ui, target)
+    for index, item in ipairs(reader_ui.annotation.annotations or {}) do
+        if item == target then return index end
+    end
+end
+
+local function rollbackLocal(reader_ui, target)
+    local index = annotationIndex(reader_ui, target)
+    if not index then return false end
+
     local deleted = withPdfEmbeddingDisabled(reader_ui, function()
         reader_ui.highlight:deleteHighlight(index)
     end)
     if not deleted then return false end
-    return pcall(reader_ui.saveSettings, reader_ui)
+    if annotationIndex(reader_ui, target) then return false end
+
+    local saved = pcall(reader_ui.saveSettings, reader_ui)
+    if not saved then return false end
+    return annotationIndex(reader_ui, target) == nil
 end
 
 function UI:new(options)
@@ -221,13 +234,14 @@ function UI:_createAndLink(path, reader_ui, remote, locator, digest_before)
             "KOReader could not create the sidecar-only PDF highlight."
         )
     end
+    local local_item = reader_ui.annotation.annotations[index]
 
     -- The user's PDF-embedding preference has already been restored by
     -- withPdfEmbeddingDisabled(). Save only after restoration so this plugin
     -- does not silently change that preference.
     local saved_ok = pcall(reader_ui.saveSettings, reader_ui)
     if not saved_ok then
-        local rollback_ok = rollbackLocal(reader_ui, index)
+        local rollback_ok = rollbackLocal(reader_ui, local_item)
         return nil, domainError(
             rollback_ok and "sidecar" or "rollback",
             rollback_ok
@@ -238,18 +252,17 @@ function UI:_createAndLink(path, reader_ui, remote, locator, digest_before)
 
     local digest_after, digest_err = self.file_digest(path)
     if not digest_after then
-        rollbackLocal(reader_ui, index)
+        rollbackLocal(reader_ui, local_item)
         return nil, domainError("integrity", digest_err)
     end
     if digest_after ~= digest_before then
-        rollbackLocal(reader_ui, index)
+        rollbackLocal(reader_ui, local_item)
         return nil, domainError(
             "pdf_changed",
             "The PDF file bytes changed unexpectedly. The sidecar item was rolled back and Gate 17D must stop."
         )
     end
 
-    local local_item = reader_ui.annotation.annotations[index]
     local link_ok, linked, link_err = pcall(
         self.importer.linkPersisted,
         self.importer,
@@ -258,7 +271,7 @@ function UI:_createAndLink(path, reader_ui, remote, locator, digest_before)
         local_item
     )
     if not link_ok or not linked then
-        local rollback_ok = rollbackLocal(reader_ui, index)
+        local rollback_ok = rollbackLocal(reader_ui, local_item)
         local reason
         if link_ok and type(link_err) == "table"
             and type(link_err.message) == "string"
@@ -278,7 +291,7 @@ function UI:_createAndLink(path, reader_ui, remote, locator, digest_before)
     end
 
     if linked.status == "already_linked" then
-        local rollback_ok = rollbackLocal(reader_ui, index)
+        local rollback_ok = rollbackLocal(reader_ui, local_item)
         if not rollback_ok then
             return nil, domainError(
                 "rollback",
@@ -447,6 +460,7 @@ function UI:run()
     end)
 end
 
+UI._annotationIndex = annotationIndex
 UI._defaultFileDigest = defaultFileDigest
 UI._exactLocalAt = exactLocalAt
 UI._orderedCandidates = orderedCandidates
