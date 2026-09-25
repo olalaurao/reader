@@ -24,6 +24,8 @@ local tests = {
     "tests.test_text_match_diagnostics_ui",
     "tests.test_remote_highlight_locator",
     "tests.test_remote_highlight_probe",
+    "tests.test_remote_highlight_cache",
+    "tests.test_remote_highlight_import_worker",
     "tests.test_remote_highlight_import",
     "tests.test_remote_highlight_diagnostics_ui",
     "tests.test_remote_highlight_import_ui",
