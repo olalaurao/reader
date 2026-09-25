@@ -129,6 +129,10 @@ Report only: whether the offline sync returned safely; whether the recovery sync
 
 A2 (acceptance steps 7-14) passed on the target PW3. Offline reading and the new annotation survived document reopen and an offline sync without loss. No production change was required. The prior A1 documentation commit passed CI run 36079597398. Phase S remains open. Next checkpoint is A3 (steps 15-20): reconnect, sync the same annotation to its original Reader document, verify the note, then sync again and verify no duplicate.
 
+## 2026-09-25 — Acceptance A3 passed
+
+A3 (acceptance steps 15-20) passed on the target PW3. After connectivity returned, Sync uploaded the queued highlight to the same original Reader document; the note remained intact; a second Sync created no duplicate. CI run 36079680834 for the A2 documentation commit passed. No production change was required. Phase S remains open. Next checkpoint is A4 (steps 21-23): export/sync through Readwise to Obsidian, confirm the wikilinks behave as links there, then exercise the already-in-scope note-update path and verify the edited note reaches Reader.
+
 ## Current milestone
 
 **Phase S / V1 acceptance — OPEN; Gates 0–16 PASSED COMPLETE**
