@@ -108,6 +108,14 @@ Report only: whether the offline sync returned safely; whether the recovery sync
 - **Exact blocker:** Acceptance A1 / section-42 steps 1-6. Start with no pending queue; save one new article in Reader; Wi-Fi on; `Sync now`; verify exactly one local copy; open it and establish non-zero reading position. Do not create the acceptance highlight/note yet.
 - After A1 PASS, record it before proceeding to the offline annotation portion (steps 7-14).
 
+## 2026-09-25 — Phase S Acceptance A1 PASS; A2 offline annotation next
+
+- **A1 physical PASS on target PW3:** user confirmed the section-42 steps 1-6 checkpoint passed completely: Sync succeeded, the fresh Reader article materialized locally exactly once, opened normally, and a non-zero reading position was established.
+- **CI entering A1:** `fcf6ea4105a0c018623bb37050b4255bed556108` push run `36079421068` completed SUCCESS.
+- **Production changes:** none. The observed end-to-end Reader -> Kindle path matches the accepted contracts.
+- **Phase S:** remains OPEN; do not tag V1 yet.
+- **Next physical checkpoint — A2 / section-42 steps 7-14:** on the same article, turn Wi-Fi off; continue reading; create one highlight; attach the exact note `ver [[Foucault]] e [[Biopolítica]]\n\n#pesquisar`; close and reopen the document and confirm the annotation is still present; while still offline run `Sync now`; confirm Sync returns safely and the annotation remains pending/not lost. Do not restore Wi-Fi yet. Report whether offline reading worked, highlight/note survived reopen exactly, offline Sync returned safely, and annotation remained pending.
+
 ## Current milestone
 
 **Phase S / V1 acceptance — OPEN; Gates 0–16 PASSED COMPLETE**
