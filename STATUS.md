@@ -261,6 +261,25 @@ Required fix before retry:
 - rerun full CI/package checks;
 - then repeat only the same Gate 17A physical probe.
 
+## 2026-09-25 — Gate 17A false rolling preflight fixed; retry build green
+
+The attempt-1 failure was fixed by treating KOReader's `reader_ui.rolling` as the module/object it actually is, instead of requiring the literal boolean `true`.
+
+Regression coverage now stubs `rolling = {}` so this exact KOReader runtime shape is locked in. No locator/import behavior changed beyond allowing a valid rolling EPUB/HTML to reach the existing read-only Gate 17A probe.
+
+- fix commit: `f81820f74bb3cbb85b5c0190dbfe512b3fceecc2`;
+- regression test commit: `b36dea9ea9a2110f8f74ac2395a9a5c8f962fcb7`;
+- CI workflow `36091470601`: **SUCCESS**;
+- development checks: PASS;
+- full Lua unit suite: PASS;
+- installable ZIP build: PASS;
+- package layout verification: PASS;
+- artifact upload: PASS;
+- CI artifact id: `10846016344`;
+- extracted install ZIP SHA-256: `c0862e027254d4aa28af90721504cff799d587ade30d46986e46c41c18e1d5a3`.
+
+Gate 17A remains OPEN only for the physical retry. Repeat the same read-only test on the same managed EPUB with existing Reader highlights. No annotation should be created yet.
+
 ## Current milestone
 
 **Phase T / Gate 17A — Reader → KOReader existing-highlight locator spike; V1.0.0 remains released**
