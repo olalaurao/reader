@@ -23,17 +23,18 @@ The Gate 2 action performs a metadata-only full Reader-library scan with cursor 
 
 Do not update Kindle firmware/jailbreak for this project. The KOReader update is now a deliberate Gate 4A migration with backup, rollback and regression testing; see `docs/KOREADER_UPGRADE.md`.
 
-### Historical Reader highlights in v1.1
+### Historical Reader highlights in v1.2.1
 
 The document-location filters under **Settings → Documents → Locations** choose which Reader documents participate in download/document sync. They do **not** bulk-import historical highlights across every selected document.
 
-In v1.1, historical Reader → KOReader highlight import is current-document scoped:
-1. open a plugin-managed rolling EPUB/HTML;
+Historical Reader → KOReader import is current-document scoped:
+1. open a plugin-managed EPUB/HTML or original PDF;
 2. run **Sync now**;
-3. if the report says `Reader imports deferred by batch limit > 0`, run Sync again with that same document open until the counter reaches 0;
-4. repeat for each managed EPUB/HTML whose historical Reader highlights you want locally.
+3. EPUB/HTML can import up to **50** new highlights per Sync; PDF can import up to **5**;
+4. if the report says imports were deferred by the batch limit, run Sync again with that same document open until no work is deferred;
+5. repeat for each managed document whose historical Reader highlights you want locally.
 
-A future bulk-library migration may automate this traversal. PDF/paging historical import remains separately gated.
+Unsafe ambiguous matches are skipped/suppressed rather than guessed. A future bulk-library migration may automate traversal across all selected documents.
 
 ## Canonical project documents
 
