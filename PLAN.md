@@ -1330,12 +1330,16 @@ A aceitação integrada já repetiu com sucesso:
 - falha de rede recuperável;
 - reinício do KOReader com fila pendente e recuperação idempotente.
 
+Aceite integrado adicional já repetido:
+- mudança de location do Reader projetada para a Collection `Readwise: ...`;
+- Collections locais não gerenciadas preservadas;
+- nenhuma cópia local duplicada criada pela mudança de location.
+
 Ainda faltam, antes de `v1.0.0`:
-1. repetir no documento de aceitação a mudança de location do Reader e a projeção para a Collection `Readwise: ...`, preservando Collections não gerenciadas;
-2. repetir alteração de tag no Reader e projeção nos metadados/Bookshelf sem criar Collection por tag;
-3. marcar o documento finished e confirmar Archive remoto sem remover arquivo/sidecar/progresso/anotações locais;
-4. revisar logs finais por token, signed URL e conteúdo privado;
-5. executar o segundo no-op Sync final e confirmar zero novos documentos/highlights;
-6. somente então fechar Phase S, preparar release candidate e tag `v1.0.0`.
+1. repetir alteração de tag no Reader e projeção nos metadados/Bookshelf sem criar Collection por tag;
+2. marcar o documento finished e confirmar Archive remoto sem remover arquivo/sidecar/progresso/anotações locais;
+3. revisar logs finais por token, signed URL e conteúdo privado;
+4. executar o segundo no-op Sync final e confirmar zero novos documentos/highlights;
+5. somente então fechar Phase S, preparar release candidate e tag `v1.0.0`.
 
 Não pular esses critérios mesmo quando o comportamento já tiver evidência em gates anteriores: esta fase é a repetição integrada de aceite da V1 no PW3 real.
