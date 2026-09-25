@@ -5004,3 +5004,39 @@ Alpha.2 correction:
 - no fuzzy matching, annotation creation, sidecar write, DB link or Reader mutation is enabled.
 
 Build version is advanced to `1.2.0-alpha.2`. Next blocker remains one read-only physical PDF probe.
+
+
+## 2026-09-25 — Gate 17D alpha.2 off-device green; corrected PDF probe ready
+
+Final alpha.2 implementation head: `139f67b38f38e29a767507f614f1ecefa2b83a47`.
+
+The alpha.2 locator now:
+- treats `findAllText()` as the authoritative unique-search result;
+- validates derived native box-center positions by mapping them back through `getWordFromPosition()` to the exact first/last PDF words;
+- classifies exact token sequences as `unique_exact`;
+- classifies only KOReader's explicit first-word-suffix / last-word-prefix behavior as `unique_boundary`;
+- keeps `getTextFromPositions()` full-text reconstruction diagnostic-only;
+- restores `text_wrap` after endpoint or diagnostic exceptions;
+- still performs zero local annotation/sidecar/link writes and zero Reader mutations.
+
+CI workflow `36148802751`: **SUCCESS**.
+- development checks: PASS;
+- complete Lua suite: PASS;
+- installable ZIP: PASS;
+- package-layout verification: PASS;
+- artifact upload: PASS.
+
+Artifact/package:
+- artifact id: `10870269607`;
+- outer artifact digest: `sha256:9cc934a6088ca090d7f98002c01eb2bdcae521d8bb8744c7d04004cb2640a1c5`;
+- installable inner ZIP SHA-256: `b985dd4e5845fac85c6f08c2cad9a717bf626d22e93bcd573764a0f591fbd6cc`;
+- root: exactly `readwisereader.koplugin/`;
+- 82 package entries;
+- packaged version/meta: `1.2.0-alpha.2`;
+- PDF probe/locator files present;
+- no test suite, SQLite DB, migration backup, sidecar or crash-log data packaged. The packaged `ui/settings.lua` is plugin source code, not user settings data.
+
+Next and only blocker:
+- repeat the same read-only Gate 17D probe on the same PDF with alpha.2;
+- PASS requires `Validated paging positions total >= 1`, `Native endpoint geometry mismatches: 0`, no crash, and both write counters none;
+- a non-zero full-text round-trip diagnostic counter is allowed.
