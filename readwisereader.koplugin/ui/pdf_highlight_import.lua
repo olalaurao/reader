@@ -250,7 +250,7 @@ function UI:_createAndLink(path, reader_ui, remote, locator, digest_before)
     end
 
     local local_item = reader_ui.annotation.annotations[index]
-    local link_ok, linked = pcall(
+    local link_ok, linked, link_err = pcall(
         self.importer.linkPersisted,
         self.importer,
         path,
@@ -259,11 +259,21 @@ function UI:_createAndLink(path, reader_ui, remote, locator, digest_before)
     )
     if not link_ok or not linked then
         local rollback_ok = rollbackLocal(reader_ui, index)
+        local reason
+        if link_ok and type(link_err) == "table"
+            and type(link_err.message) == "string"
+            and link_err.message ~= "" then
+            reason = link_err.message
+        elseif not link_ok then
+            reason = "The durable Reader/PDF link raised an internal error."
+        else
+            reason = "The durable Reader/PDF link returned no result."
+        end
         return nil, domainError(
-            rollback_ok and "db" or "rollback",
+            rollback_ok and "link" or "rollback",
             rollback_ok
-                and "The Reader/PDF identity link could not be persisted; the local sidecar item was rolled back."
-                or "The identity link failed and local rollback also failed. Stop syncing and report this error."
+                and (reason .. " The local sidecar item was rolled back.")
+                or (reason .. " Local rollback also failed. Stop syncing and report this error.")
         )
     end
 
