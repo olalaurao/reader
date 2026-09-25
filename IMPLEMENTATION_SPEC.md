@@ -3365,3 +3365,19 @@ If immediate PDF persisted lookup fails after a successful sidecar flush, the er
 - same pos1.x/y.
 
 These counters are diagnostic only and must not relax matching.
+
+
+## 50.8 KOReader sidecar numeric round-trip
+
+Gate 17D-2 alpha.7 proved that the freshly-persisted PDF annotation can have the same page and datetime as the created item while exact pos0/pos1 comparisons fail.
+
+KOReader's settings serializer writes numbers with Lua `tostring(number)`. The plugin's deterministic annotation identity intentionally canonicalizes numbers with up to 17 significant digits. For plugin-generated PDF positions, identity must not be computed from a higher-precision pre-serialization float that KOReader will immediately shorten on disk.
+
+Before using generated paging positions for PDF annotation creation:
+1. each numeric `page`, `rotation`, `zoom`, `x`, and `y` component of pos0/pos1 must pass through `tonumber(tostring(value))`;
+2. native endpoint-word validation must run on these persisted-form positions;
+3. `saveHighlight()` receives the same persisted-form positions;
+4. no epsilon/tolerance matching is introduced;
+5. existing stored annotation identities are not rewritten.
+
+Rollback must track the created local annotation by object reference, not assume its original numeric list index remains stable.
