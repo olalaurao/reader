@@ -5394,3 +5394,54 @@ Physical blocker:
 3. run explicit PDF import exactly once;
 4. if success, close/reopen before ordinary Sync and verify highlight/note;
 5. if failure, report the full structural counter message. No further blind matcher changes should be made without those counters.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.7 physical precision mismatch; alpha.8 persistence fix
+
+Physical alpha.7 result:
+- current sidecar contained exactly one raw annotation;
+- normalization succeeded: `raw=1, normalized=1, malformed=0, normalize_exceptions=0`;
+- exactly one candidate scanned;
+- same page: 1;
+- same datetime: 1;
+- same pos0: 0;
+- same pos1: 0;
+- local item was rolled back successfully;
+- no Reader mutation occurred.
+
+This isolates the item as the newly-created annotation itself: sidecar presence, page and timestamp all agree; only the numeric endpoint coordinates differ.
+
+KOReader v2026.07.1 persistence audit:
+- `ReaderHighlight:saveHighlight()` copies `selected_text.pos0/pos1` directly;
+- `ReaderAnnotation:addItem()` only adds datetime/pageno/pageref and does not change endpoints;
+- `AnnotationsModified` handlers do not change endpoints;
+- `SaveSettings` annotation path does not change endpoints;
+- KOReader `dump.lua` serializes Lua numbers with `tostring(number)`;
+- the plugin annotation identity canonicalizer uses `string.format("%.17g", value)`.
+
+Therefore an engine float with more precision than KOReader's textual sidecar representation can have:
+- one binary value in memory before save;
+- a shorter decimal representation written by KOReader;
+- a slightly different binary value after `dofile` reload;
+- different deterministic 17-digit locator identity and failed exact x/y comparison,
+while still being the same annotation.
+
+Alpha.8 fix:
+- every generated PDF paging `page/rotation/zoom/x/y` value in pos0/pos1 is converted through `tonumber(tostring(value))` before native endpoint validation and before `saveHighlight()`;
+- this is not tolerance/fuzzy matching: it pre-applies KOReader's exact on-disk numeric round-trip;
+- persisted sidecar values should therefore reload bit-equivalent to the in-memory values used for deterministic identity;
+- pboxes remain rendering geometry and are not promoted to identity;
+- alpha.7 native paging fallback + structural diagnostics remain as secondary safety.
+
+Rollback hardening:
+- capture the created annotation table immediately after `saveHighlight()`;
+- use that object reference for durable linking;
+- on failure, re-find its current list index by table identity before deletion;
+- verify the exact target reference is absent before/after sidecar save;
+- prevents a shifted index from deleting a neighboring annotation or falsely reporting rollback success.
+
+Implementation/test head `b1ae635447bb553f7da3a9e5ffb99083ebe555cf` workflow `36160586054`: **SUCCESS**.
+
+Build advanced to `1.2.0-alpha.8`.
+
+Next physical checkpoint: one explicit PDF import once, then close/reopen before ordinary Sync. If lookup still fails, retain and report the alpha.7 structural counter message.
