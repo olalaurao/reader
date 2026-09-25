@@ -142,4 +142,48 @@ return function()
         assert(result == nil)
         assert(err.kind == "parent")
     end
+    do
+        local importer = Import:new{
+            documents = {
+                getByLocalPath = function(_, path)
+                    assert(path == "/books/book.pdf")
+                    return {
+                        reader_id = "pdf-parent",
+                        local_path = path,
+                        local_format = "pdf",
+                        is_local_present = true,
+                        is_managed = true,
+                    }
+                end,
+            },
+            annotations = {},
+            adapter = {},
+        }
+        local document, err = importer:getDocument("/books/book.pdf")
+        assert(err == nil)
+        assert(document.local_format == "pdf")
+        assert(document.reader_id == "pdf-parent")
+    end
+
+    do
+        local importer = Import:new{
+            documents = {
+                getByLocalPath = function()
+                    return {
+                        reader_id = "mobi-parent",
+                        local_path = "/books/book.mobi",
+                        local_format = "mobi",
+                        is_local_present = true,
+                        is_managed = true,
+                    }
+                end,
+            },
+            annotations = {},
+            adapter = {},
+        }
+        local document, err = importer:getDocument("/books/book.mobi")
+        assert(document == nil)
+        assert(err.kind == "format")
+    end
+
 end
