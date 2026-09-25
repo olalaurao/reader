@@ -1367,11 +1367,27 @@ Depois do PASS:
 
 ### Gate 17B — estado atual
 
-`1.1.0-alpha.2` está implementado e CI-green para importar **um** highlight remoto já existente por vez, usando o caminho nativo do KOReader e vínculo durável ao Reader child ID. Antes de liberar importação em lote, validar no PW3:
-- criação local de uma annotation;
-- nota Reader preservada quando presente;
-- sidecar persistente após close/reopen;
-- próximo Sync não cria um segundo highlight no Reader;
-- repetição/restart não perde o vínculo.
+Build `1.1.0-alpha.2`:
+- import de uma annotation local: **PASS físico**;
+- nota Reader preservada: **PASS físico**;
+- sidecar sobreviveu ao primeiro close/reopen: **PASS físico**;
+- ordinary Sync não criou segundo highlight remoto: **PASS físico**;
+- nota remota continuou correta após Sync: **PASS físico**;
+- falta apenas o close/reopen **depois** desse Sync para registrar formalmente a persistência final exigida pela spec.
 
-Gate 17C (bulk + idempotência + integração estável ao fluxo manual) só começa depois desse PASS.
+### Gate 17C — candidato off-device
+
+Build `1.1.0-alpha.3` já está implementado e CI-green, mas não deve ser testado fisicamente antes do último reopen do 17B.
+
+Escopo:
+- import em lote limitado a 20 novos highlights/30 buscas por rodada;
+- integração ao final de um `Sync now` online bem-sucedido para o documento rolling atualmente aberto;
+- IDs remotos já vinculados são pulados antes da busca;
+- notas preservadas;
+- ambiguidades/misses/colisões locais são pulados com segurança;
+- cada item segue save sidecar + verificação + link durável antes de prosseguir;
+- repetição é idempotente;
+- falha/cancelamento do import pós-Sync não invalida um Sync documental já concluído;
+- import remoto faz zero mutações no Reader.
+
+Gate 17D (PDF/paging) continua separado e não começou.

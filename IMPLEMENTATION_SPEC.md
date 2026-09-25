@@ -3093,20 +3093,14 @@ Existing Readwise plugin reference:
 
 Gate 17A is **PASSED COMPLETE** on the target PW3.
 
-Next: **Gate 17B — one existing Reader highlight -> local KOReader annotation**.
+Gate 17B physical evidence:
+- 17B-1 import + note + first close/reopen persistence: **PASS**;
+- 17B-2 ordinary Sync outbound dedupe: **PASS** (remote highlight remained exactly once; note remained correct);
+- final post-Sync close/reopen persistence check: **PENDING explicit report**.
 
-Physical closure sequence:
-1. install `1.1.0-alpha.2` preserving plugin settings/SQLite/downloaded documents/sidecars;
-2. open the same managed EPUB used for Gate 17A with Wi-Fi on;
-3. run **Import one Reader highlight (Gate 17B)** exactly once;
-4. require `Imported local highlights: 1`, `Remote identity linked durably: yes`, `Sidecar persistence verified: yes`, and `Remote writes: none`;
-5. close and reopen the EPUB before any ordinary Sync;
-6. require that imported highlight to remain visible; when the imported Reader highlight had a note, require the note text to remain present;
-7. only after reopen persistence is confirmed, run one ordinary **Sync now**;
-8. require zero new Reader highlight creation for the imported annotation (no duplicate remote child);
-9. reopen once more and require the local imported highlight/note to remain intact.
+Therefore Gate 17B remains open only for that final reopen. Before installing a Gate 17C build, close/reopen the same EPUB once on `1.1.0-alpha.2` and require the imported highlight/note to remain intact.
 
-Gate 17C remains blocked until all Gate 17B criteria pass.
+A Gate 17C implementation candidate (`1.1.0-alpha.3`) is already off-device green, but physical Gate 17C execution remains blocked until the final Gate 17B reopen passes.
 
 ---
 
@@ -3148,3 +3142,30 @@ Order is mandatory:
 9. never issue Reader POST/PATCH/DELETE from the import action.
 
 This ordering ensures normal later KOReader -> Reader scanning sees the imported annotation as an already-linked remote entity rather than a new create candidate.
+
+## 49.7 Gate 17C implementation contract
+
+Gate 17C turns the proven one-item path into a bounded, idempotent current-document batch integrated with the existing **manual Sync now** workflow.
+
+Rules:
+1. the normal document/annotation Sync worker runs first; Reader → KOReader import never runs inside the child worker because KOReader `ReaderUI`/sidecar mutation must stay in the parent process;
+2. only a successful online/full document Sync with the same currently-open managed rolling EPUB/HTML may trigger the import pass;
+3. after the document watermark/postprocess commit, fetch Reader highlight children read-only in a second cancellable subprocess;
+4. in the parent, skip every Reader child ID already durably linked before any text-location work;
+5. bound each pass to **20 newly-created local annotations** and **30 locator attempts**; excess unlinked candidates are deferred to a later manual Sync;
+6. preserve note-bearing candidates first, but identity remains Reader child ID + parent ID, never text;
+7. accept only exact unique KOReader XPointer matches; ambiguous, missing, invalid/different results are skipped;
+8. skip exact local-position collisions without inventing a remote identity link for an unrelated local annotation;
+9. for every created item, preserve the Gate 17B safety order: `saveHighlight()` → `saveSettings()` → authoritative sidecar verification → transactional remote-ID link;
+10. if one item cannot persist/link, roll back that just-created local annotation and stop the batch; earlier successfully-linked imports remain valid;
+11. post-Sync import cancellation/failure is reported separately and must not roll back or mark failed an already-successful document Sync/watermark commit;
+12. import performs **zero Reader POST/PATCH/DELETE** operations;
+13. a repeated Sync must never recreate an already-linked local import; when all uniquely locatable candidates are linked, a further unchanged Sync imports zero.
+
+Physical Gate 17C closure must prove on the target PW3:
+- at least two historical Reader highlights import in one Sync-driven batch;
+- at least one imported note survives close/reopen;
+- the prior Gate 17B linked item is skipped, not recreated;
+- a second Sync creates zero outbound Reader duplicates for the newly-imported local items;
+- bounded continuation works when more than one batch is required;
+- after all importable candidates are linked/deferred only for non-unique safety reasons, one unchanged Sync imports zero new local highlights.

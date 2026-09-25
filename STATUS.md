@@ -372,6 +372,48 @@ Conclusion:
 
 Do not run the explicit Gate 17B import action again during this checkpoint.
 
+## 2026-09-25 — Gate 17B-2 outbound dedupe PASS; final reopen remains
+
+User reported the requested ordinary Sync checkpoint completed correctly on `1.1.0-alpha.2`:
+- ordinary **Sync now** succeeded;
+- the imported Reader highlight remained present remotely exactly once (no duplicate child was created);
+- its Reader note remained correct.
+
+This closes the outbound-deduplication requirement for the imported Gate 17B annotation. The pre-Sync close/reopen persistence proof already passed in 17B-1.
+
+One formal Gate 17B criterion from the canonical spec has **not yet been explicitly reported**: close/reopen the EPUB once more *after* that successful ordinary Sync and confirm the imported local highlight/note still remain. Gate 17B therefore remains OPEN only for that final post-Sync reopen observation.
+
+## 2026-09-25 — Gate 17C off-device candidate implemented; physical start still gated
+
+Build `1.1.0-alpha.3` is implemented on branch `feature/v1.1-reader-highlight-import`.
+
+Implementation commits:
+- `46689342a35d2e3ae20ba2710106b949473ae44a` — bounded bulk Reader → KOReader import integrated with manual Sync;
+- `b1da02f36b8ea6d5b036bdc46f281c70171f1e71` — repair accidental literal newline syntax in constants.
+
+CI:
+- initial run `36094436071` stopped at development checks because two inserted newlines in `constants.lua` were encoded literally as `\\n`; no unit tests ran on that failed revision;
+- corrected run `36094535608` is **SUCCESS**: development checks, complete Lua unit suite, installable ZIP build, package-layout verification and artifact upload all passed.
+- artifact id: `10847216168`;
+- extracted install ZIP SHA-256: `6f5b56ee7786826cfdcda0f57f5b97ede7a8424e06a54695099e7f99e782122c`.
+
+Gate 17C candidate behavior:
+- successful online manual Sync may run a parent-process Reader → KOReader import pass for the currently-open managed rolling EPUB/HTML only;
+- remote highlight fetch remains read-only and subprocess-isolated;
+- local import is bounded to 20 newly-created annotations and 30 locator attempts per run;
+- already-linked Reader child IDs are skipped before locator work;
+- ambiguous/missing/invalid text locations and exact local-position collisions are skipped, never guessed;
+- each created annotation preserves the Reader note and still follows the proven 17B order: native KOReader save → sidecar save → sidecar verification → durable Reader child-ID link;
+- a per-item sidecar/link failure rolls back only the just-created local item and stops the batch safely;
+- cancelling/failing the post-Sync import does **not** undo or falsify a document Sync that already completed and committed its watermark;
+- repeated runs are covered deterministically: linked IDs import zero times, and bounded batches advance without duplicating earlier imports;
+- the Sync report now exposes Reader → KOReader import status/counters.
+
+Sequencing note: Gate 17C code was prepared after the outbound-dedupe proof but before the final post-Sync Gate 17B reopen was explicitly reported. **Do not physically execute Gate 17C or call Gate 17B complete until that final reopen passes.** No Gate 17D work has begun.
+
+### Exact next physical action
+With the currently-installed `1.1.0-alpha.2`, close the same EPUB and reopen it once. Confirm the Gate 17B imported highlight and its note are still present. If yes, Gate 17B closes and `1.1.0-alpha.3` becomes authorized for the Gate 17C physical matrix.
+
 ## Current milestone
 
 **Phase T / Gate 17A — Reader → KOReader existing-highlight locator spike; V1.0.0 remains released**

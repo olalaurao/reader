@@ -2935,3 +2935,40 @@ Use the same managed EPUB from Gate 17A.
 7. Do **not** run ordinary Sync until this checkpoint is reported.
 
 If 17B-1 passes, checkpoint 17B-2 is one ordinary Sync followed by proof that no duplicate Reader highlight was created and the local import remains intact.
+
+### Gate 17B physical results to date
+
+17B-1: **PASS**
+- one Reader highlight imported locally;
+- Reader note present;
+- sidecar persistence survived close/reopen.
+
+17B-2 outbound dedupe: **PASS**
+- ordinary Sync succeeded;
+- the same remote Reader highlight remained exactly once;
+- its note remained correct.
+
+Final Gate 17B closure action still pending explicit report:
+1. on `1.1.0-alpha.2`, close the EPUB after that Sync;
+2. reopen it;
+3. confirm the imported highlight and note still exist locally.
+
+Do not install/test Gate 17C until this final reopen is confirmed.
+
+## Phase T / Gate 17C — bounded bulk import + Sync integration
+
+Candidate build: **1.1.0-alpha.3** (off-device CI green; physical test blocked until Gate 17B final reopen).
+
+When authorized, use the same managed EPUB:
+1. install alpha.3 preserving settings/SQLite/documents/sidecars and restart KOReader;
+2. open the EPUB with Wi-Fi on and no new disposable local annotations pending;
+3. run ordinary **Sync now** once;
+4. require `Reader → KOReader import: ok`, `Reader highlights imported locally >= 2`, `Reader import failures: 0`, and `Highlights created: 0` for outbound Kindle → Reader work;
+5. require the already-linked Gate 17B Reader child to appear in the `Reader highlights already linked` count rather than being recreated;
+6. close/reopen the EPUB and inspect at least two newly-imported highlights; where notes exist, verify at least one imported note literally;
+7. run **Sync now** again;
+8. require no outbound duplicate creation for those imported highlights (`Highlights created: 0`), while the next bounded Reader → KOReader batch may import additional historical highlights;
+9. repeat Sync only as needed until `Reader imports deferred by batch limit: 0`;
+10. then run one additional unchanged Sync and require `Reader highlights imported locally: 0`, no outbound duplicates, and all previously-imported highlights/notes still present.
+
+Ambiguous/missing/invalid locator skips or exact local-position collision skips are safe outcomes and must never be auto-forced.
