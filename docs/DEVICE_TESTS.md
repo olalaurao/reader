@@ -3114,3 +3114,25 @@ Required immediate result:
 - `Reader writes from import: none`.
 
 Then close/reopen before ordinary Sync and verify highlight/note persistence. If an error appears, report its full new message because alpha.5 now preserves the exact sidecar/DB failure stage.
+
+
+### Gate 17D-2 alpha.5 result — SIDECAR LOOKUP FAIL / ROLLBACK PASS
+
+Observed message:
+`Created PDF highlight was not found uniquely in the persisted sidecar. The local sidecar item was rolled back.`
+
+Rollback succeeded; do not repeat alpha.5.
+
+### Gate 17D-2 alpha.6
+
+Install alpha.6 and use the same managed PDF.
+
+Run **Import one Reader PDF highlight (Gate 17D)** exactly once.
+
+Required immediate result:
+- `Imported local PDF highlights: 1`;
+- `PDF file digest unchanged: yes`;
+- `PDF embed preference restored: yes`;
+- `Reader writes from import: none`.
+
+Then close/reopen before ordinary Sync and verify highlight/note persistence. If an error appears, report the complete message.
