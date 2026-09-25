@@ -31,6 +31,7 @@ local tests = {
     "tests.test_remote_highlight_import",
     "tests.test_remote_highlight_diagnostics_ui",
     "tests.test_pdf_highlight_diagnostics_ui",
+    "tests.test_pdf_highlight_import_ui",
     "tests.test_remote_highlight_import_ui",
     "tests.test_annotation_upload",
     "tests.test_annotation_mutations",
