@@ -65,7 +65,12 @@ function Cache:_deletedSince(updated_after)
         pages = pages + 1
 
         for _, book in ipairs(page.results or {}) do
-            if type(book) == "table" and book.source == "reader" then
+            if type(book) == "table" then
+                -- Do not depend on the export source label. Reader/Readwise
+                -- representations have historically varied there, while the
+                -- durable cross-API contract is the exact external_id. Delete
+                -- operations below can only affect cache rows whose exact
+                -- Reader parent/child IDs match these tombstones.
                 if book.is_deleted == true then
                     appendUnique(parent_ids, seen_parents, book.external_id)
                 end
