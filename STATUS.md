@@ -24,6 +24,35 @@
 - **Tests/checks:** deterministic tests added, but the repository exposes no commit status / PR-triggered workflow run for this branch; therefore they remain pending execution rather than falsely recorded as passed.
 - **Next exact steps, in order:** (1) execute the full dev-check/unit/package suite as soon as an executable CI/local runner is available and fix any fixture failure; (2) continue deterministic Gate 16 coverage for persistence/restart and intermittent-network queue recovery where existing tests do not already prove the invariant; (3) audit remaining logger calls for payload/token/signed-URL exposure; (4) update STATUS with executable evidence; (5) then define the smallest PW3 physical hardening matrix.
 
+## 2026-09-25 — Gate 16 deterministic hardening complete; physical matrix next
+
+- **Milestone:** Phase R / Gate 16 deterministic/off-device hardening is complete enough to enter the physical PW3 matrix. Gate 16 itself remains **OPEN** until the required device behavior passes.
+- **Branch / HEAD before this STATUS commit:** `hardening/gate16-r1` / `908c9a8d347ebe26ffc838255e377dc82c3c43f1`. Draft PR #20 targets `main`.
+- **CI evidence:** push workflow run #1148 (`36077985219`) on `908c9a8d` **SUCCESS**: development checks/Lua 5.1 syntax, complete Lua unit suite, package build, ZIP layout verification and artifact upload all passed.
+- **Failure found and fixed:** the first Unicode boundary assertion was itself invalid because a valid multibyte code point naturally ends in a continuation byte. Runs from `91c6f5c8` through `8ed43b85` therefore failed at that test before later modules could execute. Commit `908c9a8d` replaced the faulty assertion with a complete Lua 5.1 UTF-8 structural validator; the full suite then passed.
+- **Additional hardening added:** `8ed43b85` uses a file-backed SQLite DB across close/reopen to simulate a process/KOReader restart. An in-flight create survives durably and startup recovery blocks the ambiguous create instead of blindly retrying it; attempt count and payload remain intact.
+- **Logs/redaction audit:** focused audit of the production entry/worker/probe/API/UI paths found only the stage-only worker warning and HTTP request debug log in the audited paths. HTTP logging passes the new regression proving query/signed-URL secrets are stripped by `safeUrl`; no token/payload logging was added.
+- **Production behavior changed:** none in Phase R so far; hardening commits are tests/docs only.
+- **Deterministic coverage now evidenced green:** large-library pagination (12,000 docs), low-storage mid-stream ENOSPC cleanup, malformed Reader item, oversized HTTP response, cancellable 429 wait, Unicode filename boundary, signed/query URL log redaction, migration transaction rollback, and durable queue/restart recovery.
+- **Physical tests pending:** Gate 16 now needs the smallest real-device matrix for properties that off-device tests cannot establish: PW3 responsiveness/performance, real Wi-Fi interruption/recovery, process force-close/restart with durable queued work, reboot with durable queued work, sidecar/progress preservation through those failures, and install/rollback smoke.
+- **Spec deviations:** none.
+- **Next exact step:** perform the Gate 16 PW3 physical matrix below. Do not merge PR #20 or mark Gate 16 complete until it passes.
+
+### Gate 16 physical matrix — first test only
+
+Start with **R1: real intermittent Wi-Fi recovery**. Use an already-downloaded Reader-managed article; do not delete it or its sidecar.
+
+1. With Wi-Fi on, open the article and create one new disposable highlight (a short unique sentence is best).
+2. Turn Wi-Fi off / enable Kindle Airplane Mode.
+3. Run **Readwise Reader -> Sync now** once.
+4. Confirm the sync fails safely/queues locally rather than hanging or losing the highlight.
+5. Turn Wi-Fi back on / disable Airplane Mode and wait until Kindle connectivity is actually restored.
+6. Run **Sync now** again.
+7. Check Reader and confirm that exact highlight appears **once**.
+8. Run **Sync now** one more time and confirm it still appears only once.
+
+Report only: whether the offline sync returned safely; whether the recovery sync succeeded; whether the highlight appeared once; whether the second online sync duplicated it; and any error text shown. If R1 passes, STATUS should be updated before advancing to force-close/reboot tests.
+
 ## Current milestone
 
 **Phase Q / Gate 15 — PASSED COMPLETE; Phase R / Gate 16 hardening is now unblocked**
