@@ -8,6 +8,7 @@ local function withStubs(run)
         "ui/trapper",
         "ui/uimanager",
         "sync/remote_highlight_probe_worker",
+        "content/hash",
         "gettext",
     }
     local loaded, preload = {}, {}
@@ -38,6 +39,17 @@ local function withStubs(run)
         }
     end
     package.preload["sync/remote_highlight_probe_worker"] = function() return {} end
+    package.preload["content/hash"] = function()
+        local function digest(value)
+            value = tostring(value or "")
+            local acc = 5381
+            for index = 1, #value do
+                acc = (acc * 33 + value:byte(index)) % 2147483647
+            end
+            return string.format("%08x%08x", #value, acc)
+        end
+        return { sha256 = digest, digest = digest }
+    end
 
     local ok, failure = pcall(function()
         local UI = require("ui/remote_highlight_import")
@@ -136,7 +148,20 @@ local function makeImporter(linked, options)
             return linked[id] and {
                 local_annotation_id = linked[id],
                 reader_highlight_document_id = id,
+                created_remote = true,
             } or nil
+        end,
+        getLocalLink = function(_, local_annotation_id)
+            for remote_id, known_local_id in pairs(linked) do
+                if known_local_id == local_annotation_id then
+                    return {
+                        local_annotation_id = local_annotation_id,
+                        reader_highlight_document_id = remote_id,
+                        created_remote = true,
+                    }
+                end
+            end
+            return nil
         end,
         normalizeLocal = function(_, path, item)
             assert(path == "/books/book.epub")
@@ -441,9 +466,10 @@ return function()
             "unresolved exact collision must keep historical guard open")
     end)
 
-    -- An ambiguous remote text only blocks matching local annotations. It
-    -- keeps the historical guard open so the suppression cannot disappear
-    -- behind the incremental watermark on a later Sync.
+    -- An ambiguous remote text is persisted only as normalized hashes.
+    -- Historical scanning can therefore finish, while a later local highlight
+    -- with equivalent text remains guarded even when the remote child is not
+    -- returned by the incremental window.
     withStubs(function(UI)
         local reader_ui, annotations = makeReaderUI(function(text)
             if text == "Repeated passage" then return "ambiguous" end
@@ -453,12 +479,13 @@ return function()
             page = "xp:Repeated passage:local",
             pos0 = "xp:Repeated passage:local",
             pos1 = "xp:Repeated passage:local-end",
-            text = "Repeated passage",
+            text = "Repeated\194\160passage",
             note = nil,
             datetime = "2026-09-25 00:00:00",
             drawer = "lighten",
         }
         local sync_meta = newSyncMeta()
+        local calls = 0
         local ui = UI:new{
             config = { hasAccessToken = function() return true end },
             importer = makeImporter({}),
@@ -466,23 +493,44 @@ return function()
             get_current_path = function() return "/books/book.epub" end,
             get_reader_ui = function() return reader_ui end,
             worker = {
-                run = function()
-                    return remoteReport({
-                        {
-                            id = "remote-repeated", parent_id = "parent-1",
-                            content = "Repeated passage", note_present = false,
-                        },
+                run = function(_, path, options)
+                    calls = calls + 1
+                    if calls == 1 then
+                        assert(options.updated_after == nil)
+                        return remoteReport({
+                            {
+                                id = "remote-repeated", parent_id = "parent-1",
+                                content = "Repeated passage", note_present = false,
+                            },
+                        })
+                    end
+                    assert(type(options.updated_after) == "string")
+                    return remoteReport({}, {
+                        updated_after = options.updated_after,
+                        scan_started_at = "2026-09-25T05:00:00Z",
+                        proposed_query_after = "2026-09-25T04:55:00Z",
                     })
                 end,
             },
         }
 
-        local result = assert(ui:prepareForSync("/books/book.epub"))
-        assert(result.ambiguous == 1)
-        assert(result.unresolved_collision_risk == 1)
-        assert(#result.suppress_outbound_ids == 1)
-        assert(result.suppress_outbound_ids[1] == "local-repeated")
-        assert(sync_meta.data["remote_highlight_baseline:parent-1"] == nil)
+        local first = assert(ui:prepareForSync("/books/book.epub"))
+        assert(first.ambiguous == 1)
+        assert(first.unresolved_collision_risk == 1)
+        assert(#first.suppress_outbound_ids == 1)
+        assert(first.suppress_outbound_ids[1] == "local-repeated")
+        assert(sync_meta.data["remote_highlight_baseline:parent-1"] == "1")
+        assert(type(sync_meta.data["remote_highlight_unresolved:parent-1"]) == "string")
+        assert(not sync_meta.data["remote_highlight_unresolved:parent-1"]:find(
+            "Repeated passage", 1, true
+        ), "persisted unresolved state must not contain raw highlight text")
+
+        local second = assert(ui:prepareForSync("/books/book.epub"))
+        assert(second.scan_mode == "incremental")
+        assert(second.reader_highlights == 0)
+        assert(second.persisted_guard_matches == 1)
+        assert(#second.suppress_outbound_ids == 1)
+        assert(second.suppress_outbound_ids[1] == "local-repeated")
         assert(#annotations == 1)
     end)
 end
