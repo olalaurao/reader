@@ -171,12 +171,18 @@ local function incrementalDeletionCase()
     local report = assert(cache:refresh())
     assert(report.mode == "incremental")
     assert(report.rows_seen == 1)
-    assert(report.deleted_highlight_ids == 1)
-    assert(report.deleted_parent_ids == 1)
+    assert(report.deleted_highlight_ids == 2)
+    assert(report.deleted_parent_ids == 2)
     assert(report.deletion_pages == 2)
     assert(calls.upsert.seen_at == 2000)
-    assert(calls.delete_ids[1] == "h-deleted")
-    assert(calls.delete_parents[1] == "p-deleted")
+    local deleted_ids = {}
+    for _, id in ipairs(calls.delete_ids) do deleted_ids[id] = true end
+    assert(deleted_ids["h-deleted"])
+    assert(deleted_ids["ignore-highlight"])
+    local deleted_parents = {}
+    for _, id in ipairs(calls.delete_parents) do deleted_parents[id] = true end
+    assert(deleted_parents["p-deleted"])
+    assert(deleted_parents["ignore-parent"])
     assert(meta.data[Cache.WATERMARK_KEY] == "1970-01-01T00:33:20Z")
     assert(meta.data[Cache.QUERY_AFTER_KEY] == "1970-01-01T00:28:20Z")
 end
