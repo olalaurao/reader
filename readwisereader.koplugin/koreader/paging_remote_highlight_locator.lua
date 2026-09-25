@@ -10,13 +10,18 @@ local function validBox(box)
         and type(box.h) == "number" and box.h > 0
 end
 
+local function persistedNumber(value)
+    if type(value) ~= "number" then return value end
+    return tonumber(tostring(value))
+end
+
 local function boxCenter(box, page, rotation, zoom)
     return {
-        page = page,
-        rotation = rotation,
-        zoom = zoom,
-        x = box.x + box.w / 2,
-        y = box.y + box.h / 2,
+        page = persistedNumber(page),
+        rotation = persistedNumber(rotation),
+        zoom = persistedNumber(zoom),
+        x = persistedNumber(box.x + box.w / 2),
+        y = persistedNumber(box.y + box.h / 2),
     }
 end
 
@@ -227,6 +232,7 @@ function Locator.findUnique(reader_ui, text)
 end
 
 Locator._boxCenter = boxCenter
+Locator._persistedNumber = persistedNumber
 Locator._boundaryRelation = boundaryRelation
 Locator._nativeEvidence = nativeEvidence
 Locator._normalizedWhitespace = normalizedWhitespace
