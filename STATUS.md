@@ -5537,3 +5537,36 @@ Next and only physical checkpoint:
 5. do not run the explicit PDF import action again.
 
 If this passes, Gate 17D-2 has the required one-item persistence + file-unchanged + outbound-dedupe evidence and off-device work may proceed to normal-Sync PDF import integration.
+
+
+## 2026-09-25 — Gate 17D-2 outbound dedupe PASS; Gate 17D-3 alpha.9 implemented
+
+Target PW3 follow-up supplied by the user:
+- before ordinary Sync, exactly one Reader-origin highlight was visible locally in this PDF; this is expected because Gate 17D-2 intentionally imported exactly one item even though the Reader parent had two highlight children;
+- ordinary `Sync now` completed successfully;
+- the imported local PDF highlight remained present;
+- no Reader duplicate was created.
+
+Conclusion: **Gate 17D-2 is PASS COMPLETE**. Required evidence now covers native locator, sidecar-only creation, unchanged PDF bytes, restored embed preference, durable child-ID link, close/reopen persistence and outbound dedupe.
+
+Gate 17D-3 implementation is now on the branch as `1.2.0-alpha.9`:
+- ordinary pre-Sync reconciliation dispatches the currently-open managed original PDF to the paging importer;
+- PDF remains bounded to one new local annotation and ten locator attempts per Sync;
+- deferred work uses a durable per-document rotation cursor;
+- already-linked children are skipped;
+- exact native-position collisions with compatible notes may durably link the existing local sidecar item;
+- collision-note conflicts suppress the specific local outbound create;
+- unresolved or deferred unlinked Reader children suppress all current-PDF outbound creates for that run;
+- alpha.8 sidecar-only/digest/persisted-number/durable-link/rollback invariants remain in force;
+- EPUB/HTML continue using the established rolling reconciler.
+
+Regression coverage added for normal-Sync PDF import, one-item defer/suppression, already-linked continuation, exact collision linking and ambiguous-locator fail-closed behavior.
+
+CI evidence:
+- code/test head `d0215f4aeb4eb0019fac7c58eb36b25ee98ff424` passed PR workflow run `36166014362`;
+- final docs/status head still requires its own green package run before installation handoff.
+
+Next:
+1. wait for the final branch-head workflow;
+2. audit the packaged alpha.9 ZIP/version/layout;
+3. give the user one consolidated physical acceptance only: normal Sync imports the remaining safe Reader PDF child, close/reopen preserves both, and one unchanged Sync proves idempotence/no duplicates.
