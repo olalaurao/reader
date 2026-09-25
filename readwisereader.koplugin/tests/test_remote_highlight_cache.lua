@@ -312,8 +312,16 @@ local function staleCacheVersionForcesReplacementCase()
                 return 1
             end,
             upsertMany = function() error("stale cache must not incrementally upsert") end,
-            deleteByRemoteIds = function() error("stale cache must not apply tombstones") end,
-            deleteByParents = function() error("stale cache must not apply tombstones") end,
+            deleteByRemoteIds = function(_, ids)
+                assert(#ids == 0,
+                    "stale-cache rebuild should apply only verified overlap tombstones")
+                return 0
+            end,
+            deleteByParents = function(_, ids)
+                assert(#ids == 0,
+                    "stale-cache rebuild should apply only verified overlap tombstones")
+                return 0
+            end,
         },
         sync_meta = meta,
         now = function() return 5000 end,
