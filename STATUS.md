@@ -208,9 +208,37 @@ Release authorization: `v1.0.0` is now allowed after release-version/documentati
 - **Only remaining release action:** create Git tag `v1.0.0` pointing at the final green `main` documentation-closeout commit. The currently available GitHub connector does not expose tag/ref creation for tags, so do not substitute a branch for a tag.
 - **Next step:** after this docs-only closeout commit passes CI, create `v1.0.0` at that exact green `main` SHA. No further Kindle test is required unless runtime code changes.
 
+## 2026-09-25 — Phase T / Gate 17A started: Reader → KOReader existing highlights
+
+User requested post-V1 Reader → KOReader import after observing that an original Reader EPUB downloaded correctly but its pre-existing Reader highlights did not appear in KOReader.
+
+Canonical review confirmed this was an explicit V1 non-goal, not an EPUB-download regression. Scope is now deliberately extended for v1.1.
+
+Architecture validated before implementation:
+- current Reader API v3 exposes highlight child records with `parent_id`, `content`, `notes`, `highlight_offset`, and `highlight_location`;
+- Reader `highlight_location` is a serialized position in Reader processed HTML and cannot be treated as a CRengine XPointer for an original EPUB;
+- KOReader v2026.07.1 rolling documents expose `findAllText()` with `start/end` XPointers and `getTextFromXPointers()` for exact round-trip validation;
+- KOReader local insertion path is known, but intentionally remains disabled until the locator spike passes;
+- Reader LIST has no documented `parent_id` filter, so Gate 17A scans `category=highlight` with existing pagination/rate-limit/cancellation safeguards and filters exact parent locally.
+
+Branch: `feature/v1.1-reader-highlight-import`.
+Build: `1.1.0-alpha.1`.
+
+Implemented Gate 17A:
+- Reader API normalization now preserves highlight `content`;
+- read-only worker resolves the current managed EPUB/HTML and scans Reader highlight children;
+- exact `parent_id` filtering and stable offset/date ordering;
+- UI probes at most 3 highlight texts using KOReader's own full-text search;
+- only one literal result with valid XPointer start/end and exact text round-trip counts as unique;
+- ambiguous/missing/different results are reported;
+- remote writes = 0; local writes = 0;
+- PDF is explicitly rejected until a separate paging-position spike.
+
+No sidecar, annotation, queue, DB-link, or remote mutation path is enabled yet. Gate 17B remains blocked on physical PW3 evidence from a real managed EPUB that already contains Reader highlights.
+
 ## Current milestone
 
-**V1 acceptance / Phase S — PASSED COMPLETE; release `v1.0.0` in finalization**
+**Phase T / Gate 17A — Reader → KOReader existing-highlight locator spike; V1.0.0 remains released**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
