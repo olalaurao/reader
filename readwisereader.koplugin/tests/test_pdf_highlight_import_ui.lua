@@ -254,7 +254,7 @@ return function()
         assert(save_calls == 1)
         assert(delete_calls == 0)
         assert(settings_calls == 1)
-        assert(digest_calls == 3)
+        assert(digest_calls == 2)
 
         local text = shown[#shown].text
         assert(text:find("Imported local PDF highlights: 1", 1, true))
