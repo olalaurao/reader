@@ -63,7 +63,17 @@ Checkpoint 3 — **PASS** on target PW3:
 - zero create items were processed and zero remote mutation occurred;
 - queue waiting remained >=1; metadata/content pages remained 0.
 
-Current checkpoint: restart KOReader **while still offline** and prove local annotation + SQLite queue persistence with the read-only reconnect diagnostic. Do not reconnect until that diagnostic is reviewed.
+Checkpoint 4 — **PASS** on target PW3:
+- KOReader was fully restarted while Wi-Fi remained OFF and restore-on-resume remained OFF;
+- the exact local Gate 16 highlight/note survived the fresh process unchanged;
+- read-only reconnect diagnostic returned the persisted queue after offline auth failure;
+- pending queue remained >=1, retry_wait=0, in_flight=0 and the active item still had no remote id;
+- marker scan and parent metadata/HTML probes remained not_run;
+- Remote writes remained none;
+- the fixture was still absent from Reader remotely;
+- no crash/freeze occurred.
+
+Current checkpoint: restore connectivity and prove the durable pending create is delivered **exactly once** by one ordinary Sync. Stop again after that report/remote verification before the final restart/log review.
 
 After installing only the new plugin directory and restarting KOReader:
 
