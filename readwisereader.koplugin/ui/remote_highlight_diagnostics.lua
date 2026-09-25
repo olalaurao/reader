@@ -86,7 +86,7 @@ function UI:_preflight()
         UIManager:show(InfoMessage:new{ text = _("Open a Readwise-managed EPUB first.") })
         return nil
     end
-    if reader_ui.rolling ~= true then
+    if not reader_ui.rolling then
         UIManager:show(InfoMessage:new{
             text = _("Gate 17A currently supports rolling EPUB/HTML documents only."),
         })
