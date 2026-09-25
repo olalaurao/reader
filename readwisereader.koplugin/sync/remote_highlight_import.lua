@@ -24,8 +24,13 @@ function Import:getDocument(local_path)
     if document.is_local_present ~= true then
         return nil, domainError("not_local", "The managed Reader document is not recorded as local.")
     end
-    if document.local_format ~= "epub" and document.local_format ~= "html" then
-        return nil, domainError("format", "Reader highlight import currently supports EPUB/HTML only.")
+    if document.local_format ~= "epub"
+        and document.local_format ~= "html"
+        and document.local_format ~= "pdf" then
+        return nil, domainError(
+            "format",
+            "Reader highlight import supports managed EPUB/HTML/PDF documents only."
+        )
     end
     return document
 end
