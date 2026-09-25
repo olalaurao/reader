@@ -1,0 +1,145 @@
+-- SPDX-License-Identifier: AGPL-3.0-only
+
+local Import = require("sync/remote_highlight_import")
+
+return function()
+    do
+        local linked_payload
+        local annotations = {
+            getByReaderRemoteId = function() return nil end,
+            linkImported = function(_, payload)
+                linked_payload = payload
+                return {
+                    local_annotation_id = payload.local_annotation_id,
+                    reader_highlight_document_id = payload.reader_highlight_document_id,
+                    created_remote = true,
+                    sync_state = "synced",
+                }
+            end,
+        }
+        local importer = Import:new{
+            documents = {
+                getByLocalPath = function(_, path)
+                    assert(path == "/books/book.epub")
+                    return {
+                        reader_id = "parent-1",
+                        local_path = path,
+                        local_format = "epub",
+                        is_local_present = true,
+                        is_managed = true,
+                    }
+                end,
+            },
+            annotations = annotations,
+            adapter = {
+                normalize = function(_, reader_id, item)
+                    assert(reader_id == "parent-1")
+                    assert(item.text == "Exact passage")
+                    return {
+                        local_annotation_id = "ko-local-1",
+                        locator_fingerprint = "loc-1",
+                        datetime = "2026-09-25 00:00:00",
+                        text = item.text,
+                        note = item.note,
+                        text_hash = "text-hash",
+                        note_hash = "note-hash",
+                    }
+                end,
+                scan = function(_, path, reader_id)
+                    assert(path == "/books/book.epub")
+                    assert(reader_id == "parent-1")
+                    return {
+                        authoritative = true,
+                        annotations = {
+                            {
+                                local_annotation_id = "ko-local-1",
+                                locator_fingerprint = "loc-1",
+                                datetime = "2026-09-25 00:00:00",
+                                text = "Exact passage",
+                                note = "Reader note",
+                                text_hash = "text-hash",
+                                note_hash = "note-hash",
+                            },
+                        },
+                    }
+                end,
+            },
+        }
+
+        local result, err = importer:linkPersisted(
+            "/books/book.epub",
+            {
+                id = "reader-highlight-1",
+                parent_id = "parent-1",
+                updated_at = "2026-09-25T00:00:01Z",
+            },
+            { drawer = "lighten", text = "Exact passage", note = "Reader note" }
+        )
+        assert(err == nil)
+        assert(result.status == "linked")
+        assert(result.local_annotation_id == "ko-local-1")
+        assert(linked_payload.reader_highlight_document_id == "reader-highlight-1")
+        assert(linked_payload.reader_document_id == "parent-1")
+        assert(linked_payload.text == "Exact passage")
+        assert(linked_payload.note == "Reader note")
+        assert(linked_payload.remote_updated_marker == "2026-09-25T00:00:01Z")
+    end
+
+    do
+        local importer = Import:new{
+            documents = {
+                getByLocalPath = function()
+                    return {
+                        reader_id = "parent-1",
+                        local_path = "/books/book.epub",
+                        local_format = "epub",
+                        is_local_present = true,
+                        is_managed = true,
+                    }
+                end,
+            },
+            annotations = {
+                getByReaderRemoteId = function(_, id)
+                    assert(id == "reader-highlight-1")
+                    return {
+                        local_annotation_id = "ko-existing",
+                        reader_highlight_document_id = id,
+                    }
+                end,
+            },
+            adapter = {},
+        }
+        local result = assert(importer:linkPersisted(
+            "/books/book.epub",
+            { id = "reader-highlight-1", parent_id = "parent-1" },
+            {}
+        ))
+        assert(result.status == "already_linked")
+        assert(result.local_annotation_id == "ko-existing")
+    end
+
+    do
+        local importer = Import:new{
+            documents = {
+                getByLocalPath = function()
+                    return {
+                        reader_id = "parent-1",
+                        local_path = "/books/book.epub",
+                        local_format = "epub",
+                        is_local_present = true,
+                        is_managed = true,
+                    }
+                end,
+            },
+            annotations = { getByReaderRemoteId = function() return nil end },
+            adapter = {},
+        }
+        local result, err = importer:linkPersisted(
+            "/books/book.epub",
+            { id = "reader-highlight-1", parent_id = "other-parent" },
+            {}
+        )
+        assert(result == nil)
+        assert(err.kind == "parent")
+    end
+end
