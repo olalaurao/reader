@@ -2967,3 +2967,46 @@ Expected:
 - Remote writes: none;
 - fixture still absent from Reader remotely;
 - no crash/freeze.
+
+
+## Gate 16 — 0.1.47 RC checkpoint 4 — PASS
+
+User confirmed the restart-while-still-offline persistence proof passed:
+- Wi-Fi remained OFF and restore-on-resume remained OFF;
+- KOReader was fully restarted into a fresh process;
+- the exact local Gate 16 highlight/note survived unchanged;
+- read-only reconnect diagnostic returned the durable pending queue after offline auth failure;
+- Queue pending remained >=1;
+- Queue retry_wait: 0;
+- Queue in_flight: 0;
+- active item still had no remote id;
+- marker scan: not_run;
+- parent metadata/html: not_run;
+- Remote writes: none;
+- fixture remained absent from Reader remotely;
+- no crash/freeze.
+
+Automated exactly-once hardening before reconnect:
+- offline queue/restart path already creates once after reconnect;
+- test now also constructs a fresh uploader after delivery and proves zero second create/reconcile, queue waiting 0 and status succeeded;
+- ambiguous timeout/server outcomes remain reconcile-before-retry and do not blind POST.
+
+### Next device checkpoint — reconnect exactly once
+
+Do not reinstall or edit/recreate the fixture.
+
+1. Turn Wi-Fi ON from KOReader and ensure connectivity is available.
+2. Run ordinary **Sync now exactly once**.
+3. Return the full report.
+4. In Reader web/app, verify the exact Gate 16 highlight/note appears on the correct document **once**.
+5. Stop before the final restart/log review.
+
+Expected for the controlled fixture:
+- exactly one create or safe reconcile;
+- Create queue waiting after sync: 0;
+- no duplicate highlight/POST;
+- no fatal error;
+- no unexpected content replacement;
+- exact local note/text preserved and linked to the remote highlight.
+
+Do not run a second Sync yet.
