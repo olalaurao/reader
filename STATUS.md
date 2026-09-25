@@ -172,6 +172,19 @@ No production logger call intentionally writes Authorization headers, access tok
 
 A9 remains the only V1 acceptance blocker. The next physical evidence is the actual KOReader `crash.log` from the target Kindle after the completed A1-A8 acceptance run, inspected for token/signed-URL/full-private-content leakage. After that log passes, run exactly one unchanged online `Sync now` and require zero newly downloaded documents and zero newly created highlights before closing Phase S.
 
+## 2026-09-25 — Phase S A8/A9-off-device handoff
+
+- Branch: `main`.
+- Pre-handoff HEAD: `40821b37710f0c05b2a4cb35af1d48d641da6a1d`.
+- Files changed in this continuation: `STATUS.md`, `PLAN.md`; no production Lua changed.
+- A8: PHYSICAL PASS — Finished -> Reader Archive completed; local file, sidecar, progress, highlights and notes preserved.
+- A9 off-device half: PASS — final logging/redaction audit found no regression; production logging remains path-only/stage-only and signed/query-secret redaction regression coverage is present.
+- CI: workflow `36080770490` on `40821b37710f0c05b2a4cb35af1d48d641da6a1d` completed SUCCESS.
+- Gates 0-16 remain PASSED COMPLETE. Phase S remains OPEN only for the final physical A9 evidence.
+- No bugs/failures requiring production changes were found in this continuation.
+- Spec deviations: none.
+- Exact blocker / next physical action: inspect the target Kindle's current KOReader `crash.log` for access token, signed source URL/query credentials, or full private document/annotation content; if clean, make no Reader/Kindle changes and run exactly one online `Sync now`. Require zero new document downloads, zero new highlights created, no repeated archive mutation, and zero fatal errors. After that PASS, Phase S may be closed and release-candidate/`v1.0.0` work can proceed off-device.
+
 ## Current milestone
 
 **Phase S / V1 acceptance — OPEN; Gates 0–16 PASSED COMPLETE**
