@@ -3091,14 +3091,44 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Phase S / V1 acceptance is **PASSED COMPLETE**.
+Begin **Phase T / Gate 17A — Reader → KOReader historical highlight import spike**.
 
-Release finalization order:
-1. set the plugin version and metadata to `1.0.0` without changing validated runtime behavior;
-2. align README, CHANGELOG, STATUS, PLAN and device-test ledger;
-3. run the full development checks, Lua unit suite, installable ZIP build, package-layout verification and artifact upload in CI;
-4. if green, merge/fast-forward the release candidate to `main`;
-5. tag that exact green `main` commit as `v1.0.0`;
-6. do not add new product behavior between final acceptance and the V1 tag.
+This changes a deliberate V1 non-goal, so it must be gated rather than inferred.
 
-Any failure in the release-preparation CI reopens release finalization, not the already-passed physical acceptance, unless the fix changes production behavior.
+Current evidence:
+- Reader API v3 exposes existing highlight children with `parent_id`, `content`, `notes`, `highlight_offset`, and `highlight_location`;
+- `highlight_location` is serialized Reader-HTML DOM position, not a KOReader XPointer;
+- KOReader v2026.07.1 rolling documents expose `findAllText()` results with `start/end` XPointers and can round-trip text with `getTextFromXPointers()`.
+
+Gate 17A:
+1. support only open Reader-managed rolling EPUB/HTML;
+2. scan Reader `category=highlight` read-only and filter exact `parent_id`;
+3. preserve remote `content` in the Reader API adapter;
+4. probe at most 3 remote highlights against the open KOReader document;
+5. accept only exactly one literal local match whose returned XPointers round-trip to the exact same local text;
+6. ambiguous/missing/different text is reported, never guessed;
+7. no local annotation write, sidecar write, Reader write, or DB-link mutation in 17A;
+8. Gate 17B is blocked until the target PW3 proves at least one real existing Reader highlight resolves to a unique valid EPUB XPointer.
+
+---
+
+# 49. Phase T — Reader → KOReader historical highlight import
+
+## 49.1 Identity
+Remote identity is exact Reader parent document ID + exact Reader highlight child ID. Text is a locator input, not identity.
+
+## 49.2 EPUB/HTML mapping
+Reader DOM positions are not portable to an original EPUB's CRengine DOM. Search the actual open local document via KOReader, use returned XPointers, round-trip the selected text, and reject multiple candidates.
+
+## 49.3 Planned insertion after Gate 17A
+Use the currently-open ReaderUI. Construct a normal KOReader highlight from validated XPointers, preserve Reader note literally, insert through KOReader's annotation/event path, persist the sidecar, then immediately persist the remote child-ID link in SQLite before a later outbound scan can queue a duplicate create.
+
+## 49.4 Dedupe
+Skip when the Reader child ID is already linked. Never dedupe unrelated highlights by text alone.
+
+## 49.5 Sequence
+- Gate 17A: read-only EPUB/HTML locator probe.
+- Gate 17B: explicit current-document import, notes + reopen persistence + no outbound duplicate.
+- Gate 17C: idempotent repeat + stable manual Sync integration.
+- Gate 17D: PDF/paging locator spike, separately gated.
+
