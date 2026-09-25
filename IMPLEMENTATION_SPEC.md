@@ -3336,3 +3336,16 @@ For PDF imports, deterministic local annotation ID remains the first/normal pers
 - exact normalized note hash.
 
 This fallback does not redefine remote identity, does not alter legacy PDF local IDs, and does not use fuzzy text. Zero or multiple candidates fail closed. Only the persisted sidecar item's own normalized local ID may then be written to the durable Reader child link.
+
+
+## 50.6 Freshly-flushed PDF sidecar verification
+
+For the immediate post-`saveSettings()` proof in Gate 17D-2, generic `DocSettings:open(local_path)` is not authoritative enough because KOReader intentionally includes `.old` recovery candidates.
+
+PDF import verification must:
+1. call `DocSettings:findSidecarFile(local_path, true)` to resolve the current non-legacy sidecar file;
+2. open that exact path with `DocSettings.openSettingsFile(sidecar_file)`;
+3. read/normalize its `annotations` table;
+4. apply the normal deterministic-ID lookup, then the PDF-only unique exact page+pboxes+text/note fallback.
+
+The `.old` sidecar may remain available for KOReader recovery but must never satisfy proof that a just-created PDF highlight persisted.
