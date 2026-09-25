@@ -408,32 +408,70 @@ return function()
             errors = 0,
             proposed_watermark = "2026-09-25T04:00:00Z",
             completed_at = "2026-09-25T04:01:00Z",
+            highlight_creates_suppressed = 2,
             postprocess = {},
         }, {
             remote_highlight_import = function(path)
                 assert(path == "/Readwise/current.html")
+                assert(#state.worker_calls == 0,
+                    "Reader reconciliation must run before the sync worker")
                 return {
-                    status = "ok",
+                    status = "partial",
+                    scan_mode = "historical",
+                    reader_document_id = "reader-doc-current",
                     imported = 4,
                     notes_imported = 2,
                     linked_skipped = 3,
-                    local_collisions = 1,
+                    collisions_linked = 1,
+                    local_collisions = 2,
+                    collision_conflicts = 1,
                     ambiguous = 2,
                     missing = 1,
                     invalid = 1,
                     deferred_by_limit = 5,
                     failures = 0,
+                    suppress_outbound_ids = { "ann-conflict" },
+                    suppress_current_document = true,
                 }
             end,
         })
         ui:syncNow(false)
         assert(#state.remote_import_calls == 1)
         assert(state.remote_import_calls[1] == "/Readwise/current.html")
+        assert(#state.worker_calls == 1)
+        assert(state.worker_calls[1].suppress_annotation_ids[1] == "ann-conflict")
+        assert(state.worker_calls[1].suppress_reader_document_ids[1]
+            == "reader-doc-current")
+        assert(state.worker_calls[1].suppress_current_path_creates == nil)
         local text = state.shown[#state.shown].text
-        assert(text:find("Reader → KOReader import: ok", 1, true))
+        assert(text:find("Reader → KOReader pre-sync reconciliation: partial", 1, true))
+        assert(text:find("Reader highlight scan mode: historical", 1, true))
         assert(text:find("Reader highlights imported locally: 4", 1, true))
         assert(text:find("Reader notes preserved locally: 2", 1, true))
+        assert(text:find("Existing local highlights linked safely: 1", 1, true))
+        assert(text:find("Reader/local collision conflicts: 1", 1, true))
+        assert(text:find("Creates suppressed by Reader collision guard: 2", 1, true))
         assert(text:find("Reader imports deferred by batch limit: 5", 1, true))
+    end)
+
+    withStubbedSyncUI(function(SyncUI, state)
+        local ui = newUI(SyncUI, state, "watermark", nil, {
+            remote_highlight_import = function()
+                return {
+                    status = "cancelled",
+                    abort_sync = true,
+                    suppress_current_document = true,
+                    suppress_outbound_ids = {},
+                }
+            end,
+        })
+        ui:syncNow(false)
+        assert(#state.remote_import_calls == 1)
+        assert(#state.worker_calls == 0)
+        assert(state.subprocess_calls == 0)
+        assert(state.shown[#state.shown].text:find(
+            "No outbound Reader write was started", 1, true
+        ))
     end)
 
     withStubbedSyncUI(function(SyncUI, state)
@@ -441,14 +479,47 @@ return function()
             mode = "offline",
             errors = 0,
             remote_preflight = "offline",
+            annotation_sync_status = "queued_offline",
             postprocess = {},
         }, {
             remote_highlight_import = function()
-                error("must not run while offline")
+                return {
+                    status = "error",
+                    failures = 1,
+                    reader_document_id = "reader-doc-current",
+                    suppress_current_document = true,
+                    suppress_outbound_ids = {},
+                }
             end,
         })
         ui:syncNow(false)
-        assert(#state.remote_import_calls == 0)
-        assert(state.shown[#state.shown].text:find("Reader → KOReader import: not_run", 1, true))
+        assert(#state.remote_import_calls == 1)
+        assert(#state.worker_calls == 1)
+        assert(state.worker_calls[1].suppress_reader_document_ids[1]
+            == "reader-doc-current")
+        assert(state.shown[#state.shown].text:find(
+            "Reader → KOReader pre-sync reconciliation: error", 1, true
+        ))
+        assert(state.shown[#state.shown].text:find(
+            "Mode: offline / local queue", 1, true
+        ))
     end, { online = false })
+
+    withStubbedSyncUI(function(SyncUI, state)
+        local ui = newUI(SyncUI, state, "watermark", {
+            mode = "incremental",
+            errors = 0,
+            postprocess = {},
+        }, {
+            remote_highlight_import = function()
+                error("simulated importer crash")
+            end,
+        })
+        ui:syncNow(false)
+        assert(#state.worker_calls == 1)
+        assert(state.worker_calls[1].suppress_current_path_creates == true)
+        assert(state.shown[#state.shown].text:find(
+            "Reader → KOReader pre-sync reconciliation: error", 1, true
+        ))
+    end)
 end
