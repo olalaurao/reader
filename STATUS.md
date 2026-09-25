@@ -299,6 +299,41 @@ This proves the Gate 17A architecture on the real target: Reader highlight child
 
 Gate 17A is **PASSED COMPLETE**. Gate 17B is unblocked: import exactly one existing Reader highlight into the currently-open EPUB through KOReader's native highlight path, preserve its Reader note literally, persist the sidecar, immediately link the resulting local annotation ID to the existing Reader highlight child ID in SQLite, and prove reopen persistence plus no outbound duplicate on the next Sync.
 
+## 2026-09-25 — Gate 17B off-device implementation green; one-item import physical test next
+
+Gate 17A is PASSED physically (70 Reader highlights found for the real EPUB; 3/3 sampled passages resolved to unique exact XPointers).
+
+Build `1.1.0-alpha.2` implements Gate 17B without advancing to bulk import:
+- shared KOReader locator returns only an exact unique XPointer range with exact text round-trip;
+- import action prefers an existing Reader highlight with a note when one is available;
+- exactly one unlinked remote highlight is imported per action;
+- KOReader's native `ReaderHighlight:saveHighlight()` creates the annotation in the currently-open rolling EPUB/HTML;
+- `ReaderUI:saveSettings()` flushes the sidecar;
+- the plugin immediately re-reads the sidecar and requires the newly-created local annotation ID to be present before linking anything in SQLite;
+- the imported local annotation is linked transactionally to the pre-existing Reader highlight child ID with synced text/note hashes and remote update marker;
+- next outbound annotation scan therefore sees the local annotation as already remote-linked instead of queueing a new Reader highlight create;
+- if sidecar persistence or durable link creation fails, the just-created local highlight is rolled back and settings are saved again;
+- no Reader mutation is executed by the import action.
+
+New deterministic coverage:
+- exact unique/missing/ambiguous locator behavior;
+- Reader note retention in the remote probe;
+- persisted-sidecar verification and durable import linker;
+- remote-ID repository lookup + transactional imported link;
+- successful one-item UI import including note transport;
+- local rollback when durable linking fails;
+- existing storage semantics with an imported annotation row.
+
+CI failures found/fixed before handoff:
+1. first Gate 17B run `36092424664` caught Lua gettext shadowing from a numeric `_` loop variable in the new success path; fixed in `b1a5e003...`;
+2. second run `36092540482` showed only a stale storage-test count (fixture now correctly contained two annotations); expectation fixed in `8f4e7885...`.
+
+Validated code HEAD before documentation closeout: `8f4e7885a308b7b88f53d287ebdf852948b873f6`.
+Full CI `36092610213`: **SUCCESS** — dev checks, full Lua suite, installable ZIP, package-layout verification and artifact upload all passed.
+Artifact id: `10846108427`; artifact digest: `sha256:5806a68ab891d1563fb606422ffde43bca906aeb0ec8626f6c0aafc80a7b8a33`.
+
+Gate 17B remains OPEN only for target-PW3 proof. Do not implement Gate 17C bulk/idempotent integration until this one imported highlight survives close/reopen and a subsequent ordinary Sync proves it is not uploaded as a duplicate.
+
 ## Current milestone
 
 **Phase T / Gate 17A — Reader → KOReader existing-highlight locator spike; V1.0.0 remains released**
