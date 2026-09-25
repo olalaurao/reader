@@ -134,9 +134,11 @@ function ReadwiseReader:init()
                     imported = 0,
                     notes_imported = 0,
                     remote_writes = 0,
+                    suppress_outbound_ids = {},
+                    suppress_current_document = false,
                 }
             end
-            return self.remote_highlight_import_ui:importAfterSync(path)
+            return self.remote_highlight_import_ui:prepareForSync(path)
         end,
     }
     self.tag_diagnostics_ui = TagDiagnosticsUI:new{
@@ -196,6 +198,7 @@ function ReadwiseReader:init()
     self.remote_highlight_import_ui = RemoteHighlightImportUI:new{
         config = self.config,
         importer = self.remote_highlight_importer,
+        sync_meta = self.sync_meta,
         get_current_path = function()
             return self.ui and self.ui.document and self.ui.document.file or nil
         end,
