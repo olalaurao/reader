@@ -22,6 +22,18 @@ return function()
     assert(#long <= Filenames.DEFAULT_MAX_FILENAME_BYTES)
     assert(long:sub(-5) == ".html")
 
+
+    local unicode_edge = Filenames.build(
+        string.rep("界", 80) .. "🧠e\204\129",
+        "reader-unicode-edge",
+        "html"
+    )
+    assert(#unicode_edge <= Filenames.DEFAULT_MAX_FILENAME_BYTES)
+    assert(unicode_edge:sub(-5) == ".html")
+    assert(not unicode_edge:find("[\128-\191][\128-\191]*%-%-rw%-"),
+        "UTF-8 truncation must not leave a continuation-byte fragment before the suffix")
+
+
     local one = Filenames.build("Same", "prefix-collision-A", "html")
     local two = Filenames.build("Same", "prefix-collision-B", "html")
     assert(one ~= two)
