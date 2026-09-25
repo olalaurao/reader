@@ -7,7 +7,7 @@ local function withStubs(run)
         "ui/network/manager",
         "ui/trapper",
         "ui/uimanager",
-        "sync/remote_highlight_probe_worker",
+        "sync/remote_highlight_import_worker",
         "content/hash",
         "gettext",
     }
@@ -38,7 +38,7 @@ local function withStubs(run)
             end,
         }
     end
-    package.preload["sync/remote_highlight_probe_worker"] = function() return {} end
+    package.preload["sync/remote_highlight_import_worker"] = function() return {} end
     package.preload["content/hash"] = function()
         local function digest(value)
             value = tostring(value or "")
@@ -195,6 +195,7 @@ local function remoteReport(highlights, options)
     return {
         parent_highlight_records = #highlights,
         remote_highlights = highlights,
+        cache_mode = options.cache_mode,
         updated_after = options.updated_after,
         scan_started_at = options.scan_started_at
             or "2026-09-25T04:00:00Z",
@@ -209,7 +210,7 @@ return function()
         local reader_ui, annotations, calls = makeReaderUI()
         local linked = { ["remote-existing"] = "ko-existing" }
         local link_calls = 0
-        local worker_options = {}
+        local worker_calls = 0
         local sync_meta = newSyncMeta()
         local highlights = {
             {
@@ -239,11 +240,13 @@ return function()
             get_current_path = function() return "/books/book.epub" end,
             get_reader_ui = function() return reader_ui end,
             worker = {
-                run = function(_, path, options)
+                run = function(_, path)
                     assert(path == "/books/book.epub")
-                    worker_options[#worker_options + 1] = options or {}
+                    worker_calls = worker_calls + 1
+                    sync_meta.data.remote_highlight_cache_baseline = "1"
                     return remoteReport(highlights, {
-                        updated_after = options and options.updated_after,
+                        cache_mode = worker_calls == 1
+                            and "historical" or "incremental",
                     })
                 end,
             },
@@ -264,12 +267,8 @@ return function()
         local save_calls, delete_calls = calls()
         assert(save_calls == 2 and delete_calls == 0)
 
-        assert(sync_meta.data["remote_highlight_baseline:parent-1"] == "1")
-        assert(sync_meta.data["remote_highlight_watermark:parent-1"]
-            == "2026-09-25T04:00:00Z")
-        assert(sync_meta.data["remote_highlight_query_after:parent-1"]
-            == "2026-09-25T03:55:00Z")
-        assert(worker_options[1].updated_after == nil)
+        assert(sync_meta.data.remote_highlight_cache_baseline == "1")
+        assert(worker_calls == 1)
 
         local second = assert(ui:prepareForSync("/books/book.epub"))
         assert(second.scan_mode == "incremental")
@@ -277,7 +276,7 @@ return function()
         assert(second.linked_skipped == 3)
         assert(#annotations == 2)
         assert(link_calls == 2)
-        assert(worker_options[2].updated_after == "2026-09-25T03:55:00Z")
+        assert(worker_calls == 2)
     end)
 
     -- Link failure rolls back the just-created local highlight and suppresses
@@ -362,7 +361,6 @@ return function()
         assert(third.ambiguous == 2)
         assert(third.deferred_by_limit == 0)
         assert(sync_meta.data["remote_highlight_cursor:parent-1"] == nil)
-        assert(sync_meta.data["remote_highlight_baseline:parent-1"] == "1")
     end)
 
     -- Existing exact local range with the same note is safely linked instead
@@ -462,14 +460,12 @@ return function()
         assert(result.suppress_outbound_ids[1] == "local-conflict")
         assert(link_calls == 0)
         assert(#annotations == 1)
-        assert(ui.sync_meta.data["remote_highlight_baseline:parent-1"] == nil,
-            "unresolved exact collision must keep historical guard open")
     end)
 
-    -- An ambiguous remote text is persisted only as normalized hashes.
-    -- Historical scanning can therefore finish, while a later local highlight
-    -- with equivalent text remains guarded even when the remote child is not
-    -- returned by the incremental window.
+    -- The global cache returns historical rows for the current parent even
+    -- after the network refresh becomes incremental. Therefore an ambiguous
+    -- remote passage continues to guard an equivalent local annotation
+    -- without persisting duplicate raw text/hash state in sync_meta.
     withStubs(function(UI)
         local reader_ui, annotations = makeReaderUI(function(text)
             if text == "Repeated passage" then return "ambiguous" end
@@ -486,6 +482,12 @@ return function()
         }
         local sync_meta = newSyncMeta()
         local calls = 0
+        local remote = {
+            {
+                id = "remote-repeated", parent_id = "parent-1",
+                content = "Repeated passage", note_present = false,
+            },
+        }
         local ui = UI:new{
             config = { hasAccessToken = function() return true end },
             importer = makeImporter({}),
@@ -493,44 +495,32 @@ return function()
             get_current_path = function() return "/books/book.epub" end,
             get_reader_ui = function() return reader_ui end,
             worker = {
-                run = function(_, path, options)
+                run = function()
                     calls = calls + 1
-                    if calls == 1 then
-                        assert(options.updated_after == nil)
-                        return remoteReport({
-                            {
-                                id = "remote-repeated", parent_id = "parent-1",
-                                content = "Repeated passage", note_present = false,
-                            },
-                        })
-                    end
-                    assert(type(options.updated_after) == "string")
-                    return remoteReport({}, {
-                        updated_after = options.updated_after,
-                        scan_started_at = "2026-09-25T05:00:00Z",
-                        proposed_query_after = "2026-09-25T04:55:00Z",
+                    sync_meta.data.remote_highlight_cache_baseline = "1"
+                    return remoteReport(remote, {
+                        cache_mode = calls == 1
+                            and "historical" or "incremental",
                     })
                 end,
             },
         }
 
         local first = assert(ui:prepareForSync("/books/book.epub"))
+        assert(first.scan_mode == "historical")
         assert(first.ambiguous == 1)
         assert(first.unresolved_collision_risk == 1)
         assert(#first.suppress_outbound_ids == 1)
         assert(first.suppress_outbound_ids[1] == "local-repeated")
-        assert(sync_meta.data["remote_highlight_baseline:parent-1"] == "1")
-        assert(type(sync_meta.data["remote_highlight_unresolved:parent-1"]) == "string")
-        assert(not sync_meta.data["remote_highlight_unresolved:parent-1"]:find(
-            "Repeated passage", 1, true
-        ), "persisted unresolved state must not contain raw highlight text")
 
         local second = assert(ui:prepareForSync("/books/book.epub"))
         assert(second.scan_mode == "incremental")
-        assert(second.reader_highlights == 0)
-        assert(second.persisted_guard_matches == 1)
+        assert(second.reader_highlights == 1)
+        assert(second.ambiguous == 1)
+        assert(second.unresolved_collision_risk == 1)
         assert(#second.suppress_outbound_ids == 1)
         assert(second.suppress_outbound_ids[1] == "local-repeated")
+        assert(sync_meta.data["remote_highlight_unresolved:parent-1"] == nil)
         assert(#annotations == 1)
     end)
 end
