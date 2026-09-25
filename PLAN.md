@@ -1315,14 +1315,17 @@ Não:
 
 ## 46. Próximo passo
 
-**V1 acceptance / Phase S: PASSED COMPLETE.**
+**V1 finalization REOPENED after strict scope audit.**
 
-A release `1.0.0` foi preparada sem mudança de comportamento e o candidato `221a8a6a7cd2c39b09bed8c87829a9f5cd908d0d` passou o CI completo e foi promovido por fast-forward para `main`.
+The previously published `v1.0.0` passed the article/annotation acceptance flow, but the canonical section-4 V1 scope also requires **email/newsletter and RSS downloads**. The tagged implementation still had those categories disabled and unsupported in the document sync engine. This was a skipped scope item and must be corrected rather than waived silently.
 
-Não há mais teste físico pendente para a V1.
+Current correction:
+1. enable `email` and `rss` in normal document sync through Reader processed HTML;
+2. also enable Reader's documented textual `tweet` and `video` categories required by IMPLEMENTATION_SPEC P0;
+3. expose explicit type toggles while keeping the default category set unchanged (`article` only);
+4. add deterministic unit/CI coverage;
+5. physically validate one email/newsletter and one RSS item on the target PW3;
+6. repeat a no-change second Sync for deduplication;
+7. only then publish a corrected release (planned `v1.0.1`) and provide that ZIP as the final Kindle build.
 
-Único passo restante:
-1. deixar o commit documental de fechamento passar o mesmo CI;
-2. criar a tag Git `v1.0.0` apontando para esse `main` verde exato.
-
-Não adicionar comportamento novo antes da tag. Se runtime/plugin Lua mudar, reavaliar regressão antes de liberar.
+The previous article/annotation A1-A9 evidence remains valid unless this fix regresses it.

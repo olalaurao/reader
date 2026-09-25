@@ -152,6 +152,62 @@ end
 
 return function()
     do
+        -- V1 textual Reader categories all use the bounded processed-HTML
+        -- materialization path. This closes the canonical email/RSS gap and
+        -- also covers the documented tweet/video textual categories.
+        local categories = { "email", "rss", "tweet", "video" }
+        local content_seen = {}
+        local reader = {
+            iterateDocuments = function(_, options, callback)
+                if options.with_html_content then
+                    assert(options.location == "new")
+                    assert(options.with_raw_source_url == false)
+                    content_seen[options.category] = true
+                    callback({
+                        id = options.category .. "-1",
+                        category = options.category,
+                        location = "new",
+                        title = options.category,
+                        updated_at = "u1",
+                        html_content = "<p>" .. options.category .. "</p>",
+                    })
+                else
+                    for _, category in ipairs(categories) do
+                        callback({
+                            id = category .. "-1",
+                            category = category,
+                            location = "new",
+                            title = category,
+                            updated_at = "u1",
+                        })
+                    end
+                end
+                return { pages = 1, duplicates = 0 }
+            end,
+        }
+        local materialized = {}
+        local syncer = newSync{
+            reader = reader,
+            categories = categories,
+            locations = { "new" },
+            materializer = {
+                installDocument = function(_, document)
+                    materialized[document.category] = true
+                    return { path = "/Readwise/" .. document.id .. ".html" }
+                end,
+            },
+        }
+        local report, err = syncer:sync{}
+        assert(err == nil)
+        assert(report.downloaded == 4)
+        for _, category in ipairs(categories) do
+            assert(content_seen[category] == true, category .. " content scan missing")
+            assert(materialized[category] == true, category .. " not materialized")
+        end
+        assert(report.unsupported_categories == 0)
+    end
+
+    do
         local saw_pdf_raw, saw_epub_raw = false, false
         local reader = {
             iterateDocuments = function(_, options, callback)

@@ -6,7 +6,15 @@ DocumentsSync.__index = DocumentsSync
 local DEFAULT_OVERLAP_SECONDS = 300
 local HTML_PAGE_LIMIT = 25
 local METADATA_PROJECTION_VERSION = "reader-tags-v2"
-local SUPPORTED_CATEGORIES = { article = true, pdf = true, epub = true }
+local SUPPORTED_CATEGORIES = {
+    article = true,
+    email = true,
+    rss = true,
+    pdf = true,
+    epub = true,
+    tweet = true,
+    video = true,
+}
 local PERMANENT_MATERIALIZATION_ERRORS = {
     content = true,
     exists = true,

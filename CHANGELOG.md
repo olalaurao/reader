@@ -32,7 +32,9 @@ All notable project changes are recorded here.
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Fixed
+
+- Restore the canonical V1 textual-format scope omitted from v1.0.0: normal document Sync now supports Reader `email`, `rss`, `tweet`, and `video` categories through the existing safe processed-HTML materialization path. Email/newsletter and RSS get dedicated folders; tweet/video use `Other/`. Type toggles are exposed without enabling any new category by default.
 
 ## [1.0.0] - 2026-09-25
 

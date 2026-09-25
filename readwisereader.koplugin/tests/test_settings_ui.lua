@@ -17,6 +17,7 @@ local function withStubbedSettings(run)
         writes = 0,
         archive_finished = true,
         archive_writes = 0,
+        categories = {},
     }
     for _, name in ipairs(names) do
         loaded[name] = package.loaded[name]
@@ -62,7 +63,12 @@ local function withStubbedSettings(run)
             hasAccessToken = function() return true end,
             getDownloadDirectory = function() return "/mnt/us/documents/Readwise" end,
             isSyncLocationEnabled = function() return false end,
-            isSyncCategoryEnabled = function() return false end,
+            isSyncCategoryEnabled = function(_, category)
+                return state.categories[category] == true
+            end,
+            setSyncCategoryEnabled = function(_, category, value)
+                state.categories[category] = value == true
+            end,
             getDownloadImages = function() return true end,
         }
         run(SettingsUI:new{ config = config, reader = {} }, state)
@@ -116,5 +122,31 @@ return function()
         archive.callback()
         assert(state.archive_finished == true)
         assert(state.archive_writes == 2)
+
+        local documents
+        for _, item in ipairs(menu.sub_item_table) do
+            if item.text == "Documents" then documents = item end
+        end
+        assert(documents)
+        local types
+        for _, item in ipairs(documents.sub_item_table) do
+            if item.text == "Types" then types = item end
+        end
+        assert(types)
+        local by_text = {}
+        for _, item in ipairs(types.sub_item_table) do by_text[item.text] = item end
+        assert(by_text["Email / newsletters"])
+        assert(by_text["RSS"])
+        assert(by_text["Tweets"])
+        assert(by_text["Videos"])
+        assert(by_text["Email / newsletters"].checked_func() == false)
+        by_text["Email / newsletters"].callback()
+        assert(state.categories.email == true)
+        by_text["RSS"].callback()
+        assert(state.categories.rss == true)
+        by_text["Tweets"].callback()
+        assert(state.categories.tweet == true)
+        by_text["Videos"].callback()
+        assert(state.categories.video == true)
     end)
 end

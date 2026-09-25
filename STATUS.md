@@ -208,9 +208,21 @@ Release authorization: `v1.0.0` is now allowed after release-version/documentati
 - **Only remaining release action:** create Git tag `v1.0.0` pointing at the final green `main` documentation-closeout commit. The currently available GitHub connector does not expose tag/ref creation for tags, so do not substitute a branch for a tag.
 - **Next step:** after this docs-only closeout commit passes CI, create `v1.0.0` at that exact green `main` SHA. No further Kindle test is required unless runtime code changes.
 
+## 2026-09-25 — Post-release V1 scope audit found skipped textual formats
+
+A strict audit against the canonical V1 scope found that the published `v1.0.0` was tagged prematurely. `PLAN.md` section 4 explicitly requires email/newsletter and RSS downloads, and `IMPLEMENTATION_SPEC.md` P0 also requires Reader textual categories such as tweet/video when usable processed HTML exists. The tagged code's `sync/documents.lua` only supported `article/pdf/epub`, while Settings still displayed `Email / RSS: later gate`.
+
+This is a real V1 scope gap, not a documentation-only issue. The prior A1-A9 article/annotation acceptance remains valid, but V1 cannot honestly be called 100% complete until the missing textual-format path is implemented and validated.
+
+Branch `fix/v1-textual-formats` reopens V1 finalization. The correction enables Reader categories `email`, `rss`, `tweet`, and `video` through the existing bounded processed-HTML materialization path; exposes category toggles; routes email to `Email/`, RSS to `RSS/`, tweet/video to `Other/`; adds deterministic sync/materialization/UI coverage; and preserves defaults (articles only) so upgrades do not unexpectedly backfill new categories.
+
+The Reader API contract was rechecked on 2026-09-25 and currently documents `article`, `email`, `rss`, `highlight`, `pdf`, `epub`, `tweet`, and `video` categories. No new API behavior is assumed.
+
+Next gate: full CI for `1.0.1-rc.1`; if green, perform the smallest PW3 physical closure: one real email/newsletter and one real RSS item downloaded via normal Sync, opened/reopened offline, with no duplicate on a second Sync. Only after that may a corrected final release be called complete.
+
 ## Current milestone
 
-**V1 acceptance / Phase S — PASSED COMPLETE; release `v1.0.0` in finalization**
+**V1 finalization REOPENED — missing textual email/RSS scope discovered after v1.0.0 tag**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 

@@ -197,6 +197,30 @@ This is destructive. The plugin still verifies the remote child ID, parent docum
                                 end,
                             },
                             {
+                                text = _("Email / newsletters"),
+                                checked_func = function()
+                                    return self.config:isSyncCategoryEnabled("email")
+                                end,
+                                callback = function()
+                                    self.config:setSyncCategoryEnabled(
+                                        "email",
+                                        not self.config:isSyncCategoryEnabled("email")
+                                    )
+                                end,
+                            },
+                            {
+                                text = _("RSS"),
+                                checked_func = function()
+                                    return self.config:isSyncCategoryEnabled("rss")
+                                end,
+                                callback = function()
+                                    self.config:setSyncCategoryEnabled(
+                                        "rss",
+                                        not self.config:isSyncCategoryEnabled("rss")
+                                    )
+                                end,
+                            },
+                            {
                                 text = _("PDF"),
                                 checked_func = function()
                                     return self.config:isSyncCategoryEnabled("pdf")
@@ -221,8 +245,28 @@ This is destructive. The plugin still verifies the remote child ID, parent docum
                                 end,
                             },
                             {
-                                text = _("Email / RSS: later gate"),
-                                enabled_func = function() return false end,
+                                text = _("Tweets"),
+                                checked_func = function()
+                                    return self.config:isSyncCategoryEnabled("tweet")
+                                end,
+                                callback = function()
+                                    self.config:setSyncCategoryEnabled(
+                                        "tweet",
+                                        not self.config:isSyncCategoryEnabled("tweet")
+                                    )
+                                end,
+                            },
+                            {
+                                text = _("Videos"),
+                                checked_func = function()
+                                    return self.config:isSyncCategoryEnabled("video")
+                                end,
+                                callback = function()
+                                    self.config:setSyncCategoryEnabled(
+                                        "video",
+                                        not self.config:isSyncCategoryEnabled("video")
+                                    )
+                                end,
                             },
                         },
                     },

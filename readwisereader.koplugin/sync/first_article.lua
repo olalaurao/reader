@@ -140,6 +140,9 @@ local RAW_CATEGORIES = { pdf = true, epub = true }
 local function folderFor(document)
     if document.category == "pdf" then return "PDFs" end
     if document.category == "epub" then return "EPUBs" end
+    if document.category == "email" then return "Email" end
+    if document.category == "rss" then return "RSS" end
+    if document.category == "tweet" or document.category == "video" then return "Other" end
     return "Articles"
 end
 

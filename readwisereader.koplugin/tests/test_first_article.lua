@@ -183,6 +183,32 @@ return function()
     end
 
     do
+        local expected = {
+            email = "Email",
+            rss = "RSS",
+            tweet = "Other",
+            video = "Other",
+        }
+        for category, folder in pairs(expected) do
+            local coordinator, _, states, installs = newCoordinator()
+            local result, err = coordinator:installDocument{
+                id = category .. "-1",
+                title = "Textual " .. category,
+                category = category,
+                location = "new",
+                updated_at = "u-text",
+                html_content = "<p>Readable " .. category .. "</p>",
+            }
+            assert(err == nil)
+            assert(result.path == "/root/Readwise/" .. folder .. "/article--rw-" .. category .. "-1.html")
+            assert(#installs == 1)
+            assert(installs[1].content:find("Readable " .. category, 1, true))
+            assert(states[category .. "-1"].local_format == "html")
+            assert(states[category .. "-1"].download_strategy == "reader_html")
+        end
+    end
+
+    do
         local localized_args
         local coordinator, _, states, installs = newCoordinator{
             images = {

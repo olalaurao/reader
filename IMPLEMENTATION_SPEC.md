@@ -2936,7 +2936,7 @@ No local annotation/progress loss caused by remote content update/revision. Exis
 ### Gate 16
 Release candidate stable on target PW3.
 
-## Phase S — V1 acceptance — PASSED COMPLETE
+## Phase S — V1 acceptance — REOPENED FOR MISSED TEXTUAL-FORMAT SCOPE
 
 The complete section-42 acceptance script passed on the target Kindle Paperwhite 3 / KOReader v2026.07.1 on 2026-09-25. The integrated run covered Reader -> Kindle acquisition, offline reading and annotation persistence, queued recovery, Kindle -> Reader highlight/note sync and deduplication, Readwise -> Obsidian wikilinks, note update, retryable-network recovery, KOReader restart with pending work, Reader location/Collection projection, Reader tag/Bookshelf metadata projection, Finished -> Archive with local preservation, real-device log review, and the final unchanged no-op Sync.
 
@@ -3091,14 +3091,13 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Phase S / V1 acceptance is **PASSED COMPLETE**.
+A post-release scope audit found one canonical V1 omission: email/newsletter and RSS were still disabled in the tagged `v1.0.0`, and the P0 textual-format contract also lists tweet/video when Reader provides usable processed HTML.
 
-Release finalization order:
-1. set the plugin version and metadata to `1.0.0` without changing validated runtime behavior;
-2. align README, CHANGELOG, STATUS, PLAN and device-test ledger;
-3. run the full development checks, Lua unit suite, installable ZIP build, package-layout verification and artifact upload in CI;
-4. if green, merge/fast-forward the release candidate to `main`;
-5. tag that exact green `main` commit as `v1.0.0`;
-6. do not add new product behavior between final acceptance and the V1 tag.
+Corrective gate:
+1. implement `email`, `rss`, `tweet`, and `video` as supported processed-HTML categories without changing the default enabled category set;
+2. add UI toggles and deterministic tests for filter eligibility, materialization, safe folders and no raw-source requests for textual categories;
+3. run full CI/package validation;
+4. on the target PW3, enable Email and RSS plus the required locations, Sync one real item of each, open/reopen them offline, then run a second unchanged Sync and require no duplicate;
+5. if physical validation passes, bump from `1.0.1-rc.1` to `1.0.1`, rerun CI, and publish the corrected final release.
 
-Any failure in the release-preparation CI reopens release finalization, not the already-passed physical acceptance, unless the fix changes production behavior.
+Do not call V1 100% complete or distribute the tagged `v1.0.0` as the final Kindle build before this corrective gate closes.
