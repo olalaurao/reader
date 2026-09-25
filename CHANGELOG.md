@@ -34,6 +34,7 @@ All notable project changes are recorded here.
 
 ### Added
 
+- Experimental `1.1.0-alpha.2` Gate 17B imports exactly one pre-existing Reader highlight into the currently-open managed EPUB/HTML after unique XPointer validation, verifies sidecar persistence, preserves Reader notes, and durably links the existing Reader child ID so a later outbound scan cannot treat it as a new remote create. Failures before durable linking roll the local import back; the action itself performs no Reader mutation.
 - Experimental `1.1.0-alpha.1` Gate 17A: read-only Reader → KOReader historical-highlight locator probe for open managed EPUB/HTML documents. It scans Reader highlight children by exact parent ID and tests up to three passages against KOReader rolling-document search/XPointer APIs. No local or remote annotation is written yet.
 
 ## [1.0.0] - 2026-09-25
