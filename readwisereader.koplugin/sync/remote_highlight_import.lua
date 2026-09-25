@@ -8,26 +8,55 @@ local function domainError(kind, message)
 end
 
 
-local function samePdfBoxes(a, b)
-    if type(a) ~= "table" or type(b) ~= "table" or #a ~= #b or #a == 0 then
-        return false
-    end
-    for index = 1, #a do
-        local left, right = a[index], b[index]
-        if type(left) ~= "table" or type(right) ~= "table"
-            or left.x ~= right.x or left.y ~= right.y
-            or left.w ~= right.w or left.h ~= right.h then
-            return false
-        end
-    end
-    return true
+local function samePagingPos(a, b)
+    return type(a) == "table" and type(b) == "table"
+        and a.x == b.x and a.y == b.y
 end
 
-local function pdfPersistedCandidate(normalized, item)
-    return item.page == normalized.page
-        and samePdfBoxes(item.pboxes, normalized.pboxes)
-        and item.text_hash == normalized.text_hash
-        and item.note_hash == normalized.note_hash
+-- Mirror KOReader ReaderAnnotation:getMatchFunc() for paging annotations.
+-- KOReader matches by datetime (when present on both), page, and native
+-- endpoint x/y. pboxes are rendering geometry and may be normalized
+-- independently, so they are not part of the persisted-item lookup.
+local function pdfNativeMatch(normalized, item)
+    if item.page ~= normalized.page then return false end
+    if normalized.datetime ~= nil and item.datetime ~= nil
+        and normalized.datetime ~= item.datetime then
+        return false
+    end
+    return samePagingPos(item.pos0, normalized.pos0)
+        and samePagingPos(item.pos1, normalized.pos1)
+end
+
+local function pdfCandidateStats(normalized, items)
+    local stats = {
+        scanned = 0,
+        same_page = 0,
+        same_datetime = 0,
+        same_pos0 = 0,
+        same_pos1 = 0,
+        native_matches = 0,
+    }
+    for _, item in ipairs(items or {}) do
+        stats.scanned = stats.scanned + 1
+        if item.page == normalized.page then
+            stats.same_page = stats.same_page + 1
+            local datetime_ok = not (
+                normalized.datetime ~= nil and item.datetime ~= nil
+                and normalized.datetime ~= item.datetime
+            )
+            if datetime_ok then
+                stats.same_datetime = stats.same_datetime + 1
+                if samePagingPos(item.pos0, normalized.pos0) then
+                    stats.same_pos0 = stats.same_pos0 + 1
+                    if samePagingPos(item.pos1, normalized.pos1) then
+                        stats.same_pos1 = stats.same_pos1 + 1
+                        stats.native_matches = stats.native_matches + 1
+                    end
+                end
+            end
+        end
+    end
+    return stats
 end
 
 function Import:new(options)
@@ -136,17 +165,14 @@ function Import:linkPersisted(local_path, remote, local_annotation)
         end
     end
 
-    -- PDF sidecars may serialize native position context (for example zoom or
-    -- rotation fields) differently from the in-memory item even though the
-    -- durable native page boxes are unchanged. Keep the normal deterministic
-    -- ID lookup first. Only when that fails for a PDF, accept exactly one
-    -- sidecar annotation whose page + pboxes + text/note hashes all match the
-    -- just-created item. This fallback is verification-only; Reader child ID
-    -- remains the remote identity and no fuzzy text matching is introduced.
+    -- Keep deterministic local ID as the primary lookup. If PDF serialization
+    -- changes non-identity fields, fall back only to KOReader's own native
+    -- paging match contract (ReaderAnnotation:getMatchFunc): datetime when
+    -- present, page, pos0 x/y, pos1 x/y. Exactly one candidate is required.
     if not persisted and document.local_format == "pdf" then
         local candidates = {}
         for _, item in ipairs(scan.annotations or {}) do
-            if pdfPersistedCandidate(normalized, item) then
+            if pdfNativeMatch(normalized, item) then
                 candidates[#candidates + 1] = item
             end
         end
@@ -155,17 +181,41 @@ function Import:linkPersisted(local_path, remote, local_annotation)
         elseif #candidates > 1 then
             return nil, domainError(
                 "sidecar_ambiguous",
-                "Created PDF highlight matched multiple persisted sidecar annotations."
+                "Created PDF highlight matched multiple persisted sidecar annotations by KOReader native paging identity."
             )
         end
     end
 
     if not persisted then
+        if document.local_format == "pdf" then
+            local stats = pdfCandidateStats(normalized, scan.annotations)
+            return nil, domainError(
+                "sidecar_lookup",
+                string.format(
+                    "Created PDF highlight was not found by KOReader native paging identity (scanned=%d, same_page=%d, same_datetime=%d, same_pos0=%d, same_pos1=%d).",
+                    stats.scanned,
+                    stats.same_page,
+                    stats.same_datetime,
+                    stats.same_pos0,
+                    stats.same_pos1
+                )
+            )
+        end
         return nil, domainError(
             "sidecar_lookup",
-            document.local_format == "pdf"
-                and "Created PDF highlight was not found uniquely in the persisted sidecar."
-                or "Created KOReader highlight was not found in the persisted sidecar."
+            "Created KOReader highlight was not found in the persisted sidecar."
+        )
+    end
+
+    -- The persisted native match must still carry the same normalized content
+    -- we just created. Identity is positional; content equality is a safety
+    -- check before binding the pre-existing Reader child ID.
+    if document.local_format == "pdf"
+        and (persisted.text_hash ~= normalized.text_hash
+            or persisted.note_hash ~= normalized.note_hash) then
+        return nil, domainError(
+            "sidecar_content",
+            "Persisted PDF highlight position matched, but its text/note content differed."
         )
     end
 
@@ -205,7 +255,8 @@ function Import:linkPersisted(local_path, remote, local_annotation)
     }
 end
 
-Import._pdfPersistedCandidate = pdfPersistedCandidate
-Import._samePdfBoxes = samePdfBoxes
+Import._pdfCandidateStats = pdfCandidateStats
+Import._pdfNativeMatch = pdfNativeMatch
+Import._samePagingPos = samePagingPos
 
 return Import
