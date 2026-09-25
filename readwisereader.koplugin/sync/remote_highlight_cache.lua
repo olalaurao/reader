@@ -119,6 +119,10 @@ function Cache:refresh()
     end
 
     local started_epoch = self.now()
+    local proposed_query_after = formatTime(math.max(
+        0,
+        started_epoch - (Constants.REMOTE_HIGHLIGHT_IMPORT_OVERLAP_SECONDS or 300)
+    ))
     local remote_rows = {}
     local scan, scan_err = self.reader:iterateDocuments({
         category = "highlight",
@@ -150,34 +154,28 @@ function Cache:refresh()
     -- the same overlap lower bound before advancing the cache watermark.
     -- The v2 highlight external_id is the Reader highlight child ID, and a
     -- Reader-sourced book external_id is its Reader parent document ID.
-    local deleted = {
-        highlight_ids = {},
-        parent_ids = {},
-        pages = 0,
-    }
-    if baseline then
-        local deletion_err
-        deleted, deletion_err = self:_deletedSince(query_after)
-        if not deleted then return nil, deletion_err end
-    end
+    -- Even the historical baseline checks a bounded v2 overlap window
+    -- before publishing the snapshot. This closes the race where a highlight
+    -- is deleted after an early v3 page was read but before the full baseline
+    -- scan completes. Incremental runs use their durable overlap watermark.
+    local deleted, deletion_err = self:_deletedSince(
+        baseline and query_after or proposed_query_after
+    )
+    if not deleted then return nil, deletion_err end
 
     local written
     if baseline then
         written = self.repository:upsertMany(remote_rows, started_epoch)
-        self.repository:deleteByRemoteIds(deleted.highlight_ids)
-        self.repository:deleteByParents(deleted.parent_ids)
     else
         -- A successful historical v3 scan is an authoritative extant snapshot.
         -- Replace atomically so stale rows from an older/partial baseline cannot
         -- survive into the first import run.
         written = self.repository:replaceSnapshot(remote_rows, started_epoch)
     end
+    self.repository:deleteByRemoteIds(deleted.highlight_ids)
+    self.repository:deleteByParents(deleted.parent_ids)
 
     local started_at = formatTime(started_epoch)
-    local proposed_query_after = formatTime(math.max(
-        0,
-        started_epoch - (Constants.REMOTE_HIGHLIGHT_IMPORT_OVERLAP_SECONDS or 300)
-    ))
     self.sync_meta:setMany({
         [VERSION_KEY] = CACHE_VERSION,
         [BASELINE_KEY] = "1",
