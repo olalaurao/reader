@@ -3,6 +3,7 @@
 local Constants = require("constants")
 local InfoMessage = require("ui/widget/infomessage")
 local Locator = require("koreader/remote_highlight_locator")
+local TextMatch = require("sync/text_match")
 local NetworkMgr = require("ui/network/manager")
 local Trapper = require("ui/trapper")
 local UIManager = require("ui/uimanager")
@@ -385,7 +386,8 @@ end
 function UI:_suppressLocalTextMatches(path, reader_ui, remote, result)
     local matched = 0
     for _, item in ipairs(reader_ui.annotation.annotations or {}) do
-        if item.drawer ~= nil and item.text == remote.content then
+        if item.drawer ~= nil
+            and TextMatch.equivalentPlainText(item.text, remote.content) then
             local normalized, normalize_err =
                 self.importer:normalizeLocal(path, item)
             if not normalized then
