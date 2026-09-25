@@ -5,5 +5,5 @@ local _ = require("gettext")
 return {
     name = "readwisereader",
     fullname = _("Readwise Reader"),
-    description = _([[Synchronize Readwise Reader content and KOReader annotations. v1.2.0-alpha.5 hardens one-item PDF import sidecar verification with exact native page-box fallback and explicit durable-link error reporting.]]),
+    description = _([[Synchronize Readwise Reader content and KOReader annotations. v1.2.0-alpha.6 verifies freshly-flushed PDF sidecars by opening the current metadata file directly, avoiding stale .old backup candidates during durable Reader-link proof.]]),
 }
