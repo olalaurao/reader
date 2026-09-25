@@ -5595,3 +5595,35 @@ Release closeout policy:
 4. audit the installable ZIP;
 5. mark PR #22 ready and merge only after green CI;
 6. do not add new runtime behavior between the accepted alpha.9 code and stable v1.2.0.
+
+
+## 2026-09-25 — v1.2.0 stable candidate off-device green and package audited
+
+Stable-version candidate head before this STATUS-only record: `63ba2a1678c6b6b743c608360fa87fd95db71f28`.
+
+The accepted alpha.9 runtime was not changed after physical acceptance. Compare from accepted alpha.9 package head `8e89397a1ef78fac15a4e930a2c633acda60b7c1` to the stable candidate shows only:
+- canonical documentation;
+- README/changelog release text;
+- `constants.lua` version string `1.2.0-alpha.9 → 1.2.0`;
+- `_meta.lua` release description.
+
+No runtime sync/import algorithm changed.
+
+CI/package:
+- workflow `36169298843`: **SUCCESS**;
+- complete development checks/Lua suite/package/layout/artifact pipeline passed;
+- artifact id: `10879547066`;
+- outer artifact digest: `sha256:7fce1dbcee405c80bb776f6245932b7ebbc70901d0ec85d1b1b891d2b985b20a`;
+- installable ZIP SHA-256: `3e99e240541ab96049b54836ce412760dea976a1f2dfcbd5de0bb989aaff209f`;
+- installable root exactly `readwisereader.koplugin/`;
+- 75 packaged files;
+- packaged version: `1.2.0`;
+- packaged PDF pre-Sync dispatch and conservative PDF batch constants present;
+- no tests, `.github`, SQLite DB/backups, sidecars or crash logs packaged.
+
+Remaining release plumbing only:
+1. let this STATUS-only head pass CI;
+2. mark PR #22 ready;
+3. merge to `main`;
+4. verify `main` CI/package;
+5. create stable tag `v1.2.0` when a tag-writing mechanism is available.
