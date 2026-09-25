@@ -3091,24 +3091,22 @@ Existing Readwise plugin reference:
 
 # 48. Immediate next action
 
-Begin **Phase T / Gate 17A — Reader → KOReader historical highlight import spike**.
+Gate 17A is **PASSED COMPLETE** on the target PW3.
 
-This changes a deliberate V1 non-goal, so it must be gated rather than inferred.
+Next: **Gate 17B — one existing Reader highlight -> local KOReader annotation**.
 
-Current evidence:
-- Reader API v3 exposes existing highlight children with `parent_id`, `content`, `notes`, `highlight_offset`, and `highlight_location`;
-- `highlight_location` is serialized Reader-HTML DOM position, not a KOReader XPointer;
-- KOReader v2026.07.1 rolling documents expose `findAllText()` results with `start/end` XPointers and can round-trip text with `getTextFromXPointers()`.
+Physical closure sequence:
+1. install `1.1.0-alpha.2` preserving plugin settings/SQLite/downloaded documents/sidecars;
+2. open the same managed EPUB used for Gate 17A with Wi-Fi on;
+3. run **Import one Reader highlight (Gate 17B)** exactly once;
+4. require `Imported local highlights: 1`, `Remote identity linked durably: yes`, `Sidecar persistence verified: yes`, and `Remote writes: none`;
+5. close and reopen the EPUB before any ordinary Sync;
+6. require that imported highlight to remain visible; when the imported Reader highlight had a note, require the note text to remain present;
+7. only after reopen persistence is confirmed, run one ordinary **Sync now**;
+8. require zero new Reader highlight creation for the imported annotation (no duplicate remote child);
+9. reopen once more and require the local imported highlight/note to remain intact.
 
-Gate 17A:
-1. support only open Reader-managed rolling EPUB/HTML;
-2. scan Reader `category=highlight` read-only and filter exact `parent_id`;
-3. preserve remote `content` in the Reader API adapter;
-4. probe at most 3 remote highlights against the open KOReader document;
-5. accept only exactly one literal local match whose returned XPointers round-trip to the exact same local text;
-6. ambiguous/missing/different text is reported, never guessed;
-7. no local annotation write, sidecar write, Reader write, or DB-link mutation in 17A;
-8. Gate 17B is blocked until the target PW3 proves at least one real existing Reader highlight resolves to a unique valid EPUB XPointer.
+Gate 17C remains blocked until all Gate 17B criteria pass.
 
 ---
 
@@ -3132,3 +3130,21 @@ Skip when the Reader child ID is already linked. Never dedupe unrelated highligh
 - Gate 17C: idempotent repeat + stable manual Sync integration.
 - Gate 17D: PDF/paging locator spike, separately gated.
 
+
+
+## 49.6 Gate 17B implementation contract
+
+The one-item import action is intentionally parent-process/local-document work after a read-only child-process Reader scan.
+
+Order is mandatory:
+1. skip Reader child IDs already linked in SQLite;
+2. find one exact unique local XPointer range (note-bearing Reader highlights are preferred);
+3. skip an exact local locator collision rather than creating an overlapping duplicate;
+4. create one annotation through KOReader `ReaderHighlight:saveHighlight()`;
+5. call `ReaderUI:saveSettings()`;
+6. re-open the sidecar through the normal KOReader annotation adapter and prove the newly-created local annotation ID exists there;
+7. transactionally create/update the annotation-link row and attach the pre-existing Reader child ID as `created_remote/synced`;
+8. if durable link fails, remove the just-created local annotation and save settings again;
+9. never issue Reader POST/PATCH/DELETE from the import action.
+
+This ordering ensures normal later KOReader -> Reader scanning sees the imported annotation as an already-linked remote entity rather than a new create candidate.
