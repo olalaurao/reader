@@ -3010,3 +3010,48 @@ Expected for the controlled fixture:
 - exact local note/text preserved and linked to the remote highlight.
 
 Do not run a second Sync yet.
+
+
+## Gate 16 — 0.1.47 RC checkpoint 5 — PASS
+
+User confirmed the reconnect exactly-once checkpoint passed:
+- Wi-Fi/connectivity restored without editing or recreating the controlled fixture;
+- one ordinary Sync was run;
+- the pending Gate 16 create was delivered exactly once;
+- create queue waiting reached 0;
+- no pending/retry_wait/in_flight create remained for the controlled fixture;
+- Reader showed exactly one matching highlight/note on the correct parent document;
+- no duplicate POST/highlight;
+- no fatal error;
+- no unexpected document replacement.
+
+Automated final-restart precondition:
+- file-backed SQLite test now marks the restart fixture succeeded, closes/reopens the DB, and proves:
+  - status remains succeeded;
+  - remote highlight id remains persisted;
+  - attempts/payload remain stable;
+  - waiting remains 0;
+  - listCreateWork returns 0 after process reopen.
+
+### Final Gate 16 device checkpoint — restart/state/log review
+
+Do not reinstall and do not run another Sync first.
+
+1. Fully restart KOReader.
+2. Open the same managed article.
+3. Confirm:
+   - position/progress preserved;
+   - prior highlights/notes preserved;
+   - Gate 16 local highlight/note preserved;
+   - Readwise Reader loads;
+   - Bookshelf loads.
+4. Confirm in Reader web/app that the controlled fixture still appears **once**.
+5. Review the current `koreader/crash.log` locally for:
+   - Readwise token or Authorization header;
+   - signed raw URL query/fragment credentials;
+   - dumped private document HTML/content;
+   - dumped private highlight/note payload.
+6. If any sensitive material is present, do **not** send the raw log; report only that the secret review failed.
+7. If none is present, report that the secret review passed.
+
+Expected: all state/coexistence preserved and no sensitive material in the log. If this passes, Gate 16 may close.
