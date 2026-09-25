@@ -71,6 +71,15 @@ Report only: whether the offline sync returned safely; whether the recovery sync
 - **Gate 16:** remains **OPEN**. The next canonical hardening item is 9, reboot; migration/rollback/log-redaction evidence already exists off-device but cannot be used to skip the real reboot matrix.
 - **Next physical test — R3 full Kindle reboot with durable queued work:** use an already-downloaded Reader-managed article. Start offline/Airplane Mode, create one new disposable highlight, and run Sync once so the operation is durably queued while remote writes are withheld. Then perform a full Kindle restart/reboot (not merely KOReader exit). After the Kindle and KOReader return, restore Wi-Fi and wait for real connectivity, run Sync, and verify the exact highlight appears in Reader once. Run Sync once more and verify no duplicate. Open the article and confirm prior reading position plus pre-existing highlights/notes are intact. Also confirm the Readwise Reader plugin/settings/token still load normally after the reboot. Report: offline Sync safe; Kindle rebooted normally; plugin/settings survived; recovery Sync succeeded; highlight appeared once; second Sync did not duplicate; progress/old annotations preserved; any error text.
 
+## 2026-09-25 — Gate 16 R3 reboot physical PASS; R4 rollback smoke next
+
+- **Physical result:** the full R3 reboot matrix requested in the previous handoff passed on the target PW3. Offline Sync safely persisted the new highlight; the Kindle rebooted normally; plugin settings/token survived; recovery Sync succeeded; the highlight appeared remotely once; the following Sync did not duplicate it; prior reading position and existing highlights/notes remained intact. No blocking error was reported.
+- **Conclusion:** hardening item 9 (reboot with durable queued work) is **PASS** on-device. R1-R3 now cover intermittent network recovery, process restart, full reboot, durable queue recovery and preservation of document state.
+- **CI entering R3:** commit `9bf7c007d234d5b998056f9a432aa04e7bf8c585` passed push run `36078690845` and draft-PR run `36078694778`.
+- **Already evidenced off-device:** migration rollback and log/redaction have green deterministic coverage on this branch. No production-code change is justified by R3.
+- **Remaining device-only closure:** installation/rollback smoke required by hardening item 50. Gate 16 remains open until that passes.
+- **Next physical test (R4):** back up the current known-good plugin directory plus settings/database; exit KOReader; temporarily disable the plugin by moving its directory out of the active plugins directory while leaving Reader documents/sidecars untouched; relaunch and confirm KOReader starts normally without Readwise Reader; exit again, restore the exact plugin directory, relaunch, confirm Readwise Reader and its settings/token load; open an existing managed article and verify position/highlights/notes; run one online Sync and confirm success without duplicates.
+
 ## Current milestone
 
 **Phase Q / Gate 15 — PASSED COMPLETE; Phase R / Gate 16 hardening is now unblocked**
