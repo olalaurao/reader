@@ -125,6 +125,10 @@ Report only: whether the offline sync returned safely; whether the recovery sync
 - Phase S remains OPEN. `v1.0.0` remains unauthorized until the complete section-42 acceptance script passes.
 - **Next physical checkpoint A2 / steps 7-14:** on this same acceptance article, turn Wi-Fi off; continue reading; create one highlight; add the exact note `ver [[Foucault]] e [[Biopolítica]]\n\n#pesquisar`; close and reopen the document and confirm the annotation remains; while still offline run `Sync now`; confirm it returns safely and the annotation remains pending/not lost. Do not restore Wi-Fi yet. Report: offline reading worked, exact note survived close/reopen, offline Sync returned safely, annotation remained present/pending, and any error text.
 
+## 2026-09-25 — Acceptance A2 passed
+
+A2 (acceptance steps 7-14) passed on the target PW3. Offline reading and the new annotation survived document reopen and an offline sync without loss. No production change was required. The prior A1 documentation commit passed CI run 36079597398. Phase S remains open. Next checkpoint is A3 (steps 15-20): reconnect, sync the same annotation to its original Reader document, verify the note, then sync again and verify no duplicate.
+
 ## Current milestone
 
 **Phase S / V1 acceptance — OPEN; Gates 0–16 PASSED COMPLETE**
