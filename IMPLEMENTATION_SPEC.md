@@ -3329,13 +3329,15 @@ The first PDF local import may expand partial first/last Reader tokens to the co
 
 Gate 17D-2 alpha.4 physically proved local creation + rollback but failed durable linking.
 
-For PDF imports, deterministic local annotation ID remains the first/normal persisted-sidecar lookup. If that exact ID is absent after KOReader serialization, a verification-only fallback may select a persisted item only when there is exactly one candidate satisfying all of:
+For PDF imports, deterministic local annotation ID remains the first/normal persisted-sidecar lookup. If that exact ID is absent after KOReader serialization, verification must mirror KOReader's own paging `ReaderAnnotation:getMatchFunc()` contract and accept exactly one candidate satisfying:
+- datetime equality when both candidate and created item carry datetime;
 - same page;
-- exact native `pboxes` sequence and coordinates;
-- exact normalized text hash;
-- exact normalized note hash.
+- exact pos0.x/y;
+- exact pos1.x/y.
 
-This fallback does not redefine remote identity, does not alter legacy PDF local IDs, and does not use fuzzy text. Zero or multiple candidates fail closed. Only the persisted sidecar item's own normalized local ID may then be written to the durable Reader child link.
+After that unique native paging identity match, the persisted item must still have the exact normalized text hash and note hash of the just-created item before the Reader child ID may be bound.
+
+This fallback does not redefine remote identity, does not alter legacy PDF local IDs, and does not use fuzzy text, pbox tolerance or approximate coordinates. Zero or multiple candidates fail closed. Only the persisted sidecar item's own normalized local ID may then be written to the durable Reader child link.
 
 
 ## 50.6 Freshly-flushed PDF sidecar verification
@@ -3349,3 +3351,17 @@ PDF import verification must:
 4. apply the normal deterministic-ID lookup, then the PDF-only unique exact page+pboxes+text/note fallback.
 
 The `.old` sidecar may remain available for KOReader recovery but must never satisfy proof that a just-created PDF highlight persisted.
+
+
+## 50.7 PDF paging identity diagnostics
+
+If immediate PDF persisted lookup fails after a successful sidecar flush, the error must report only structural counts (never highlight text/note content):
+- raw annotations present in the sidecar;
+- normalized annotations;
+- malformed/normalization exceptions;
+- same page;
+- same datetime (KOReader semantics: only compare when both non-nil);
+- same pos0.x/y;
+- same pos1.x/y.
+
+These counters are diagnostic only and must not relax matching.
