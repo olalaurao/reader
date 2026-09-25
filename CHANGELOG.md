@@ -32,7 +32,9 @@ All notable project changes are recorded here.
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Added
+
+- Experimental `1.1.0-alpha.1` Gate 17A: read-only Reader → KOReader historical-highlight locator probe for open managed EPUB/HTML documents. It scans Reader highlight children by exact parent ID and tests up to three passages against KOReader rolling-document search/XPointer APIs. No local or remote annotation is written yet.
 
 ## [1.0.0] - 2026-09-25
 
