@@ -5249,3 +5249,40 @@ Physical blocker:
 3. run explicit PDF import exactly once;
 4. if success, close/reopen before Sync and verify highlight/note;
 5. if failure, report the complete message: alpha.5 now preserves the exact sidecar/DB failure stage.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.5 physical sidecar_lookup FAIL; alpha.6 current-sidecar fix
+
+Physical alpha.5 result:
+- PDF preflight passed;
+- local sidecar item was created;
+- PDF integrity/no-embed guards passed far enough to attempt durable linking;
+- specific failure surfaced correctly as:
+  `Created PDF highlight was not found uniquely in the persisted sidecar.`;
+- rollback succeeded and the just-created local item was removed;
+- no Reader mutation occurred.
+
+Diagnosis after KOReader v2026.07.1 source audit:
+- `ReaderUI:saveSettings()` is synchronous: it dispatches `SaveSettings`, writes `annotations`, calls `DocSettings.saveSettingsArcFile(...)`, then `doc_settings:flush()`;
+- `DocSettings:flush()` backs up the existing sidecar to `metadata.*.lua.old` before writing the current sidecar;
+- the generic `DocSettings:open()` intentionally considers both current and `.old` candidates and orders candidates by recency for recovery;
+- that recovery behavior is valid generally but unsafe as proof of a **just-flushed** PDF annotation, because an immediate verification may select the previous backup that necessarily lacks the new item.
+
+Alpha.6 fix:
+- annotation adapter gains `scanFlushed(local_path, reader_document_id)`;
+- it resolves only the current non-legacy sidecar via `DocSettings:findSidecarFile(local_path, true)`;
+- it opens that exact current file with `DocSettings.openSettingsFile(sidecar_file)`;
+- it normalizes the same `annotations` setting using the existing canonical adapter logic;
+- PDF `linkPersisted()` now uses `scanFlushed()`; EPUB/HTML keep the established generic scan path;
+- exact deterministic ID remains the first lookup;
+- PDF exact pbox/page/text/note fallback remains second;
+- no identity, collision, digest, rollback or no-Reader-write rule is relaxed.
+
+Regression coverage:
+- fixture where generic `DocSettings.open()` returns a stale `.old` sidecar with no new annotation;
+- `scanFlushed()` must ignore that path, locate/open the current metadata file directly, and see the new PDF highlight;
+- PDF importer tests fail if the generic scan is used for post-save verification.
+
+Build advanced to `1.2.0-alpha.6`.
+
+Next physical checkpoint remains one explicit PDF import once, followed by close/reopen before ordinary Sync.
