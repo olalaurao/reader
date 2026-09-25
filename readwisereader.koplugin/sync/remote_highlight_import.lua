@@ -34,6 +34,10 @@ function Import:isRemoteLinked(reader_highlight_document_id)
     return self.annotations:getByReaderRemoteId(reader_highlight_document_id)
 end
 
+function Import:getLocalLink(local_annotation_id)
+    return self.annotations:getById(local_annotation_id)
+end
+
 function Import:normalizeLocal(local_path, local_annotation)
     local document, document_err = self:getDocument(local_path)
     if not document then return nil, document_err end
