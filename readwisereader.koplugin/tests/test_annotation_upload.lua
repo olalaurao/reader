@@ -314,6 +314,18 @@ local function offlineQueueRestartReconnectCase()
     assert(processed.waiting_after == 0)
     assert(state.creates == 1)
     assert(state.link.reader_highlight_document_id == "remote-offline")
+
+    -- A later fresh uploader over the same durable state must see the
+    -- succeeded queue/link and must not POST the already-delivered highlight
+    -- again. This is the deterministic counterpart of the Gate 16
+    -- reconnect-exactly-once physical checkpoint.
+    local after_delivery = Upload:new(baseOptions(state, reader))
+    local no_op = after_delivery:processQueue()
+    assert(no_op.created == 0)
+    assert(no_op.reconciled == 0)
+    assert(no_op.waiting_after == 0)
+    assert(state.creates == 1)
+    assert(state.queue[key].status == "succeeded")
 end
 
 local function rateLimitThenSafeRetryCase()
