@@ -1,5 +1,6 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
+local Constants = require("constants")
 local InfoMessage = require("ui/widget/infomessage")
 local Locator = require("koreader/paging_remote_highlight_locator")
 local NetworkMgr = require("ui/network/manager")
@@ -87,6 +88,71 @@ local function orderedCandidates(highlights)
     return out
 end
 
+local function sameNote(a, b)
+    local left = type(a) == "string" and a or ""
+    local right = type(b) == "string" and b or ""
+    return left == right
+end
+
+local function rotateAfter(items, cursor_id)
+    if type(cursor_id) ~= "string" or cursor_id == "" then return items end
+    local pivot
+    for index, state in ipairs(items or {}) do
+        local remote = state.remote or state
+        if remote.id == cursor_id then
+            pivot = index
+            break
+        end
+    end
+    if not pivot or pivot == #items then return items end
+
+    local out = {}
+    for index = pivot + 1, #items do out[#out + 1] = items[index] end
+    for index = 1, pivot do out[#out + 1] = items[index] end
+    return out
+end
+
+local function addSuppressedId(result, local_annotation_id)
+    if type(local_annotation_id) ~= "string" or local_annotation_id == "" then
+        result.suppress_current_document = true
+        return
+    end
+    result._suppressed_set = result._suppressed_set or {}
+    if not result._suppressed_set[local_annotation_id] then
+        result._suppressed_set[local_annotation_id] = true
+        result.suppress_outbound_ids[#result.suppress_outbound_ids + 1] =
+            local_annotation_id
+    end
+end
+
+local function newSyncReport(remote_report, document)
+    return {
+        status = "ok",
+        scan_mode = remote_report.cache_mode or "cache",
+        reader_document_id = document.reader_id,
+        reader_highlights = remote_report.parent_highlight_records or 0,
+        highlights_with_text = remote_report.highlights_with_text
+            or #(remote_report.remote_highlights or {}),
+        imported = 0,
+        notes_imported = 0,
+        linked_skipped = 0,
+        collisions_linked = 0,
+        local_collisions = 0,
+        collision_conflicts = 0,
+        unresolved_collision_risk = 0,
+        persisted_guard_matches = 0,
+        locator_attempts = 0,
+        ambiguous = 0,
+        missing = 0,
+        invalid = 0,
+        deferred_by_limit = 0,
+        failures = 0,
+        remote_writes = 0,
+        suppress_outbound_ids = {},
+        suppress_current_document = false,
+    }
+end
+
 local function withPdfEmbeddingDisabled(reader_ui, fn)
     local highlight = reader_ui.highlight
     local previous = highlight.highlight_write_into_pdf
@@ -128,6 +194,11 @@ function UI:new(options)
             assert(options.get_reader_ui, "get_reader_ui is required"),
         worker = options.worker or Worker,
         file_digest = options.file_digest or defaultFileDigest,
+        sync_meta = options.sync_meta,
+        max_imports = options.max_imports
+            or Constants.PDF_REMOTE_HIGHLIGHT_IMPORT_MAX_PER_SYNC,
+        max_locator_attempts = options.max_locator_attempts
+            or Constants.PDF_REMOTE_HIGHLIGHT_IMPORT_MAX_LOCATOR_ATTEMPTS,
     }, self)
 end
 
@@ -137,6 +208,41 @@ function UI:getMenuItem()
         keep_menu_open = true,
         callback = function() self:run() end,
     }
+end
+
+function UI:_readerContext(path)
+    local current_path = self.get_current_path()
+    local reader_ui = self.get_reader_ui()
+    if type(path) ~= "string" or path == "" or current_path ~= path
+        or not reader_ui or not reader_ui.document
+        or not reader_ui.highlight or not reader_ui.annotation then
+        return nil, nil, domainError(
+            "document",
+            "Open the same Readwise-managed PDF first."
+        )
+    end
+    if not reader_ui.paging or reader_ui.document.is_pdf ~= true then
+        return nil, nil, domainError(
+            "format",
+            "Reader PDF highlight import requires the open original paging PDF."
+        )
+    end
+    if type(reader_ui.saveSettings) ~= "function" then
+        return nil, nil, domainError(
+            "save",
+            "KOReader save-settings API is unavailable."
+        )
+    end
+
+    local document, document_err = self.importer:getDocument(path)
+    if not document then return nil, nil, document_err end
+    if document.local_format ~= "pdf" then
+        return nil, nil, domainError(
+            "format",
+            "The managed Reader document is not recorded as an original PDF."
+        )
+    end
+    return reader_ui, document
 end
 
 function UI:_preflight()
@@ -154,44 +260,15 @@ function UI:_preflight()
     end
 
     local path = self.get_current_path()
-    local reader_ui = self.get_reader_ui()
-    if type(path) ~= "string" or path == ""
-        or not reader_ui or not reader_ui.document
-        or not reader_ui.highlight or not reader_ui.annotation then
-        return nil, nil, nil, domainError(
-            "document",
-            "Open the same Readwise-managed PDF first."
-        )
-    end
-    if not reader_ui.paging or reader_ui.document.is_pdf ~= true then
-        return nil, nil, nil, domainError(
-            "format",
-            "Gate 17D-2 imports paging PDF highlights only."
-        )
-    end
-    if type(reader_ui.saveSettings) ~= "function" then
-        return nil, nil, nil, domainError(
-            "save",
-            "KOReader save-settings API is unavailable."
-        )
-    end
-
-    local document, document_err = self.importer:getDocument(path)
-    if not document then return nil, nil, nil, document_err end
-    if document.local_format ~= "pdf" then
-        return nil, nil, nil, domainError(
-            "format",
-            "The managed Reader document is not recorded as an original PDF."
-        )
-    end
-
+    local reader_ui, document, context_err = self:_readerContext(path)
+    if not reader_ui then return nil, nil, nil, context_err end
     return path, reader_ui, document
 end
 
-function UI:_fetchRemote(path)
+function UI:_fetchRemote(path, progress_text)
     local completed, report, err = Trapper:dismissableRunInSubprocess(function()
         return self.worker:run(path)
-    end, _([[Fetching Reader highlights for this PDF…
+    end, progress_text or _([[Fetching Reader highlights for this PDF…
 
 Tap to cancel. This Gate 17D-2 action imports at most one safe local PDF highlight. It performs no Reader mutation.]]))
 
@@ -309,6 +386,282 @@ function UI:_createAndLink(path, reader_ui, remote, locator, digest_before)
         local_annotation_id = linked.local_annotation_id,
         pdf_digest_unchanged = true,
     }
+end
+
+function UI:_scanState(document)
+    local cursor_key = "pdf_remote_highlight_cursor:" .. tostring(document.reader_id)
+    local cursor_id
+    if self.sync_meta and type(self.sync_meta.get) == "function" then
+        local ok, value = pcall(self.sync_meta.get, self.sync_meta, cursor_key)
+        if ok then cursor_id = value end
+    end
+    return {
+        cursor_key = cursor_key,
+        cursor_id = cursor_id,
+    }
+end
+
+function UI:_saveScanProgress(result, scan_state)
+    if not self.sync_meta then return true end
+    if result.deferred_by_limit > 0 and result.last_processed_remote_id then
+        return pcall(
+            self.sync_meta.set,
+            self.sync_meta,
+            scan_state.cursor_key,
+            result.last_processed_remote_id
+        )
+    end
+    if type(self.sync_meta.delete) == "function" then
+        return pcall(
+            self.sync_meta.delete,
+            self.sync_meta,
+            scan_state.cursor_key
+        )
+    end
+    return true
+end
+
+function UI:_candidateStates(highlights)
+    local states = {}
+    for _, remote in ipairs(orderedCandidates(highlights)) do
+        local call_ok, existing_link = pcall(
+            self.importer.isRemoteLinked,
+            self.importer,
+            remote.id
+        )
+        if not call_ok then
+            return nil, domainError(
+                "db",
+                "Could not read the durable Reader/PDF highlight links."
+            )
+        end
+        states[#states + 1] = {
+            remote = remote,
+            existing_link = existing_link,
+        }
+    end
+    return states
+end
+
+function UI:_linkExistingCollision(path, remote, existing_item, result)
+    result.local_collisions = result.local_collisions + 1
+
+    local normalize_ok, normalized, normalize_err = pcall(
+        self.importer.normalizeLocal,
+        self.importer,
+        path,
+        existing_item
+    )
+    if not normalize_ok or not normalized then
+        result.failures = result.failures + 1
+        result.status = "error"
+        result.suppress_current_document = true
+        return nil, normalize_err or domainError(
+            "annotation",
+            "Existing PDF highlight could not be normalized safely."
+        )
+    end
+
+    if not sameNote(existing_item.note, remote.notes) then
+        result.collision_conflicts = result.collision_conflicts + 1
+        result.status = "partial"
+        addSuppressedId(result, normalized.local_annotation_id)
+        return true
+    end
+
+    local link_ok, linked, link_err = pcall(
+        self.importer.linkPersisted,
+        self.importer,
+        path,
+        remote,
+        existing_item
+    )
+    if not link_ok or not linked then
+        result.failures = result.failures + 1
+        result.status = "error"
+        result.suppress_current_document = true
+        addSuppressedId(result, normalized.local_annotation_id)
+        return nil, link_err or domainError(
+            "db",
+            "Existing PDF highlight could not be linked durably."
+        )
+    end
+
+    if linked.status == "already_linked" then
+        if linked.local_annotation_id ~= normalized.local_annotation_id then
+            result.collision_conflicts = result.collision_conflicts + 1
+            result.status = "error"
+            result.suppress_current_document = true
+            addSuppressedId(result, normalized.local_annotation_id)
+            return nil, domainError(
+                "identity",
+                "Reader PDF highlight is already linked to a different local annotation."
+            )
+        end
+        result.linked_skipped = result.linked_skipped + 1
+    else
+        result.collisions_linked = result.collisions_linked + 1
+    end
+    return true
+end
+
+function UI:_applyForSync(path, reader_ui, document, remote_report, scan_state)
+    local result = newSyncReport(remote_report, document)
+    local states, state_err = self:_candidateStates(remote_report.remote_highlights)
+    if not states then
+        result.failures = 1
+        result.status = "error"
+        result.suppress_current_document = true
+        return result, state_err
+    end
+
+    local rotated = rotateAfter(states, scan_state.cursor_id)
+    local digest_before
+
+    for position, state in ipairs(rotated) do
+        local remote = state.remote
+        if state.existing_link then
+            result.linked_skipped = result.linked_skipped + 1
+            result.last_processed_remote_id = remote.id
+        else
+            if result.imported >= self.max_imports
+                or result.locator_attempts >= self.max_locator_attempts then
+                for remaining = position, #rotated do
+                    if not rotated[remaining].existing_link then
+                        result.deferred_by_limit =
+                            result.deferred_by_limit + 1
+                    end
+                end
+                break
+            end
+
+            result.locator_attempts = result.locator_attempts + 1
+            local locator, locator_status =
+                Locator.findUnique(reader_ui, remote.content)
+
+            if not locator then
+                if locator_status == "ambiguous" then
+                    result.ambiguous = result.ambiguous + 1
+                elseif locator_status == "missing" then
+                    result.missing = result.missing + 1
+                else
+                    result.invalid = result.invalid + 1
+                end
+                result.unresolved_collision_risk =
+                    result.unresolved_collision_risk + 1
+                result.status = "partial"
+                result.suppress_current_document = true
+            else
+                local _, existing_item = exactLocalAt(reader_ui, locator)
+                if existing_item then
+                    local linked_ok, linked_err = self:_linkExistingCollision(
+                        path,
+                        remote,
+                        existing_item,
+                        result
+                    )
+                    if not linked_ok then
+                        return result, linked_err
+                    end
+                else
+                    if not digest_before then
+                        local digest, digest_err = self.file_digest(path)
+                        if not digest then
+                            result.failures = result.failures + 1
+                            result.status = "error"
+                            result.suppress_current_document = true
+                            return result, domainError("integrity", digest_err)
+                        end
+                        digest_before = digest
+                    end
+
+                    local created, create_err = self:_createAndLink(
+                        path,
+                        reader_ui,
+                        remote,
+                        locator,
+                        digest_before
+                    )
+                    if not created then
+                        result.failures = result.failures + 1
+                        result.status = "error"
+                        result.suppress_current_document = true
+                        return result, create_err
+                    elseif created.status == "already_linked_race" then
+                        result.linked_skipped = result.linked_skipped + 1
+                    else
+                        result.imported = result.imported + 1
+                        if remote.note_present then
+                            result.notes_imported = result.notes_imported + 1
+                        end
+                    end
+                end
+            end
+            result.last_processed_remote_id = remote.id
+        end
+    end
+
+    if result.deferred_by_limit > 0 then
+        result.status = result.status == "error" and "error" or "partial"
+        result.suppress_current_document = true
+    end
+
+    return result
+end
+
+function UI:prepareForSync(path)
+    local reader_ui, document, context_err = self:_readerContext(path)
+    if not reader_ui then
+        return {
+            status = "skipped",
+            skipped_reason = context_err.kind,
+            imported = 0,
+            notes_imported = 0,
+            remote_writes = 0,
+            suppress_outbound_ids = {},
+            suppress_current_document = false,
+        }
+    end
+
+    local scan_state = self:_scanState(document)
+    local remote_report, fetch_err = self:_fetchRemote(
+        path,
+        _([[Reconciling Reader PDF highlights before outbound annotation sync…
+
+Tap to cancel. PDF imports remain sidecar-only and bounded. No Reader mutation is performed by this reconciliation.]]))
+    if not remote_report then
+        return {
+            status = fetch_err and fetch_err.kind == "cancelled"
+                and "cancelled" or "error",
+            error_kind = fetch_err and fetch_err.kind or "remote",
+            error_message = fetch_err and fetch_err.message or nil,
+            imported = 0,
+            notes_imported = 0,
+            remote_writes = 0,
+            reader_document_id = document.reader_id,
+            suppress_outbound_ids = {},
+            suppress_current_document = true,
+            abort_sync = fetch_err and fetch_err.kind == "cancelled" or false,
+        }, fetch_err
+    end
+
+    local result, apply_err = self:_applyForSync(
+        path,
+        reader_ui,
+        document,
+        remote_report,
+        scan_state
+    )
+    if apply_err then
+        result.status = "error"
+        result.error_kind = apply_err.kind
+        result.error_message = apply_err.message
+    end
+    if not self:_saveScanProgress(result, scan_state) then
+        result.status = result.status == "error" and "error" or "partial"
+    end
+    result._suppressed_set = nil
+    return result, apply_err
 end
 
 function UI:run()
@@ -465,7 +818,12 @@ UI._defaultFileDigest = defaultFileDigest
 UI._exactLocalAt = exactLocalAt
 UI._orderedCandidates = orderedCandidates
 UI._rollbackLocal = rollbackLocal
+UI._addSuppressedId = addSuppressedId
+UI._newSyncReport = newSyncReport
+UI._orderedCandidates = orderedCandidates
+UI._rotateAfter = rotateAfter
 UI._sameBoxes = sameBoxes
+UI._sameNote = sameNote
 UI._samePosition = samePosition
 UI._withPdfEmbeddingDisabled = withPdfEmbeddingDisabled
 
