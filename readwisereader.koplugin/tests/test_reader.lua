@@ -442,12 +442,14 @@ return function()
             category = "highlight",
             parent_id = "parent-1",
             notes = "note",
+            content = "Existing Reader passage",
             highlight_offset = 42,
             highlight_location = "dom-start,dom-end",
         })
         assert(normalized.highlight_offset == 42)
         assert(normalized.highlight_location == "dom-start,dom-end")
         assert(normalized.notes == "note")
+        assert(normalized.content == "Existing Reader passage")
     end
 
 end
