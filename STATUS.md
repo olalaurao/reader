@@ -5445,3 +5445,34 @@ Implementation/test head `b1ae635447bb553f7da3a9e5ffb99083ebe555cf` workflow `36
 Build advanced to `1.2.0-alpha.8`.
 
 Next physical checkpoint: one explicit PDF import once, then close/reopen before ordinary Sync. If lookup still fails, retain and report the alpha.7 structural counter message.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.8 off-device green; persisted-number fix ready
+
+Final alpha.8 package head before this STATUS-only record: `36022dc22d63a7c43d99c42f06907e750908d217`.
+
+CI workflow `36160817481`: **SUCCESS**.
+- development checks: PASS;
+- complete Lua suite: PASS;
+- installable ZIP build: PASS;
+- package-layout verification: PASS;
+- artifact upload: PASS.
+
+Artifact/package audit:
+- artifact id: `10875328920`;
+- outer artifact digest: `sha256:896d4bed987a10216d8cf8298a9b61cb45000b7bd681d49958597f8680ca2c54`;
+- installable ZIP SHA-256: `74b908d7d9e27ef98ea07228295e47eaf842ed259d2e6390ce4ef2911d03da09`;
+- root exactly `readwisereader.koplugin/`;
+- 83 entries;
+- packaged version/meta: `1.2.0-alpha.8`;
+- packaged paging locator contains persisted-number normalization via `tonumber(tostring(value))`;
+- packaged PDF import UI captures the created annotation reference immediately and rollback re-resolves its current index;
+- alpha.7 structural sidecar diagnostics remain packaged;
+- no tests/scripts/.github/dist, SQLite DB/backups, sidecars or crash logs packaged.
+
+Physical blocker:
+1. install alpha.8;
+2. same managed PDF;
+3. run explicit PDF import exactly once;
+4. if success, close/reopen before ordinary Sync and verify highlight/note;
+5. if failure, report the complete structural counter message.
