@@ -4968,3 +4968,39 @@ Next physical checkpoint:
 5. return the complete result screen.
 
 PASS requires at least one `Unique exact paging matches`, no crash, and both remote/local annotation writes reported none.
+
+
+## 2026-09-25 — Gate 17D alpha.1 physical FAIL explained; alpha.2 locator correction
+
+Physical result reported from `1.2.0-alpha.1` on the target PW3:
+- Reader highlight pages scanned: 11;
+- Reader highlight records scanned: 1088;
+- highlights for this PDF: 2;
+- highlights with text: 2;
+- local PDF probes run: 2;
+- unique exact paging matches: 0;
+- ambiguous: 0;
+- missing: 0;
+- text round-trip differences: 2;
+- other/invalid: 0;
+- remote writes: none;
+- local annotation/sidecar writes: none.
+
+Gate 17D is **NOT PASSED** by alpha.1.
+
+Diagnosis:
+- both samples reached `text_diff`, which means `findAllText()` had already returned exactly one match for each Reader highlight;
+- KOReader v2026.07.1 `KoptInterface.all_matches()` intentionally matches the first query token against the **suffix** of a PDF word and the last token against the **prefix** of a PDF word;
+- KOReader explicitly notes that paging search returns a **full word box even if only a substring matched**;
+- the alpha.1 probe incorrectly treated the independently reconstructed `getTextFromPositions()` string as the identity proof;
+- the photographed samples visibly begin with partial-word-looking boundaries (for example `…hecimento…` / `…ergunta…`), consistent with this KOPT behavior.
+
+Alpha.2 correction:
+- native first/last word-box centers are still derived from the unique search result;
+- `text_wrap=0` is used only temporarily and restored on all paths;
+- `getWordFromPosition()` must map each derived endpoint back to the exact first/last PDF words returned by search;
+- the query/search relation is exact-token or the precise KOReader first-suffix/last-prefix boundary rule only;
+- full-text round-trip is retained as diagnostic and may differ due to complete boundary words, whitespace or line-hyphen reconstruction;
+- no fuzzy matching, annotation creation, sidecar write, DB link or Reader mutation is enabled.
+
+Build version is advanced to `1.2.0-alpha.2`. Next blocker remains one read-only physical PDF probe.
