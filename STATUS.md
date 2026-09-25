@@ -4810,3 +4810,47 @@ The hardening sequence has repeatedly passed full syntax/dev checks and the comp
 Follow the v1.1.0-rc.1 section in `docs/DEVICE_TESTS.md`: install once, open the same Gate 17 EPUB, Sync/import bounded batches until no items are deferred, close/reopen to verify old/new highlights + notes, then run one unchanged Sync and require zero new imports/duplicates/fatal errors with document state intact.
 
 No further intermediate device request should be inserted before that final RC handoff unless off-device work uncovers a new safety blocker.
+
+
+## 2026-09-25 — v1.1.0-rc.1 code freeze CI + package audit PASS
+
+Release-freeze commit: `4b32aaafe34fc61e335ce5aafa52c2d0d0121776`.
+
+CI workflow `36142931148`: **SUCCESS**.
+- development/syntax checks: PASS;
+- complete Lua unit suite: PASS;
+- installable ZIP build: PASS;
+- package-layout verification: PASS;
+- artifact upload: PASS.
+
+GitHub Actions artifact:
+- artifact id: `10868286043`;
+- artifact name: `readwisereader-koplugin-4b32aaafe34fc61e335ce5aafa52c2d0d0121776`;
+- outer artifact digest: `sha256:bd38616732cfacaabed744edad5815dd8396fd889573366ecca729a4284c9724`.
+
+The uploaded artifact was downloaded and the actual installable inner `readwisereader.koplugin.zip` was audited:
+- inner ZIP SHA-256: `06dd37ab92540cd2adf7fa4188456583e1faf6fa889ab18da05286856b87bd7b`;
+- root contains exactly `readwisereader.koplugin/`;
+- package contains 78 entries;
+- packaged `constants.lua` and `_meta.lua` both identify `1.1.0-rc.1`;
+- no tests/scripts/.github/dist content is packaged;
+- no SQLite DB, settings file, migration backup, sidecar or crash log is packaged;
+- Authorization strings in the package are only the expected runtime header construction; no real credential/token is present.
+
+The code freeze includes the final safety hardening added after alpha.3:
+- pre-Sync Reader → KOReader reconciliation before outbound highlight creates;
+- exact outbound suppression for unresolved collisions;
+- global versioned historical/incremental Reader highlight cache;
+- v2 EXPORT deletion tombstones by exact external ID, including a bounded overlap tombstone pass during historical baseline;
+- stale experimental cache rebuild;
+- schema-v3 migration coverage and WAL checkpoint before pre-migration DB backup;
+- exact local/remote link rebinding rejection;
+- starvation-safe bounded cursor;
+- normalized-text collision suppression without using text as durable identity.
+
+Current release state:
+- **off-device RC is complete and packaged**;
+- **one consolidated PW3 acceptance remains** per `docs/DEVICE_TESTS.md`;
+- Gate 17B's deferred final reopen and Gate 17C physical acceptance will both be closed by that one session if it passes;
+- Gate 17D PDF/paging historical import remains outside v1.1.0;
+- do not merge/tag stable `v1.1.0` before the final PW3 acceptance.
