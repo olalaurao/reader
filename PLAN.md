@@ -1326,3 +1326,36 @@ Não há mais teste físico pendente para a V1.
 2. criar a tag Git `v1.0.0` apontando para esse `main` verde exato.
 
 Não adicionar comportamento novo antes da tag. Se runtime/plugin Lua mudar, reavaliar regressão antes de liberar.
+
+
+## 47. Pós-V1 / v1.1 — Reader → KOReader highlights
+
+Objetivo: highlights/notas que já existem no Reader devem poder aparecer no documento local correspondente no KOReader, começando por EPUB/HTML.
+
+A V1.0.0 continua historicamente válida para o fluxo Kindle → Reader; este recurso é novo.
+
+### Regras de segurança
+
+- Reader child `id` + `parent_id` são a identidade remota; nunca deduplicar só por texto.
+- `highlight_location` do Reader é posição no DOM do HTML processado do Reader e não pode ser assumida como XPointer do EPUB local.
+- Para documentos rolling (EPUB/HTML), localizar o texto no documento aberto usando a busca do próprio KOReader e aceitar apenas um XPointer inequívoco.
+- Texto repetido/ambíguo não é importado automaticamente.
+- Nenhuma escrita local no Gate 17A.
+- Só depois do spike físico criar annotations locais e imediatamente persistir o vínculo remoto, para que o scanner Kindle → Reader não tente reenviar o mesmo highlight.
+- PDF/paging precisa de spike separado; não inferir quadpoints/boxes a partir de offsets do Reader.
+- Importação remota nunca pode apagar highlight local.
+- Updates/deletes Reader → KOReader ficam fora do primeiro incremento; primeiro fechar import histórico idempotente.
+
+### Gate 17A — probe read-only EPUB/HTML
+
+1. abrir um EPUB gerenciado que já tenha highlights no Reader;
+2. listar Reader `category=highlight` e filtrar pelo `parent_id` do documento;
+3. testar no máximo 3 highlights com texto usando `document:findAllText`;
+4. exigir pelo menos um match local único com `start/end` XPointer válido;
+5. confirmar `Remote writes: none` e `Local writes: none`;
+6. registrar ambiguidades/misses sem criar annotations.
+
+Depois do PASS:
+- Gate 17B implementa import local + vínculo DB + dedupe/reopen;
+- Gate 17C integra import ao Sync/manual workflow e cobre notas;
+- Gate 17D trata PDF separadamente se ainda for desejado.
