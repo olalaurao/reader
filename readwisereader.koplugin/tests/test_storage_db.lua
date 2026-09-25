@@ -157,6 +157,44 @@ local function testBackupCopySemantics()
     assertTrue(tostring(message):find("synthetic copy failure", 1, true) ~= nil)
 end
 
+
+local function testInterruptedMigrationRollback()
+    local db = newMemoryDB()
+    local conn = db.sq3.open(":memory:")
+    db:_configure(conn)
+    conn:exec(Migrations.SCHEMA_V1)
+    conn:exec("PRAGMA user_version=1;")
+    conn:exec("INSERT INTO documents(reader_id, title) VALUES ('survivor', 'before');")
+
+    local original_exec = conn.exec
+    local injected = false
+    conn.exec = function(self, sql)
+        if not injected and sql == Migrations.SCHEMA_V2 then
+            injected = true
+            error("synthetic power-loss migration failure")
+        end
+        return original_exec(self, sql)
+    end
+
+    local ok = pcall(Migrations.apply, conn, 1)
+    assertEqual(ok, false, "interrupted migration must fail")
+    conn.exec = original_exec
+    assertEqual(tonumber(conn:rowexec("PRAGMA user_version;")), 1,
+        "failed migration must preserve previous schema version")
+    assertEqual(tonumber(conn:rowexec(
+        "SELECT count(*) FROM documents WHERE reader_id='survivor' AND title='before';"
+    )), 1, "failed migration must preserve pre-existing rows")
+    local column = conn:prepare(
+        "SELECT count(*) FROM pragma_table_info('documents') WHERE name='materialized_remote_updated_at';"
+    )
+    local row = column:step()
+    column:close()
+    assertEqual(tonumber(row[1]), 0,
+        "failed migration must roll back partially-added v2 columns")
+    conn:close()
+end
+
+
 local function testTransactionRollback()
     local db = newMemoryDB()
     local conn = db:open()
@@ -200,6 +238,7 @@ return function()
     testQueueUniquenessAndForeignKey()
     testV1ToV2Migration()
     testBackupCopySemantics()
+    testInterruptedMigrationRollback()
     testTransactionRollback()
     testMigrationRollbackSignal()
 end
