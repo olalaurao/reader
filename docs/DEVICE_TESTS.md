@@ -2980,3 +2980,30 @@ Consequences:
 - stable v1.1.0 release is authorized.
 
 Gate 17D PDF/paging historical import remains untested and outside v1.1.0.
+
+
+## Gate 17D — PDF/paging Reader highlight locator
+
+Status: **OFF-DEVICE IMPLEMENTATION; PHYSICAL PROBE PENDING**
+
+Build: `1.2.0-alpha.1`.
+
+Use an already-local **plugin-managed original PDF** with at least one highlight already present in Readwise Reader.
+
+Procedure:
+1. install the Gate 17D build preserving settings/database/documents/sidecars;
+2. restart KOReader;
+3. open the managed PDF;
+4. Wi-Fi ON;
+5. run **Readwise Reader → Inspect PDF Reader highlights (Gate 17D)** once;
+6. capture the complete result screen.
+
+Required PASS:
+- `Highlights for this PDF >= 1`;
+- `Local PDF probes run >= 1`;
+- `Unique exact paging matches >= 1`;
+- no crash/freeze;
+- `Remote writes: none`;
+- `Local annotation/sidecar writes: none`.
+
+Ambiguous/missing/text-round-trip-different samples are safe skips. Do not create/import a PDF highlight yet.
