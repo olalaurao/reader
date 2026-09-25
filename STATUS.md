@@ -5221,3 +5221,31 @@ Regression coverage added:
 Build advanced to `1.2.0-alpha.5`.
 
 Next device test remains one explicit PDF import once, then close/reopen before ordinary Sync.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.5 off-device green; persisted-sidecar fallback ready
+
+Final alpha.5 CI/package head before this STATUS-only record: `fff07a19fac47044ec778e965f28f8ccdbf2f1a6`.
+
+CI workflow `36154942769`: **SUCCESS**.
+- development checks: PASS;
+- complete Lua suite: PASS;
+- installable ZIP build: PASS;
+- package-layout verification: PASS;
+- artifact upload: PASS.
+
+Artifact/package audit:
+- artifact id: `10872654507`;
+- outer artifact digest: `sha256:36b1f01dee3ea0d65a36693305a288e56d9fe4b9e2cec24459d5af893ae32de4`;
+- installable ZIP SHA-256: `c817fd5dff0a4cce44b6759f6686824cc25ddd680cde18aa646943ae2ca6767d`;
+- root exactly `readwisereader.koplugin/`;
+- packaged version: `1.2.0-alpha.5`;
+- shared importer includes PDF allow-path plus exact pbox/text/note persisted-sidecar fallback;
+- no tests/scripts/.github/dist, SQLite DB/backups, sidecars or crash logs packaged.
+
+Physical blocker:
+1. install alpha.5;
+2. same managed PDF;
+3. run explicit PDF import exactly once;
+4. if success, close/reopen before Sync and verify highlight/note;
+5. if failure, report the complete message: alpha.5 now preserves the exact sidecar/DB failure stage.
