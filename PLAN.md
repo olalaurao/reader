@@ -1346,9 +1346,11 @@ Aceite integrado de conclusão também já repetido:
 - arquivo local permaneceu presente e abrindo;
 - sidecar/progresso/highlights/notas permaneceram íntegros.
 
+A revisão estática/determinística final de logs/redaction também foi repetida no código atual e não encontrou regressão; falta apenas conferir o log real gerado no PW3 durante esta aceitação.
+
 Ainda faltam, antes de `v1.0.0`:
-1. revisar logs finais por token, signed URL e conteúdo privado;
-2. executar o segundo no-op Sync final e confirmar zero novos documentos/highlights;
+1. conferir no log real do PW3 que não há token, signed source URL nem conteúdo privado completo;
+2. executar o segundo no-op Sync final e confirmar zero novos documentos/highlights e nenhuma nova mutação de Archive;
 3. somente então fechar Phase S, preparar release candidate e tag `v1.0.0`.
 
 Não pular esses critérios mesmo quando o comportamento já tiver evidência em gates anteriores: esta fase é a repetição integrada de aceite da V1 no PW3 real.
