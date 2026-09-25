@@ -35,7 +35,9 @@ local function testFreshSchema()
     assertEqual(db:getSchemaVersion(), Migrations.SCHEMA_VERSION, "fresh schema version")
     assertEqual(tonumber(conn:rowexec("PRAGMA foreign_keys;")), 1, "foreign keys enabled")
 
-    for _, table_name in ipairs({ "documents", "annotation_links", "queue", "sync_meta" }) do
+    for _, table_name in ipairs({
+        "documents", "annotation_links", "queue", "sync_meta", "remote_highlights",
+    }) do
         local stmt = conn:prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?;")
         local row = stmt:reset():bind(table_name):step()
         stmt:close()
@@ -79,7 +81,7 @@ local function testQueueUniquenessAndForeignKey()
     db:close()
 end
 
-local function testV1ToV2Migration()
+local function testV1ToCurrentMigration()
     local db = newMemoryDB()
     local conn = db.sq3.open(":memory:")
     db:_configure(conn)
@@ -99,8 +101,8 @@ local function testV1ToV2Migration()
     assertEqual(changed, true)
     assertEqual(
         tonumber(conn:rowexec("PRAGMA user_version;")),
-        2,
-        "v1 database must migrate to v2"
+        Migrations.SCHEMA_VERSION,
+        "v1 database must migrate to the current schema"
     )
 
     local stmt = conn:prepare([[
@@ -117,29 +119,98 @@ local function testV1ToV2Migration()
     assertEqual(tonumber(row[2]), 0)
     assertEqual(row[3], nil)
     assertEqual(row[4], nil)
+    assertEqual(tonumber(conn:rowexec([[
+        SELECT count(*) FROM sqlite_master
+        WHERE type='table' AND name='remote_highlights';
+    ]])), 1, "v1 migration must create the v3 remote highlight cache")
+    conn:close()
+end
+
+local function testV2ToV3MigrationPreservesData()
+    local db = newMemoryDB()
+    local conn = db.sq3.open(":memory:")
+    db:_configure(conn)
+    conn:exec(Migrations.SCHEMA_V1)
+    conn:exec(Migrations.SCHEMA_V2)
+    conn:exec("PRAGMA user_version=2;")
+    conn:exec([[
+        INSERT INTO documents(
+            reader_id, category, location, local_path,
+            local_format, is_local_present
+        ) VALUES (
+            'doc-v2', 'epub', 'later', '/Readwise/v2.epub', 'epub', 1
+        );
+    ]])
+    conn:exec([[
+        INSERT INTO sync_meta(key, value)
+        VALUES ('document_watermark', 'keep-me');
+    ]])
+
+    local changed = Migrations.apply(conn, 2)
+    assertEqual(changed, true)
+    assertEqual(
+        tonumber(conn:rowexec("PRAGMA user_version;")),
+        Migrations.SCHEMA_VERSION,
+        "v2 database must migrate to v3"
+    )
+    assertEqual(tonumber(conn:rowexec(
+        "SELECT count(*) FROM documents WHERE reader_id='doc-v2';"
+    )), 1, "v2 document rows must survive v3 migration")
+    assertEqual(conn:rowexec(
+        "SELECT value FROM sync_meta WHERE key='document_watermark';"
+    ), "keep-me", "v2 sync metadata must survive v3 migration")
+    assertEqual(tonumber(conn:rowexec([[
+        SELECT count(*) FROM sqlite_master
+        WHERE type='table' AND name='remote_highlights';
+    ]])), 1, "v3 cache table must exist after v2 migration")
     conn:close()
 end
 
 local function testBackupCopySemantics()
     local copied_from, copied_to
+    local checkpoint_calls = 0
+    local wal_conn = {
+        rowexec = function(_, sql)
+            assertEqual(sql, "PRAGMA journal_mode;")
+            return "wal"
+        end,
+        exec = function(_, sql)
+            assertEqual(sql, "PRAGMA wal_checkpoint(FULL);")
+            checkpoint_calls = checkpoint_calls + 1
+        end,
+    }
     local db = DB:new{
         path = "/tmp/readwisereader.sqlite3",
         sq3 = SQ3,
-        device = { canUseWAL = function() return false end },
+        device = { canUseWAL = function() return true end },
         copy_file = function(from, to)
+            assertEqual(checkpoint_calls, 1,
+                "WAL checkpoint must complete before migration backup copy")
             copied_from, copied_to = from, to
             -- KOReader ffiUtil.copyFile returns nil on success.
             return nil
         end,
     }
     local ok, err = pcall(function()
-        db:_backupBeforeMigration(1)
+        db:_backupBeforeMigration(wal_conn, 2)
     end)
     assertEqual(ok, true,
         "nil from KOReader copyFile must mean backup success")
     assertEqual(err, nil)
+    assertEqual(checkpoint_calls, 1)
     assertEqual(copied_from, "/tmp/readwisereader.sqlite3")
     assertEqual(copied_to, "/tmp/readwisereader.sqlite3.bak")
+
+    local truncate_checkpoint_calls = 0
+    local truncate_conn = {
+        rowexec = function() return "truncate" end,
+        exec = function()
+            truncate_checkpoint_calls = truncate_checkpoint_calls + 1
+        end,
+    }
+    db:_backupBeforeMigration(truncate_conn, 2)
+    assertEqual(truncate_checkpoint_calls, 0,
+        "non-WAL migration backup must not issue a WAL checkpoint")
 
     local failing = DB:new{
         path = "/tmp/readwisereader.sqlite3",
@@ -150,11 +221,31 @@ local function testBackupCopySemantics()
         end,
     }
     local failed, message = pcall(function()
-        failing:_backupBeforeMigration(1)
+        failing:_backupBeforeMigration(truncate_conn, 2)
     end)
     assertEqual(failed, false,
         "non-nil KOReader copyFile return must be treated as failure")
     assertTrue(tostring(message):find("synthetic copy failure", 1, true) ~= nil)
+
+    local checkpoint_failure = DB:new{
+        path = "/tmp/readwisereader.sqlite3",
+        sq3 = SQ3,
+        device = { canUseWAL = function() return true end },
+        copy_file = function()
+            error("backup copy must not run after checkpoint failure")
+        end,
+    }
+    local checkpoint_ok, checkpoint_err = pcall(function()
+        checkpoint_failure:_backupBeforeMigration({
+            rowexec = function() return "wal" end,
+            exec = function() error("synthetic checkpoint failure") end,
+        }, 2)
+    end)
+    assertEqual(checkpoint_ok, false,
+        "failed WAL checkpoint must abort migration backup")
+    assertTrue(tostring(checkpoint_err):find(
+        "synthetic checkpoint failure", 1, true
+    ) ~= nil)
 end
 
 
@@ -194,6 +285,40 @@ local function testInterruptedMigrationRollback()
     conn:close()
 end
 
+
+local function testInterruptedV3MigrationRollback()
+    local db = newMemoryDB()
+    local conn = db.sq3.open(":memory:")
+    db:_configure(conn)
+    conn:exec(Migrations.SCHEMA_V1)
+    conn:exec(Migrations.SCHEMA_V2)
+    conn:exec("PRAGMA user_version=2;")
+    conn:exec("INSERT INTO documents(reader_id, title) VALUES ('v2-survivor', 'before-v3');")
+
+    local original_exec = conn.exec
+    local injected = false
+    conn.exec = function(self, sql)
+        if not injected and sql == Migrations.SCHEMA_V3 then
+            injected = true
+            error("synthetic v3 migration failure")
+        end
+        return original_exec(self, sql)
+    end
+
+    local ok = pcall(Migrations.apply, conn, 2)
+    assertEqual(ok, false, "interrupted v3 migration must fail")
+    conn.exec = original_exec
+    assertEqual(tonumber(conn:rowexec("PRAGMA user_version;")), 2,
+        "failed v3 migration must preserve schema version 2")
+    assertEqual(tonumber(conn:rowexec(
+        "SELECT count(*) FROM documents WHERE reader_id='v2-survivor' AND title='before-v3';"
+    )), 1, "failed v3 migration must preserve existing rows")
+    assertEqual(tonumber(conn:rowexec([[
+        SELECT count(*) FROM sqlite_master
+        WHERE type='table' AND name='remote_highlights';
+    ]])), 0, "failed v3 migration must roll back the cache table")
+    conn:close()
+end
 
 local function testTransactionRollback()
     local db = newMemoryDB()
@@ -236,9 +361,11 @@ return function()
     assertTrue(Migrations.SCHEMA_VERSION >= 1)
     testFreshSchema()
     testQueueUniquenessAndForeignKey()
-    testV1ToV2Migration()
+    testV1ToCurrentMigration()
+    testV2ToV3MigrationPreservesData()
     testBackupCopySemantics()
     testInterruptedMigrationRollback()
+    testInterruptedV3MigrationRollback()
     testTransactionRollback()
     testMigrationRollbackSignal()
 end

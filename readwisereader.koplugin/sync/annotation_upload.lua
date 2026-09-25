@@ -35,6 +35,18 @@ local function safeRejectedCreate(kind)
     return kind == "create_rate_limit" or kind == "create_auth"
 end
 
+local function asSet(values)
+    local set = {}
+    for key, value in pairs(values or {}) do
+        if type(key) == "number" then
+            if type(value) == "string" and value ~= "" then set[value] = true end
+        elseif value == true and type(key) == "string" and key ~= "" then
+            set[key] = true
+        end
+    end
+    return set
+end
+
 function Upload:new(options)
     options = options or {}
     return setmetatable({
@@ -342,7 +354,11 @@ function Upload:_handleCreateFailure(item, failure, report)
     report.remote_errors = report.remote_errors + 1
 end
 
-function Upload:processQueue()
+function Upload:processQueue(options)
+    options = options or {}
+    local suppressed_annotation_ids = asSet(options.suppress_annotation_ids)
+    local suppressed_reader_document_ids =
+        asSet(options.suppress_reader_document_ids)
     local now = self.now()
     local items = self.queue:listCreateWork(now)
     local report = {
@@ -356,6 +372,7 @@ function Upload:processQueue()
         remote_errors = 0,
         deferred = 0,
         auth_waiting = 0,
+        suppressed = 0,
         waiting_after = 0,
     }
 
@@ -363,8 +380,16 @@ function Upload:processQueue()
         report.processed = report.processed + 1
         local key = item.idempotency_key
         local link = self.annotations:getById(item.local_annotation_id)
+        local suppressed =
+            suppressed_annotation_ids[item.local_annotation_id] == true
+            or suppressed_reader_document_ids[item.reader_document_id] == true
 
-        if not link then
+        if suppressed then
+            -- Keep the durable create intent pending. A pre-sync Reader
+            -- reconciliation found (or could not safely exclude) an existing
+            -- remote counterpart, so this run must not POST a duplicate.
+            report.suppressed = report.suppressed + 1
+        elseif not link then
             self.queue:markBlocked(
                 key,
                 "missing_annotation_link",
@@ -571,6 +596,7 @@ function Upload:syncPath(local_path)
         remote_errors = processed.remote_errors or 0,
         deferred = processed.deferred or 0,
         auth_waiting = processed.auth_waiting or 0,
+        suppressed = processed.suppressed or 0,
         waiting_after = processed.waiting_after or 0,
         queue_processed = processed.processed or 0,
     }

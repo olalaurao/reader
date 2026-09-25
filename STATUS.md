@@ -208,9 +208,215 @@ Release authorization: `v1.0.0` is now allowed after release-version/documentati
 - **Only remaining release action:** create Git tag `v1.0.0` pointing at the final green `main` documentation-closeout commit. The currently available GitHub connector does not expose tag/ref creation for tags, so do not substitute a branch for a tag.
 - **Next step:** after this docs-only closeout commit passes CI, create `v1.0.0` at that exact green `main` SHA. No further Kindle test is required unless runtime code changes.
 
+## 2026-09-25 — Phase T / Gate 17A started: Reader → KOReader existing highlights
+
+User requested post-V1 Reader → KOReader import after observing that an original Reader EPUB downloaded correctly but its pre-existing Reader highlights did not appear in KOReader.
+
+Canonical review confirmed this was an explicit V1 non-goal, not an EPUB-download regression. Scope is now deliberately extended for v1.1.
+
+Architecture validated before implementation:
+- current Reader API v3 exposes highlight child records with `parent_id`, `content`, `notes`, `highlight_offset`, and `highlight_location`;
+- Reader `highlight_location` is a serialized position in Reader processed HTML and cannot be treated as a CRengine XPointer for an original EPUB;
+- KOReader v2026.07.1 rolling documents expose `findAllText()` with `start/end` XPointers and `getTextFromXPointers()` for exact round-trip validation;
+- KOReader local insertion path is known, but intentionally remains disabled until the locator spike passes;
+- Reader LIST has no documented `parent_id` filter, so Gate 17A scans `category=highlight` with existing pagination/rate-limit/cancellation safeguards and filters exact parent locally.
+
+Branch: `feature/v1.1-reader-highlight-import`.
+Build: `1.1.0-alpha.1`.
+
+Implemented Gate 17A:
+- Reader API normalization now preserves highlight `content`;
+- read-only worker resolves the current managed EPUB/HTML and scans Reader highlight children;
+- exact `parent_id` filtering and stable offset/date ordering;
+- UI probes at most 3 highlight texts using KOReader's own full-text search;
+- only one literal result with valid XPointer start/end and exact text round-trip counts as unique;
+- ambiguous/missing/different results are reported;
+- remote writes = 0; local writes = 0;
+- PDF is explicitly rejected until a separate paging-position spike.
+
+No sidecar, annotation, queue, DB-link, or remote mutation path is enabled yet. Gate 17B remains blocked on physical PW3 evidence from a real managed EPUB that already contains Reader highlights.
+
+## 2026-09-25 — Gate 17A off-device implementation green; PW3 probe next
+
+- **Branch / code HEAD validated:** `feature/v1.1-reader-highlight-import` / `8e4d4e42476fdd0bccf0eeaee97f583bbfbe5032`.
+- **Build:** `1.1.0-alpha.1`.
+- **CI:** workflow `36089780096` completed **SUCCESS**. Development checks, full Lua unit suite, installable ZIP build, package-layout verification and artifact upload all passed.
+- **Artifact:** `readwisereader-koplugin-8e4d4e42476fdd0bccf0eeaee97f583bbfbe5032`, artifact id `10844249761`, outer artifact digest `sha256:ef730dacbf74931a53ace718cac6b3d4f56c3839415c8a1dc5378490eb317da5`.
+- **Implemented/verified off-device:** Reader highlight `content` normalization; exact parent filtering; safe EPUB/HTML-only scope; stable remote ordering; at-most-three local probes; unique/ambiguous/missing classification; exact XPointer text round-trip; UI/preflight behavior; PDF rejection in this gate.
+- **Safety:** Gate 17A performs zero Reader writes and zero local annotation/sidecar/DB-link writes.
+- **Production import status:** NOT enabled. Gate 17B is blocked on physical locator evidence.
+- **Next physical test:** install this alpha preserving settings/DB/documents/sidecars; open the same managed EPUB that already has Reader highlights; Wi-Fi ON; run **Readwise Reader → Inspect Reader highlights (Gate 17A)** once; return the full result. PASS requires at least one `Unique exact XPointer matches` and both `Remote writes: none` / `Local writes: none`. Do not create/delete/edit highlights for this probe.
+
+## 2026-09-25 — Gate 17A attempt 1 BLOCKED by false rolling preflight
+
+Physical attempt 1 on the target PW3 did not reach the Reader/XPointer probe. With the managed EPUB open, the plugin showed `Gate 17A currently supports rolling EPUB/HTML documents only`.
+
+Root cause was identified in the Gate 17A UI preflight, not in the EPUB or Reader data: the alpha compared `reader_ui.rolling ~= true`, but KOReader exposes `ui.rolling` as a module/object for rolling documents rather than the literal boolean `true`. A valid EPUB therefore failed the preflight.
+
+No remote or local annotation write occurred; the failure happened before the worker/probe ran. Existing document/sidecar state was not mutated.
+
+Required fix before retry:
+- treat any non-nil/truthy `reader_ui.rolling` module as rolling;
+- regression-test with a table/object value, not boolean `true`;
+- rerun full CI/package checks;
+- then repeat only the same Gate 17A physical probe.
+
+## 2026-09-25 — Gate 17A false rolling preflight fixed; retry build green
+
+The attempt-1 failure was fixed by treating KOReader's `reader_ui.rolling` as the module/object it actually is, instead of requiring the literal boolean `true`.
+
+Regression coverage now stubs `rolling = {}` so this exact KOReader runtime shape is locked in. No locator/import behavior changed beyond allowing a valid rolling EPUB/HTML to reach the existing read-only Gate 17A probe.
+
+- fix commit: `f81820f74bb3cbb85b5c0190dbfe512b3fceecc2`;
+- regression test commit: `b36dea9ea9a2110f8f74ac2395a9a5c8f962fcb7`;
+- CI workflow `36091470601`: **SUCCESS**;
+- development checks: PASS;
+- full Lua unit suite: PASS;
+- installable ZIP build: PASS;
+- package layout verification: PASS;
+- artifact upload: PASS;
+- CI artifact id: `10846016344`;
+- extracted install ZIP SHA-256: `c0862e027254d4aa28af90721504cff799d587ade30d46986e46c41c18e1d5a3`.
+
+Gate 17A remains OPEN only for the physical retry. Repeat the same read-only test on the same managed EPUB with existing Reader highlights. No annotation should be created yet.
+
+## 2026-09-25 — Gate 17A PHYSICAL PASS
+
+Target PW3 physical result after the rolling-preflight fix:
+- Reader highlight pages scanned: **11**;
+- Reader highlight records scanned: **1086**;
+- exact highlights belonging to the open managed EPUB: **70**;
+- highlights with text: **70**;
+- local match probes run: **3**;
+- unique exact XPointer matches: **3/3**;
+- ambiguous matches: **0**;
+- missing matches: **0**;
+- other/invalid matches: **0**;
+- remote writes: **none**;
+- local writes: **none**.
+
+This proves the Gate 17A architecture on the real target: Reader highlight child identity can be filtered by exact `parent_id`, and at least the sampled existing Reader highlight texts can be resolved unambiguously to real CRengine XPointer ranges in the original local EPUB. No Reader DOM locator was reused as a KOReader position.
+
+Gate 17A is **PASSED COMPLETE**. Gate 17B is unblocked: import exactly one existing Reader highlight into the currently-open EPUB through KOReader's native highlight path, preserve its Reader note literally, persist the sidecar, immediately link the resulting local annotation ID to the existing Reader highlight child ID in SQLite, and prove reopen persistence plus no outbound duplicate on the next Sync.
+
+## 2026-09-25 — Gate 17B off-device implementation green; one-item import physical test next
+
+Gate 17A is PASSED physically (70 Reader highlights found for the real EPUB; 3/3 sampled passages resolved to unique exact XPointers).
+
+Build `1.1.0-alpha.2` implements Gate 17B without advancing to bulk import:
+- shared KOReader locator returns only an exact unique XPointer range with exact text round-trip;
+- import action prefers an existing Reader highlight with a note when one is available;
+- exactly one unlinked remote highlight is imported per action;
+- KOReader's native `ReaderHighlight:saveHighlight()` creates the annotation in the currently-open rolling EPUB/HTML;
+- `ReaderUI:saveSettings()` flushes the sidecar;
+- the plugin immediately re-reads the sidecar and requires the newly-created local annotation ID to be present before linking anything in SQLite;
+- the imported local annotation is linked transactionally to the pre-existing Reader highlight child ID with synced text/note hashes and remote update marker;
+- next outbound annotation scan therefore sees the local annotation as already remote-linked instead of queueing a new Reader highlight create;
+- if sidecar persistence or durable link creation fails, the just-created local highlight is rolled back and settings are saved again;
+- no Reader mutation is executed by the import action.
+
+New deterministic coverage:
+- exact unique/missing/ambiguous locator behavior;
+- Reader note retention in the remote probe;
+- persisted-sidecar verification and durable import linker;
+- remote-ID repository lookup + transactional imported link;
+- successful one-item UI import including note transport;
+- local rollback when durable linking fails;
+- existing storage semantics with an imported annotation row.
+
+CI failures found/fixed before handoff:
+1. first Gate 17B run `36092424664` caught Lua gettext shadowing from a numeric `_` loop variable in the new success path; fixed in `b1a5e003...`;
+2. second run `36092540482` showed only a stale storage-test count (fixture now correctly contained two annotations); expectation fixed in `8f4e7885...`.
+
+Validated code HEAD before documentation closeout: `8f4e7885a308b7b88f53d287ebdf852948b873f6`.
+Full CI `36092610213`: **SUCCESS** — dev checks, full Lua suite, installable ZIP, package-layout verification and artifact upload all passed.
+Artifact id: `10846108427`; artifact digest: `sha256:5806a68ab891d1563fb606422ffde43bca906aeb0ec8626f6c0aafc80a7b8a33`.
+
+Gate 17B remains OPEN only for target-PW3 proof. Do not implement Gate 17C bulk/idempotent integration until this one imported highlight survives close/reopen and a subsequent ordinary Sync proves it is not uploaded as a duplicate.
+
+## 2026-09-25 — Gate 17B handoff finalized
+
+Documentation/handoff HEAD `d1e61a042d75e8872f868f47daa6e513789d239c` passed full CI workflow `36092823512` **SUCCESS** after the implementation-green run `36092610213`.
+
+Installable Gate 17B build supplied for the next PW3 checkpoint:
+- version: `1.1.0-alpha.2`;
+- validated implementation commit: `8f4e7885a308b7b88f53d287ebdf852948b873f6`;
+- CI artifact id: `10846108427`;
+- extracted install ZIP SHA-256: `617db37861d1fea5512bfd9a9cd96dcb9be11056c4b6baadfdfd9cd10ca05fc5`.
+
+No Gate 17C work has begun. Exact blocker is Gate 17B-1 physical import + close/reopen persistence on the same EPUB. Ordinary Sync must not be run until 17B-1 is reported.
+
+## 2026-09-25 — Gate 17B-1 physical import + reopen persistence PASS
+
+User completed the first Gate 17B physical checkpoint on the target PW3 using build `1.1.0-alpha.2` and the same managed EPUB from Gate 17A.
+
+Accepted physical evidence:
+- the explicit **Import one Reader highlight (Gate 17B)** action reported `Imported local highlights: 1`;
+- the imported highlight was visible in the KOReader EPUB;
+- the imported Reader note was present locally;
+- after closing and reopening the EPUB, both the imported highlight and its note remained present;
+- no ordinary Sync had been run before this persistence proof.
+
+Conclusion:
+- local creation through KOReader's native highlight path + sidecar persistence has passed on-device;
+- Reader note transport has passed for the imported item;
+- Gate 17B remains OPEN only for the outbound-deduplication proof and final reopen check;
+- Gate 17C remains blocked.
+
+### Next exact physical checkpoint — Gate 17B-2 outbound dedupe
+1. Keep Wi-Fi ON and the same EPUB available.
+2. Run ordinary **Readwise Reader -> Sync now** exactly once.
+3. In Reader, inspect the exact imported highlight and verify that there is still only **one** remote highlight for that passage/note; the Sync must not create a duplicate child.
+4. Report the Sync result/error text and whether the Reader highlight is still present exactly once.
+5. If no duplicate was created, close/reopen the EPUB once more and verify the imported local highlight/note remain intact. That will close Gate 17B.
+
+Do not run the explicit Gate 17B import action again during this checkpoint.
+
+## 2026-09-25 — Gate 17B-2 outbound dedupe PASS; final reopen remains
+
+User reported the requested ordinary Sync checkpoint completed correctly on `1.1.0-alpha.2`:
+- ordinary **Sync now** succeeded;
+- the imported Reader highlight remained present remotely exactly once (no duplicate child was created);
+- its Reader note remained correct.
+
+This closes the outbound-deduplication requirement for the imported Gate 17B annotation. The pre-Sync close/reopen persistence proof already passed in 17B-1.
+
+One formal Gate 17B criterion from the canonical spec has **not yet been explicitly reported**: close/reopen the EPUB once more *after* that successful ordinary Sync and confirm the imported local highlight/note still remain. Gate 17B therefore remains OPEN only for that final post-Sync reopen observation.
+
+## 2026-09-25 — Gate 17C off-device candidate implemented; physical start still gated
+
+Build `1.1.0-alpha.3` is implemented on branch `feature/v1.1-reader-highlight-import`.
+
+Implementation commits:
+- `46689342a35d2e3ae20ba2710106b949473ae44a` — bounded bulk Reader → KOReader import integrated with manual Sync;
+- `b1da02f36b8ea6d5b036bdc46f281c70171f1e71` — repair accidental literal newline syntax in constants.
+
+CI:
+- initial run `36094436071` stopped at development checks because two inserted newlines in `constants.lua` were encoded literally as `\\n`; no unit tests ran on that failed revision;
+- corrected run `36094535608` is **SUCCESS**: development checks, complete Lua unit suite, installable ZIP build, package-layout verification and artifact upload all passed.
+- artifact id: `10847216168`;
+- extracted install ZIP SHA-256: `6f5b56ee7786826cfdcda0f57f5b97ede7a8424e06a54695099e7f99e782122c`.
+
+Gate 17C candidate behavior:
+- successful online manual Sync may run a parent-process Reader → KOReader import pass for the currently-open managed rolling EPUB/HTML only;
+- remote highlight fetch remains read-only and subprocess-isolated;
+- local import is bounded to 20 newly-created annotations and 30 locator attempts per run;
+- already-linked Reader child IDs are skipped before locator work;
+- ambiguous/missing/invalid text locations and exact local-position collisions are skipped, never guessed;
+- each created annotation preserves the Reader note and still follows the proven 17B order: native KOReader save → sidecar save → sidecar verification → durable Reader child-ID link;
+- a per-item sidecar/link failure rolls back only the just-created local item and stops the batch safely;
+- cancelling/failing the post-Sync import does **not** undo or falsify a document Sync that already completed and committed its watermark;
+- repeated runs are covered deterministically: linked IDs import zero times, and bounded batches advance without duplicating earlier imports;
+- the Sync report now exposes Reader → KOReader import status/counters.
+
+Sequencing note: Gate 17C code was prepared after the outbound-dedupe proof but before the final post-Sync Gate 17B reopen was explicitly reported. **Do not physically execute Gate 17C or call Gate 17B complete until that final reopen passes.** No Gate 17D work has begun.
+
+### Exact next physical action
+With the currently-installed `1.1.0-alpha.2`, close the same EPUB and reopen it once. Confirm the Gate 17B imported highlight and its note are still present. If yes, Gate 17B closes and `1.1.0-alpha.3` becomes authorized for the Gate 17C physical matrix.
+
 ## Current milestone
 
-**V1 acceptance / Phase S — PASSED COMPLETE; release `v1.0.0` in finalization**
+**Phase T / Gate 17A — Reader → KOReader existing-highlight locator spike; V1.0.0 remains released**
 
 Phase P / Gate 14 is complete and merged to `main` through PR #17 as `5d7c954d051e491c1b11344057c59df7e2cf9656`.
 
@@ -4542,3 +4748,143 @@ Accepted physical result:
 - branch Phase R from merged `main`;
 - harden in spec order: large library, low disk, malformed document, huge document, Unicode, 429, intermittent Wi-Fi, force-close, reboot, migration, rollback, debug-log secret review;
 - do all deterministic/off-device tests first; stop only when the next item genuinely requires a PW3 physical test.
+
+
+## 2026-09-25 — v1.1.0-rc.1 release freeze prepared; one final PW3 acceptance remains
+
+User requested that no further intermediate device checkpoints be required. That changes test cadence, **not gate truth**: missing physical observations remain pending until the single final RC acceptance session.
+
+### Scope / gate state
+- Gate 17A rolling EPUB locator: **PASSED physically**.
+- Gate 17B one-item import, note, first reopen and outbound dedupe: **PASSED physically**.
+- Gate 17B redundant post-Sync reopen: **deferred into final RC acceptance; not separately marked PASS**.
+- Gate 17C bounded/idempotent Sync integration: **implementation + deterministic hardening complete; final PW3 acceptance pending**.
+- Gate 17D PDF/paging historical import: **explicitly deferred outside v1.1.0**. Existing V1 PDF/EPUB reading and Kindle → Reader sync remain unchanged.
+
+### Architecture correction after alpha.3 audit
+The early alpha.3 design ran Reader → KOReader import after ordinary Sync. Audit found a duplicate-risk ordering: a local-only annotation could be POSTed before the plugin reconciled an already-existing Reader highlight at the same passage.
+
+The canonical RC order is now:
+1. parent-process Reader → KOReader reconciliation for the currently-open managed rolling document;
+2. cancellable child refresh of the remote-highlight cache;
+3. bounded local import/link/collision analysis;
+4. explicit suppression set for unsafe local create candidates;
+5. only then the ordinary child Sync worker, which keeps suppressed create intents pending with attempts unchanged and performs zero POST for them.
+
+Cancellation during reconciliation aborts Sync before outbound writes. Non-cancelled reconciliation failure suppresses current-document highlight creates rather than authorizing a blind POST.
+
+### Remote-highlight cache / deletion safety
+- schema v3 adds global `remote_highlights`, keyed by exact Reader highlight child ID and indexed by parent;
+- first build atomically replaces the historical snapshot;
+- cache semantics are separately versioned, so an old alpha cache forces rebuild even without another SQL migration;
+- historical baseline also checks a bounded 5-minute Readwise v2 EXPORT `includeDeleted=true` window before publishing, closing a deletion race during pagination;
+- later refreshes use Reader v3 `updatedAfter` + Readwise v2 deletion tombstones with the same overlap;
+- tombstones are applied by exact `external_id`, not an unstable source label;
+- failed/malformed/repeated-cursor deletion verification does not mutate/advance the cache;
+- full cached rows for the current parent are returned every run, so old ambiguous/collision candidates remain visible to the guard without a full Reader traversal.
+
+### Local safety hardening
+- max 20 new local annotations / 30 locators per run;
+- per-document cursor prevents starvation behind repeated ambiguous passages;
+- exact unique XPointer + literal round-trip remains mandatory;
+- existing exact-position local highlight with compatible note may be linked instead of duplicated;
+- note/identity conflict is not merged; its local create is suppressed;
+- conservative equivalent-text detection only suppresses risky outbound creates; text alone never assigns durable identity;
+- local annotation ↔ Reader child rebinding is rejected transactionally;
+- each new import remains saveHighlight → saveSettings → authoritative sidecar re-read → durable remote-ID link, with just-created-local rollback on failure.
+
+### Migration / rollback hardening
+v1.1 moves the DB from schema v2 to v3. Before migration:
+- SQLite WAL is checkpointed when active;
+- the v2 database is copied to `readwisereader.sqlite3.bak`;
+- migration remains transactional.
+
+Tests cover fresh schema, v1→current, v2→v3 data preservation, interrupted-v3 rollback, WAL checkpoint-before-copy, copy failure, and cache repository replacement/deletion.
+
+Downgrade contract: an older schema-v2 plugin must be paired with the pre-migration `.bak`; do not run v1.0 against the schema-v3 DB.
+
+### CI / testing state at release-freeze preparation
+The hardening sequence has repeatedly passed full syntax/dev checks and the complete Lua suite. A new final CI/package run is required on the release-freeze commit that changes version/docs to `1.1.0-rc.1`. Stable v1.1.0 is **not** authorized before both that CI and the consolidated PW3 acceptance pass.
+
+### Single final physical acceptance
+Follow the v1.1.0-rc.1 section in `docs/DEVICE_TESTS.md`: install once, open the same Gate 17 EPUB, Sync/import bounded batches until no items are deferred, close/reopen to verify old/new highlights + notes, then run one unchanged Sync and require zero new imports/duplicates/fatal errors with document state intact.
+
+No further intermediate device request should be inserted before that final RC handoff unless off-device work uncovers a new safety blocker.
+
+
+## 2026-09-25 — v1.1.0-rc.1 code freeze CI + package audit PASS
+
+Release-freeze commit: `4b32aaafe34fc61e335ce5aafa52c2d0d0121776`.
+
+CI workflow `36142931148`: **SUCCESS**.
+- development/syntax checks: PASS;
+- complete Lua unit suite: PASS;
+- installable ZIP build: PASS;
+- package-layout verification: PASS;
+- artifact upload: PASS.
+
+GitHub Actions artifact:
+- artifact id: `10868286043`;
+- artifact name: `readwisereader-koplugin-4b32aaafe34fc61e335ce5aafa52c2d0d0121776`;
+- outer artifact digest: `sha256:bd38616732cfacaabed744edad5815dd8396fd889573366ecca729a4284c9724`.
+
+The uploaded artifact was downloaded and the actual installable inner `readwisereader.koplugin.zip` was audited:
+- inner ZIP SHA-256: `06dd37ab92540cd2adf7fa4188456583e1faf6fa889ab18da05286856b87bd7b`;
+- root contains exactly `readwisereader.koplugin/`;
+- package contains 78 entries;
+- packaged `constants.lua` and `_meta.lua` both identify `1.1.0-rc.1`;
+- no tests/scripts/.github/dist content is packaged;
+- no SQLite DB, settings file, migration backup, sidecar or crash log is packaged;
+- Authorization strings in the package are only the expected runtime header construction; no real credential/token is present.
+
+The code freeze includes the final safety hardening added after alpha.3:
+- pre-Sync Reader → KOReader reconciliation before outbound highlight creates;
+- exact outbound suppression for unresolved collisions;
+- global versioned historical/incremental Reader highlight cache;
+- v2 EXPORT deletion tombstones by exact external ID, including a bounded overlap tombstone pass during historical baseline;
+- stale experimental cache rebuild;
+- schema-v3 migration coverage and WAL checkpoint before pre-migration DB backup;
+- exact local/remote link rebinding rejection;
+- starvation-safe bounded cursor;
+- normalized-text collision suppression without using text as durable identity.
+
+Current release state:
+- **off-device RC is complete and packaged**;
+- **one consolidated PW3 acceptance remains** per `docs/DEVICE_TESTS.md`;
+- Gate 17B's deferred final reopen and Gate 17C physical acceptance will both be closed by that one session if it passes;
+- Gate 17D PDF/paging historical import remains outside v1.1.0;
+- do not merge/tag stable `v1.1.0` before the final PW3 acceptance.
+
+
+## 2026-09-25 — v1.1.0 final PW3 acceptance PASS; stable release authorized
+
+User reported the complete consolidated `1.1.0-rc.1` physical acceptance succeeded on the target PW3.
+
+Accepted physical evidence:
+- migration/install/startup completed normally;
+- historical Reader → KOReader import completed on the managed rolling EPUB;
+- imported highlights/notes survived close/reopen;
+- the prior Gate 17B linked highlight remained deduplicated;
+- bounded continuation completed as required;
+- final unchanged Sync imported no additional historical highlights, created no duplicate remote highlight, and preserved existing reading/annotation state;
+- no fatal import/sync error was reported.
+
+Gate closure:
+- Gate 17A: PASS COMPLETE;
+- Gate 17B: PASS COMPLETE, including the formerly-deferred post-Sync reopen criterion;
+- Gate 17C: PASS COMPLETE;
+- Phase T / v1.1 rolling EPUB/HTML historical highlight import: **PASS COMPLETE**;
+- Gate 17D PDF/paging: remains separate and OPEN for post-v1.1 work.
+
+Stable release action authorized:
+1. promote plugin version from `1.1.0-rc.1` to `1.1.0`;
+2. run final full CI/package validation;
+3. merge PR #21 if green;
+4. tag the resulting green `main` commit as `v1.1.0`.
+
+Usage clarification recorded:
+- Settings Locations controls document download/document sync selection;
+- historical highlight import in v1.1 is current-open-document scoped, not bulk-library scoped;
+- to import all highlights today, open each managed rolling EPUB/HTML and Sync until its deferred-import counter reaches 0.
+
+After the stable tag, resume exactly at Gate 17D with a read-only PDF/paging locator spike. Do not infer PDF locator semantics from EPUB XPointers.

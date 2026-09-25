@@ -4,7 +4,11 @@ A KOReader plugin project for using a Kindle as an offline reading client for Re
 
 ## Current status
 
-**V1 is accepted on the target Kindle Paperwhite 3 / KOReader v2026.07.1.** The complete integrated acceptance flow passed: Reader documents sync to Kindle, reading/annotations work offline, highlights and notes sync back without duplicates, Markdown/`[[wikilinks]]` survive through Readwise to Obsidian, Reader locations/tags project into KOReader/Bookshelf metadata, Finished archives remotely without deleting local reading state, queue/retry/restart recovery is durable, and the final no-op Sync is idempotent.
+**V1.0.0 is accepted on the target Kindle Paperwhite 3 / KOReader v2026.07.1.** The complete integrated acceptance flow passed: Reader documents sync to Kindle, reading/annotations work offline, highlights and notes sync back without duplicates, Markdown/`[[wikilinks]]` survive through Readwise to Obsidian, Reader locations/tags project into KOReader/Bookshelf metadata, Finished archives remotely without deleting local reading state, queue/retry/restart recovery is durable, and the final no-op Sync is idempotent.
+
+**v1.1.0 is accepted on the target PW3.** It adds historical Reader → KOReader highlight/note import for the currently-open managed rolling EPUB/HTML. It reconciles those remote highlights before outbound annotation creates, uses a durable historical/incremental cache, suppresses unsafe collisions instead of creating duplicates, and preserves notes through KOReader's native sidecar path. The consolidated final PW3 acceptance passed without duplicate Reader highlights or lost local state.
+
+PDF/paging historical Reader → KOReader import is deliberately not part of v1.1.0; it remains a separate future locator spike. Existing PDF/EPUB reading and Kindle → Reader annotation sync are unchanged.
 
 The Gate 2 action performs a metadata-only full Reader-library scan with cursor guards, ID deduplication, request pacing, bounded `Retry-After` recovery and cancellable KOReader UI. It reports counts by location/category. **It does not download or change Reader documents and does not perform remote writes.**
 
@@ -18,6 +22,18 @@ The Gate 2 action performs a metadata-only full Reader-library scan with cursor 
 - Manual sync only for V1
 
 Do not update Kindle firmware/jailbreak for this project. The KOReader update is now a deliberate Gate 4A migration with backup, rollback and regression testing; see `docs/KOREADER_UPGRADE.md`.
+
+### Historical Reader highlights in v1.1
+
+The document-location filters under **Settings → Documents → Locations** choose which Reader documents participate in download/document sync. They do **not** bulk-import historical highlights across every selected document.
+
+In v1.1, historical Reader → KOReader highlight import is current-document scoped:
+1. open a plugin-managed rolling EPUB/HTML;
+2. run **Sync now**;
+3. if the report says `Reader imports deferred by batch limit > 0`, run Sync again with that same document open until the counter reaches 0;
+4. repeat for each managed EPUB/HTML whose historical Reader highlights you want locally.
+
+A future bulk-library migration may automate this traversal. PDF/paging historical import remains separately gated.
 
 ## Canonical project documents
 
@@ -49,6 +65,16 @@ KOReader's `LuaSettings` files are plaintext. The access token is therefore stor
 `koreader/settings/readwisereader.lua`
 
 The UI never displays the saved value after saving it, and normal plugin logs never include the Authorization header/token.
+
+### v1.1 local highlight cache and rollback
+
+v1.1 schema v3 stores a local SQLite cache of Reader highlight text/notes so normal Sync does not have to rescan the entire Reader highlight corpus every time. This cache is private local data and is not logged.
+
+Before the v2→v3 migration, the plugin checkpoints SQLite WAL when necessary and copies the pre-migration database to:
+
+`koreader/settings/readwisereader.sqlite3.bak`
+
+To downgrade to a v1.0 build after v1.1 has opened the database, exit KOReader, restore the older plugin, and restore that `.bak` file as `readwisereader.sqlite3`. Do not delete Reader documents or KOReader sidecars, and do not run a schema-v2 plugin against the migrated schema-v3 database.
 
 To remove the credential, use **Access token → Clear**. Removing only the plugin directory does **not** remove the settings file. For a full manual cleanup, close KOReader and remove both:
 
@@ -86,7 +112,7 @@ The ZIP root expands to `readwisereader.koplugin/`. Development tests are exclud
 
 This repository is licensed under AGPL-3.0. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md).
 
-The community Readwise Reader plugin is used as an architectural/reference source and is also AGPL-3.0. The current implementation follows KOReader v2025.04 patterns while replacing the legacy monolithic architecture incrementally behind physical gates.
+The community Readwise Reader plugin is used as an architectural/reference source and is also AGPL-3.0. The current implementation targets KOReader v2026.07.1 on the validated PW3 baseline while retaining the project's gate-driven compatibility and rollback discipline.
 
 
 ## Gate 3 first article — PASSED

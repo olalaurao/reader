@@ -119,6 +119,7 @@ local function normalizeDocument(raw)
         created_at = raw.created_at,
         updated_at = raw.updated_at,
         notes = raw.notes,
+        content = raw.content,
         summary = raw.summary,
         image_url = raw.image_url,
         parent_id = raw.parent_id,

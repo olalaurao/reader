@@ -519,6 +519,60 @@ local function authBeforePostSurvivesCase()
     assert(state.creates == 1)
 end
 
+local function preSyncSuppressionKeepsCreatePendingCase()
+    local state = newState()
+    local marker = Upload.markerFor("ann-1")
+    local reader = {
+        getDocument = function(_, id, with_html)
+            if id == "doc-1" and with_html then
+                return { id = id, html_content = "<p>Selected text</p>" }
+            end
+            if id == "remote-after-guard" then
+                return {
+                    id = id,
+                    parent_id = "doc-1",
+                    category = "highlight",
+                    source = marker,
+                }
+            end
+        end,
+        createHighlight = function()
+            state.creates = state.creates + 1
+            return { id = "remote-after-guard" }
+        end,
+        iterateDocuments = function()
+            error("first-attempt suppression must not reconcile or scan remotely")
+        end,
+    }
+
+    local uploader = Upload:new(baseOptions(state, reader))
+    local queued = assert(uploader:queuePath("/Readwise/a.html"))
+    assert(queued.queued == 1)
+
+    local guarded = uploader:processQueue{
+        suppress_annotation_ids = { "ann-1" },
+    }
+    assert(guarded.suppressed == 1)
+    assert(guarded.created == 0)
+    assert(guarded.waiting_after == 1)
+    assert(state.creates == 0)
+    assert(state.queue[Upload.queueKey("ann-1")].status == "pending")
+    assert(state.queue[Upload.queueKey("ann-1")].attempts == 0)
+
+    local guarded_by_document = uploader:processQueue{
+        suppress_reader_document_ids = { "doc-1" },
+    }
+    assert(guarded_by_document.suppressed == 1)
+    assert(state.creates == 0)
+    assert(state.queue[Upload.queueKey("ann-1")].attempts == 0)
+
+    local released = uploader:processQueue()
+    assert(released.suppressed == 0)
+    assert(released.created == 1)
+    assert(released.waiting_after == 0)
+    assert(state.creates == 1)
+end
+
 local function ambiguousTextBlocksWithoutWriteCase()
     local state = newState()
     local reader = {
@@ -555,5 +609,6 @@ return function()
     timeoutNoMatchNeverRetriesCase()
     serverErrorNoBlindRetryCase()
     authBeforePostSurvivesCase()
+    preSyncSuppressionKeepsCreatePendingCase()
     ambiguousTextBlocksWithoutWriteCase()
 end

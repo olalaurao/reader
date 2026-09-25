@@ -2,7 +2,7 @@
 
 local Migrations = {}
 
-Migrations.SCHEMA_VERSION = 2
+Migrations.SCHEMA_VERSION = 3
 
 Migrations.SCHEMA_V1 = [[
 CREATE TABLE IF NOT EXISTS documents (
@@ -93,6 +93,22 @@ CREATE INDEX IF NOT EXISTS idx_documents_refresh_pending
     ON documents(content_refresh_pending);
 ]]
 
+Migrations.SCHEMA_V3 = [[
+CREATE TABLE IF NOT EXISTS remote_highlights (
+    reader_highlight_document_id TEXT PRIMARY KEY,
+    reader_document_id TEXT NOT NULL,
+    content TEXT,
+    notes TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    highlight_offset TEXT,
+    highlight_location TEXT,
+    last_seen_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_remote_highlights_parent
+    ON remote_highlights(reader_document_id);
+]]
+
 function Migrations.currentVersion(conn)
     return tonumber(conn:rowexec("PRAGMA user_version;")) or 0
 end
@@ -117,6 +133,9 @@ function Migrations.apply(conn, from_version)
         end
         if from_version < 2 then
             conn:exec(Migrations.SCHEMA_V2)
+        end
+        if from_version < 3 then
+            conn:exec(Migrations.SCHEMA_V3)
         end
         conn:exec(string.format("PRAGMA user_version=%d;", Migrations.SCHEMA_VERSION))
     end)

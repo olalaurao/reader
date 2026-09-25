@@ -4,6 +4,7 @@ local Annotations = require("storage/annotations")
 local DB = require("storage/db")
 local Documents = require("storage/documents")
 local Queue = require("storage/queue")
+local RemoteHighlights = require("storage/remote_highlights")
 local SQ3 = require("tests.support.lsqlite3_compat")
 local SyncMeta = require("storage/sync_meta")
 
@@ -158,6 +159,57 @@ local function testAnnotations()
     assertEqual(linked.readwise_v2_highlight_id, 12345)
     assertEqual(linked.created_remote, true)
     assertEqual(linked.last_synced_note, "[[Foucault]]")
+    assertEqual(
+        anns:getByReaderRemoteId("reader-highlight-1").local_annotation_id,
+        "ann-1",
+        "remote Reader highlight id must resolve to its local annotation"
+    )
+
+    local imported = anns:linkImported({
+        local_annotation_id = "ann-imported",
+        reader_document_id = "doc-1",
+        reader_highlight_document_id = "reader-highlight-imported",
+        local_created_at = "2026-09-22 12:30:00",
+        locator_fingerprint = "loc-imported",
+        original_text_hash = "imported-text",
+        last_text_hash = "imported-text",
+        last_note_hash = "imported-note",
+        text = "Imported text",
+        note = "Imported note",
+        remote_updated_marker = "2026-09-22T12:31:00Z",
+    })
+    assertEqual(imported.reader_highlight_document_id, "reader-highlight-imported")
+    assertEqual(imported.created_remote, true)
+    assertEqual(imported.sync_state, "synced")
+    assertEqual(imported.last_synced_text, "Imported text")
+    assertEqual(imported.last_synced_note, "Imported note")
+    assertEqual(imported.remote_updated_marker, "2026-09-22T12:31:00Z")
+    assertEqual(
+        anns:getByReaderRemoteId("reader-highlight-imported").local_annotation_id,
+        "ann-imported"
+    )
+
+    local relink_ok = pcall(function()
+        anns:linkImported({
+            local_annotation_id = "ann-imported",
+            reader_document_id = "doc-1",
+            reader_highlight_document_id = "reader-highlight-different",
+            local_created_at = "2026-09-22 12:30:00",
+            locator_fingerprint = "loc-imported",
+            original_text_hash = "imported-text",
+            last_text_hash = "imported-text",
+            last_note_hash = "imported-note",
+            text = "Imported text",
+            note = "Imported note",
+        })
+    end)
+    assertEqual(relink_ok, false,
+        "one local annotation must never be reassigned to another Reader child")
+    assertEqual(
+        anns:getById("ann-imported").reader_highlight_document_id,
+        "reader-highlight-imported",
+        "failed relink must leave original remote identity intact"
+    )
 
     anns:upsertLocal({
         local_annotation_id = "ann-1",
@@ -174,8 +226,9 @@ local function testAnnotations()
     assertEqual(edited.sync_state, "local_changed")
 
     local listed = anns:listByDocument("doc-1")
-    assertEqual(#listed, 1)
+    assertEqual(#listed, 2)
     assertEqual(listed[1].local_annotation_id, "ann-1")
+    assertEqual(listed[2].local_annotation_id, "ann-imported")
 
     local deleted = anns:markLocalDeleted("ann-1", 555)
     assertEqual(deleted.local_deleted_at, 555)
@@ -430,6 +483,69 @@ local function testQueuePersistsAcrossRestart()
 end
 
 
+local function testRemoteHighlights()
+    local db = newDB()
+    local repo = RemoteHighlights:new{ db = db }
+
+    local written = repo:replaceSnapshot({
+        {
+            id = "h-2", parent_id = "doc-1", content = "Second",
+            notes = "note", highlight_offset = "20", created_at = "2026-01-02",
+        },
+        {
+            id = "h-1", parent_id = "doc-1", content = "First",
+            highlight_offset = "10", created_at = "2026-01-01",
+        },
+        {
+            id = "foreign", parent_id = "doc-2", content = "Foreign",
+        },
+    }, 100)
+    assertEqual(written, 3)
+    assertEqual(repo:count(), 3)
+
+    local doc1 = repo:listByParent("doc-1")
+    assertEqual(#doc1, 2)
+    assertEqual(doc1[1].id, "h-1", "cache rows must use stable highlight ordering")
+    assertEqual(doc1[2].id, "h-2")
+    assertEqual(doc1[2].note_present, true)
+
+    repo:upsertMany({
+        {
+            id = "h-1", parent_id = "doc-1", content = "First updated",
+            notes = "new note", highlight_offset = "11", updated_at = "u2",
+        },
+        {
+            id = "h-3", parent_id = "doc-1", content = "Third",
+            highlight_offset = "30",
+        },
+    }, 200)
+    assertEqual(repo:count(), 4)
+    doc1 = repo:listByParent("doc-1")
+    assertEqual(#doc1, 3)
+    assertEqual(doc1[1].id, "h-1")
+    assertEqual(doc1[1].content, "First updated")
+    assertEqual(doc1[1].notes, "new note")
+    assertEqual(doc1[1].last_seen_at, 200)
+
+    repo:deleteByRemoteIds({ "h-2", "missing" })
+    assertEqual(#repo:listByParent("doc-1"), 2)
+    repo:deleteByParents({ "doc-2" })
+    assertEqual(repo:count(), 2)
+
+    repo:replaceSnapshot({
+        {
+            id = "fresh", parent_id = "doc-3", content = "Fresh",
+            highlight_offset = "1",
+        },
+    }, 300)
+    assertEqual(repo:count(), 1,
+        "historical replacement must prune stale cache rows")
+    assertEqual(#repo:listByParent("doc-1"), 0)
+    assertEqual(repo:listByParent("doc-3")[1].id, "fresh")
+
+    db:close()
+end
+
 local function testSyncMeta()
     local db = newDB()
     local meta = SyncMeta:new{ db = db }
@@ -458,5 +574,6 @@ return function()
     testAnnotations()
     testQueue()
     testQueuePersistsAcrossRestart()
+    testRemoteHighlights()
     testSyncMeta()
 end

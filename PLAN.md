@@ -1326,3 +1326,81 @@ Não há mais teste físico pendente para a V1.
 2. criar a tag Git `v1.0.0` apontando para esse `main` verde exato.
 
 Não adicionar comportamento novo antes da tag. Se runtime/plugin Lua mudar, reavaliar regressão antes de liberar.
+
+
+## 47. Pós-V1 / v1.1 — Reader → KOReader highlights
+
+Objetivo: highlights/notas que já existem no Reader devem poder aparecer no documento local correspondente no KOReader, começando e **fechando o escopo da v1.1.0 em documentos rolling EPUB/HTML**.
+
+A V1.0.0 continua historicamente válida para Reader → Kindle documents e Kindle → Reader annotations; este incremento adiciona o caminho histórico Reader → KOReader sem relaxar as proteções já aceitas.
+
+### Regras de segurança
+
+- Reader child `id` + `parent_id` são a identidade remota; nunca deduplicar só por texto.
+- `highlight_location`/`highlight_offset` do Reader não são posições KOReader.
+- EPUB/HTML: aceitar somente um match KOReader único com XPointers válidos e round-trip literal do texto.
+- Texto repetido/ambíguo não é importado automaticamente.
+- O import local salva sidecar e prova persistência antes de vincular o Reader child ID.
+- Um local ID não pode ser reatribuído para outro Reader child, nem vice-versa.
+- Antes de qualquer create Kindle → Reader do documento aberto, reconciliar Reader → KOReader e suprimir creates cujo counterpart remoto exista ou não possa ser excluído com segurança.
+- Conflito nunca é resolvido criando um segundo highlight.
+- Import Reader → KOReader não executa POST/PATCH/DELETE remoto.
+- Updates/deletes Reader → KOReader continuam fora do primeiro incremento; delete remoto serve apenas para manter o cache histórico correto.
+- PDF/paging continua separado; não inferir quadpoints/boxes a partir de offsets do Reader.
+
+### Gate 17A — resultado
+
+**PASS físico.** No EPUB real: 70 highlights Reader pertenciam ao documento; 3/3 probes retornaram XPointers únicos exatos; 0 ambiguidades/misses; zero writes.
+
+### Gate 17B — resultado parcial aceito
+
+Build `1.1.0-alpha.2` provou fisicamente:
+- import de uma annotation local;
+- nota Reader preservada;
+- sidecar sobreviveu ao primeiro close/reopen;
+- ordinary Sync não criou segundo highlight remoto;
+- nota remota continuou correta.
+
+Ficou sem relato separado apenas o segundo close/reopen depois desse Sync. A pedido da usuária, esse checkpoint intermediário foi **deferido, não marcado como PASS**, e será absorvido pela única aceitação final da RC.
+
+### Gate 17C — release candidate
+
+A arquitetura final substitui o alpha.3 pós-Sync por reconciliação **pré-Sync**:
+
+- cache global durável dos highlights Reader;
+- primeira baseline histórica por Reader v3 + overlap de tombstones por Readwise v2 EXPORT;
+- refresh posterior incremental por `updatedAfter` + `includeDeleted=true`;
+- cache semanticamente versionado e reconstruído quando necessário;
+- lote local limitado a 20 novos highlights/30 locators;
+- cursor evita starvation por ambiguidades;
+- Reader child IDs já vinculados são pulados;
+- colisão exata com nota compatível pode vincular o highlight local existente;
+- conflito/ambiguidade gera suppression do create outbound, nunca POST especulativo;
+- notas são preservadas;
+- cada criação segue save → sidecar → verificação → link durável, com rollback local se falhar;
+- migration SQLite v2→v3 faz checkpoint WAL + backup pre-migration + transação;
+- repetição é idempotente;
+- import remoto faz zero mutações no Reader.
+
+### Gate 17D — decisão de escopo
+
+**Deferido para depois da v1.1.0.** PDF usa documento paging e exige spike próprio no KOReader real. A v1.1 RC não vai adivinhar coordenadas nem extrapolar a prova de EPUB. Isso não remove o suporte V1 a leitura de PDF/EPUB nem o sync Kindle → Reader; limita apenas o novo import histórico Reader → KOReader.
+
+### Aceitação final — PASS
+
+A sessão consolidada no PW3 passou integralmente:
+- a RC instalou/migrou e sincronizou normalmente;
+- highlights históricos Reader foram importados sem duplicatas;
+- notas e sidecars sobreviveram ao close/reopen;
+- batches adiados puderam ser concluídos;
+- o Sync final inalterado não criou novos imports/duplicatas nem perdeu estado.
+
+**v1.1.0 está autorizado para merge/tag stable.**
+
+### Limitação de uso da v1.1.0
+
+Os filtros de **Locations** selecionam quais documentos entram no document sync/download, mas não varrem highlights históricos de todos esses documentos automaticamente. O import histórico continua escopado ao documento rolling EPUB/HTML atualmente aberto. Para migrar todos na v1.1, abrir cada documento e rodar Sync até `Reader imports deferred by batch limit = 0`.
+
+### Próximo gate canônico
+
+Gate 17D: spike separado de locator para PDF/paging. Não reutilizar XPointers/assunções de EPUB.

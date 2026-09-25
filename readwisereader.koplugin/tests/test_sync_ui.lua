@@ -32,6 +32,7 @@ local function withStubbedSyncUI(run, options)
         collection_writes = {},
         meta_writes = {},
         worker_calls = {},
+        remote_import_calls = {},
     }
 
     package.preload["gettext"] = function()
@@ -150,6 +151,10 @@ local function newUI(SyncUI, state, watermark, report, ui_options)
         get_current_path = function()
             return ui_options.current_path or "/Readwise/current.html"
         end,
+        remote_highlight_import = ui_options.remote_highlight_import and function(path)
+            state.remote_import_calls[#state.remote_import_calls + 1] = path
+            return ui_options.remote_highlight_import(path)
+        end or nil,
         worker = {
             run = function(_, options)
                 state.worker_calls[#state.worker_calls + 1] = options
@@ -396,4 +401,125 @@ return function()
         assert(state.worker_calls[1].network_available == nil)
         assert(state.shown[#state.shown].text:find("Remote preflight: offline", 1, true))
     end, { online = false })
+
+    withStubbedSyncUI(function(SyncUI, state)
+        local ui = newUI(SyncUI, state, "watermark", {
+            mode = "incremental",
+            errors = 0,
+            proposed_watermark = "2026-09-25T04:00:00Z",
+            completed_at = "2026-09-25T04:01:00Z",
+            highlight_creates_suppressed = 2,
+            postprocess = {},
+        }, {
+            remote_highlight_import = function(path)
+                assert(path == "/Readwise/current.html")
+                assert(#state.worker_calls == 0,
+                    "Reader reconciliation must run before the sync worker")
+                return {
+                    status = "partial",
+                    scan_mode = "historical",
+                    reader_document_id = "reader-doc-current",
+                    imported = 4,
+                    notes_imported = 2,
+                    linked_skipped = 3,
+                    collisions_linked = 1,
+                    local_collisions = 2,
+                    collision_conflicts = 1,
+                    ambiguous = 2,
+                    missing = 1,
+                    invalid = 1,
+                    deferred_by_limit = 5,
+                    failures = 0,
+                    suppress_outbound_ids = { "ann-conflict" },
+                    suppress_current_document = true,
+                }
+            end,
+        })
+        ui:syncNow(false)
+        assert(#state.remote_import_calls == 1)
+        assert(state.remote_import_calls[1] == "/Readwise/current.html")
+        assert(#state.worker_calls == 1)
+        assert(state.worker_calls[1].suppress_annotation_ids[1] == "ann-conflict")
+        assert(state.worker_calls[1].suppress_reader_document_ids[1]
+            == "reader-doc-current")
+        assert(state.worker_calls[1].suppress_current_path_creates == nil)
+        local text = state.shown[#state.shown].text
+        assert(text:find("Reader → KOReader pre-sync reconciliation: partial", 1, true))
+        assert(text:find("Reader highlight scan mode: historical", 1, true))
+        assert(text:find("Reader highlights imported locally: 4", 1, true))
+        assert(text:find("Reader notes preserved locally: 2", 1, true))
+        assert(text:find("Existing local highlights linked safely: 1", 1, true))
+        assert(text:find("Reader/local collision conflicts: 1", 1, true))
+        assert(text:find("Creates suppressed by Reader collision guard: 2", 1, true))
+        assert(text:find("Reader imports deferred by batch limit: 5", 1, true))
+    end)
+
+    withStubbedSyncUI(function(SyncUI, state)
+        local ui = newUI(SyncUI, state, "watermark", nil, {
+            remote_highlight_import = function()
+                return {
+                    status = "cancelled",
+                    abort_sync = true,
+                    suppress_current_document = true,
+                    suppress_outbound_ids = {},
+                }
+            end,
+        })
+        ui:syncNow(false)
+        assert(#state.remote_import_calls == 1)
+        assert(#state.worker_calls == 0)
+        assert(state.subprocess_calls == 0)
+        assert(state.shown[#state.shown].text:find(
+            "No outbound Reader write was started", 1, true
+        ))
+    end)
+
+    withStubbedSyncUI(function(SyncUI, state)
+        local ui = newUI(SyncUI, state, "watermark", {
+            mode = "offline",
+            errors = 0,
+            remote_preflight = "offline",
+            annotation_sync_status = "queued_offline",
+            postprocess = {},
+        }, {
+            remote_highlight_import = function()
+                return {
+                    status = "error",
+                    failures = 1,
+                    reader_document_id = "reader-doc-current",
+                    suppress_current_document = true,
+                    suppress_outbound_ids = {},
+                }
+            end,
+        })
+        ui:syncNow(false)
+        assert(#state.remote_import_calls == 1)
+        assert(#state.worker_calls == 1)
+        assert(state.worker_calls[1].suppress_reader_document_ids[1]
+            == "reader-doc-current")
+        assert(state.shown[#state.shown].text:find(
+            "Reader → KOReader pre-sync reconciliation: error", 1, true
+        ))
+        assert(state.shown[#state.shown].text:find(
+            "Mode: offline / local queue", 1, true
+        ))
+    end, { online = false })
+
+    withStubbedSyncUI(function(SyncUI, state)
+        local ui = newUI(SyncUI, state, "watermark", {
+            mode = "incremental",
+            errors = 0,
+            postprocess = {},
+        }, {
+            remote_highlight_import = function()
+                error("simulated importer crash")
+            end,
+        })
+        ui:syncNow(false)
+        assert(#state.worker_calls == 1)
+        assert(state.worker_calls[1].suppress_current_path_creates == true)
+        assert(state.shown[#state.shown].text:find(
+            "Reader → KOReader pre-sync reconciliation: error", 1, true
+        ))
+    end)
 end

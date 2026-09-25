@@ -44,15 +44,27 @@ function DB:_configure(conn)
     conn:exec("PRAGMA busy_timeout=5000;")
 end
 
-function DB:_backupBeforeMigration(from_version)
+function DB:_backupBeforeMigration(conn, from_version)
     if from_version <= 0 or from_version >= Migrations.SCHEMA_VERSION then
         return
     end
     if not self.copy_file then
         error("database backup helper is unavailable")
     end
-    -- KOReader ffiUtil.copyFile returns nil on success and an error
-    -- string on failure. Do not interpret nil as a failed copy.
+
+    -- If this device uses WAL, a byte-copy of only the main database file can
+    -- otherwise omit committed pages still resident in the WAL file. Startup
+    -- migration runs before plugin repositories begin writing, so checkpoint
+    -- the open connection first and abort the migration if that checkpoint
+    -- cannot be completed.
+    local journal_mode = tostring(conn:rowexec("PRAGMA journal_mode;") or ""):lower()
+    if journal_mode == "wal" then
+        conn:exec("PRAGMA wal_checkpoint(FULL);")
+    end
+
+    -- KOReader ffiUtil.copyFile returns nil on success and an error string on
+    -- failure. The backup intentionally captures the pre-migration schema so a
+    -- downgrade can restore it alongside the older plugin.
     local copy_err = self.copy_file(self.path, self.path .. ".bak")
     if copy_err ~= nil then
         error("database backup failed: " .. tostring(copy_err))
@@ -75,7 +87,7 @@ function DB:open()
                 Migrations.SCHEMA_VERSION
             ))
         end
-        self:_backupBeforeMigration(version)
+        self:_backupBeforeMigration(conn, version)
         Migrations.apply(conn, version)
     end)
 

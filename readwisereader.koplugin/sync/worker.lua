@@ -267,6 +267,7 @@ function Worker:run(options)
             sync_report.highlight_queue_processed = 0
             sync_report.highlight_create_deferred = 0
             sync_report.highlight_create_auth_waiting = 0
+            sync_report.highlight_creates_suppressed = 0
             sync_report.highlight_queue_waiting =
                 queue_repository:countCreateWaiting()
             sync_report.notes_updated = 0
@@ -378,7 +379,24 @@ function Worker:run(options)
         -- KOReader process, before the document feed. New local work from all
         -- authoritative managed sidecars was already queued above.
         stage = "create_queue_processing"
-        local queue_report = uploader:processQueue()
+        local suppress_reader_document_ids =
+            options.suppress_reader_document_ids or {}
+        if options.suppress_current_path_creates == true
+            and type(options.current_path) == "string"
+            and options.current_path ~= "" then
+            local current_document =
+                repository:getByLocalPath(options.current_path)
+            if current_document
+                and type(current_document.reader_id) == "string"
+                and current_document.reader_id ~= "" then
+                suppress_reader_document_ids[#suppress_reader_document_ids + 1] =
+                    current_document.reader_id
+            end
+        end
+        local queue_report = uploader:processQueue{
+            suppress_annotation_ids = options.suppress_annotation_ids,
+            suppress_reader_document_ids = suppress_reader_document_ids,
+        }
 
         stage = "document_sync"
         local sync_report, sync_err = syncer:sync{
@@ -430,6 +448,7 @@ function Worker:run(options)
         sync_report.highlight_queue_processed = queue_report.processed or 0
         sync_report.highlight_create_deferred = queue_report.deferred or 0
         sync_report.highlight_create_auth_waiting = queue_report.auth_waiting or 0
+        sync_report.highlight_creates_suppressed = queue_report.suppressed or 0
         sync_report.highlight_queue_waiting = queue_report.waiting_after
             or queue_repository:countCreateWaiting()
         sync_report.annotation_remote_errors = queue_report.remote_errors or 0

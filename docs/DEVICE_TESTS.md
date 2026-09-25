@@ -2856,3 +2856,127 @@ The complete integrated V1 acceptance flow passed:
 - final unchanged online Sync reported zero new document downloads, zero new highlights, no repeated Archive mutation and no fatal error.
 
 Result: **Phase S PASSED COMPLETE. V1.0.0 release is authorized after the release-preparation commit passes full CI/package validation.**
+
+
+## Phase T — Reader → KOReader historical highlights
+
+Target: PW3 / KOReader v2026.07.1. Production scope for v1.1.0: **currently-open managed rolling EPUB/HTML only**.
+
+### Gate 17A — physical PASS
+
+Using the real managed EPUB:
+- 11 Reader highlight pages / 1086 records scanned;
+- 70 highlight children belonged to the EPUB;
+- 70 had text;
+- 3/3 sampled passages resolved to unique exact KOReader XPointer ranges;
+- 0 ambiguous/missing/invalid samples;
+- remote writes: none;
+- local writes: none.
+
+### Gate 17B — physical evidence
+
+Build `1.1.0-alpha.2`:
+- one Reader highlight imported locally: PASS;
+- Reader note preserved: PASS;
+- first close/reopen persistence: PASS;
+- ordinary Sync after import: PASS;
+- no duplicate Reader child after that Sync: PASS;
+- remote note remained correct: PASS.
+
+The only unreported formal item was a **second close/reopen after that Sync**. At the user's explicit request, this is deferred into the final RC acceptance below instead of requiring another intermediate test. Do not retroactively mark it passed before that final session.
+
+### Gate 17C — off-device RC contract
+
+The final candidate intentionally differs from early `1.1.0-alpha.3`:
+- Reader → KOReader reconciliation runs **before** outbound create processing;
+- risky current-document creates are suppressed rather than POSTed;
+- first run builds a global historical Reader-highlight cache;
+- later runs refresh it incrementally;
+- Readwise v2 EXPORT `includeDeleted=true` supplies deletion tombstones by exact external ID;
+- cache/version/watermark do not advance on incomplete deletion verification;
+- import remains bounded to 20 new local annotations / 30 locator attempts per run;
+- per-document cursor prevents ambiguous early candidates from starving later candidates;
+- exact unique XPointer is still mandatory;
+- note is preserved literally;
+- save sidecar + authoritative reopen + durable Reader-child link are mandatory before an import counts;
+- failure rolls back only the just-created local item;
+- schema v2→v3 migration checkpoints WAL and creates `readwisereader.sqlite3.bak` before the transaction.
+
+### Gate 17D — not part of this RC
+
+PDF/paging historical Reader → KOReader import remains a separate future spike. Do not test or claim it as part of v1.1.0. Existing PDF reading and Kindle → Reader annotation sync are unchanged.
+
+## v1.1.0-rc.1 — single final PW3 acceptance session
+
+No additional intermediate checkpoints are required. Do this only once the final RC ZIP is supplied.
+
+### Before install
+
+1. Exit KOReader.
+2. Keep the existing Reader documents and KOReader sidecars untouched.
+3. Make a normal backup of `koreader/plugins/readwisereader.koplugin/` and `koreader/settings/` if convenient.
+4. Install the RC plugin folder over the old plugin folder, preserving settings/documents/sidecars.
+5. Restart KOReader.
+
+On first DB open, v1.1 migrates schema v2→v3. The plugin itself creates a pre-migration `readwisereader.sqlite3.bak`. If a downgrade to v1.0 becomes necessary, exit KOReader, restore the old plugin and restore this `.bak` as `readwisereader.sqlite3`; do not run v1.0 against a schema-v3 database.
+
+### Acceptance
+
+Use the **same managed EPUB** from Gates 17A/17B and keep Wi-Fi on.
+
+1. Open the EPUB.
+2. Run ordinary **Readwise Reader → Sync now**.
+3. The first RC run may be heavier because it constructs the historical cache. It must finish without a fatal error/crash.
+4. In the report require:
+   - Reader → KOReader pre-sync reconciliation is not a fatal error;
+   - Reader import failures = 0;
+   - at least 2 historical Reader highlights imported locally if at least 2 safe/unlinked candidates remain;
+   - the old Gate 17B item is counted as already linked/skipped rather than recreated;
+   - collision/ambiguous counters may be non-zero, but such cases must be skipped/suppressed rather than guessed.
+5. Close the EPUB and reopen it.
+6. Confirm:
+   - the prior Gate 17B imported highlight still exists;
+   - newly imported highlights still exist;
+   - at least one imported Reader note is intact when note-bearing candidates were imported.
+7. If `Reader imports deferred by batch limit > 0`, run ordinary Sync again. Continue within this same acceptance session until the deferred counter reaches 0.
+8. Throughout those runs, no imported/reconciled local highlight may be created as a second Reader child. A collision-suppressed create may remain queued; it must not be POSTed blindly.
+9. Run **one final unchanged Sync**.
+10. Require:
+    - Reader highlights imported locally = 0;
+    - Reader import failures = 0;
+    - no new duplicate Reader highlight;
+    - EPUB progress/position, pre-existing highlights/notes and imported highlights/notes remain intact;
+    - KOReader remains responsive and the EPUB still opens/reflows normally.
+
+### PASS meaning
+
+If all items above pass:
+- the deferred Gate 17B post-Sync reopen criterion is satisfied;
+- Gate 17C is physically accepted;
+- v1.1.0 rolling EPUB/HTML historical import is accepted;
+- stable `v1.1.0` may be merged/tagged.
+
+If any item fails, preserve the RC database/sidecar/log state and report the exact Sync summary/error; do not delete documents or sidecars to retry.
+
+
+## v1.1.0 final PW3 acceptance — PASS
+
+User completed the consolidated `1.1.0-rc.1` acceptance on the target PW3 and reported the full requested matrix succeeded.
+
+Accepted result:
+- RC installed/restarted normally with the migrated state intact;
+- Reader → KOReader pre-Sync reconciliation completed without a fatal import failure;
+- historical Reader highlights/notes imported into the managed rolling EPUB;
+- the previously-linked Gate 17B annotation was not duplicated remotely;
+- bounded continuation completed as needed;
+- close/reopen preserved old and newly imported highlights/notes;
+- final unchanged Sync produced no new historical import/remote duplicate and preserved progress/sidecar state;
+- KOReader remained usable and the EPUB continued opening/reflowing normally.
+
+Consequences:
+- deferred Gate 17B post-Sync reopen criterion: **PASS**;
+- Gate 17C: **PASS COMPLETE**;
+- v1.1.0 rolling EPUB/HTML historical import: **ACCEPTED**;
+- stable v1.1.0 release is authorized.
+
+Gate 17D PDF/paging historical import remains untested and outside v1.1.0.

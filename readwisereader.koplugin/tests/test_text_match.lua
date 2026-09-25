@@ -3,6 +3,12 @@
 local Match = require("sync/text_match")
 
 return function()
+    assert(Match.equivalentPlainText("same text", "same text"))
+    assert(Match.equivalentPlainText(
+        "café — one\194\160two",
+        "cafe\204\129 - one two"
+    ))
+    assert(not Match.equivalentPlainText("alpha", "beta"))
     local exact, info = Match.findExactSubstring("<p>alpha beta gamma</p>", "beta gamma")
     assert(exact == "beta gamma")
     assert(info.mode == "exact")
