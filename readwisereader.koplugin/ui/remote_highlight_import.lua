@@ -31,8 +31,8 @@ end
 
 local function orderedCandidates(highlights)
     local out = {}
-    for _, wants_note in ipairs({ true, false }) do
-        for _, item in ipairs(highlights or {}) do
+    for pass_index, wants_note in ipairs({ true, false }) do
+        for item_index, item in ipairs(highlights or {}) do
             if (item.note_present == true) == wants_note then
                 out[#out + 1] = item
             end
@@ -120,7 +120,7 @@ Tap to cancel. No remote mutation is performed. A local highlight is created onl
         local attempts, linked_skipped, local_skipped = 0, 0, 0
         local last_locator_status = "none"
 
-        for _, remote in ipairs(orderedCandidates(report.remote_highlights)) do
+        for candidate_index, remote in ipairs(orderedCandidates(report.remote_highlights)) do
             if attempts >= MAX_LOCATOR_ATTEMPTS then break end
 
             local existing_link = self.importer:isRemoteLinked(remote.id)
