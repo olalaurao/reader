@@ -1509,3 +1509,20 @@ Abrir explicitamente o sidecar atual não resolveu; o problema era o nosso crit�
 - depois exigir hashes exatos de texto/nota;
 - mostrar contadores estruturais por estágio se ainda falhar;
 - repetir um único import físico.
+
+
+### 17D-2G — alpha.7 precision diagnosis
+
+Resultado físico:
+`raw=1, normalized=1, malformed=0, same_page=1, same_datetime=1, same_pos0=0, same_pos1=0`.
+
+Isso prova que o sidecar contém o item recém-criado e que a divergência está só nos números de posição.
+
+### 17D-2H — alpha.8
+
+- converter posições geradas para a representação numérica que o KOReader realmente persiste: `tonumber(tostring(value))`;
+- fazer isso antes de validar/salvar;
+- manter match nativo + diagnósticos como fallback;
+- capturar annotation criada por referência;
+- rollback re-resolve índice pela referência e comprova remoção;
+- repetir um único import físico.
