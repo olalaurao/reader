@@ -228,6 +228,40 @@ return function()
     end
 
 
+
+    do
+        -- Gate 16 / log redaction: query strings can contain signed URLs or
+        -- other private parameters. Logging must keep only the endpoint path.
+        local logged = {}
+        local http = Http:new{
+            http = {
+                request = function()
+                    return 1, 200, {}, "HTTP/1.1 200 OK"
+                end,
+            },
+            ltn12 = fakeLtn12,
+            socketutil = newSocketUtil(),
+            logger = {
+                dbg = function(...)
+                    local parts = {...}
+                    logged[#logged + 1] = table.concat(parts, " ")
+                end,
+            },
+        }
+        local response, err = http:request{
+            method = "GET",
+            url = "https://example.com/file?token=super-secret&X-Amz-Signature=signed-private",
+        }
+        assert(err == nil)
+        assert(response.status == 200)
+        local line = table.concat(logged, "\n")
+        assert(line:find("https://example.com/file", 1, true))
+        assert(not line:find("super-secret", 1, true))
+        assert(not line:find("signed-private", 1, true))
+        assert(not line:find("X-Amz-Signature", 1, true))
+    end
+
+
     do
         -- Gate 16 / huge response: enforce the byte ceiling even when a
         -- single incoming chunk alone exceeds it; the downstream sink must
