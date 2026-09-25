@@ -227,6 +227,40 @@ return function()
         assert(socketutil.reset_count == 1)
     end
 
+
+    do
+        -- Gate 16 / huge response: enforce the byte ceiling even when a
+        -- single incoming chunk alone exceeds it; the downstream sink must
+        -- never receive that oversized chunk.
+        local socketutil = newSocketUtil()
+        local downstream_calls = 0
+        local http = Http:new{
+            http = {
+                request = function(request)
+                    local ok = request.sink(string.rep("x", 1025))
+                    assert(ok == nil)
+                    return nil, "response body exceeded configured limit", nil, nil
+                end,
+            },
+            ltn12 = fakeLtn12,
+            socketutil = socketutil,
+            logger = { dbg = function() end },
+        }
+        local response, err = http:request{
+            url = "https://example.com/huge",
+            max_body_bytes = 1024,
+            sink = function()
+                downstream_calls = downstream_calls + 1
+                return 1
+            end,
+        }
+        assert(response == nil)
+        assert(err.kind == "too_large")
+        assert(err.limit == 1024)
+        assert(downstream_calls == 0)
+    end
+
+
     assert(Http._statusError(401, {}).kind == "auth")
     assert(Http._statusError(403, {}).kind == "auth")
     assert(Http._statusError(500, {}).retryable == true)
