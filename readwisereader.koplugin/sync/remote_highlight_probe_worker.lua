@@ -2,8 +2,15 @@
 
 local Worker = {}
 
-function Worker:run(local_path)
+local function formatTime(epoch)
+    return os.date("!%Y-%m-%dT%H:%M:%SZ", epoch)
+end
+
+function Worker:run(local_path, options)
+    options = options or {}
+
     local Config = require("config")
+    local Constants = require("constants")
     local DB = require("storage/db")
     local Documents = require("storage/documents")
     local Http = require("api/http")
@@ -12,6 +19,7 @@ function Worker:run(local_path)
 
     local config = Config:new()
     local db
+    local started_epoch = os.time()
     local ok, report, domain_err = pcall(function()
         db = DB:new()
         local probe = Probe:new{
@@ -21,7 +29,9 @@ function Worker:run(local_path)
                 config = config,
             },
         }
-        return probe:run(local_path)
+        return probe:run(local_path, {
+            updated_after = options.updated_after,
+        })
     end)
 
     if db then pcall(function() db:close() end) end
@@ -33,6 +43,13 @@ function Worker:run(local_path)
             retryable = true,
             message = "Reader-highlight fetch failed safely.",
         }
+    end
+    if report then
+        report.scan_started_at = formatTime(started_epoch)
+        report.proposed_query_after = formatTime(math.max(
+            0,
+            started_epoch - (Constants.REMOTE_HIGHLIGHT_IMPORT_OVERLAP_SECONDS or 300)
+        ))
     end
     return report, domain_err
 end
