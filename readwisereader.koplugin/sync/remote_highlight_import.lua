@@ -7,6 +7,58 @@ local function domainError(kind, message)
     return { kind = kind, retryable = false, message = message }
 end
 
+
+local function samePagingPos(a, b)
+    return type(a) == "table" and type(b) == "table"
+        and a.x == b.x and a.y == b.y
+end
+
+-- Mirror KOReader ReaderAnnotation:getMatchFunc() for paging annotations.
+-- KOReader matches by datetime (when present on both), page, and native
+-- endpoint x/y. pboxes are rendering geometry and may be normalized
+-- independently, so they are not part of the persisted-item lookup.
+local function pdfNativeMatch(normalized, item)
+    if item.page ~= normalized.page then return false end
+    if normalized.datetime ~= nil and item.datetime ~= nil
+        and normalized.datetime ~= item.datetime then
+        return false
+    end
+    return samePagingPos(item.pos0, normalized.pos0)
+        and samePagingPos(item.pos1, normalized.pos1)
+end
+
+local function pdfCandidateStats(normalized, items)
+    local stats = {
+        scanned = 0,
+        same_page = 0,
+        same_datetime = 0,
+        same_pos0 = 0,
+        same_pos1 = 0,
+        native_matches = 0,
+    }
+    for _, item in ipairs(items or {}) do
+        stats.scanned = stats.scanned + 1
+        if item.page == normalized.page then
+            stats.same_page = stats.same_page + 1
+            local datetime_ok = not (
+                normalized.datetime ~= nil and item.datetime ~= nil
+                and normalized.datetime ~= item.datetime
+            )
+            if datetime_ok then
+                stats.same_datetime = stats.same_datetime + 1
+                if samePagingPos(item.pos0, normalized.pos0) then
+                    stats.same_pos0 = stats.same_pos0 + 1
+                    if samePagingPos(item.pos1, normalized.pos1) then
+                        stats.same_pos1 = stats.same_pos1 + 1
+                        stats.native_matches = stats.native_matches + 1
+                    end
+                end
+            end
+        end
+    end
+    return stats
+end
+
 function Import:new(options)
     options = options or {}
     return setmetatable({
@@ -24,8 +76,13 @@ function Import:getDocument(local_path)
     if document.is_local_present ~= true then
         return nil, domainError("not_local", "The managed Reader document is not recorded as local.")
     end
-    if document.local_format ~= "epub" and document.local_format ~= "html" then
-        return nil, domainError("format", "Reader highlight import currently supports EPUB/HTML only.")
+    if document.local_format ~= "epub"
+        and document.local_format ~= "html"
+        and document.local_format ~= "pdf" then
+        return nil, domainError(
+            "format",
+            "Reader highlight import supports managed EPUB/HTML/PDF documents only."
+        )
     end
     return document
 end
@@ -88,7 +145,13 @@ function Import:linkPersisted(local_path, remote, local_annotation)
         )
     end
 
-    local scan, scan_err = self.adapter:scan(document.local_path, document.reader_id)
+    local scan_method = document.local_format == "pdf"
+        and self.adapter.scanFlushed or self.adapter.scan
+    local scan, scan_err = scan_method(
+        self.adapter,
+        document.local_path,
+        document.reader_id
+    )
     if not scan then return nil, scan_err end
     if not scan.authoritative then
         return nil, domainError("sidecar", "KOReader sidecar is not authoritative after save.")
@@ -101,11 +164,66 @@ function Import:linkPersisted(local_path, remote, local_annotation)
             break
         end
     end
-    if not persisted then
-        return nil, domainError("sidecar", "Created KOReader highlight was not found in the persisted sidecar.")
+
+    -- Keep deterministic local ID as the primary lookup. If PDF serialization
+    -- changes non-identity fields, fall back only to KOReader's own native
+    -- paging match contract (ReaderAnnotation:getMatchFunc): datetime when
+    -- present, page, pos0 x/y, pos1 x/y. Exactly one candidate is required.
+    if not persisted and document.local_format == "pdf" then
+        local candidates = {}
+        for _, item in ipairs(scan.annotations or {}) do
+            if pdfNativeMatch(normalized, item) then
+                candidates[#candidates + 1] = item
+            end
+        end
+        if #candidates == 1 then
+            persisted = candidates[1]
+        elseif #candidates > 1 then
+            return nil, domainError(
+                "sidecar_ambiguous",
+                "Created PDF highlight matched multiple persisted sidecar annotations by KOReader native paging identity."
+            )
+        end
     end
 
-    local ok, linked = pcall(
+    if not persisted then
+        if document.local_format == "pdf" then
+            local stats = pdfCandidateStats(normalized, scan.annotations)
+            return nil, domainError(
+                "sidecar_lookup",
+                string.format(
+                    "Created PDF highlight was not found by KOReader native paging identity (raw=%d, normalized=%d, malformed=%d, normalize_exceptions=%d, scanned=%d, same_page=%d, same_datetime=%d, same_pos0=%d, same_pos1=%d).",
+                    tonumber(scan.raw_annotations) or 0,
+                    #(scan.annotations or {}),
+                    tonumber(scan.malformed) or 0,
+                    tonumber(scan.normalize_exceptions) or 0,
+                    stats.scanned,
+                    stats.same_page,
+                    stats.same_datetime,
+                    stats.same_pos0,
+                    stats.same_pos1
+                )
+            )
+        end
+        return nil, domainError(
+            "sidecar_lookup",
+            "Created KOReader highlight was not found in the persisted sidecar."
+        )
+    end
+
+    -- The persisted native match must still carry the same normalized content
+    -- we just created. Identity is positional; content equality is a safety
+    -- check before binding the pre-existing Reader child ID.
+    if document.local_format == "pdf"
+        and (persisted.text_hash ~= normalized.text_hash
+            or persisted.note_hash ~= normalized.note_hash) then
+        return nil, domainError(
+            "sidecar_content",
+            "Persisted PDF highlight position matched, but its text/note content differed."
+        )
+    end
+
+    local ok, linked_or_err = pcall(
         self.annotations.linkImported,
         self.annotations,
         {
@@ -122,9 +240,15 @@ function Import:linkPersisted(local_path, remote, local_annotation)
             remote_updated_marker = remote.updated_at,
         }
     )
-    if not ok or not linked then
-        return nil, domainError("db", "Imported highlight could not be linked durably.")
+    if not ok or not linked_or_err then
+        return nil, domainError(
+            "db",
+            ok
+                and "Imported highlight link returned no durable row."
+                or "Imported highlight database transaction failed."
+        )
     end
+    local linked = linked_or_err
 
     return {
         status = "linked",
@@ -134,5 +258,9 @@ function Import:linkPersisted(local_path, remote, local_annotation)
         note = persisted.note,
     }
 end
+
+Import._pdfCandidateStats = pdfCandidateStats
+Import._pdfNativeMatch = pdfNativeMatch
+Import._samePagingPos = samePagingPos
 
 return Import

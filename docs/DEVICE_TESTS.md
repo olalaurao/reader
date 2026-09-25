@@ -2980,3 +2980,249 @@ Consequences:
 - stable v1.1.0 release is authorized.
 
 Gate 17D PDF/paging historical import remains untested and outside v1.1.0.
+
+
+## Gate 17D — PDF/paging Reader highlight locator
+
+Status: **OFF-DEVICE IMPLEMENTATION; PHYSICAL PROBE PENDING**
+
+Build: `1.2.0-alpha.1`.
+
+Use an already-local **plugin-managed original PDF** with at least one highlight already present in Readwise Reader.
+
+Procedure:
+1. install the Gate 17D build preserving settings/database/documents/sidecars;
+2. restart KOReader;
+3. open the managed PDF;
+4. Wi-Fi ON;
+5. run **Readwise Reader → Inspect PDF Reader highlights (Gate 17D)** once;
+6. capture the complete result screen.
+
+Required PASS:
+- `Highlights for this PDF >= 1`;
+- `Local PDF probes run >= 1`;
+- `Unique exact paging matches >= 1`;
+- no crash/freeze;
+- `Remote writes: none`;
+- `Local annotation/sidecar writes: none`.
+
+Ambiguous/missing/text-round-trip-different samples are safe skips. Do not create/import a PDF highlight yet.
+
+
+### Gate 17D alpha.1 physical result — FAIL / informative
+
+Observed on target PW3:
+- 11 Reader pages / 1088 Reader highlight records;
+- 2 highlights belonged to the PDF;
+- 2 local probes;
+- 0 exact, 0 ambiguous, 0 missing, 2 text round-trip differences, 0 invalid;
+- remote writes none;
+- local annotation/sidecar writes none.
+
+Do not repeat alpha.1. Its literal full-text round-trip criterion was invalid for partial PDF boundary words.
+
+### Gate 17D alpha.2 — corrected read-only probe
+
+Install `1.2.0-alpha.2`, open the same managed PDF, Wi-Fi ON, and run **Inspect PDF Reader highlights (Gate 17D)** once.
+
+PASS now requires:
+- `Highlights for this PDF >= 1`;
+- `Local PDF probes run >= 1`;
+- `Validated paging positions total >= 1`;
+- accepted positions appear as either `Unique exact paging matches` or `Unique word-boundary paging matches`;
+- `Native endpoint geometry mismatches: 0`;
+- no crash/freeze;
+- `Remote writes: none`;
+- `Local annotation/sidecar writes: none`.
+
+The `Full-text round-trip differences (diagnostic)` counter may be non-zero and is not by itself a failure.
+
+
+### Gate 17D locator alpha.2 — PHYSICAL PASS
+
+Observed:
+- 2 Reader highlights for the PDF;
+- 2 probes;
+- 2 unique word-boundary matches;
+- validated paging positions total = 2;
+- endpoint geometry mismatches = 0;
+- search-text relation mismatches = 0;
+- one full-text round-trip diagnostic difference;
+- remote/local writes none.
+
+Gate 17D locator is closed. Next physical gate will be one-item PDF sidecar-only import; do not run it until a dedicated build is supplied.
+
+
+### Gate 17D-2 — one-item PDF sidecar import
+
+Build: `1.2.0-alpha.3` (only after CI/package handoff).
+
+Use the same managed PDF whose alpha.2 locator probe passed.
+
+Run **Readwise Reader → Import one Reader PDF highlight (Gate 17D)** exactly once.
+
+Required immediate result:
+- `Imported local PDF highlights: 1`;
+- `PDF file digest unchanged: yes`;
+- `PDF embed preference restored: yes`;
+- `Reader writes from import: none`;
+- if the chosen Reader highlight has a note, `Imported Reader note: yes`.
+
+Then close/reopen the PDF before ordinary Sync and verify the imported highlight remains visible and its note remains present. Do not run the explicit import action a second time before reporting that reopen result.
+
+Only after that persistence proof may ordinary Sync be used to prove that the imported PDF annotation is already linked and does not create a duplicate Reader child.
+
+
+### Gate 17D-2 alpha.3 result — PRECHECK FAIL / NO WRITES
+
+Observed message: `Reader highlight import currently supports EPUB/HTML only.`
+
+This was a shared-importer format gate left over from v1.1. The action stopped before any local/remote mutation. Do not repeat alpha.3.
+
+### Gate 17D-2 alpha.4
+
+Use `1.2.0-alpha.4` for the exact same one-item test:
+1. install preserving DB/settings/documents/sidecars;
+2. open the same managed PDF;
+3. run **Import one Reader PDF highlight (Gate 17D)** exactly once;
+4. require imported=1, PDF digest unchanged=yes, embed preference restored=yes, Reader writes none;
+5. close/reopen before ordinary Sync and verify highlight + note persistence;
+6. do not run the explicit import action a second time before reporting.
+
+
+### Gate 17D-2 alpha.4 result — DURABLE LINK FAIL / ROLLBACK PASS
+
+Observed:
+- PDF format preflight passed;
+- local PDF sidecar item was created;
+- durable Reader/PDF link failed;
+- just-created local sidecar item was rolled back successfully;
+- no Reader mutation was reported.
+
+Do not repeat alpha.4.
+
+### Gate 17D-2 alpha.5
+
+Install alpha.5 and use the same managed PDF.
+
+Run **Import one Reader PDF highlight (Gate 17D)** exactly once.
+
+Required immediate result:
+- `Imported local PDF highlights: 1`;
+- `PDF file digest unchanged: yes`;
+- `PDF embed preference restored: yes`;
+- `Reader writes from import: none`.
+
+Then close/reopen before ordinary Sync and verify highlight/note persistence. If an error appears, report its full new message because alpha.5 now preserves the exact sidecar/DB failure stage.
+
+
+### Gate 17D-2 alpha.5 result — SIDECAR LOOKUP FAIL / ROLLBACK PASS
+
+Observed message:
+`Created PDF highlight was not found uniquely in the persisted sidecar. The local sidecar item was rolled back.`
+
+Rollback succeeded; do not repeat alpha.5.
+
+### Gate 17D-2 alpha.6
+
+Install alpha.6 and use the same managed PDF.
+
+Run **Import one Reader PDF highlight (Gate 17D)** exactly once.
+
+Required immediate result:
+- `Imported local PDF highlights: 1`;
+- `PDF file digest unchanged: yes`;
+- `PDF embed preference restored: yes`;
+- `Reader writes from import: none`.
+
+Then close/reopen before ordinary Sync and verify highlight/note persistence. If an error appears, report the complete message.
+
+
+### Gate 17D-2 alpha.6 result — SIDECAR LOOKUP FAIL / ROLLBACK PASS
+
+Observed:
+`Created PDF highlight was not found uniquely in the persisted sidecar. The local sidecar item was rolled back.`
+
+The current-sidecar fix was not sufficient. Rollback succeeded; do not repeat alpha.6.
+
+### Gate 17D-2 alpha.7
+
+Install alpha.7 and use the same managed PDF.
+
+Run **Import one Reader PDF highlight (Gate 17D)** exactly once.
+
+Required immediate result:
+- `Imported local PDF highlights: 1`;
+- `PDF file digest unchanged: yes`;
+- `PDF embed preference restored: yes`;
+- `Reader writes from import: none`.
+
+Then close/reopen before ordinary Sync and verify highlight/note persistence.
+
+If it still fails, report the **entire error**. Alpha.7 includes structural counters such as:
+`raw`, `normalized`, `malformed`, `same_page`, `same_datetime`, `same_pos0`, `same_pos1`.
+
+
+### Gate 17D-2 alpha.7 result — NUMERIC POSITION ROUND-TRIP FAIL / ROLLBACK PASS
+
+Observed:
+`raw=1, normalized=1, malformed=0, normalize_exceptions=0, scanned=1, same_page=1, same_datetime=1, same_pos0=0, same_pos1=0`.
+
+This proves the newly-created annotation reached the current sidecar but its numeric endpoint representation changed across persistence. Rollback succeeded. Do not repeat alpha.7.
+
+### Gate 17D-2 alpha.8
+
+Install alpha.8 and use the same managed PDF.
+
+Run **Import one Reader PDF highlight (Gate 17D)** exactly once.
+
+Required immediate result:
+- `Imported local PDF highlights: 1`;
+- `PDF file digest unchanged: yes`;
+- `PDF embed preference restored: yes`;
+- `Reader writes from import: none`.
+
+Then close/reopen **before ordinary Sync** and verify highlight + note persistence.
+
+If it still fails, report the entire structural counter message.
+
+
+### Gate 17D-2 closure — alpha.8 PASS
+
+Observed on target PW3:
+- the one imported Reader-origin PDF highlight survived close/reopen;
+- ordinary `Sync now` succeeded;
+- the highlight remained local;
+- no remote duplicate was created.
+
+Seeing only one local PDF highlight before that Sync was expected: Gate 17D-2 deliberately imported exactly one Reader child.
+
+### Gate 17D-3 — alpha.9 consolidated final acceptance
+
+Do not use the explicit Gate 17D import action again.
+
+Using the same managed PDF, which still has one Reader child not yet imported locally:
+
+1. install the CI-green `1.2.0-alpha.9` build preserving settings, DB, PDF and sidecar;
+2. open the same PDF and run ordinary **Sync now** once;
+3. require the remaining safe Reader highlight to appear locally through the normal pre-Sync path;
+4. if that Reader highlight has a note, require the note to be intact;
+5. require the previously imported highlight to remain intact;
+6. confirm Reader still has no duplicate highlight child;
+7. close/reopen the PDF once and confirm both local annotations remain;
+8. run **Sync now** one more time without changes;
+9. require no additional local import and no remote duplicate.
+
+Report the normal Sync summary fields for Reader → KOReader reconciliation if shown, plus whether both highlights survive reopen and whether the second unchanged Sync is idempotent.
+
+
+### Gate 17D-3 alpha.9 final acceptance — PASS
+
+User confirmed the consolidated target-device acceptance passed:
+- ordinary Sync imported the remaining safe Reader PDF highlight;
+- both Reader-origin PDF highlights were present locally;
+- both survived close/reopen;
+- the second unchanged Sync created no further local import;
+- Reader remained without duplicate highlight children.
+
+Gate 17D / Phase U is complete. Stable v1.2.0 may be a version/docs-only promotion of the accepted alpha.9 runtime.

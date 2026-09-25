@@ -1404,3 +1404,163 @@ Os filtros de **Locations** selecionam quais documentos entram no document sync/
 ### Próximo gate canônico
 
 Gate 17D: spike separado de locator para PDF/paging. Não reutilizar XPointers/assunções de EPUB.
+
+
+## 48. Pós-v1.1 / Gate 17D — PDF/paging
+
+Próximo incremento: validar experimentalmente como um highlight já existente no Reader pode ser localizado no PDF original aberto no KOReader.
+
+### 17D-1 — probe read-only
+
+- build `1.2.0-alpha.1`;
+- somente PDF original gerenciado e aberto;
+- buscar highlights Reader pelo parent ID;
+- testar no máximo 3;
+- usar `findAllText` paging do KOReader, que devolve página + caixas, não XPointer;
+- reconstruir posições nativas da primeira/última caixa;
+- fazer round-trip com `getTextFromPositions` em modo nativo;
+- aceitar somente um match e texto literal idêntico;
+- zero annotation/sidecar/DB-link write;
+- zero POST/PATCH/DELETE no Reader.
+
+Só depois do PASS físico decidir inserção de annotation PDF. Multi-page, OCR e ambiguidades continuam sem heurística automática.
+
+
+### 17D-1A — resultado físico alpha.1
+
+No PDF real:
+- Reader pages scanned: 11;
+- Reader highlight records scanned: 1088;
+- highlights do PDF: 2;
+- probes locais: 2;
+- unique exact: 0;
+- ambiguous: 0;
+- missing: 0;
+- text round-trip differences: 2;
+- other/invalid: 0;
+- writes remotos/locais: nenhum.
+
+Isso não indica falha de busca: `text_diff` só acontecia depois de `findAllText()` devolver exatamente um match. A revisão do KOPT mostrou que a busca paging aceita o primeiro termo como sufixo da palavra PDF e o último como prefixo, mas retorna a caixa da palavra inteira.
+
+### 17D-1B — alpha.2
+
+Corrigir apenas o critério do probe:
+- validar que os centros das caixas retornadas caem novamente nas mesmas palavras PDF via `getWordFromPosition`;
+- separar `unique_exact` de `unique_boundary`;
+- manter `getTextFromPositions` apenas como diagnóstico;
+- não adicionar fuzzy matching;
+- continuar com zero writes.
+
+A criação PDF continua bloqueada até esse probe passar fisicamente.
+
+
+### 17D-2 — importar um highlight PDF
+
+Depois do PASS físico do locator alpha.2:
+- criar exatamente 1 highlight Reader no PDF local;
+- usar page/pos0/pos1/pboxes validados;
+- preservar nota;
+- forçar sidecar-only apenas durante save/delete do item;
+- restaurar a preferência `highlight_write_into_pdf` antes de `saveSettings`;
+- provar sidecar persistente;
+- ligar child ID remoto duravelmente;
+- rollback local se o link falhar;
+- conferir size+mtime do PDF antes/depois;
+- zero writes no Reader durante a ação;
+- só integrar ao Sync depois de provar persistência e dedupe remoto.
+
+
+### 17D-2A — alpha.4 durable-link FAIL
+
+A criação PDF chegou ao sidecar, mas o vínculo durável falhou e o item local foi revertido com sucesso.
+
+### 17D-2B — alpha.5
+
+- manter ID determinístico como lookup principal;
+- expor `pboxes` no adapter;
+- se o ID mudar após serialização PDF, permitir fallback somente por page + pboxes exatas + hashes exatos de texto/nota;
+- exigir exatamente 1 candidato;
+- preservar erro específico de sidecar/DB na UI;
+- repetir um único import físico.
+
+
+### 17D-2C — alpha.5 sidecar_lookup FAIL
+
+O erro específico mostrou que o item recém-criado não estava sendo encontrado na reabertura do sidecar.
+
+### 17D-2D — alpha.6
+
+- não usar `DocSettings.open()` para a prova imediata de PDF;
+- localizar o sidecar atual com `findSidecarFile(..., true)`;
+- abrir exatamente esse arquivo com `openSettingsFile`;
+- manter ID determinístico + fallback geométrico exato;
+- repetir um único import físico.
+
+
+### 17D-2E — alpha.6 sidecar_lookup FAIL
+
+Abrir explicitamente o sidecar atual não resolveu; o problema era o nosso critério paralelo de identidade por pboxes.
+
+### 17D-2F — alpha.7
+
+- manter sidecar atual explícito;
+- usar exatamente o match paging do KOReader: datetime (se ambos têm), page, pos0.x/y, pos1.x/y;
+- exigir candidato único;
+- depois exigir hashes exatos de texto/nota;
+- mostrar contadores estruturais por estágio se ainda falhar;
+- repetir um único import físico.
+
+
+### 17D-2G — alpha.7 precision diagnosis
+
+Resultado físico:
+`raw=1, normalized=1, malformed=0, same_page=1, same_datetime=1, same_pos0=0, same_pos1=0`.
+
+Isso prova que o sidecar contém o item recém-criado e que a divergência está só nos números de posição.
+
+### 17D-2H — alpha.8
+
+- converter posições geradas para a representação numérica que o KOReader realmente persiste: `tonumber(tostring(value))`;
+- fazer isso antes de validar/salvar;
+- manter match nativo + diagnósticos como fallback;
+- capturar annotation criada por referência;
+- rollback re-resolve índice pela referência e comprova remoção;
+- repetir um único import físico.
+
+
+### 17D-2I — alpha.8 persistence + outbound dedupe PASS
+
+Physical PW3 follow-up:
+- the imported PDF highlight survived close/reopen;
+- ordinary Sync completed normally;
+- the local import remained present;
+- no duplicate Reader highlight was created.
+
+Only one local PDF highlight being visible before that Sync was expected because the Gate 17D-2 explicit action intentionally imported exactly one item.
+
+### 17D-3 — alpha.9 normal Sync integration
+
+Integrate the physically-proven paging importer into the same pre-Sync reconciliation point already used by rolling EPUB/HTML, but keep PDF-specific safety:
+- current open managed original PDF only;
+- shared Reader highlight cache;
+- at most 1 new PDF local annotation per Sync during alpha;
+- at most 10 locator attempts with a durable rotation cursor;
+- exact already-linked skip;
+- exact native-position + compatible-note collision may link safely;
+- ambiguous/missing/invalid unlinked Reader child blocks all current-PDF outbound creates for that run;
+- deferred unexamined Reader children also block current-PDF outbound creates for that run;
+- alpha.8 sidecar-only save, PDF-byte digest, persisted numeric position, durable-link and rollback invariants remain mandatory;
+- no Reader mutation from the import phase.
+
+One consolidated final device acceptance after CI: normal Sync imports the remaining safe Reader PDF child, then one unchanged Sync proves idempotence/no duplicates.
+
+
+### 17D-3A — alpha.9 final acceptance PASS / v1.2.0 authorized
+
+Target PW3 consolidated acceptance passed:
+- normal Sync imported the remaining safe Reader PDF highlight;
+- both local Reader-origin PDF highlights survived close/reopen;
+- unchanged second Sync was idempotent;
+- Reader contained no duplicate highlight child.
+
+Gate 17D / Phase U is complete. `v1.2.0` is authorized as a metadata/docs-only promotion of the physically accepted alpha.9 runtime. No additional device gate is required unless runtime/plugin Lua behavior changes after the accepted alpha.9 code.

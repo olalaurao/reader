@@ -135,6 +135,7 @@ function KOReaderAnnotations:normalize(reader_document_id, annotation)
         page = annotation.page,
         pos0 = annotation.pos0,
         pos1 = annotation.pos1,
+        pboxes = annotation.pboxes,
         drawer = annotation.drawer,
         color = annotation.color,
         chapter = annotation.chapter,
@@ -145,25 +146,8 @@ function KOReaderAnnotations:normalize(reader_document_id, annotation)
     }
 end
 
-function KOReaderAnnotations:scan(local_path, reader_document_id)
-    if type(local_path) ~= "string" or local_path == "" then
-        return nil, {
-            kind = "path",
-            retryable = false,
-            message = "Managed document path is missing.",
-        }
-    end
-
-    local ok, settings = pcall(self.doc_settings.open, self.doc_settings, local_path)
-    if not ok or not settings then
-        return nil, {
-            kind = "sidecar",
-            retryable = true,
-            message = "KOReader sidecar could not be opened safely.",
-        }
-    end
-
-    if not settings.source_candidate then
+local function scanSettings(self, settings, reader_document_id, source_candidate)
+    if not source_candidate then
         return {
             authoritative = false,
             status = "no_sidecar",
@@ -186,7 +170,7 @@ function KOReaderAnnotations:scan(local_path, reader_document_id)
         return {
             authoritative = false,
             status = "annotations_missing",
-            source_candidate = settings.source_candidate,
+            source_candidate = source_candidate,
             annotations = {},
             malformed = 0,
         }
@@ -221,12 +205,105 @@ function KOReaderAnnotations:scan(local_path, reader_document_id)
     return {
         authoritative = true,
         status = "ok",
-        source_candidate = settings.source_candidate,
+        source_candidate = source_candidate,
         annotations = normalized,
+        raw_annotations = #annotations,
         malformed = malformed,
         normalize_exceptions = normalize_exceptions,
     }
 end
+
+function KOReaderAnnotations:scan(local_path, reader_document_id)
+    if type(local_path) ~= "string" or local_path == "" then
+        return nil, {
+            kind = "path",
+            retryable = false,
+            message = "Managed document path is missing.",
+        }
+    end
+
+    local ok, settings = pcall(self.doc_settings.open, self.doc_settings, local_path)
+    if not ok or not settings then
+        return nil, {
+            kind = "sidecar",
+            retryable = true,
+            message = "KOReader sidecar could not be opened safely.",
+        }
+    end
+
+    return scanSettings(
+        self,
+        settings,
+        reader_document_id,
+        settings.source_candidate
+    )
+end
+
+-- Immediately after ReaderUI:saveSettings(), verify the exact current sidecar
+-- file rather than DocSettings:open(). The generic open path intentionally
+-- considers both metadata.lua and metadata.lua.old and may pick the backup by
+-- mtime; that is correct for recovery but wrong for proving that a just-created
+-- PDF annotation reached the freshly-flushed sidecar.
+function KOReaderAnnotations:scanFlushed(local_path, reader_document_id)
+    if type(local_path) ~= "string" or local_path == "" then
+        return nil, {
+            kind = "path",
+            retryable = false,
+            message = "Managed document path is missing.",
+        }
+    end
+    if type(self.doc_settings.findSidecarFile) ~= "function"
+        or type(self.doc_settings.openSettingsFile) ~= "function" then
+        return nil, {
+            kind = "sidecar",
+            retryable = true,
+            message = "KOReader current-sidecar verification API is unavailable.",
+        }
+    end
+
+    local find_ok, sidecar_file = pcall(
+        self.doc_settings.findSidecarFile,
+        self.doc_settings,
+        local_path,
+        true
+    )
+    if not find_ok then
+        return nil, {
+            kind = "sidecar",
+            retryable = true,
+            message = "KOReader current sidecar could not be located safely.",
+        }
+    end
+    if type(sidecar_file) ~= "string" or sidecar_file == "" then
+        return {
+            authoritative = false,
+            status = "no_sidecar",
+            annotations = {},
+            malformed = 0,
+        }
+    end
+
+    local open_ok, settings = pcall(
+        self.doc_settings.openSettingsFile,
+        sidecar_file
+    )
+    if not open_ok or not settings then
+        return nil, {
+            kind = "sidecar",
+            retryable = true,
+            message = "KOReader current sidecar could not be reopened safely.",
+        }
+    end
+
+    return scanSettings(
+        self,
+        settings,
+        reader_document_id,
+        sidecar_file
+    )
+end
+
+KOReaderAnnotations._scanSettings = scanSettings
 
 KOReaderAnnotations._canonical = canonical
 KOReaderAnnotations._locatorPayload = locatorPayload

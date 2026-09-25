@@ -372,7 +372,7 @@ function SyncUI:_run(full_rescan)
             return self.worker:run(worker_options)
         end, _([[Syncing Reader documents…
 
-Tap to cancel. Reader highlights for the open EPUB are reconciled before outbound annotation creates. Local annotations are then queued and Readwise reachability is verified before any remote write; the incremental watermark is committed only after a successful remote sync.]]))
+Tap to cancel. Reader highlights for the open EPUB/HTML/PDF are reconciled before outbound annotation creates. Local annotations are then queued and Readwise reachability is verified before any remote write; the incremental watermark is committed only after a successful remote sync.]]))
 
         if not completed then
             UIManager:show(InfoMessage:new{

@@ -4888,3 +4888,742 @@ Usage clarification recorded:
 - to import all highlights today, open each managed rolling EPUB/HTML and Sync until its deferred-import counter reaches 0.
 
 After the stable tag, resume exactly at Gate 17D with a read-only PDF/paging locator spike. Do not infer PDF locator semantics from EPUB XPointers.
+
+
+## 2026-09-25 — v1.1.0 merged green; Gate 17D read-only implementation started
+
+- PR #21 merged to `main` as `d3d23e8f70dddad009a76a30a4c143303429b1f5`.
+- Final `main` workflow `36145328585`: SUCCESS.
+- Stable plugin code on `main` reports version `1.1.0`.
+- The available GitHub connector can merge/branch/update files but exposes no Git-tag creation action; therefore the requested `v1.1.0` Git tag could not be created from this session and is not falsely recorded as created.
+- New branch: `feature/v1.2-pdf-highlight-probe`, based exactly on green stable `main`.
+
+Gate 17D source validation against KOReader v2026.07.1 established:
+- PDF is a paging document;
+- PDF `findAllText()` returns page + word boxes rather than XPointers;
+- PDF `getTextFromPositions()` consumes page/x/y positions and returns text + page boxes;
+- `ReaderHighlight:saveHighlight()` persists paging highlights using `pos0/pos1` and `pboxes`;
+- existing KOReader code itself switches to native (`text_wrap=0`) positions for paging/PDF position work.
+
+Implementation decision:
+- Gate 17D first step is read-only only;
+- single-page, unique, literal text round-trip is the only accepted success;
+- multi-page/OCR/repeated/fuzzy cases are measured, not guessed;
+- no PDF annotation creation until PW3 proof.
+
+Build under implementation: `1.2.0-alpha.1`.
+
+
+## 2026-09-25 — Gate 17D alpha.1 off-device green; physical PDF probe next
+
+Implementation/package HEAD before this STATUS-only closeout: `9f8fdf080a2f0b674652e9612bed93511af164e6`.
+
+Implemented:
+- paging/PDF locator using KOReader's native `findAllText()` page/box results;
+- native single-page `pos0/pos1` reconstruction from interior first/last word-box coordinates;
+- `getTextFromPositions()` literal round-trip with `text_wrap=0` temporarily and restoration on success/error;
+- unique/missing/ambiguous/text-different/invalid classification;
+- exact Reader parent filtering for managed original PDFs;
+- cancellable read-only Gate 17D UI;
+- no annotation create/link path enabled.
+
+Deterministic coverage:
+- unique paging match;
+- repeated text ambiguity;
+- missing text;
+- literal round-trip difference;
+- invalid boxes;
+- engine exception with `text_wrap` restoration;
+- exact PDF parent filtering and note retention;
+- non-PDF rejection;
+- UI result counters and explicit no-write report.
+
+CI:
+- workflow `36146267184` on `9f8fdf080a2f0b674652e9612bed93511af164e6`: **SUCCESS**;
+- development checks: PASS;
+- complete Lua suite: PASS;
+- installable ZIP: PASS;
+- package layout: PASS;
+- artifact upload: PASS.
+
+Package audit:
+- artifact id: `10869274874`;
+- outer artifact digest: `sha256:5607da769c92b28c52de60b6d9bf1279f89427979934efec17fd208f188b08bc`;
+- installable inner ZIP SHA-256: `f0f10e0f765303a36d30079937c4b4a8acb8077b1703181f643b8743c5afcbf5`;
+- package root: exactly `readwisereader.koplugin/`;
+- 82 entries;
+- packaged version: `1.2.0-alpha.1`;
+- no tests/scripts/settings/SQLite DB/backups/sidecars/logs packaged.
+
+Gate state:
+- Gate 17D implementation is OFF-DEVICE GREEN;
+- PDF historical annotation creation remains disabled;
+- exact blocker is one real PW3 read-only PDF locator probe.
+
+Next physical checkpoint:
+1. install `1.2.0-alpha.1` preserving settings/DB/documents/sidecars;
+2. open an already-local plugin-managed original PDF that already has at least one Reader highlight;
+3. Wi-Fi ON;
+4. run **Readwise Reader → Inspect PDF Reader highlights (Gate 17D)** exactly once;
+5. return the complete result screen.
+
+PASS requires at least one `Unique exact paging matches`, no crash, and both remote/local annotation writes reported none.
+
+
+## 2026-09-25 — Gate 17D alpha.1 physical FAIL explained; alpha.2 locator correction
+
+Physical result reported from `1.2.0-alpha.1` on the target PW3:
+- Reader highlight pages scanned: 11;
+- Reader highlight records scanned: 1088;
+- highlights for this PDF: 2;
+- highlights with text: 2;
+- local PDF probes run: 2;
+- unique exact paging matches: 0;
+- ambiguous: 0;
+- missing: 0;
+- text round-trip differences: 2;
+- other/invalid: 0;
+- remote writes: none;
+- local annotation/sidecar writes: none.
+
+Gate 17D is **NOT PASSED** by alpha.1.
+
+Diagnosis:
+- both samples reached `text_diff`, which means `findAllText()` had already returned exactly one match for each Reader highlight;
+- KOReader v2026.07.1 `KoptInterface.all_matches()` intentionally matches the first query token against the **suffix** of a PDF word and the last token against the **prefix** of a PDF word;
+- KOReader explicitly notes that paging search returns a **full word box even if only a substring matched**;
+- the alpha.1 probe incorrectly treated the independently reconstructed `getTextFromPositions()` string as the identity proof;
+- the photographed samples visibly begin with partial-word-looking boundaries (for example `…hecimento…` / `…ergunta…`), consistent with this KOPT behavior.
+
+Alpha.2 correction:
+- native first/last word-box centers are still derived from the unique search result;
+- `text_wrap=0` is used only temporarily and restored on all paths;
+- `getWordFromPosition()` must map each derived endpoint back to the exact first/last PDF words returned by search;
+- the query/search relation is exact-token or the precise KOReader first-suffix/last-prefix boundary rule only;
+- full-text round-trip is retained as diagnostic and may differ due to complete boundary words, whitespace or line-hyphen reconstruction;
+- no fuzzy matching, annotation creation, sidecar write, DB link or Reader mutation is enabled.
+
+Build version is advanced to `1.2.0-alpha.2`. Next blocker remains one read-only physical PDF probe.
+
+
+## 2026-09-25 — Gate 17D alpha.2 off-device green; corrected PDF probe ready
+
+Final alpha.2 implementation head: `139f67b38f38e29a767507f614f1ecefa2b83a47`.
+
+The alpha.2 locator now:
+- treats `findAllText()` as the authoritative unique-search result;
+- validates derived native box-center positions by mapping them back through `getWordFromPosition()` to the exact first/last PDF words;
+- classifies exact token sequences as `unique_exact`;
+- classifies only KOReader's explicit first-word-suffix / last-word-prefix behavior as `unique_boundary`;
+- keeps `getTextFromPositions()` full-text reconstruction diagnostic-only;
+- restores `text_wrap` after endpoint or diagnostic exceptions;
+- still performs zero local annotation/sidecar/link writes and zero Reader mutations.
+
+CI workflow `36148802751`: **SUCCESS**.
+- development checks: PASS;
+- complete Lua suite: PASS;
+- installable ZIP: PASS;
+- package-layout verification: PASS;
+- artifact upload: PASS.
+
+Artifact/package:
+- artifact id: `10870269607`;
+- outer artifact digest: `sha256:9cc934a6088ca090d7f98002c01eb2bdcae521d8bb8744c7d04004cb2640a1c5`;
+- installable inner ZIP SHA-256: `b985dd4e5845fac85c6f08c2cad9a717bf626d22e93bcd573764a0f591fbd6cc`;
+- root: exactly `readwisereader.koplugin/`;
+- 82 package entries;
+- packaged version/meta: `1.2.0-alpha.2`;
+- PDF probe/locator files present;
+- no test suite, SQLite DB, migration backup, sidecar or crash-log data packaged. The packaged `ui/settings.lua` is plugin source code, not user settings data.
+
+Next and only blocker:
+- repeat the same read-only Gate 17D probe on the same PDF with alpha.2;
+- PASS requires `Validated paging positions total >= 1`, `Native endpoint geometry mismatches: 0`, no crash, and both write counters none;
+- a non-zero full-text round-trip diagnostic counter is allowed.
+
+
+## 2026-09-25 — Gate 17D locator alpha.2 PHYSICAL PASS
+
+Target PW3 / KOReader v2026.07.1 physical result:
+- Reader highlight pages scanned: 11;
+- Reader highlight records scanned: 1088;
+- highlights for this PDF: 2;
+- highlights with text: 2;
+- local PDF probes run: 2;
+- unique exact paging matches: 0;
+- unique word-boundary paging matches: 2;
+- **validated paging positions total: 2**;
+- ambiguous matches: 0;
+- missing matches: 0;
+- **native endpoint geometry mismatches: 0**;
+- **search-text relation mismatches: 0**;
+- full-text round-trip differences (diagnostic): 1;
+- other/invalid matches: 0;
+- remote writes: none;
+- local annotation/sidecar writes: none.
+
+Interpretation:
+- both Reader highlights resolve to unique KOReader paging search geometry;
+- both use KOReader's documented first-word-suffix / last-word-prefix boundary behavior;
+- native derived positions map back to the exact PDF endpoint words;
+- the remaining full-text round-trip difference is diagnostic-only and was explicitly allowed by the corrected Gate 17D contract.
+
+**Gate 17D read-only PDF locator is PASSED COMPLETE.**
+
+Next gate: Gate 17D-2, create exactly one Reader PDF highlight through KOReader's native annotation path, sidecar-only, prove the PDF file itself remains unchanged, prove sidecar persistence, link the existing Reader child ID durably, and prove the next ordinary Sync does not create a duplicate remote highlight.
+
+
+## 2026-09-25 — Gate 17D-2 one-item PDF import implemented off-device
+
+Build advanced to `1.2.0-alpha.3`.
+
+Implementation:
+- explicit **Import one Reader PDF highlight (Gate 17D)** action;
+- uses the physically-passed paging locator (`unique_exact` / `unique_boundary`);
+- prefers note-bearing unlinked Reader children;
+- imports at most one safe item per action;
+- local annotation text follows the full native PDF words represented by the KOReader search boxes; Reader child ID remains identity;
+- includes page/rotation/zoom/native pos0/pos1/pboxes;
+- detects existing local PDF geometry primarily by native pboxes, so a different current zoom/rotation cannot create a stacked duplicate;
+- temporarily forces `highlight.highlight_write_into_pdf=false` only around `saveHighlight()` / rollback `deleteHighlight()`;
+- restores the user's previous PDF-embedding preference before every `saveSettings()`;
+- computes a full PDF digest before and after sidecar creation; digest mismatch is a hard stop before durable Reader linking and rolls back the sidecar item;
+- sidecar persistence + imported Reader child ID link reuse the already-proven `RemoteHighlightImport:linkPersisted()` contract;
+- link failure rolls back only the just-created local PDF sidecar annotation;
+- action performs zero Reader POST/PATCH/DELETE;
+- normal Sync is **not yet** changed to bulk-import PDF historical highlights.
+
+Additional hardening:
+- remote highlight cache worker now accepts managed PDF documents for the explicit Gate action;
+- paging locator now carries current PDF rotation/zoom context into persisted pos0/pos1 when KOReader exposes it;
+- tests cover sidecar-only save, preference restoration before saveSettings, note preservation, full-word boundary text, PDF digest integrity failure, durable-link failure rollback, already-linked skip, and native-pbox collision across differing zoom state.
+
+Exact blocker: CI/package must pass on the alpha.3 versioned head before one physical one-item import is authorized.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.3 off-device green; one-item PDF import ready
+
+Validated implementation/test head: `8f8230360887998c619176d00a9db9460fdbb939`.
+
+CI workflow `36150715913`: **SUCCESS**.
+- development checks: PASS;
+- complete Lua unit suite: PASS;
+- installable ZIP: PASS;
+- package-layout verification: PASS;
+- artifact upload: PASS.
+
+Artifact/package audit:
+- artifact id: `10871337473`;
+- outer artifact digest: `sha256:0f3ef3899bbd77c650e4861f5561a98fa3d6a3abbdc2e14c45f8c992ab1fb8fd`;
+- installable ZIP SHA-256: `873a30cfc888d617adcdad21eabf6c0b5e9821dc0d03ea053151f3ce9b9e34cb`;
+- root exactly `readwisereader.koplugin/`;
+- 83 entries;
+- packaged version/meta: `1.2.0-alpha.3`;
+- required PDF locator/import/cache-worker files present;
+- no tests/scripts/.github/dist, SQLite DB/backups, sidecars or crash logs packaged.
+
+Gate 17D-2 is now blocked only on physical one-item proof.
+
+Exact next device sequence:
+1. install `1.2.0-alpha.3` preserving DB/settings/documents/sidecars;
+2. open the same managed PDF whose alpha.2 locator passed;
+3. run **Import one Reader PDF highlight (Gate 17D)** exactly once;
+4. require imported=1, PDF digest unchanged=yes, embed preference restored=yes, Reader writes none;
+5. close/reopen the PDF before ordinary Sync and verify the imported highlight remains visible; if it carried a Reader note, verify the note;
+6. do not run the explicit PDF import action a second time before reporting this persistence result.
+
+Only after 17D-2 persistence passes may ordinary Sync be used to prove outbound dedupe and then bulk PDF integration be implemented.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.3 physical preflight FAIL; alpha.4 fix
+
+Physical alpha.3 result:
+- user selected the explicit PDF import action;
+- UI displayed: `Reader highlight import currently supports EPUB/HTML only.`;
+- the action stopped during preflight before PDF digesting, local annotation creation, sidecar write, durable link or any Reader mutation.
+
+Root cause:
+- `ui/pdf_highlight_import.lua` correctly allowed a paging PDF;
+- `sync/remote_highlight_import_worker.lua` had already been widened to EPUB/HTML/PDF;
+- but the shared durable importer `sync/remote_highlight_import.lua:getDocument()` still rejected every format except EPUB/HTML;
+- the alpha.3 PDF UI test used a mocked importer whose `getDocument()` already returned a PDF, so that cross-module regression was not covered.
+
+Fix:
+- shared `Import:getDocument()` now accepts managed local `epub`, `html` and `pdf`;
+- unsupported formats remain rejected;
+- added direct real-importer regression coverage proving PDF acceptance and unsupported-format rejection;
+- no sidecar-only, digest-integrity, note, rollback, remote-link or no-Reader-write invariant was relaxed.
+
+Build advanced to `1.2.0-alpha.4`.
+
+Next physical checkpoint remains the same one-item Gate 17D-2 sequence, but **do not retest alpha.3**.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.4 preflight hotfix off-device green
+
+Final alpha.4 handoff head before this STATUS-only record: `13eb9d30555bd6cb86772c2f06137fa5924ded9f`.
+
+Regression fixed:
+- shared `RemoteHighlightImport:getDocument()` now accepts managed local `pdf` in addition to `epub/html`;
+- unsupported formats remain rejected;
+- a direct non-mocked regression test covers PDF acceptance so this cannot be hidden by the PDF UI mock again.
+
+CI:
+- push workflow `36151804852`: **SUCCESS** on the alpha.4 handoff head;
+- implementation fix/test workflows also passed on `dca1fba3...` / `c3e66470...`;
+- full development checks, Lua suite, package build/layout and artifact upload passed.
+
+Artifact/package:
+- artifact id: `10871219502`;
+- outer artifact digest: `sha256:7e642a33e200988a9df9b99928ba3e1d08e44220b633be71ece9c0cc1dbabf3b`;
+- installable ZIP SHA-256: `461d9f87872e24375153561aed692019e79e5ae94569c68125a18c92a15ec747`;
+- root exactly `readwisereader.koplugin/`;
+- 83 entries;
+- packaged version/meta: `1.2.0-alpha.4`;
+- packaged shared importer explicitly contains the PDF allow-path;
+- no tests/scripts/.github/dist, SQLite DB/backups, sidecars or crash logs packaged.
+
+Physical blocker remains unchanged: run the explicit one-item PDF import once, then close/reopen before ordinary Sync.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.4 physical durable-link FAIL; alpha.5 fix
+
+Physical alpha.4 result:
+- explicit one-item PDF import passed the PDF format preflight;
+- local sidecar annotation creation proceeded;
+- PDF integrity guard did not report a changed PDF;
+- durable Reader/PDF identity linking failed;
+- UI reported: `The Reader/PDF identity link could not be persisted; the local sidecar item was rolled back.`;
+- rollback succeeded, so no unlinked local annotation was left behind and no Reader mutation occurred.
+
+The alpha.4 UI accidentally discarded the specific second return from `linkPersisted()`, so the exact failing substage was hidden.
+
+Hardening/fix in alpha.5:
+- KOReader annotation normalization now exposes PDF `pboxes` without changing the existing deterministic ID formula;
+- `linkPersisted()` still requires the normal exact local annotation ID first;
+- if and only if that lookup fails for a PDF, it may recover the persisted sidecar item by requiring **exactly one** candidate with:
+  - same page;
+  - exact native pbox sequence/geometry;
+  - exact normalized text hash;
+  - exact normalized note hash;
+- this fallback handles PDF sidecar serialization differences in native pos0/pos1 context without changing old PDF annotation IDs and without fuzzy matching;
+- multiple matching sidecar candidates fail closed as `sidecar_ambiguous`;
+- no matching persisted candidate fails as `sidecar_lookup`;
+- DB link failures remain a separate `db` stage;
+- PDF UI now propagates the specific `linkPersisted()` error message before rolling back the just-created local item.
+
+Regression coverage added:
+- adapter exposes PDF pboxes;
+- in-memory PDF ID differing from persisted sidecar ID is linked through unique exact pbox/text/note evidence;
+- ambiguous duplicate geometry never links;
+- existing EPUB exact-ID behavior remains the primary path.
+
+Build advanced to `1.2.0-alpha.5`.
+
+Next device test remains one explicit PDF import once, then close/reopen before ordinary Sync.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.5 off-device green; persisted-sidecar fallback ready
+
+Final alpha.5 CI/package head before this STATUS-only record: `fff07a19fac47044ec778e965f28f8ccdbf2f1a6`.
+
+CI workflow `36154942769`: **SUCCESS**.
+- development checks: PASS;
+- complete Lua suite: PASS;
+- installable ZIP build: PASS;
+- package-layout verification: PASS;
+- artifact upload: PASS.
+
+Artifact/package audit:
+- artifact id: `10872654507`;
+- outer artifact digest: `sha256:36b1f01dee3ea0d65a36693305a288e56d9fe4b9e2cec24459d5af893ae32de4`;
+- installable ZIP SHA-256: `c817fd5dff0a4cce44b6759f6686824cc25ddd680cde18aa646943ae2ca6767d`;
+- root exactly `readwisereader.koplugin/`;
+- packaged version: `1.2.0-alpha.5`;
+- shared importer includes PDF allow-path plus exact pbox/text/note persisted-sidecar fallback;
+- no tests/scripts/.github/dist, SQLite DB/backups, sidecars or crash logs packaged.
+
+Physical blocker:
+1. install alpha.5;
+2. same managed PDF;
+3. run explicit PDF import exactly once;
+4. if success, close/reopen before Sync and verify highlight/note;
+5. if failure, report the complete message: alpha.5 now preserves the exact sidecar/DB failure stage.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.5 physical sidecar_lookup FAIL; alpha.6 current-sidecar fix
+
+Physical alpha.5 result:
+- PDF preflight passed;
+- local sidecar item was created;
+- PDF integrity/no-embed guards passed far enough to attempt durable linking;
+- specific failure surfaced correctly as:
+  `Created PDF highlight was not found uniquely in the persisted sidecar.`;
+- rollback succeeded and the just-created local item was removed;
+- no Reader mutation occurred.
+
+Diagnosis after KOReader v2026.07.1 source audit:
+- `ReaderUI:saveSettings()` is synchronous: it dispatches `SaveSettings`, writes `annotations`, calls `DocSettings.saveSettingsArcFile(...)`, then `doc_settings:flush()`;
+- `DocSettings:flush()` backs up the existing sidecar to `metadata.*.lua.old` before writing the current sidecar;
+- the generic `DocSettings:open()` intentionally considers both current and `.old` candidates and orders candidates by recency for recovery;
+- that recovery behavior is valid generally but unsafe as proof of a **just-flushed** PDF annotation, because an immediate verification may select the previous backup that necessarily lacks the new item.
+
+Alpha.6 fix:
+- annotation adapter gains `scanFlushed(local_path, reader_document_id)`;
+- it resolves only the current non-legacy sidecar via `DocSettings:findSidecarFile(local_path, true)`;
+- it opens that exact current file with `DocSettings.openSettingsFile(sidecar_file)`;
+- it normalizes the same `annotations` setting using the existing canonical adapter logic;
+- PDF `linkPersisted()` now uses `scanFlushed()`; EPUB/HTML keep the established generic scan path;
+- exact deterministic ID remains the first lookup;
+- PDF exact pbox/page/text/note fallback remains second;
+- no identity, collision, digest, rollback or no-Reader-write rule is relaxed.
+
+Regression coverage:
+- fixture where generic `DocSettings.open()` returns a stale `.old` sidecar with no new annotation;
+- `scanFlushed()` must ignore that path, locate/open the current metadata file directly, and see the new PDF highlight;
+- PDF importer tests fail if the generic scan is used for post-save verification.
+
+Build advanced to `1.2.0-alpha.6`.
+
+Next physical checkpoint remains one explicit PDF import once, followed by close/reopen before ordinary Sync.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.6 off-device green; current-sidecar verification ready
+
+Final alpha.6 package head before this STATUS-only record: `969c45b9f9b6d35fd853ae9b2c6b5c055e6290fa`.
+
+CI workflow `36156449788`: **SUCCESS**.
+- development checks: PASS;
+- complete Lua suite: PASS;
+- installable ZIP build: PASS;
+- package-layout verification: PASS;
+- artifact upload: PASS.
+
+Artifact/package audit:
+- artifact id: `10873443327`;
+- outer artifact digest: `sha256:e5ad74f79927eeb5c56a67f41adb69dd1a416dde2c9c8ad2322b0cf98402e000`;
+- installable ZIP SHA-256: `a74c8eecf24b804600286674e521d613e00a2317dadf9367d51ce9a760e0eb1f`;
+- root exactly `readwisereader.koplugin/`;
+- packaged version/meta: `1.2.0-alpha.6`;
+- packaged adapter contains `scanFlushed()`, `findSidecarFile()`, and `openSettingsFile()`;
+- PDF durable import path explicitly selects `scanFlushed()`;
+- no tests/scripts/.github/dist, SQLite DB/backups, sidecars or crash logs packaged.
+
+Physical blocker:
+1. install alpha.6;
+2. same managed PDF;
+3. run explicit PDF import exactly once;
+4. if success, close/reopen before Sync and verify highlight/note;
+5. if failure, report the complete specific message.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.6 physical sidecar_lookup FAIL; alpha.7 native-paging identity fix
+
+Physical alpha.6 result:
+- explicit PDF import again reached post-save durable-link verification;
+- failure remained:
+  `Created PDF highlight was not found uniquely in the persisted sidecar. The local sidecar item was rolled back.`;
+- rollback succeeded;
+- no Reader mutation occurred;
+- therefore the .old/current-sidecar selection fix alone was insufficient.
+
+KOReader v2026.07.1 source audit established the missing contract:
+- `ReaderAnnotation:getMatchFunc()` defines paging annotation matching by:
+  - datetime equality when both items carry datetime;
+  - same page;
+  - same pos0.x/y;
+  - same pos1.x/y;
+- KOReader does **not** use pboxes/text/note as its paging annotation identity matcher;
+- pboxes are rendering geometry and may differ/normalize independently.
+
+Alpha.7 correction:
+- deterministic local annotation ID remains the first persisted lookup;
+- PDF-only fallback now mirrors KOReader native paging identity exactly:
+  - datetime when present on both;
+  - page;
+  - pos0.x/y;
+  - pos1.x/y;
+- exactly one persisted candidate is required;
+- after a positional match, exact normalized text hash + note hash are still required before binding the Reader child ID;
+- no fuzzy text, pbox tolerance or approximate coordinate matching is introduced;
+- current-sidecar-only `scanFlushed()` from alpha.6 remains in force;
+- sidecar diagnostics now expose:
+  - raw annotation count;
+  - normalized annotation count;
+  - malformed/normalization-exception count;
+  - scanned/same-page/same-datetime/same-pos0/same-pos1 counts.
+
+Regression coverage:
+- persisted PDF item may have different pboxes/rotation/zoom context but same KOReader native paging identity and still link safely;
+- multiple native paging matches fail closed;
+- missing pos0/pos1 match reports exact stage counters;
+- generic sidecar scan remains forbidden for PDF post-save verification.
+
+Implementation/diagnostic head `2fb9e274a2342434c3a485a4a99bea30ad4fa315` workflow `36157868966`: **SUCCESS**.
+
+Build advanced to `1.2.0-alpha.7`.
+
+Next physical checkpoint remains one explicit PDF import once, then close/reopen before ordinary Sync. If lookup still fails, the new error counters identify the exact divergent field.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.7 off-device green; KOReader-native PDF identity handoff ready
+
+Final alpha.7 package head before this STATUS-only record: `115fa779bbd785da9b2d859413117416a83fbe04`.
+
+CI workflow `36158082771`: **SUCCESS**.
+- development checks: PASS;
+- complete Lua suite: PASS;
+- installable ZIP build: PASS;
+- package-layout verification: PASS;
+- artifact upload: PASS.
+
+Artifact/package audit:
+- artifact id: `10874166672`;
+- outer artifact digest: `sha256:c53434aeb116ab530239ffebd2535d1276059b43ad72204879926d27f5028fc7`;
+- installable ZIP SHA-256: `0e0fe02e45125be05f095068796883af76e70fb85bb705a43b2357afd2cfadfb`;
+- root exactly `readwisereader.koplugin/`;
+- 75 packaged files;
+- packaged version/meta: `1.2.0-alpha.7`;
+- packaged shared importer contains `pdfNativeMatch()`, `samePagingPos()`, staged sidecar counters and exact text/note post-match validation;
+- packaged annotation adapter reports raw normalization counts;
+- no tests/scripts/.github/dist, SQLite DB/backups, sidecars or crash logs packaged.
+
+Physical blocker:
+1. install alpha.7;
+2. use the same managed PDF;
+3. run explicit PDF import exactly once;
+4. if success, close/reopen before ordinary Sync and verify highlight/note;
+5. if failure, report the full structural counter message. No further blind matcher changes should be made without those counters.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.7 physical precision mismatch; alpha.8 persistence fix
+
+Physical alpha.7 result:
+- current sidecar contained exactly one raw annotation;
+- normalization succeeded: `raw=1, normalized=1, malformed=0, normalize_exceptions=0`;
+- exactly one candidate scanned;
+- same page: 1;
+- same datetime: 1;
+- same pos0: 0;
+- same pos1: 0;
+- local item was rolled back successfully;
+- no Reader mutation occurred.
+
+This isolates the item as the newly-created annotation itself: sidecar presence, page and timestamp all agree; only the numeric endpoint coordinates differ.
+
+KOReader v2026.07.1 persistence audit:
+- `ReaderHighlight:saveHighlight()` copies `selected_text.pos0/pos1` directly;
+- `ReaderAnnotation:addItem()` only adds datetime/pageno/pageref and does not change endpoints;
+- `AnnotationsModified` handlers do not change endpoints;
+- `SaveSettings` annotation path does not change endpoints;
+- KOReader `dump.lua` serializes Lua numbers with `tostring(number)`;
+- the plugin annotation identity canonicalizer uses `string.format("%.17g", value)`.
+
+Therefore an engine float with more precision than KOReader's textual sidecar representation can have:
+- one binary value in memory before save;
+- a shorter decimal representation written by KOReader;
+- a slightly different binary value after `dofile` reload;
+- different deterministic 17-digit locator identity and failed exact x/y comparison,
+while still being the same annotation.
+
+Alpha.8 fix:
+- every generated PDF paging `page/rotation/zoom/x/y` value in pos0/pos1 is converted through `tonumber(tostring(value))` before native endpoint validation and before `saveHighlight()`;
+- this is not tolerance/fuzzy matching: it pre-applies KOReader's exact on-disk numeric round-trip;
+- persisted sidecar values should therefore reload bit-equivalent to the in-memory values used for deterministic identity;
+- pboxes remain rendering geometry and are not promoted to identity;
+- alpha.7 native paging fallback + structural diagnostics remain as secondary safety.
+
+Rollback hardening:
+- capture the created annotation table immediately after `saveHighlight()`;
+- use that object reference for durable linking;
+- on failure, re-find its current list index by table identity before deletion;
+- verify the exact target reference is absent before/after sidecar save;
+- prevents a shifted index from deleting a neighboring annotation or falsely reporting rollback success.
+
+Implementation/test head `b1ae635447bb553f7da3a9e5ffb99083ebe555cf` workflow `36160586054`: **SUCCESS**.
+
+Build advanced to `1.2.0-alpha.8`.
+
+Next physical checkpoint: one explicit PDF import once, then close/reopen before ordinary Sync. If lookup still fails, retain and report the alpha.7 structural counter message.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.8 off-device green; persisted-number fix ready
+
+Final alpha.8 package head before this STATUS-only record: `36022dc22d63a7c43d99c42f06907e750908d217`.
+
+CI workflow `36160817481`: **SUCCESS**.
+- development checks: PASS;
+- complete Lua suite: PASS;
+- installable ZIP build: PASS;
+- package-layout verification: PASS;
+- artifact upload: PASS.
+
+Artifact/package audit:
+- artifact id: `10875328920`;
+- outer artifact digest: `sha256:896d4bed987a10216d8cf8298a9b61cb45000b7bd681d49958597f8680ca2c54`;
+- installable ZIP SHA-256: `74b908d7d9e27ef98ea07228295e47eaf842ed259d2e6390ce4ef2911d03da09`;
+- root exactly `readwisereader.koplugin/`;
+- 83 entries;
+- packaged version/meta: `1.2.0-alpha.8`;
+- packaged paging locator contains persisted-number normalization via `tonumber(tostring(value))`;
+- packaged PDF import UI captures the created annotation reference immediately and rollback re-resolves its current index;
+- alpha.7 structural sidecar diagnostics remain packaged;
+- no tests/scripts/.github/dist, SQLite DB/backups, sidecars or crash logs packaged.
+
+Physical blocker:
+1. install alpha.8;
+2. same managed PDF;
+3. run explicit PDF import exactly once;
+4. if success, close/reopen before ordinary Sync and verify highlight/note;
+5. if failure, report the complete structural counter message.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.8 physical one-item import PASS; reopen persistence next
+
+Target PW3 physical result on `1.2.0-alpha.8`:
+- Reader highlights for this PDF: 2;
+- already-linked Reader highlights skipped: 0;
+- local position collisions skipped: 0;
+- ambiguous locators skipped: 0;
+- missing locators skipped: 0;
+- invalid locators skipped: 0;
+- **imported local PDF highlights: 1**;
+- imported Reader note: no;
+- locator class: `unique_boundary`;
+- **PDF file digest unchanged: yes**;
+- **PDF embed preference restored: yes**;
+- **Reader writes from import: none**;
+- UI confirmed: one PDF highlight was saved to the KOReader sidecar and linked to its existing Reader child ID.
+
+This proves on the target device:
+- alpha.8 persisted-number normalization fixed the prior durable-link failure;
+- one Reader PDF child can be created locally through KOReader's native paging annotation path;
+- the original PDF bytes remain unchanged;
+- the user's PDF-embedding preference is restored;
+- the existing Reader child ID is linked durably with zero Reader mutation from the import action.
+
+Gate 17D-2 is not yet fully closed because sidecar survival across a real document reopen has not yet been reported.
+
+Next and only physical checkpoint:
+1. do **not** run the explicit PDF import action again;
+2. do **not** run ordinary Sync yet;
+3. close the same PDF and reopen it normally;
+4. verify that the imported highlight is still visible;
+5. no note check is required for this imported item because the selected Reader highlight had no note;
+6. report only whether the highlight survived the reopen.
+
+If reopen persistence passes, the next gate is one ordinary Sync to prove the linked PDF annotation does not create a duplicate Reader child.
+
+
+## 2026-09-25 — Gate 17D-2 alpha.8 reopen persistence PASS; outbound dedupe next
+
+Target PW3 physical follow-up on `1.2.0-alpha.8`:
+- the Reader-origin PDF highlight imported in the previous checkpoint remained visible after closing and reopening the same PDF normally;
+- no second explicit PDF import was run;
+- ordinary Sync had not yet been run at the time of this checkpoint.
+
+Conclusion:
+- Gate 17D-2 sidecar persistence across a real document reopen is **PASS**;
+- the imported annotation is not merely an in-memory artifact;
+- the durable Reader-child link and unchanged-PDF safeguards from the prior checkpoint remain the basis for outbound dedupe.
+
+Per IMPLEMENTATION_SPEC 50.4, PDF historical import still must **not** be integrated into ordinary Sync until outbound dedupe is proved physically.
+
+Next and only physical checkpoint:
+1. with the same PDF/highlight state, run ordinary **Sync now** once;
+2. verify in Reader that the already-existing remote highlight was not duplicated;
+3. verify the local imported highlight is still present;
+4. if Sync reports an error, record the exact message;
+5. do not run the explicit PDF import action again.
+
+If this passes, Gate 17D-2 has the required one-item persistence + file-unchanged + outbound-dedupe evidence and off-device work may proceed to normal-Sync PDF import integration.
+
+
+## 2026-09-25 — Gate 17D-2 outbound dedupe PASS; Gate 17D-3 alpha.9 implemented
+
+Target PW3 follow-up supplied by the user:
+- before ordinary Sync, exactly one Reader-origin highlight was visible locally in this PDF; this is expected because Gate 17D-2 intentionally imported exactly one item even though the Reader parent had two highlight children;
+- ordinary `Sync now` completed successfully;
+- the imported local PDF highlight remained present;
+- no Reader duplicate was created.
+
+Conclusion: **Gate 17D-2 is PASS COMPLETE**. Required evidence now covers native locator, sidecar-only creation, unchanged PDF bytes, restored embed preference, durable child-ID link, close/reopen persistence and outbound dedupe.
+
+Gate 17D-3 implementation is now on the branch as `1.2.0-alpha.9`:
+- ordinary pre-Sync reconciliation dispatches the currently-open managed original PDF to the paging importer;
+- PDF remains bounded to one new local annotation and ten locator attempts per Sync;
+- deferred work uses a durable per-document rotation cursor;
+- already-linked children are skipped;
+- exact native-position collisions with compatible notes may durably link the existing local sidecar item;
+- collision-note conflicts suppress the specific local outbound create;
+- unresolved or deferred unlinked Reader children suppress all current-PDF outbound creates for that run;
+- alpha.8 sidecar-only/digest/persisted-number/durable-link/rollback invariants remain in force;
+- EPUB/HTML continue using the established rolling reconciler.
+
+Regression coverage added for normal-Sync PDF import, one-item defer/suppression, already-linked continuation, exact collision linking and ambiguous-locator fail-closed behavior.
+
+CI evidence:
+- code/test head `d0215f4aeb4eb0019fac7c58eb36b25ee98ff424` passed PR workflow run `36166014362`;
+- final docs/status head still requires its own green package run before installation handoff.
+
+Next:
+1. wait for the final branch-head workflow;
+2. audit the packaged alpha.9 ZIP/version/layout;
+3. give the user one consolidated physical acceptance only: normal Sync imports the remaining safe Reader PDF child, close/reopen preserves both, and one unchanged Sync proves idempotence/no duplicates.
+
+
+## 2026-09-25 — Gate 17D-3 alpha.9 physical acceptance PASS; v1.2.0 release closeout
+
+Target PW3 consolidated alpha.9 acceptance supplied by the user: **PASS**.
+
+Observed:
+- ordinary `Sync now` imported the remaining safe Reader PDF highlight into the same managed PDF through the normal pre-Sync path;
+- the PDF therefore reached the expected two local Reader-origin highlights;
+- both highlights survived close/reopen;
+- a second unchanged ordinary Sync created no additional local highlight;
+- Reader remained free of duplicate highlight children.
+
+Conclusion:
+- **Gate 17D-3 PASS COMPLETE**;
+- Phase U / PDF historical Reader → KOReader import is physically accepted on the target PW3 / KOReader v2026.07.1;
+- the accepted runtime behavior is exactly alpha.9; no further feature/runtime change is required for v1.2.0.
+
+Release closeout policy:
+1. promote version metadata only from `1.2.0-alpha.9` to `1.2.0`;
+2. update canonical docs/README/changelog;
+3. run the complete CI/package pipeline on the stable-version branch head;
+4. audit the installable ZIP;
+5. mark PR #22 ready and merge only after green CI;
+6. do not add new runtime behavior between the accepted alpha.9 code and stable v1.2.0.
+
+
+## 2026-09-25 — v1.2.0 stable candidate off-device green and package audited
+
+Stable-version candidate head before this STATUS-only record: `63ba2a1678c6b6b743c608360fa87fd95db71f28`.
+
+The accepted alpha.9 runtime was not changed after physical acceptance. Compare from accepted alpha.9 package head `8e89397a1ef78fac15a4e930a2c633acda60b7c1` to the stable candidate shows only:
+- canonical documentation;
+- README/changelog release text;
+- `constants.lua` version string `1.2.0-alpha.9 → 1.2.0`;
+- `_meta.lua` release description.
+
+No runtime sync/import algorithm changed.
+
+CI/package:
+- workflow `36169298843`: **SUCCESS**;
+- complete development checks/Lua suite/package/layout/artifact pipeline passed;
+- artifact id: `10879547066`;
+- outer artifact digest: `sha256:7fce1dbcee405c80bb776f6245932b7ebbc70901d0ec85d1b1b891d2b985b20a`;
+- installable ZIP SHA-256: `3e99e240541ab96049b54836ce412760dea976a1f2dfcbd5de0bb989aaff209f`;
+- installable root exactly `readwisereader.koplugin/`;
+- 75 packaged files;
+- packaged version: `1.2.0`;
+- packaged PDF pre-Sync dispatch and conservative PDF batch constants present;
+- no tests, `.github`, SQLite DB/backups, sidecars or crash logs packaged.
+
+Remaining release plumbing only:
+1. let this STATUS-only head pass CI;
+2. mark PR #22 ready;
+3. merge to `main`;
+4. verify `main` CI/package;
+5. create stable tag `v1.2.0` when a tag-writing mechanism is available.

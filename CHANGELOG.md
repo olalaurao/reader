@@ -32,6 +32,30 @@ All notable project changes are recorded here.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-25
+
+### Added
+
+- Stable Reader → KOReader historical highlight/note import for the currently-open managed original PDF. Normal Sync performs conservative paging reconciliation before outbound annotation creates, preserves sidecar-only PDF integrity, durably links existing Reader child IDs, and fails closed on ambiguous/deferred cases rather than risking duplicates.
+
+### Development history
+
+- `1.2.0-alpha.9` integrates the physically-proven Reader → KOReader PDF importer into ordinary pre-Sync reconciliation for the currently-open managed original PDF. PDF remains conservative on PW3: at most one new local PDF annotation and ten native locator attempts per Sync, with a durable rotation cursor for deferred work. Already-linked children are skipped; exact native-position collisions with compatible notes may link to the existing sidecar item; unresolved or deferred Reader children hold all outbound creates for that PDF for the run rather than risk duplicates. The alpha.8 sidecar-only save, restored embedding preference, unchanged-PDF digest, persisted-number identity, durable-link verification and reference-safe rollback contracts remain unchanged.
+
+- Experimental `1.2.0-alpha.8` fixes the remaining Gate 17D-2 PDF identity mismatch exposed by alpha.7 diagnostics (`raw=1`, same page/datetime, but both endpoint positions different). KOReader sidecars serialize numbers with Lua `tostring()`, while the plugin's deterministic annotation canonicalizer preserves up to 17 significant digits. Generated PDF `page/rotation/zoom/x/y` positions are now normalized through the same `tonumber(tostring(value))` round-trip *before* `saveHighlight()`, so the in-memory annotation and reloaded sidecar share the same numeric values. Rollback now tracks the created annotation by table reference and re-resolves its current index before deletion, then verifies it actually left the annotation list.
+
+- Experimental `1.2.0-alpha.7` fixes the remaining Gate 17D-2 `sidecar_lookup` mismatch by using KOReader's own paging annotation match contract for persisted PDF lookup: datetime when present, page, pos0.x/y and pos1.x/y. Deterministic local ID remains first; the native paging match is a unique-only fallback. Exact text/note hashes are still required after the positional match. Sidecar lookup failures now report raw/normalized/malformed counts plus same-page/datetime/endpoint counts so any remaining mismatch is directly observable.
+
+- Experimental `1.2.0-alpha.6` fixes the Gate 17D-2 physical `sidecar_lookup` failure. Immediately after `ReaderUI:saveSettings()`, PDF import verification now resolves the current sidecar with `DocSettings:findSidecarFile()` and opens that exact file via `openSettingsFile()` instead of the generic `DocSettings:open()` path, which intentionally considers `.old` recovery candidates. The exact-ID lookup plus exact pbox/text/note fallback is unchanged; only the freshly-flushed file source is made authoritative for the just-created PDF annotation.
+
+- Experimental `1.2.0-alpha.5` fixes the Gate 17D-2 physical durable-link failure. PDF annotation normalization now exposes native `pboxes`; persisted-sidecar verification still tries the deterministic local ID first, then for PDF only accepts exactly one same-page + exact-pboxes + exact text/note-hash candidate if serialization changed the local ID. Multiple candidates fail closed. The PDF UI now preserves the specific link failure stage instead of collapsing every failure into a generic message.
+
+- Experimental `1.2.0-alpha.4` fixes the Gate 17D-2 preflight regression where the shared durable-link importer still rejected `pdf` even though the PDF UI and cache worker already supported it. The shared importer now accepts managed `epub`/`html`/`pdf` and still rejects unsupported formats. A direct regression test covers real `Import:getDocument()` PDF acceptance so the PDF UI can no longer pass only through mocks.
+
+- Experimental `1.2.0-alpha.3` Gate 17D-2 adds an explicit one-item PDF import. It forces KOReader PDF embedding off only during save/delete, restores the user's setting before sidecar persistence, verifies the PDF byte digest is unchanged, preserves Reader notes, uses native pboxes for collision detection, verifies the saved sidecar through the existing durable imported-link path, and rolls the local item back on integrity/link failure. Ordinary Sync integration remains disabled until physical persistence/dedupe proof.
+
+- Experimental `1.2.0-alpha.2` fixes the Gate 17D PDF probe after the target PW3 returned 0 exact matches but 2 text round-trip differences: KOReader's paging search intentionally permits first-word suffix / last-word prefix matches while returning full PDF word boxes. The probe now validates native endpoint words and reports exact vs whole-word boundary-expanded positions separately, keeping full-text reconstruction diagnostic-only. It remains read-only.\n- Experimental `1.2.0-alpha.1` Gate 17D adds a read-only Reader → KOReader PDF/paging locator probe. It uses KOReader's native PDF `findAllText()` result page/word boxes, reconstructs native page positions, round-trips through `getTextFromPositions()` with text-wrap temporarily disabled/restored, and accepts only one exact result. It performs no annotation/sidecar or Reader mutation.
+
 ## [1.1.0] - 2026-09-25
 
 ### Added

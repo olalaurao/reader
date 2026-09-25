@@ -9,6 +9,8 @@ local FinishedDiagnosticsUI = require("ui/finished_diagnostics")
 local ContentRefreshDiagnosticsUI = require("ui/content_refresh_diagnostics")
 local ContentRefreshProbeWorker = require("sync/content_refresh_probe_worker")
 local RemoteHighlightDiagnosticsUI = require("ui/remote_highlight_diagnostics")
+local PdfHighlightDiagnosticsUI = require("ui/pdf_highlight_diagnostics")
+local PdfHighlightImportUI = require("ui/pdf_highlight_import")
 local RemoteHighlightImportUI = require("ui/remote_highlight_import")
 local RemoteHighlightImport = require("sync/remote_highlight_import")
 local ApiInteropUI = require("ui/api_interop")
@@ -127,6 +129,14 @@ function ReadwiseReader:init()
             return self.ui and self.ui.document and self.ui.document.file or nil
         end,
         remote_highlight_import = function(path)
+            local reader_ui = self.ui
+            local is_open_pdf = reader_ui
+                and reader_ui.paging
+                and reader_ui.document
+                and reader_ui.document.is_pdf == true
+            if is_open_pdf and self.pdf_highlight_import_ui then
+                return self.pdf_highlight_import_ui:prepareForSync(path)
+            end
             if not self.remote_highlight_import_ui then
                 return {
                     status = "skipped",
@@ -190,12 +200,32 @@ function ReadwiseReader:init()
             return self.ui
         end,
     }
+    self.pdf_highlight_diagnostics_ui = PdfHighlightDiagnosticsUI:new{
+        config = self.config,
+        get_current_path = function()
+            return self.ui and self.ui.document and self.ui.document.file or nil
+        end,
+        get_reader_ui = function()
+            return self.ui
+        end,
+    }
     self.remote_highlight_importer = RemoteHighlightImport:new{
         documents = self.documents_repository,
         annotations = self.annotations_repository,
         adapter = self.koreader_annotations,
     }
     self.remote_highlight_import_ui = RemoteHighlightImportUI:new{
+        config = self.config,
+        importer = self.remote_highlight_importer,
+        sync_meta = self.sync_meta,
+        get_current_path = function()
+            return self.ui and self.ui.document and self.ui.document.file or nil
+        end,
+        get_reader_ui = function()
+            return self.ui
+        end,
+    }
+    self.pdf_highlight_import_ui = PdfHighlightImportUI:new{
         config = self.config,
         importer = self.remote_highlight_importer,
         sync_meta = self.sync_meta,
@@ -243,6 +273,8 @@ function ReadwiseReader:addToMainMenu(menu_items)
             self.finished_diagnostics_ui:getMenuItem(),
             self.content_refresh_diagnostics_ui:getMenuItem(),
             self.remote_highlight_diagnostics_ui:getMenuItem(),
+            self.pdf_highlight_diagnostics_ui:getMenuItem(),
+            self.pdf_highlight_import_ui:getMenuItem(),
             self.remote_highlight_import_ui:getMenuItem(),
             self.settings_ui:getSettingsMenu(),
         },

@@ -3244,3 +3244,179 @@ A library-wide bulk migration is a separate future feature and must preserve the
 ### 49.12 Next gate
 
 Gate 17D is the next canonical implementation gate after the v1.1.0 stable tag: validate PDF/paging locator behavior experimentally on the target KOReader/PW3 before implementing any historical Reader → KOReader PDF annotation creation.
+
+
+# 50. Phase U — Gate 17D PDF/paging historical-highlight locator
+
+## 50.1 Why PDF is separately gated
+
+KOReader v2026.07.1 uses different position models:
+- rolling EPUB/HTML search returns XPointer start/end positions;
+- paging PDF `findAllText()` returns a page number plus native word boxes;
+- PDF highlight persistence uses `pos0/pos1` page coordinates plus `pboxes`.
+
+Therefore no Reader DOM offset and no EPUB XPointer behavior may be reused as a PDF locator.
+
+## 50.2 Gate 17D read-only probe contract
+
+Build `1.2.0-alpha.1` must remain read-only.
+
+For the currently-open plugin-managed original PDF:
+1. fetch Reader highlight children by exact parent ID;
+2. test at most three highlights with text;
+3. call the PDF document's native `findAllText(text, false, 0, 3)`;
+4. reject zero results as missing and multiple results as ambiguous;
+5. for one result, require a valid page number, non-empty native word boxes and non-empty `matched_text`;
+6. derive native `pos0/pos1` from interior points of the first/last match boxes;
+7. temporarily force `document.configurable.text_wrap = 0` for endpoint/round-trip inspection, restoring the prior value even on error;
+8. call `getWordFromPosition(pos0)` and `getWordFromPosition(pos1)` and require that those native positions land on the exact first/last PDF words returned by `findAllText()`;
+9. classify the Reader query against `matched_text` using KOReader's own paging-search boundary contract:
+   - `unique_exact`: same word-token sequence after whitespace normalization;
+   - `unique_boundary`: only the first Reader token is a suffix of the first PDF word and/or the last Reader token is a prefix of the last PDF word, with every interior token exact. This reflects KOReader's documented search behavior and full-word boxes; it is not fuzzy matching;
+10. `getTextFromPositions(pos0, pos1)` remains diagnostic-only because KOPT independently reconstructs whitespace, line-end hyphenation and complete boundary words;
+11. report page/position success only; create no KOReader annotation, write no sidecar/DB link, and issue no Reader mutation.
+
+The initial spike intentionally does not guess:
+- multi-page Reader highlights;
+- OCR-only/scanned PDFs;
+- repeated identical text;
+- fuzzy whitespace/punctuation equivalence;
+- PDF annotation creation.
+
+Those outcomes are measured first and only then may later Gate 17D steps be designed.
+
+## 50.3 Gate 17D PASS criteria
+
+On the target PW3 / KOReader v2026.07.1, using an already-local managed original PDF that has at least one existing Reader highlight:
+- Reader highlights for the PDF >= 1;
+- local PDF probes run >= 1;
+- at least one validated paging position: `unique_exact` or `unique_boundary`;
+- native endpoint geometry mismatches = 0 for accepted samples;
+- no crash/freeze;
+- Reader writes: none;
+- local annotation/sidecar writes: none.
+
+Ambiguous/missing/search-text-different samples are safe skips. A full-text round-trip difference by itself is diagnostic and does not invalidate a position whose unique search result and native endpoint words agree.
+
+Physical `1.2.0-alpha.1` result: 2 Reader highlights for the PDF, 2 unique searches, 0 ambiguous/missing/invalid, but both were reported as `text_diff` because the original probe incorrectly required literal full-text reconstruction. KOReader source inspection showed that paging search intentionally permits a first-word suffix and last-word prefix while returning full word boxes. Build `1.2.0-alpha.2` corrects the proof without enabling writes.
+
+No PDF historical annotation creation is authorized until the alpha.2 physical position evidence is recorded.
+
+
+## 50.4 Gate 17D-2 — one-item PDF import contract
+
+Gate 17D locator is physically passed. The next step may create exactly one local PDF annotation, but must preserve these invariants:
+
+1. only the currently-open plugin-managed original PDF is eligible;
+2. choose one Reader child ID that is not already durably linked, preferring a note-bearing highlight;
+3. require the passed paging locator result (`unique_exact` or `unique_boundary`);
+4. use the locator's page, native pos0/pos1 and pboxes;
+5. for `unique_boundary`, the local KOReader annotation text reflects the full PDF words covered by the native boxes; Reader child ID remains the remote identity;
+6. immediately before `ReaderHighlight:saveHighlight()`, temporarily set the in-memory `highlight_write_into_pdf=false`;
+7. restore the user's previous `highlight_write_into_pdf` value immediately after the save call, even if it throws;
+8. only after restoration call `ReaderUI:saveSettings()`, so the user's preference is not changed by the plugin;
+9. verify the just-created annotation exists through the authoritative sidecar adapter;
+10. transactionally link the existing Reader child ID using the same imported-link contract as rolling documents;
+11. if sidecar/linking fails, delete only the just-created local annotation with the same temporary sidecar-only PDF-write guard, restore the user's setting, then save settings again;
+12. the explicit Gate 17D-2 import action performs zero Reader POST/PATCH/DELETE;
+13. capture PDF file size + modification timestamp before/after the local operation and require them unchanged as a device-side guard against accidental embedded-PDF annotation writes;
+14. do not integrate PDF historical import into ordinary Sync until one-item persistence + file-unchanged + outbound-dedupe evidence passes physically.
+
+The first PDF local import may expand partial first/last Reader tokens to the complete PDF words represented by KOReader's returned word boxes. No character-level trimming is invented without character geometry.
+
+
+## 50.5 PDF sidecar identity verification hardening
+
+Gate 17D-2 alpha.4 physically proved local creation + rollback but failed durable linking.
+
+For PDF imports, deterministic local annotation ID remains the first/normal persisted-sidecar lookup. If that exact ID is absent after KOReader serialization, verification must mirror KOReader's own paging `ReaderAnnotation:getMatchFunc()` contract and accept exactly one candidate satisfying:
+- datetime equality when both candidate and created item carry datetime;
+- same page;
+- exact pos0.x/y;
+- exact pos1.x/y.
+
+After that unique native paging identity match, the persisted item must still have the exact normalized text hash and note hash of the just-created item before the Reader child ID may be bound.
+
+This fallback does not redefine remote identity, does not alter legacy PDF local IDs, and does not use fuzzy text, pbox tolerance or approximate coordinates. Zero or multiple candidates fail closed. Only the persisted sidecar item's own normalized local ID may then be written to the durable Reader child link.
+
+
+## 50.6 Freshly-flushed PDF sidecar verification
+
+For the immediate post-`saveSettings()` proof in Gate 17D-2, generic `DocSettings:open(local_path)` is not authoritative enough because KOReader intentionally includes `.old` recovery candidates.
+
+PDF import verification must:
+1. call `DocSettings:findSidecarFile(local_path, true)` to resolve the current non-legacy sidecar file;
+2. open that exact path with `DocSettings.openSettingsFile(sidecar_file)`;
+3. read/normalize its `annotations` table;
+4. apply the normal deterministic-ID lookup, then the PDF-only unique exact page+pboxes+text/note fallback.
+
+The `.old` sidecar may remain available for KOReader recovery but must never satisfy proof that a just-created PDF highlight persisted.
+
+
+## 50.7 PDF paging identity diagnostics
+
+If immediate PDF persisted lookup fails after a successful sidecar flush, the error must report only structural counts (never highlight text/note content):
+- raw annotations present in the sidecar;
+- normalized annotations;
+- malformed/normalization exceptions;
+- same page;
+- same datetime (KOReader semantics: only compare when both non-nil);
+- same pos0.x/y;
+- same pos1.x/y.
+
+These counters are diagnostic only and must not relax matching.
+
+
+## 50.8 KOReader sidecar numeric round-trip
+
+Gate 17D-2 alpha.7 proved that the freshly-persisted PDF annotation can have the same page and datetime as the created item while exact pos0/pos1 comparisons fail.
+
+KOReader's settings serializer writes numbers with Lua `tostring(number)`. The plugin's deterministic annotation identity intentionally canonicalizes numbers with up to 17 significant digits. For plugin-generated PDF positions, identity must not be computed from a higher-precision pre-serialization float that KOReader will immediately shorten on disk.
+
+Before using generated paging positions for PDF annotation creation:
+1. each numeric `page`, `rotation`, `zoom`, `x`, and `y` component of pos0/pos1 must pass through `tonumber(tostring(value))`;
+2. native endpoint-word validation must run on these persisted-form positions;
+3. `saveHighlight()` receives the same persisted-form positions;
+4. no epsilon/tolerance matching is introduced;
+5. existing stored annotation identities are not rewritten.
+
+Rollback must track the created local annotation by object reference, not assume its original numeric list index remains stable.
+
+
+## 50.9 Gate 17D-2 physical closure and Gate 17D-3 normal-Sync integration
+
+Target PW3 evidence for `1.2.0-alpha.8` completed the one-item contract:
+- the imported Reader-origin PDF highlight survived a real close/reopen;
+- ordinary `Sync now` completed without removing it;
+- the existing Reader highlight was not duplicated remotely.
+
+Therefore Gate 17D-2 is **PASS COMPLETE**. The fact that only one local PDF highlight was visible before that Sync is expected: the explicit Gate 17D-2 action was intentionally capped at exactly one local import even when the Reader parent had more children.
+
+Gate 17D-3 may integrate the proven PDF path into normal pre-Sync reconciliation, under these additional constraints:
+
+1. only the currently-open managed original paging PDF is eligible; do not background-open or scan arbitrary PDFs from the library;
+2. dispatch PDF to the paging reconciler before outbound annotation queue processing, while EPUB/HTML keep the existing rolling reconciler;
+3. use the shared historical Reader cache/worker; Reader writes from the import phase remain zero;
+4. create at most `PDF_REMOTE_HIGHLIGHT_IMPORT_MAX_PER_SYNC = 1` new local PDF annotation per Sync while the feature is in alpha;
+5. attempt at most `PDF_REMOTE_HIGHLIGHT_IMPORT_MAX_LOCATOR_ATTEMPTS = 10` native locators per Sync and persist a per-document rotation cursor when work is deferred, preventing a permanently ambiguous early child from starving later children;
+6. already-linked Reader child IDs are skipped;
+7. an exact native-position collision may be linked to the existing local annotation only when its note is compatible; otherwise suppress that specific local outbound create;
+8. if an unlinked Reader child is ambiguous, missing or otherwise lacks a safe native PDF locator, suppress **all outbound creates for the current PDF for that Sync** because Reader text can begin/end mid-word and cannot safely identify a specific local PDF counterpart without geometry;
+9. if work is deferred by the conservative one-create batch limit, also suppress all outbound creates for the current PDF until a later pre-Sync pass has examined the remaining remote children;
+10. any PDF annotation creation still uses the alpha.8 contract: persisted-form numeric positions, temporary `highlight_write_into_pdf=false`, restored preference before `saveSettings`, current-sidecar verification, exact durable Reader-child linking, full PDF digest unchanged check and reference-safe rollback;
+11. cancellation aborts Sync before outbound writes; cache/locator/link failure fails closed for current-PDF outbound creates without invalidating unrelated document synchronization;
+12. when no unresolved/deferred PDF child remains, ordinary outbound annotation sync proceeds normally.
+
+Final physical acceptance for alpha.9 should use the same PDF state: one ordinary Sync should import the remaining safe unlinked Reader child (if present) through the normal Sync path; a second unchanged Sync must import/create nothing and must not duplicate either Reader child. This is one consolidated acceptance, not a sequence of new implementation gates.
+
+
+## 50.10 Gate 17D-3 physical acceptance — PASS COMPLETE
+
+The target PW3 / KOReader v2026.07.1 consolidated alpha.9 acceptance passed:
+1. ordinary Sync imported the remaining safe unlinked Reader PDF child through the normal pre-Sync path;
+2. the previously imported PDF highlight remained intact;
+3. both Reader-origin local PDF highlights survived close/reopen;
+4. a second unchanged Sync imported/created nothing additional;
+5. Reader remained free of duplicate highlight children.
+
+Therefore Phase U is complete and the accepted alpha.9 runtime may be promoted to `v1.2.0` without additional behavior changes. Any runtime/plugin Lua change after this acceptance reopens regression review; version strings, release docs and packaging metadata do not.

@@ -165,6 +165,25 @@ return function()
 
     withStubs(function(Worker, state)
         local report, err = Worker:run("/books/book.epub")
+        assert(err == nil)
+        assert(report.local_format == "pdf")
+        assert(report.reader_document_id == "parent-1")
+        assert(#report.remote_highlights == 1)
+        assert(state.cache_calls == 1)
+        assert(state.db_closed == 1)
+        assert(state.config_closed == 1)
+    end, {
+        document = {
+            reader_id = "parent-1",
+            local_path = "/books/book.epub",
+            local_format = "pdf",
+            is_local_present = true,
+            is_managed = true,
+        },
+    })
+
+    withStubs(function(Worker, state)
+        local report, err = Worker:run("/books/book.epub")
         assert(report == nil)
         assert(err.kind == "format")
         assert(state.cache_calls == 0)
@@ -174,7 +193,7 @@ return function()
         document = {
             reader_id = "parent-1",
             local_path = "/books/book.epub",
-            local_format = "pdf",
+            local_format = "mobi",
             is_local_present = true,
             is_managed = true,
         },
