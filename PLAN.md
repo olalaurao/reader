@@ -1553,3 +1553,14 @@ Integrate the physically-proven paging importer into the same pre-Sync reconcili
 - no Reader mutation from the import phase.
 
 One consolidated final device acceptance after CI: normal Sync imports the remaining safe Reader PDF child, then one unchanged Sync proves idempotence/no duplicates.
+
+
+### 17D-3A — alpha.9 final acceptance PASS / v1.2.0 authorized
+
+Target PW3 consolidated acceptance passed:
+- normal Sync imported the remaining safe Reader PDF highlight;
+- both local Reader-origin PDF highlights survived close/reopen;
+- unchanged second Sync was idempotent;
+- Reader contained no duplicate highlight child.
+
+Gate 17D / Phase U is complete. `v1.2.0` is authorized as a metadata/docs-only promotion of the physically accepted alpha.9 runtime. No additional device gate is required unless runtime/plugin Lua behavior changes after the accepted alpha.9 code.
