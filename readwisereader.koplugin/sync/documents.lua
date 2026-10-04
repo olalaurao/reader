@@ -1,5 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
+local DocumentAudit = require("sync/document_audit")
+
 local DocumentsSync = {}
 DocumentsSync.__index = DocumentsSync
 
@@ -54,6 +56,12 @@ local function metadataChanged(existing, document)
         or existing.location ~= document.location
         or existing.remote_updated_at ~= document.updated_at
     ) or false
+end
+
+local function retryableStage(err)
+    local stage = err and err.stage or (err and err.kind) or "unknown"
+    local detail = err and err.detail
+    return detail and (stage .. "/" .. detail) or stage
 end
 
 function DocumentsSync:new(options)
@@ -112,7 +120,15 @@ function DocumentsSync:_syncCollection(existing, document, report)
     return true
 end
 
-function DocumentsSync:_updateExistingMetadata(existing, document, seen_at, report, force_metadata, projection_backfill)
+function DocumentsSync:_updateExistingMetadata(
+    existing,
+    document,
+    seen_at,
+    report,
+    force_metadata,
+    projection_backfill,
+    force_verify_disk
+)
     local changed = force_metadata == true or metadataChanged(existing, document)
     local moved = existing.location ~= document.location
     local remote_changed = existing.remote_updated_at ~= nil
@@ -123,8 +139,10 @@ function DocumentsSync:_updateExistingMetadata(existing, document, seen_at, repo
     -- slow e-ink storage, stat'ing every local file dominates an otherwise
     -- metadata-only sync. Trust durable is_local_present for unchanged rows;
     -- still verify the filesystem whenever we are about to write metadata,
-    -- move a Collection, or react to a new remote revision.
-    local verify_disk = not projection_backfill
+    -- move a Collection, react to a new remote revision, or run an explicit
+    -- full repair scan.
+    local verify_disk = force_verify_disk == true
+        or not projection_backfill
         or force_metadata == true
         or moved
         or remote_changed
@@ -167,7 +185,20 @@ function DocumentsSync:_updateExistingMetadata(existing, document, seen_at, repo
     return current
 end
 
-function DocumentsSync:_install(document, report)
+function DocumentsSync:_recordRetryableFailure(document, err, report, audit)
+    report.errors = report.errors + 1
+    report.retryable_item_errors = report.retryable_item_errors + 1
+    local bucket = retryableStage(err)
+    report.retryable_error_stages[bucket] = (report.retryable_error_stages[bucket] or 0) + 1
+    if audit then audit:recordRetryable(document, err) end
+end
+
+function DocumentsSync:_recordPermanentFailure(document, err, report, audit)
+    report.nonretryable_skipped = report.nonretryable_skipped + 1
+    if audit then audit:recordPermanent(document, err) end
+end
+
+function DocumentsSync:_install(document, report, audit)
     local result, err = self.materializer:installDocument(document)
     if not result then
         local kind = err and err.kind or "unknown"
@@ -179,22 +210,19 @@ function DocumentsSync:_install(document, report)
         -- through the entire library. If Reader changes the document later,
         -- updatedAfter will surface it again and we can retry.
         if err and err.retryable == false then
-            report.nonretryable_skipped = report.nonretryable_skipped + 1
-            return false
+            self:_recordPermanentFailure(document, err, report, audit)
+            return false, err
         end
-        report.errors = report.errors + 1
-        report.retryable_item_errors = report.retryable_item_errors + 1
-        local stage = err and err.stage or (err and err.kind) or "unknown"
-        local detail = err and err.detail
-        local bucket = detail and (stage .. "/" .. detail) or stage
-        report.retryable_error_stages[bucket] = (report.retryable_error_stages[bucket] or 0) + 1
-        return false
+        self:_recordRetryableFailure(document, err, report, audit)
+        return false, err
     end
 
     if result.existing then
         report.unchanged = report.unchanged + 1
+        if audit then audit:markOutcome(document.id, "already_local") end
     else
         report.downloaded = report.downloaded + 1
+        if audit then audit:markOutcome(document.id, "downloaded") end
     end
     if result.raw_source_used then
         report.raw_sources_downloaded = report.raw_sources_downloaded + 1
@@ -220,24 +248,34 @@ function DocumentsSync:_install(document, report)
     return true
 end
 
-function DocumentsSync:_scanMetadata(watermark, filters, managed_by_id, pending_new, report, seen_at, force_metadata)
+function DocumentsSync:_scanMetadata(
+    watermark,
+    filters,
+    managed_by_id,
+    pending_new,
+    report,
+    seen_at,
+    force_metadata,
+    full_scan,
+    audit
+)
     local scan, err = self.reader:iterateDocuments({
         updated_after = watermark,
-        -- Projection backfills only need currently-supported reading
-        -- documents. Filtering server-side excludes highlight/note child
-        -- records and cuts the one-time tag repair from the whole Reader
-        -- corpus to the article subset.
-        category = force_metadata and "article" or nil,
+        -- Projection-only backfills may use the article-only optimization, but
+        -- a true full rescan must build a complete canonical inventory across
+        -- all Reader categories so every exclusion can be explained.
+        category = force_metadata and not full_scan and "article" or nil,
         limit = 100,
         with_html_content = false,
         with_raw_source_url = false,
     }, function(document)
+        local classification = audit and audit:observeMetadata(document)
         if document.parent_id ~= nil then
-            report.child_records = report.child_records + 1
+            if not audit then report.child_records = report.child_records + 1 end
             return
         end
 
-        report.metadata_seen = report.metadata_seen + 1
+        if not audit then report.metadata_seen = report.metadata_seen + 1 end
         local existing = managed_by_id[document.id]
         if existing then
             local force_document_metadata = force_metadata
@@ -249,23 +287,37 @@ function DocumentsSync:_scanMetadata(watermark, filters, managed_by_id, pending_
                 seen_at,
                 report,
                 force_document_metadata,
-                force_metadata
+                force_metadata,
+                full_scan
             )
             managed_by_id[document.id] = current
-            local has_local = force_metadata
-                and self:_hasRecordedLocal(existing)
-                or self:_hasLocal(existing)
-            if not has_local
-                and self:_isEligible(document, filters)
-                and shouldRetryMissing(existing, document) then
-                pending_new[document.id] = document.category
+
+            -- A real full scan is the explicit repair path. It must verify the
+            -- filesystem even if a one-time metadata projection backfill is
+            -- happening in the same run; otherwise a stale durable local bit
+            -- can hide a missing file.
+            local has_local
+            if full_scan then
+                has_local = self:_hasLocal(existing)
+            elseif force_metadata then
+                has_local = self:_hasRecordedLocal(existing)
+            else
+                has_local = self:_hasLocal(existing)
             end
-        elseif self:_isEligible(document, filters) then
+
+            if classification == "eligible" then
+                if has_local then
+                    if audit then audit:markOutcome(document.id, "already_local") end
+                elseif full_scan or shouldRetryMissing(existing, document) then
+                    pending_new[document.id] = document.category
+                elseif audit then
+                    audit:recordKnownPermanent(document, existing.last_sync_error)
+                end
+            end
+        elseif classification == "eligible" or (not audit and self:_isEligible(document, filters)) then
             local current = self.repository:upsertRemote(document, seen_at)
             managed_by_id[document.id] = current
             pending_new[document.id] = document.category
-        else
-            report.filtered_out = report.filtered_out + 1
         end
     end)
 
@@ -275,7 +327,7 @@ function DocumentsSync:_scanMetadata(watermark, filters, managed_by_id, pending_
     return true
 end
 
-function DocumentsSync:_fullMaterialization(filters, report, seen_at)
+function DocumentsSync:_fullMaterialization(filters, pending_new, report, seen_at, audit)
     local seen = {}
     for _, category in ipairs(sortedKeys(filters.categories)) do
         if SUPPORTED_CATEGORIES[category] then
@@ -289,17 +341,28 @@ function DocumentsSync:_fullMaterialization(filters, report, seen_at)
                 }, function(document)
                     if document.parent_id ~= nil or seen[document.id] then return end
                     seen[document.id] = true
-                    if not self:_isEligible(document, filters) then return end
+                    local classification = audit and audit:observeContent(document)
+                        or (self:_isEligible(document, filters) and "eligible" or "filtered")
+
+                    if classification ~= "eligible" then
+                        -- If metadata said this id was eligible but the content
+                        -- pass observes a move/category change, account for the
+                        -- scan race explicitly rather than leaving a silent gap.
+                        if audit and audit:getEligible(document.id)
+                            and audit:getOutcome(document.id) == nil then
+                            audit:markRemoteChanged(document.id)
+                        end
+                        return
+                    end
 
                     local existing = self.repository:getById(document.id)
                     self.repository:upsertRemote(document, seen_at)
                     if self:_hasLocal(existing) then
-                        report.unchanged = report.unchanged + 1
-                        local ok = self.collections:syncLocation(existing.local_path, document.location)
-                        if not ok then report.errors = report.errors + 1 end
+                        if audit then audit:markOutcome(document.id, "already_local") end
                     else
-                        self:_install(document, report)
+                        self:_install(document, report, audit)
                     end
+                    pending_new[document.id] = nil
                 end)
                 if not scan then return nil, err end
                 report.content_pages = report.content_pages + scan.pages
@@ -309,23 +372,100 @@ function DocumentsSync:_fullMaterialization(filters, report, seen_at)
             report.unsupported_categories = report.unsupported_categories + 1
         end
     end
+
+    -- Metadata is the canonical inventory. Reader's content LIST is an
+    -- efficient bulk materialization path, not proof that every eligible id
+    -- was returned. Reconcile every metadata-eligible id missing from that
+    -- second scan with an id-specific read; missing local documents then get a
+    -- final materialization attempt instead of silently falling through.
+    if audit then
+        for _, reader_id in ipairs(audit:eligibleIds()) do
+            if not audit:wasContentSeen(reader_id) then
+                audit:markContentMissing()
+                local canonical = audit:getEligible(reader_id)
+                local existing = self.repository:getById(reader_id)
+                local already_local = self:_hasLocal(existing)
+                if already_local then audit:markOutcome(reader_id, "already_local") end
+
+                local category = canonical and canonical.category
+                    or (existing and existing.category)
+                local wants_content = not already_local
+                local wants_raw = wants_content and (category == "pdf" or category == "epub")
+                local document, get_err = self.reader:getDocument(
+                    reader_id,
+                    wants_content,
+                    wants_raw
+                )
+                audit:markDirectRead(document ~= nil)
+
+                if not document then
+                    if not already_local then
+                        self.repository:setLastSyncError(reader_id, get_err and get_err.kind or "unknown")
+                    end
+                    local diagnostic_document = canonical or existing or {
+                        id = reader_id,
+                        category = category,
+                    }
+                    audit:recordLookupFailure(diagnostic_document, get_err)
+                    if not already_local then
+                        if get_err and get_err.retryable == false then
+                            self:_recordPermanentFailure(
+                                diagnostic_document,
+                                get_err,
+                                report,
+                                audit
+                            )
+                        else
+                            self:_recordRetryableFailure(
+                                diagnostic_document,
+                                get_err,
+                                report,
+                                audit
+                            )
+                        end
+                    end
+                else
+                    self.repository:upsertRemote(document, seen_at)
+                    local classification = audit:classify(document)
+                    if classification ~= "eligible" then
+                        audit:markRemoteChanged(reader_id)
+                    elseif not already_local then
+                        self:_install(document, report, audit)
+                    end
+                end
+                pending_new[reader_id] = nil
+            end
+        end
+    end
     return true
 end
 
-function DocumentsSync:_incrementalMaterialization(filters, pending_new, report, seen_at)
+function DocumentsSync:_incrementalMaterialization(filters, pending_new, report, seen_at, audit)
     for _, reader_id in ipairs(sortedKeys(pending_new)) do
         local category = pending_new[reader_id]
         local wants_raw = category == "pdf" or category == "epub"
         local document, err = self.reader:getDocument(reader_id, true, wants_raw)
         if not document then
-            report.errors = report.errors + 1
             self.repository:setLastSyncError(reader_id, err and err.kind or "unknown")
-        elseif not self:_isEligible(document, filters) then
-            self.repository:upsertRemote(document, seen_at)
-            report.filtered_out = report.filtered_out + 1
+            local diagnostic_document = audit and audit:getEligible(reader_id) or {
+                id = reader_id,
+                category = category,
+            }
+            if audit then audit:recordLookupFailure(diagnostic_document, err) end
+            if err and err.retryable == false then
+                self:_recordPermanentFailure(diagnostic_document, err, report, audit)
+            else
+                self:_recordRetryableFailure(diagnostic_document, err, report, audit)
+            end
         else
             self.repository:upsertRemote(document, seen_at)
-            self:_install(document, report)
+            local classification = audit and audit:classify(document)
+                or (self:_isEligible(document, filters) and "eligible" or "filtered")
+            if classification ~= "eligible" then
+                if audit then audit:markRemoteChanged(reader_id) end
+            else
+                self:_install(document, report, audit)
+            end
         end
     end
     return true
@@ -403,24 +543,27 @@ function DocumentsSync:sync(options)
         errors = 0,
         watermark_advanced = false,
     }
+    local audit = DocumentAudit:new(filters, SUPPORTED_CATEGORIES)
 
     self.sync_meta:set("document_scan_started_at", started_at)
 
     local managed_by_id, pending_new = {}, {}
     for _, existing in ipairs(self.repository:listManaged()) do
         managed_by_id[existing.reader_id] = existing
-        -- Incremental syncs trust the durable local-presence bit and verify
-        -- only documents that actually changed. Full scans remain the explicit
-        -- repair path that checks every managed path on disk.
-        local has_local = full_scan
-            and self:_hasLocal(existing)
-            or self:_hasRecordedLocal(existing)
-        if not has_local
-            and filters.locations[existing.location]
-            and filters.categories[existing.category]
-            and SUPPORTED_CATEGORIES[existing.category]
-            and shouldRetryMissing(existing, nil) then
-            pending_new[existing.reader_id] = existing.category
+        -- Full scans are metadata-canonical and will verify every eligible
+        -- local path during that pass. Incremental syncs may still repair a
+        -- previously-known missing local document even if it had no new
+        -- remote revision.
+        if not full_scan then
+            local has_local = self:_hasRecordedLocal(existing)
+            if not has_local
+                and filters.locations[existing.location]
+                and filters.categories[existing.category]
+                and SUPPORTED_CATEGORIES[existing.category]
+                and shouldRetryMissing(existing, nil) then
+                pending_new[existing.reader_id] = existing.category
+                audit:addRepairCandidate(existing)
+            end
         end
     end
 
@@ -431,17 +574,39 @@ function DocumentsSync:sync(options)
         pending_new,
         report,
         started_epoch,
-        metadata_projection_changed
+        metadata_projection_changed,
+        full_scan,
+        audit
     )
     if not metadata_ok then return nil, metadata_err end
 
     local content_ok, content_err
     if full_scan then
-        content_ok, content_err = self:_fullMaterialization(filters, report, started_epoch)
+        content_ok, content_err = self:_fullMaterialization(
+            filters,
+            pending_new,
+            report,
+            started_epoch,
+            audit
+        )
     else
-        content_ok, content_err = self:_incrementalMaterialization(filters, pending_new, report, started_epoch)
+        content_ok, content_err = self:_incrementalMaterialization(
+            filters,
+            pending_new,
+            report,
+            started_epoch,
+            audit
+        )
     end
     if not content_ok then return nil, content_err end
+
+    audit:apply(report)
+    if full_scan then
+        -- The historical `unchanged` counter used to depend on the content
+        -- LIST returning every local document. Use the canonical metadata +
+        -- filesystem audit instead so the summary is complete.
+        report.unchanged = report.audit_already_local or report.unchanged
+    end
 
     local completed_epoch = self.now()
     local completed_at = self.format_time(completed_epoch)
@@ -483,7 +648,6 @@ end
 DocumentsSync.DEFAULT_OVERLAP_SECONDS = DEFAULT_OVERLAP_SECONDS
 DocumentsSync.HTML_PAGE_LIMIT = HTML_PAGE_LIMIT
 DocumentsSync.METADATA_PROJECTION_VERSION = METADATA_PROJECTION_VERSION
-DocumentsSync.SUPPORTED_CATEGORIES = SUPPORTED_CATEGORIES
 DocumentsSync.SUPPORTED_CATEGORIES = SUPPORTED_CATEGORIES
 DocumentsSync._metadataChanged = metadataChanged
 DocumentsSync._filterScope = filterScope
