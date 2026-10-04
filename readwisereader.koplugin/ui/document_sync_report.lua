@@ -22,16 +22,16 @@ local function sortedReasonKeys(groups)
     return keys
 end
 
-local function appendCountMap(lines, heading, total, map, _)
-    lines[#lines + 1] = string.format(_("%s: %d"), heading, total or 0)
-    for _, key in ipairs(sortedKeys(map)) do
+local function appendCountMap(lines, heading, total, map, gettext)
+    lines[#lines + 1] = string.format(gettext("%s: %d"), heading, total or 0)
+    for index, key in ipairs(sortedKeys(map)) do
         lines[#lines + 1] = string.format("  %s: %d", key, map[key])
     end
 end
 
-local function appendReasonGroups(lines, heading, total, groups, _)
-    lines[#lines + 1] = string.format(_("%s: %d"), heading, total or 0)
-    for _, reason in ipairs(sortedReasonKeys(groups)) do
+local function appendReasonGroups(lines, heading, total, groups, gettext)
+    lines[#lines + 1] = string.format(gettext("%s: %d"), heading, total or 0)
+    for reason_index, reason in ipairs(sortedReasonKeys(groups)) do
         local group = groups[reason]
         lines[#lines + 1] = string.format("  %s: %d", reason, group.count or 0)
         for example_index, example in ipairs(group.examples or {}) do
@@ -39,7 +39,7 @@ local function appendReasonGroups(lines, heading, total, groups, _)
         end
         local hidden = (group.count or 0) - #(group.examples or {})
         if hidden > 0 then
-            lines[#lines + 1] = string.format(_("    + %d more"), hidden)
+            lines[#lines + 1] = string.format(gettext("    + %d more"), hidden)
         end
     end
 end
@@ -123,7 +123,7 @@ function Report.text(report, gettext)
     )
 
     local lookup_total = 0
-    for _, group in pairs(report.content_lookup_failure_reasons or {}) do
+    for key, group in pairs(report.content_lookup_failure_reasons or {}) do
         lookup_total = lookup_total + (tonumber(group.count) or 0)
     end
     appendReasonGroups(
