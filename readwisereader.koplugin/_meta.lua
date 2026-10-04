@@ -5,5 +5,5 @@ local _ = require("gettext")
 return {
     name = "readwisereader",
     fullname = _("Readwise Reader"),
-    description = _([[Synchronize Readwise Reader content and KOReader annotations. v1.2.1 raises historical import batches to 50 highlights for EPUB/HTML and 5 for PDF while preserving conservative pre-Sync deduplication.]]),
+    description = _([[Synchronize Readwise Reader content and KOReader annotations. v1.2.2 makes document sync auditable and recovers filter-eligible documents omitted by the bulk content LIST through safe direct-ID reconciliation.]]),
 }
