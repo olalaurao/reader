@@ -34,7 +34,7 @@ local function appendReasonGroups(lines, heading, total, groups, _)
     for _, reason in ipairs(sortedReasonKeys(groups)) do
         local group = groups[reason]
         lines[#lines + 1] = string.format("  %s: %d", reason, group.count or 0)
-        for _, example in ipairs(group.examples or {}) do
+        for example_index, example in ipairs(group.examples or {}) do
             lines[#lines + 1] = "    - " .. tostring(example)
         end
         local hidden = (group.count or 0) - #(group.examples or {})
