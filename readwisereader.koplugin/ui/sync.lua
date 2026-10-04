@@ -213,6 +213,79 @@ local function summaryText(report)
     return table.concat(lines, "\n")
 end
 
+local SUMMARY_LINES_PER_PAGE = 15
+
+local function summaryPages(report)
+    local text = summaryText(report)
+    local lines = {}
+    for line in (text .. "\n"):gmatch("(.-)\n") do
+        lines[#lines + 1] = line
+    end
+
+    local pages = {}
+    for first = 1, #lines, SUMMARY_LINES_PER_PAGE do
+        local page_lines = {}
+        local last = math.min(first + SUMMARY_LINES_PER_PAGE - 1, #lines)
+        for index = first, last do
+            page_lines[#page_lines + 1] = lines[index]
+        end
+        pages[#pages + 1] = table.concat(page_lines, "\n")
+    end
+    if #pages == 0 then pages[1] = text end
+    return pages
+end
+
+local function showSummaryReport(report)
+    local text = summaryText(report)
+    local loaded, TextViewer = pcall(require, "ui/widget/textviewer")
+    if not loaded or type(TextViewer) ~= "table" or type(TextViewer.new) ~= "function" then
+        UIManager:show(InfoMessage:new{ text = text })
+        return
+    end
+
+    local pages = summaryPages(report)
+    local function showPage(page_index)
+        local viewer
+        viewer = TextViewer:new{
+            title = string.format(_("Sync report %d/%d"), page_index, #pages),
+            text = pages[page_index],
+            show_menu = false,
+            auto_para_direction = false,
+            buttons_table = {
+                {
+                    {
+                        text = "◀",
+                        enabled = page_index > 1,
+                        callback = function()
+                            if page_index <= 1 then return end
+                            viewer:onClose()
+                            showPage(page_index - 1)
+                        end,
+                    },
+                    {
+                        text = _("Close"),
+                        callback = function()
+                            viewer:onClose()
+                        end,
+                    },
+                    {
+                        text = "▶",
+                        enabled = page_index < #pages,
+                        callback = function()
+                            if page_index >= #pages then return end
+                            viewer:onClose()
+                            showPage(page_index + 1)
+                        end,
+                    },
+                },
+            },
+        }
+        UIManager:show(viewer)
+    end
+
+    showPage(1)
+end
+
 function SyncUI:new(options)
     options = options or {}
     return setmetatable({
@@ -488,9 +561,7 @@ Tap to cancel. Reader highlights for the open EPUB/HTML/PDF are reconciled befor
             report.watermark_advanced = false
         end
 
-        UIManager:show(InfoMessage:new{
-            text = summaryText(report),
-        })
+        showSummaryReport(report)
     end)
 end
 
@@ -514,5 +585,6 @@ end
 
 SyncUI._errorText = errorText
 SyncUI._summaryText = summaryText
+SyncUI._summaryPages = summaryPages
 
 return SyncUI
