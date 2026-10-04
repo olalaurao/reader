@@ -5,6 +5,7 @@ local InfoMessage = require("ui/widget/infomessage")
 local Trapper = require("ui/trapper")
 local UIManager = require("ui/uimanager")
 local Worker = require("sync/worker")
+local DocumentSyncReport = require("ui/document_sync_report")
 local _ = require("gettext")
 
 local SyncUI = {}
@@ -67,10 +68,14 @@ local function summaryText(report)
     else
         mode = _("incremental")
     end
+    local audit_text = DocumentSyncReport.text(report, _)
     local lines = {
         _("Readwise document sync complete"),
         "",
         string.format(_("Mode: %s"), mode),
+        "",
+        audit_text,
+        "",
         string.format(_("Downloaded: %d"), report.downloaded or 0),
         string.format(_("Already local / unchanged: %d"), report.unchanged or 0),
         string.format(_("Image candidates found: %d"), report.image_candidates or 0),
