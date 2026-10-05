@@ -49,12 +49,13 @@ jobs:
           git apply --check /tmp/v1.3-ui-fix.patch
           git apply /tmp/v1.3-ui-fix.patch
 
-      - name: Register new tests
+      - name: Register and normalize new tests
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('readwisereader.koplugin/tests/run.lua')
-          text = path.read_text()
+
+          run = Path('readwisereader.koplugin/tests/run.lua')
+          text = run.read_text()
           marker = '    "tests.test_annotation_mutations",\n'
           additions = ''.join([
               '    "tests.test_annotation_note_clear",\n',
@@ -66,7 +67,15 @@ jobs:
           if 'tests.test_metadata_mutations' not in text:
               if marker not in text:
                   raise SystemExit('test insertion marker not found')
-              path.write_text(text.replace(marker, marker + additions))
+              run.write_text(text.replace(marker, marker + additions))
+
+          test = Path('readwisereader.koplugin/tests/test_annotation_upload_metadata.lua')
+          body = test.read_text()
+          old = '''    assert(upload:_prepareQueue(\n        { reader_id = "doc-1" },\n        {\n            local_annotation_id = "ann-1",\n            text = "Selected",\n            note = "note",\n            text_hash = "th",\n            note_hash = "nh",\n        },\n        "Selected",\n        "marker"\n    ))\n    local payload = jsonDecode(captured.payload_json)\n'''
+          new = '''    local prepared = upload:_prepareQueue(\n        { reader_id = "doc-1" },\n        {\n            local_annotation_id = "ann-1",\n            text = "Selected",\n            note = "note",\n            text_hash = "th",\n            note_hash = "nh",\n        },\n        "Selected",\n        "marker"\n    )\n    assert(prepared)\n    local payload = jsonDecode(captured.payload_json)\n'''
+          if old not in body:
+              raise SystemExit('annotation upload test normalization marker not found')
+          test.write_text(body.replace(old, new, 1))
           PY
 
       - name: Remove staging payloads
