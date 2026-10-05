@@ -5,7 +5,12 @@ on:
     branches:
       - feature/reader-metadata-editing-v1.3.0
     paths:
-      - .automation/v1.3.patch.gz.b64
+      - .automation/v1.3.patch.part00
+      - .automation/v1.3.patch.part01
+      - .automation/v1.3.patch.part02
+      - .automation/v1.3.patch.part03
+      - .automation/v1.3.patch.part04
+      - .automation/v1.3-ui-fix.patch.b64
       - .github/workflows/apply-v1.3-metadata.yml
 
 permissions:
@@ -28,11 +33,21 @@ jobs:
           sudo apt-get install -y lua5.1 liblua5.1-0-dev libsqlite3-dev luarocks zip
           sudo luarocks --lua-version=5.1 install lsqlite3
 
+      - name: Reconstruct and verify staged patches
+        run: |
+          cat .automation/v1.3.patch.part00 .automation/v1.3.patch.part01 .automation/v1.3.patch.part02 .automation/v1.3.patch.part03 .automation/v1.3.patch.part04 > /tmp/v1.3.patch.gz.b64
+          echo '1e96f9a540f913804d129c78c3a4ead44d5522748955511389bdc82cc29d49be  /tmp/v1.3.patch.gz.b64' | sha256sum -c -
+          base64 -d /tmp/v1.3.patch.gz.b64 | gzip -dc > /tmp/v1.3.patch
+          echo 'f1e8e45bb3548695156707c62ca8a76fd21498094fb16124e0020d6173ff4a2a  /tmp/v1.3.patch' | sha256sum -c -
+          base64 -d .automation/v1.3-ui-fix.patch.b64 > /tmp/v1.3-ui-fix.patch
+          echo 'cd9e58419e4401aafa22efdb0968f3583e093e0a41343b8f7af966de646a75ae  /tmp/v1.3-ui-fix.patch' | sha256sum -c -
+
       - name: Apply staged implementation
         run: |
-          base64 -d .automation/v1.3.patch.gz.b64 | gzip -dc > /tmp/v1.3.patch
           git apply --check /tmp/v1.3.patch
           git apply /tmp/v1.3.patch
+          git apply --check /tmp/v1.3-ui-fix.patch
+          git apply /tmp/v1.3-ui-fix.patch
 
       - name: Register new tests
         run: |
@@ -54,8 +69,8 @@ jobs:
               path.write_text(text.replace(marker, marker + additions))
           PY
 
-      - name: Remove staging payload
-        run: rm -f .automation/v1.3.patch.gz.b64
+      - name: Remove staging payloads
+        run: rm -f .automation/v1.3.patch.gz.b64 .automation/v1.3.patch.part* .automation/v1.3-ui-fix.patch.b64
 
       - name: Run development checks
         run: ./scripts/dev-check.sh
