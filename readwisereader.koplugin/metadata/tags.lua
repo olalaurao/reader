@@ -72,16 +72,29 @@ function Tags.apply(current, add, remove)
 end
 
 function Tags.encode(values)
-    local ok, encoded = pcall(require("json").encode, Tags.normalize(values))
-    if not ok or type(encoded) ~= "string" then return "[]" end
-    return encoded
+    local out = {}
+    for _, value in ipairs(Tags.normalize(values)) do
+        out[#out + 1] = tostring(#value) .. ":" .. value
+    end
+    return table.concat(out)
 end
 
 function Tags.decode(value)
     if type(value) ~= "string" or value == "" then return {} end
-    local ok, decoded = pcall(require("json").decode, value)
-    if not ok or type(decoded) ~= "table" then return {} end
-    return Tags.normalize(decoded)
+    local out = {}
+    local pos = 1
+    while pos <= #value do
+        local colon = value:find(":", pos, true)
+        if not colon then return {} end
+        local length = tonumber(value:sub(pos, colon - 1))
+        if not length or length < 0 or length ~= math.floor(length) then return {} end
+        local first = colon + 1
+        local last = first + length - 1
+        if last > #value then return {} end
+        out[#out + 1] = value:sub(first, last)
+        pos = last + 1
+    end
+    return Tags.normalize(out)
 end
 
 return Tags

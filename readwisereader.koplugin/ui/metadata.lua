@@ -133,7 +133,8 @@ function MetadataUI:_showDocumentActions(document, pending)
         },
         {
             text = _("Document note"),
-            mandatory = pending.note_pending and _("queued") or nil,
+            mandatory = pending.note_status == "blocked" and _("conflict")
+                or (pending.note_pending and _("queued") or nil),
             callback = function()
                 if container then UIManager:close(container) end
                 self.active_menu = nil
@@ -176,368 +177,113 @@ end
 
 function MetadataUI:editDocumentNote(document, pending)
     local dialog
-    dialog = InputDialog:new{
-        title = _("Reader document note"),
-        input = pending.note or "",
-        allow_newline = true,
-        buttons = {
+    local buttons = {
+        {
             {
-                {
-                    text = _("Cancel"), id = "close",
-                    callback = function() UIManager:close(dialog) end,
-                },
-                {
-                    text = _("Save for Sync"), is_enter_default = true,
-                    callback = function()
-                        local desired = normalizedNote(dialog:getInputText())
-                        UIManager:close(dialog)
-                        self.active_dialog = nil
-                        if normalizedNote(pending.note) == desired then
-                            UIManager:show(InfoMessage:new{ text = _("No Reader document-note change to queue.") })
-                            return
-                        end
-                        local queued, err = self.mutations:queueDocumentNote(document, desired)
-                        if not queued then
-                            UIManager:show(InfoMessage:new{
-                                text = err and err.message or _("The Reader document-note change could not be queued safely."),
-                            })
-                            return
-                        end
+                text = _("Cancel"), id = "close",
+                callback = function() UIManager:close(dialog) end,
+            },
+            {
+                text = pending.note_status == "blocked" and _("Keep Kindle") or _("Save for Sync"),
+                is_enter_default = true,
+                callback = function()
+                    local desired = normalizedNote(dialog:getInputText())
+                    UIManager:close(dialog)
+                    self.active_dialog = nil
+                    if pending.note_status ~= "blocked" and normalizedNote(pending.note) == desired then
+                        UIManager:show(InfoMessage:new{ text = _("No Reader document-note change to queue.") })
+                        return
+                    end
+                    local queued, err = self.mutations:queueDocumentNote(document, desired)
+                    if not queued then
                         UIManager:show(InfoMessage:new{
-                            text = desired == ""
-                                and _("Reader document-note removal queued. Run Sync now when you want to send it.")
-                                or _("Reader document-note change queued. Run Sync now when you want to send it."),
+                            text = err and err.message or _("The Reader document-note change could not be queued safely."),
                         })
-                    end,
-                },
-            },
-        },
-    }
-    self.active_dialog = dialog
-    UIManager:show(dialog)
-    dialog:onShowKeyboard()
-end
-
-function MetadataUI:_showTagInput(title, input_title, initial, callback)
-    local dialog
-    dialog = InputDialog:new{
-        title = input_title,
-        input = initial or "",
-        buttons = {
-            {
-                {
-                    text = _("Cancel"), id = "close",
-                    callback = function() UIManager:close(dialog) end,
-                },
-                {
-                    text = _("OK"), is_enter_default = true,
-                    callback = function()
-                        local value = dialog:getInputText()
-                        UIManager:close(dialog)
-                        self.active_dialog = nil
-                        callback(value)
-                    end,
-                },
-            },
-        },
-    }
-    self.active_dialog = dialog
-    UIManager:show(dialog)
-    dialog:onShowKeyboard()
-end
-
-function MetadataUI:_showTagPicker(options)
-    options = options or {}
-    local selected = asSet(options.selected)
-    local available_set = asSet(options.available)
-    for tag in pairs(selected) do available_set[tag] = true end
-    local filter = trim(options.filter)
-    local container
-    local menu
-
-    local function selectedList()
-        local out = {}
-        for tag, enabled in pairs(selected) do
-            if enabled then out[#out + 1] = tag end
-        end
-        table.sort(out)
-        return out
-    end
-
-    local function allList()
-        local out = {}
-        for tag in pairs(available_set) do out[#out + 1] = tag end
-        table.sort(out)
-        return out
-    end
-
-    local function closeMenu()
-        if container then UIManager:close(container) end
-        if self.active_menu == container then self.active_menu = nil end
-    end
-
-    local function rebuild(new_filter)
-        closeMenu()
-        UIManager:nextTick(function()
-            self:_showTagPicker{
-                title = options.title,
-                selected = selectedList(),
-                available = allList(),
-                filter = new_filter,
-                on_save = options.on_save,
-            }
-        end)
-    end
-
-    local items = {
-        {
-            text = _("Save tags"),
-            mandatory = string.format(_("%d selected"), #selectedList()),
-            callback = function()
-                local result = selectedList()
-                closeMenu()
-                options.on_save(result)
-            end,
-        },
-        {
-            text = filter and _("Change tag searchâ€¦") or _("Search existing tagsâ€¦"),
-            mandatory = filter,
-            callback = function()
-                closeMenu()
-                self:_showTagInput(options.title, _("Search Reader tags"), filter or "", function(value)
-                    rebuild(trim(value))
-                end)
-            end,
-        },
-        {
-            text = _("Add new tagâ€¦"),
-            callback = function()
-                closeMenu()
-                self:_showTagInput(options.title, _("New Reader tag"), "", function(value)
-                    local tag = trim(value)
-                    if tag then
-                        available_set[tag] = true
-                        selected[tag] = true
+                        return
                     end
-                    rebuild(filter)
-                end)
-            end,
-            separator = true,
-        },
-    }
-
-    local lower_filter = filter and filter:lower() or nil
-    local visible = 0
-    for _, tag in ipairs(allList()) do
-        if not lower_filter or tag:lower():find(lower_filter, 1, true) then
-            visible = visible + 1
-            items[#items + 1] = {
-                text = tag,
-                checked_func = function() return selected[tag] == true end,
-                keep_menu_open = true,
-                callback = function(touchmenu_instance)
-                    selected[tag] = not selected[tag]
-                    if touchmenu_instance and touchmenu_instance.updateItems then
-                        touchmenu_instance:updateItems()
-                    elseif menu and menu.updateItems then
-                        menu:updateItems()
-                    end
+                    UIManager:show(InfoMessage:new{
+                        text = pending.note_status == "blocked"
+                            and _("Kindle note kept and rebased on the current Reader version. Run Sync now to apply it.")
+                            or (desired == ""
+                                and _("Reader document-note removal queued. Run Sync now when you want to send it.")
+                                or _("Reader document-note change queued. Run Sync now when you want to send it.")),
+                    })
                 end,
-            }
-        end
-    end
-    if visible == 0 then
-        items[#items + 1] = {
-            text = filter and _("No existing tags match this search.") or _("No existing Reader tags were loaded."),
-            enabled = false,
+            },
+        },
+    }
+    if pending.note_status == "blocked" then
+        buttons[#buttons + 1] = {
+            {
+                text = _("Use Reader version"),
+                callback = function()
+                    UIManager:close(dialog)
+                    self.active_dialog = nil
+                    self.mutations:cancelDocumentEdit(document, "note")
+                    UIManager:show(InfoMessage:new{
+                        text = _("Kindle note edit discarded. The current Reader note was kept."),
+                    })
+                end,
+            },
         }
     end
+    dialog = InputDialog:new{
+        title = pending.note_status == "blocked"
+            and _("Reader document note â€” ½¹™±¥Ğˆ¤½È| ‰I•…‘•È‘½Õµ•¹Ğ¹½Ñ”ˆ¤°(€€€€€€€¥¹ÁÕĞ€ôÁ•¹‘¥¹œ¹¹½Ñ”½È€ˆˆ°(€€€€€€€…±±½İ}¹•İ±¥¹”€ôÑÉÕ”°(€€€€€€€‰ÕÑÑ½¹Ì€ô‰ÕÑÑ½¹Ì°(€€€ô(€€€Í•±˜¹…Ñ¥Ù•}‘¥…±½œ€ô‘¥…±½œ(€€€U%5…¹…•ÈéÍ¡½Ü¡‘¥…±½œ¤(€€€‘¥…±½œé½¹M¡½İ-•å‰½…É ¤)•¹()™Õ¹Ñ¥½¸5•Ñ…‘…Ñ…U$é}Í¡½İQ…%¹ÁÕĞ¡Ñ¥Ñ±”°¥¹ÁÕÑ}Ñ¥Ñ±”°¥¹¥Ñ¥…°°…±±‰…¬¤(€€€±½…°‘¥…±½œ(€€€‘¥…±½œ€ô%¹ÁÕÑ¥…±½œé¹•İì(€€€€€€€Ñ¥Ñ±”€ô¥¹ÁÕÑ}Ñ¥Ñ±”°(€€€€€€€¥¹ÁÕĞ€ô¥¹¥Ñ¥…°½È€ˆˆ°(€€€€€€€‰ÕÑÑ½¹Ì€ôì(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€ì(€€€€€€€€€€€€€€€€€€€Ñ•áĞ€ô| ‰…¹•°ˆ¤°¥€ô€‰±½Í”ˆ°(€€€€€€€€€€€€€€€€€€€…±±‰…¬€ô™Õ¹Ñ¥½¸ ¤U%5…¹…•Èé±½Í”¡‘¥…±½œ¤•¹°(€€€€€€€€€€€€€€€ô°(€€€€€€€€€€€€€€€ì(€€€€€€€€€€€€€€€€€€€Ñ•áĞ€ô| ‰=,ˆ¤°¥Í}•¹Ñ•É}‘•™…Õ±Ğ€ôÑÉÕ”°(€€€€€€€€€€€€€€€€€€€…±±‰…¬€ô™Õ¹Ñ¥½¸ ¤(€€€€€€€€€€€€€€€€€€€€€€€±½…°Ù…±Õ”€ô‘¥…±½œé•Ñ%¹ÁÕÑQ•áĞ ¤(€€€€€€€€€€€€€€€€€€€€€€€U%5…¹…•Èé±½Í”¡‘¥…±½œ¤(€€€€€€€€€€€€€€€€€€€€€€€Í•±˜¹…Ñ¥Ù•}‘¥…±½œ€ô¹¥°(€€€€€€€€€€€€€€€€€€€€€€€…±±‰…¬¡Ù…±Õ”¤(€€€€€€€€€€€€€€€€€€€•¹°(€€€€€€€€€€€€€€€ô°(€€€€€€€€€€€ô°(€€€€€€€ô°(€€€ô(€€€Í•±˜¹…Ñ¥Ù•}‘¥…±½œ€ô‘¥…±½œ(€€€U%5…¹…•ÈéÍ¡½Ü¡‘¥…±½œ¤(€€€‘¥…±½œé½¹M¡½İ-•å‰½…É ¤)•¹()™Õ¹Ñ¥½¸5•Ñ…‘…Ñ…U$é}Í¡½İQ…A¥­•È¡½ÁÑ¥½¹Ì¤(€€€½ÁÑ¥½¹Ì€ô½ÁÑ¥½¹Ì½Èíô(€€€±½…°Í•±•Ñ•€ô…ÍM•Ğ¡½ÁÑ¥½¹Ì¹Í•±•Ñ•¤(€€€±½…°…Ù…¥±…‰±•}Í•Ğ€ô…ÍM•Ğ¡½ÁÑ¥½¹Ì¹…Ù…¥±…‰±”¤(€€€™½ÈÑ…œ¥¸Á…¥ÉÌ¡Í•±•Ñ•¤‘¼…Ù…¥±…‰±•}Í•ÑmÑ…t€ôÑÉÕ”•¹(€€€±½…°™¥±Ñ•È€ôÑÉ¥´¡½ÁÑ¥½¹Ì¹™¥±Ñ•È¤(€€€±½…°½¹Ñ…¥¹•È(€€€±½…°µ•¹Ô((€€€±½…°™Õ¹Ñ¥½¸Í•±•Ñ•‘1¥ÍĞ ¤(€€€€€€€±½…°½ÕĞ€ôíô(€€€€€€€™½ÈÑ…œ°•¹…‰±•¥¸Á…¥ÉÌ¡Í•±•Ñ•¤‘¼(€€€€€€€€€€€¥˜•¹…‰±•Ñ¡•¸½ÕÑl½ÕĞ€¬€Åt€ôÑ…œ•¹(€€€€€€€•¹(€€€€€€€Ñ…‰±”¹Í½ÉĞ¡½ÕĞ¤(€€€€€€€É•ÑÕÉ¸½ÕĞ(€€€•¹((€€€±½…°™Õ¹Ñ¥½¸…±±1¥ÍĞ ¤(€€€€€€€±½…°½ÕĞ€ôíô(€€€€€€€™½ÈÑ…œ¥¸Á…¥ÉÌ¡…Ù…¥±…‰±•}Í•Ğ¤‘¼½ÕÑl½ÕĞ€¬€Åt€ôÑ…œ•¹(€€€€€€€Ñ…‰±”¹Í½ÉĞ¡½ÕĞ¤(€€€€€€€É•ÑÕÉ¸½ÕĞ(€€€•¹((€€€±½…°™Õ¹Ñ¥½¸±½Í•5•¹Ô ¤(€€€€€€€¥˜½¹Ñ…¥¹•ÈÑ¡•¸U%5…¹…•Èé±½Í”¡½¹Ñ…¥¹•È¤•¹(€€€€€€€¥˜Í•±˜¹…Ñ¥Ù•}µ•¹Ô€ôô½¹Ñ…¥¹•ÈÑ¡•¸Í•±˜¹…Ñ¥Ù•}µ•¹Ô€ô¹¥°•¹(€€€•¹((€€€±½…°™Õ¹Ñ¥½¸É•‰Õ¥±¡¹•İ}™¥±Ñ•È¤(€€€€€€€±½Í•5•¹Ô ¤(€€€€€€€U%5…¹…•Èé¹•áÑQ¥¬¡™Õ¹Ñ¥½¸ ¤(€€€€€€€€€€€Í•±˜é}Í¡½İQ…A¥­•Éì(€€€€€€€€€€€€€€€Ñ¥Ñ±”€ô½ÁÑ¥½¹Ì¹Ñ¥Ñ±”°(€€€€€€€€€€€€€€€Í•±•Ñ•€ôÍ•±•Ñ•‘1¥ÍĞ ¤°(€€€€€€€€€€€€€€€…Ù…¥±…‰±”€ô…±±1¥ÍĞ ¤°(€€€€€€€€€€€€€€€™¥±Ñ•È€ô¹•İ}™¥±Ñ•È°(€€€€€€€€€€€€€€€½¹}Í…Ù”€ô½ÁÑ¥½¹Ì¹½¹}Í…Ù”°(€€€€€€€€€€€ô(€€€€€€€•¹¤(€€€•¹((€€€±½…°¥Ñ•µÌ€ôì(€€€€€€€ì(€€€€€€€€€€€Ñ•áĞ€ô| ‰M…Ù”Ñ…Ìˆ¤°(€€€€€€€€€€€µ…¹‘…Ñ½Éä€ôÍÑÉ¥¹œ¹™½Éµ…Ğ¡| ˆ•Í•±•Ñ•ˆ¤°€Í•±•Ñ•‘1¥ÍĞ ¤¤°(€€€€€€€€€€€…±±‰…¬€ô™Õ¹Ñ¥½¸ ¤(€€€€€€€€€€€€€€€±½…°É•ÍÕ±Ğ€ôÍ•±•Ñ•‘1¥ÍĞ ¤(€€€€€€€€€€€€€€€±½Í•5•¹Ô ¤(€€€€€€€€€€€€€€€½ÁÑ¥½¹Ì¹½¹}Í…Ù”¡É•ÍÕ±Ğ¤(€€€€€€€€€€€•¹°(€€€€€€€ô°(€€€€€€€ì(€€€€€€€€€€€Ñ•áĞ€ô™¥±Ñ•È…¹| ‰¡…¹”Ñ…œÍ•…É£‹Š˜¤½È| ‰M•…É •á¥ÍÑ¥¹œÑ…ÏŠ˜ˆ¤°(€€€€€€€€€€€µ…¹‘…Ñ½Éä€ô™¥±Ñ•È°(€€€€€€€€€€€…±±‰…¬€ô™Õ¹Ñ¥½¸ ¤(€€€€€€€€€€€€€€€±½Í•5•¹Ô ¤(€€€€€€€€€€€€€€€Í•±˜é}Í¡½İQ…%¹ÁÕĞ¡½ÁÑ¥½¹Ì¹Ñ¥Ñ±”°| ‰M•…É I•…‘•ÈÑ…Ìˆ¤°™¥±Ñ•È½È€ˆˆ°™Õ¹Ñ¥½¸¡Ù…±Õ”¤(€€€€€€€€€€€€€€€€€€€É•‰Õ¥±¡ÑÉ¥´¡Ù…±Õ”¤¤(€€€€€€€€€€€€€€€•¹¤(€€€€€€€€€€€•¹°(€€€€€€€ô°(€€€€€€€ì(€€€€€€€€€€€Ñ•áĞ€ô| ‰‘¹•ÜÑ…ŸŠ˜ˆ¤°(€€€€€€€€€€€…±±‰…¬€ô™Õ¹Ñ¥½¸ ¤(€€€€€€€€€€€€€€€±½Í•5•¹Ô ¤(€€€€€€€€€€€€€€€Í•±˜é}Í¡½İQ…%¹ÁÕĞ¡½ÁÑ¥½¹Ì¹Ñ¥Ñ±”°| ‰9•ÜI•…‘•ÈÑ…œˆ¤°€ˆˆ°™Õ¹Ñ¥½¸¡Ù…±Õ”¤(€€€€€€€€€€€€€€€€€€€±½…°Ñ…œ€ôÑÉ¥´¡Ù…±Õ”¤(€€€€€€€€€€€€€€€€€€€¥˜Ñ…œÑ¡•¸(€€€€€€€€€€€€€€€€€€€€€€€…Ù…¥±…‰±•}Í•ÑmÑ…t€ôÑÉÕ”(€€€€€€€€€€€€€€€€€€€€€€€Í•±•Ñ•‘mÑ…t€ôÑÉÕ”(€€€€€€€€€€€€€€€€€€€•¹(€€€€€€€€€€€€€€€€€€€É•‰Õ¥±¡™¥±Ñ•È¤(€€€€€€€€€€€€€€€•¹¤(€€€€€€€€€€€•¹°(€€€€€€€€€€€Í•Á…É…Ñ½È€ôÑÉÕ”°(€€€€€€€ô°(€€€ô((€€€±½…°±½İ•É}™¥±Ñ•È€ô™¥±Ñ•È…¹™¥±Ñ•Èé±½İ•È ¤½È¹¥°(€€€±½…°Ù¥Í¥‰±”€ô€À(€€€™½È|°Ñ…œ¥¸¥Á…¥ÉÌ¡…±±1¥ÍĞ ¤¤‘¼(€€€€€€€¥˜¹½Ğ±½İ•É}™¥±Ñ•È½ÈÑ…œé±½İ•È ¤é™¥¹¡±½İ•É}™¥±Ñ•È°€Ä°ÑÉÕ”¤Ñ¡•¸(€€€€€€€€€€€Ù¥Í¥‰±”€ôÙ¥Í¥‰±”€¬€Ä(€€€€€€€€€€€¥Ñ•µÍl¥Ñ•µÌ€¬€Åt€ôì(€€€€€€€€€€€€€€€Ñ•áĞ€ôÑ…œ°(€€€€€€€€€€€€€€€¡•­•‘}™Õ¹Œ€ô™Õ¹Ñ¥½¸ ¤É•ÑÕÉ¸Í•±•Ñ•‘mÑ…t€ôôÑÉÕ”•¹°(€€€€€€€€€€€€€€€­••Á}µ•¹Õ}½Á•¸€ôÑÉÕ”°(€€€€€€€€€€€€€€€…±±‰…¬€ô™Õ¹Ñ¥½¸¡Ñ½Õ¡µ•¹Õ}¥¹ÍÑ…¹”¤(€€€€€€€€€€€€€€€€€€€Í•±•Ñ•‘mÑ…t€ô¹½ĞÍ•±•Ñ•‘mÑ…t(€€€€€€€€€€€€€€€€€€€¥˜Ñ½Õ¡µ•¹Õ}¥¹ÍÑ…¹”…¹Ñ½Õ¡µ•¹Õ}¥¹ÍÑ…¹”¹ÕÁ‘…Ñ•%Ñ•µÌÑ¡•¸(€€€€€€€€€€€€€€€€€€€€€€€Ñ½Õ¡µ•¹Õ}¥¹ÍÑ…¹”éÕÁ‘…Ñ•%Ñ•µÌ ¤(€€€€€€€€€€€€€€€€€€€•±Í•¥˜µ•¹Ô…¹µ•¹Ô¹ÕÁ‘…Ñ•%Ñ•µÌÑ¡•¸(€€€€€€€€€€€€€€€€€€€€€€€µ•¹ÔéÕÁ‘…Ñ•%Ñ•µÌ ¤(€€€€€€€€€€€€€€€€€€€•¹(€€€€€€€€€€€€€€€•¹°(€€€€€€€€€€€ô(€€€€€€€•¹(€€€•¹(€€€¥˜Ù¥Í¥‰±”€ôô€ÀÑ¡•¸(€€€€€€€¥Ñ•µÍl¥Ñ•µÌ€¬€Åt€ôì(€€€€€€€€€€€Ñ•áĞ€ô™¥±Ñ•È…¹| ‰9¼•á¥ÍÑ¥¹œÑ…Ìµ…Ñ Ñ¡¥ÌÍ•…É ¸ˆ¤½È| ‰9¼•á¥ÍÑ¥¹œI•…‘•ÈÑ…Ìİ•É”±½…‘•¸ˆ¤°(€€€€€€€€€€€•¹…‰±•€ô™…±Í”°(€€€€€€€ô(€€€•¹((€€€µ•¹Ô€ô5•¹Ôé¹•İì(€€€€€€€Ñ¥Ñ±”€ô½ÁÑ¥½¹Ì¹Ñ¥Ñ±”½È| ‰I•…‘•ÈÑ…Ìˆ¤°(€€€€€€€¥Ñ•µ}Ñ…‰±”€ô¥Ñ•µÌ‹ˆÚYHX]™›ÛÜŠØÜ™Y[™Ù]ÚY
 
-    menu = Menu:new{
-        title = options.title or _("Reader tags"),
-        item_table = items,
-        width = math.floor(Screen:getWidth() * 0.94),
-        height = math.floor(Screen:getHeight() * 0.94),
-        single_line = false,
-        close_callback = function()
-            if container then UIManager:close(container) end
-            self.active_menu = nil
-        end,
-    }
-    container = CenterContainer:new{ dimen = Screen:getSize(), menu }
-    menu.show_parent = container
-    self.active_menu = container
-    UIManager:show(container)
-end
+H
+ˆM
+KˆZYÚHX]™›ÛÜŠØÜ™Y[™Ù]ZYÚ
 
-function MetadataUI:editDocumentTags(document, pending)
-    local available = self:_fetchTagNames()
-    self:_showTagPicker{
-        title = _("Reader document tags"),
-        selected = pending.tags,
-        available = available,
-        on_save = function(tags)
-            if Tags.equal(pending.tags, tags) then
-                UIManager:show(InfoMessage:new{ text = _("No Reader document-tag changes to queue.") })
-                return
-            end
-            local queued, err = self.mutations:queueDocumentTags(document, tags)
-            if not queued then
-                UIManager:show(InfoMessage:new{
-                    text = err and err.message or _("The Reader document-tag change could not be queued safely."),
-                })
-                return
-            end
-            UIManager:show(InfoMessage:new{
-                text = _("Reader document tags queued. Run Sync now when you want to send them."),
-            })
-        end,
-    }
-end
+H
+ˆM
+KˆÚ[™ÛWÛ[™HH˜[ÙKˆÛÜÙWØØ[˜XÚÈH[˜İ[ÛŠ
+BˆYˆÛÛZ[™\ˆ[ˆRSX[˜YÙ\˜ÛÜÙJÛÛZ[™\ŠH[™ˆÙ[‹˜Xİ]™WÛY[HHš[ˆ[™ˆBˆÛÛZ[™\ˆHÙ[\ÛÛZ[™\›™]ŞÈ[Y[ˆHØÜ™Y[™Ù]Ú^™J
+KY[HBˆY[KœÚİ×Ü\™[HÛÛZ[™\‚ˆÙ[‹˜Xİ]™WÛY[HHÛÛZ[™\‚ˆRSX[˜YÙ\œÚİÊÛÛZ[™\ŠB™[™‚™[˜İ[ÛˆY]Y]URN™Y]Øİ[Y[YÜÊØİ[Y[[™[™ÊBˆØØ[]˜Z[X›HHÙ[—Ù™]ÚYÓ˜[Y\Ê
+BˆÙ[—ÜÚİÕYÔXÚÙ\Âˆ]HHÊ”™XY\ˆØİ[Y[YÜÈŠKˆÙ[XİYH[™[™ËYÜËˆ]˜Z[X›HH]˜Z[X›KˆÛ—ÜØ]™HH[˜İ[ÛŠYÜÊBˆYˆYÜË™\]X[
+[™[™ËYÜËYÜÊH[‚ˆRSX[˜YÙ\œÚİÊ[™›ÓY\ÜØYÙN›™]ŞÈ^HÊ“›È™XY\ˆØİ[Y[]YÈÚ[™Ù\ÈÈ]Y]YKˆŠHJBˆ™]\›‚ˆ[™ˆØØ[]Y]YY\œˆHÙ[‹›]]][ÛœÎœ]Y]YQØİ[Y[YÜÊØİ[Y[YÜÊBˆYˆ›İ]Y]YY[‚ˆRSX[˜YÙ\œÚİÊ[™›ÓY\ÜØYÙN›™]ŞÂˆ^H\œˆ[™\œ‹›Y\ÜØYÙHÜˆÊ•H™XY\ˆØİ[Y[]YÈÚ[™ÙHÛİ[›İ™H]Y]YYØY™[KˆŠKˆJBˆ™]\›‚ˆ[™ˆRSX[˜YÙ\œÚİÊ[™›ÓY\ÜØYÙN›™]ŞÂˆ^HÊ”™XY\ˆØİ[Y[YÜÈ]Y]YYˆ[ˆŞ[˜È›İÈÚ[ˆ[İHØ[ÈÙ[™[KˆŠKˆJBˆ[™ˆB™[™‚™[˜İ[ÛˆY]Y]URN—Ü™\ÛÛ™P[››İ][ÛŠ[™^
+BˆØØ[Øİ[Y[HÙ[—Øİ\œ™[Øİ[Y[
 
-function MetadataUI:_resolveAnnotation(index)
-    local document = self:_currentDocument()
-    local reader_ui = self.get_reader_ui()
-    local annotation = reader_ui and reader_ui.annotation
-        and reader_ui.annotation.annotations
-        and reader_ui.annotation.annotations[index] or nil
-    if not document or not annotation or annotation.drawer == nil then return nil end
-    local normalized = self.adapter:normalize(document.reader_id, annotation)
-    if not normalized then return nil end
-    local link = self.annotations:getById(normalized.local_annotation_id)
-    if not link then
-        link = self.annotations:upsertLocal{
-            local_annotation_id = normalized.local_annotation_id,
-            reader_document_id = document.reader_id,
-            local_created_at = normalized.datetime,
-            locator_fingerprint = normalized.locator_fingerprint,
-            original_text_hash = normalized.text_hash,
-            last_text_hash = normalized.text_hash,
-            last_note_hash = normalized.note_hash,
-            sync_state = "local_only",
-            last_sync_error = nil,
-        }
-    end
-    return document, annotation, normalized, link
-end
+BˆØØ[™XY\—İZHHÙ[‹™Ù]Ü™XY\—İZJ
+BˆØØ[[››İ][ÛˆH™XY\—İZH[™™XY\—İZK˜[››İ][Û‚ˆ[™™XY\—İZK˜[››İ][Û‹˜[››İ][ÛœÂˆ[™™XY\—İZK˜[››İ][Û‹˜[››İ][ÛœÖÚ[™^HÜˆš[ˆYˆ›İØİ[Y[Üˆ›İ[››İ][ÛˆÜˆ[››İ][Û‹™˜]Ù\ˆOHš[[ˆ™]\›ˆš[[™ˆØØ[›Ü›X[^™YHÙ[‹˜Y\\››Ü›X[^™JØİ[Y[œ™XY\—ÚY[››İ][ÛŠBˆYˆ›İ›Ü›X[^™Y[ˆ™]\›ˆš[[™ˆØØ[[šÈHÙ[‹˜[››İ][ÛœÎ™Ù]RY
+›Ü›X[^™Y›ØØ[Ø[››İ][Û—ÚY
+BˆYˆ›İ[šÈ[‚ˆKHHYÚYÚØ[ˆ™HYÙÙY™Y›Ü™HH™^Ş[˜ÈØØ[œÈ]ÈÚYXØ\‹‚ˆKH\œÚ\İ\È^Xİ]\›Z[š\İXÈØØ[Y[]HÛ›NÈ›È™[[İHÜš]BˆKHÜˆ[][Ûˆ[™™\™[˜ÙH\[œÈ[ˆHRH›ØÙ\ÜË‚ˆ[šÈHÙ[‹˜[››İ][ÛœÎ\Ù\ØØ[ÂˆØØ[Ø[››İ][Û—ÚYH›Ü›X[^™Y›ØØ[Ø[››İ][Û—ÚYˆ™XY\—ÙØİ[Y[ÚYHØİ[Y[œ™XY\—ÚYˆØØ[ØÜ™X]YØ]H›Ü›X[^™Y™]][YKˆØØ]Ü—Ùš[™Ù\œš[H›Ü›X[^™Y›ØØ]Ü—Ùš[™Ù\œš[ˆÜšYÚ[˜[İ^Ú\ÚH›Ü›X[^™Y^Ú\Úˆ\İİ^Ú\ÚH›Ü›X[^™Y^Ú\Úˆ\İÛ›İWÚ\ÚH›Ü›X[^™Y››İWÚ\ÚˆŞ[˜×Üİ]HH›ØØ[ÛÛ›H‹ˆ\İÜŞ[˜×Ù\œ›ÜˆHš[ˆBˆ[™ˆ™]\›ˆØİ[Y[[››İ][Û‹›Ü›X[^™Y[šÂ™[™‚™[˜İ[ÛˆY]Y]URN˜Ø[‘Y]YÚYÚ
+[™^
+BˆØØ[Øİ[Y[HÙ[—Øİ\œ™[Øİ[Y[
 
-function MetadataUI:canEditHighlight(index)
-    local document = self:_currentDocument()
-    if not document or type(index) ~= "number" then return false end
-    local reader_ui = self.get_reader_ui()
-    local annotation = reader_ui and reader_ui.annotation
-        and reader_ui.annotation.annotations
-        and reader_ui.annotation.annotations[index] or nil
-    return annotation ~= nil and annotation.drawer ~= nil
-end
-
-function MetadataUI:_queueHighlightTags(document, normalized, link, baseline, desired, tags)
-    if Tags.equal(desired, tags) then
-        UIManager:show(InfoMessage:new{ text = _("No Reader highlight-tag changes to queue.") })
-        return
-    end
-
-    if link and link.created_remote
-        and type(link.reader_highlight_document_id) == "string"
-        and link.reader_highlight_document_id ~= "" then
-        local queued, err = self.mutations:queueHighlightTags(link, baseline, tags)
-        if not queued then
-            UIManager:show(InfoMessage:new{
-                text = err and err.message or _("A previous Reader highlight-tag edit must be reconciled with Sync now first."),
-            })
-            return
-        end
-        self.annotation_metadata:setPendingTags(
-            normalized.local_annotation_id,
-            baseline,
-            tags,
-            os.time()
-        )
-    else
-        local create_item = self.queue:getByKey(
-            AnnotationIdentity.createQueueKey(normalized.local_annotation_id)
-        )
-        if create_item and (create_item.attempts or 0) > 0 then
-            UIManager:show(InfoMessage:new{
-                text = _("This highlight has an unresolved Reader create attempt. Run Sync now to reconcile it before changing its Reader tags."),
-            })
-            return
-        end
-        self.annotation_metadata:setPendingTags(
-            normalized.local_annotation_id,
-            baseline,
-            tags,
-            os.time()
-        )
-    end
-    UIManager:show(InfoMessage:new{
-        text = _("Reader highlight tags queued. Run Sync now when you want to send them."),
-    })
-end
-
-function MetadataUI:editHighlightTags(index)
-    local document, _, normalized, link = self:_resolveAnnotation(index)
-    if not document then
-        UIManager:show(InfoMessage:new{ text = _("This highlight is not in a managed Reader document.") })
-        return
-    end
-
-    local metadata = self.annotation_metadata:getById(normalized.local_annotation_id)
-    local baseline = metadata and metadata.last_synced_tags or {}
-    local desired = metadata and metadata.pending_tags or baseline
-
-    if link and link.created_remote
-        and type(link.reader_highlight_document_id) == "string"
-        and link.reader_highlight_document_id ~= "" then
-        local remote = self:_fetchRemote(link.reader_highlight_document_id)
-        if remote and remote.category == "highlight" and remote.parent_id == document.reader_id then
-            baseline = Tags.normalize(remote.tags)
-            desired = metadata and metadata.pending_tags or baseline
-            if not (metadata and metadata.pending_tags) then
-                self.annotation_metadata:markTagsSynced(normalized.local_annotation_id, baseline, os.time())
-            end
-        else
-            local cached = self.remote_highlights:getByRemoteId(link.reader_highlight_document_id)
-            if cached and not metadata then
-                baseline = Tags.normalize(cached.tags)
-                desired = baseline
-            end
-        end
-    end
-
-    local available = self:_fetchTagNames()
-    self:_showTagPicker{
-        title = _("Reader highlight tags"),
-        selected = desired,
-        available = available,
-        on_save = function(tags)
-            self:_queueHighlightTags(document, normalized, link, baseline, desired, tags)
-        end,
-    }
-end
-
-function MetadataUI:registerHighlightButton()
-    local reader_ui = self.get_reader_ui()
-    if not (reader_ui and reader_ui.highlight
-        and type(reader_ui.highlight.addToHighlightDialog) == "function") then
-        return false
-    end
-    reader_ui.highlight:addToHighlightDialog("08_readwise_tags", function(_, index)
-        return {
-            text = _("Reader tags"),
-            show_in_highlight_dialog_func = function()
-                return self:canEditHighlight(index)
-            end,
-            callback = function()
-                reader_ui.highlight:onClose()
-                self:editHighlightTags(index)
-            end,
-        }
-    end)
-    return true
-end
-
-MetadataUI._normalizedNote = normalizedNote
-MetadataUI._trim = trim
-
-return MetadataUI
+BˆYˆ›İØİ[Y[Üˆ\J[™^
+HH›[X™\ˆˆ[ˆ™]\›ˆ˜[ÙH[™ˆØØ[™XY\—İZHHÙ[‹™Ù]Ü™XY\—İZJ
+BˆØØ[[››İ][ÛˆH™XY\—İZH[™™XY\—İZK˜[››İ][Û‚ˆ[™™XY\—İZK˜[››İ][Û‹˜[››İ][ÛœÂˆ[™™XY\—İZK˜[››İ][Û‹˜[››İ][ÛœÖÚ[™^HÜˆš[ˆ™]\›ˆ[››İ][ÛˆHš[[™[››İ][Û‹™˜]Ù\ˆHš[™[™‚™[˜İ[ÛˆY]Y]URN—Ü]Y]YRYÚYÚYÜÊØİ[Y[›Ü›X[^™Y[šË˜\Ù[[™K\Ú\™YYÜÊBˆYˆYÜË™\]X[
+\Ú\™YYÜÊH[‚ˆRSX[˜YÙ\œÚİÊ[™›ÓY\ÜØYÙN›™]ŞÈ^HÊ“›È™XY\ˆYÚYÚ]YÈÚ[™Ù\ÈÈ]Y]YKˆŠHJBˆ™]\›‚ˆ[™‚ˆYˆ[šÈ[™[šË˜Ü™X]YÜ™[[İBˆ[™\J[šËœ™XY\—ÚYÚYÚÙØİ[Y[ÚY
+HOHœİš[™È‚ˆ[™[šËœ™XY\—ÚYÚYÚÙØİ[Y[ÚYHˆˆ[‚ˆØØ[]Y]YY\œˆHÙ[‹›]]][ÛœÎœ]Y]YRYÚYÚYÜÊ[šË˜\Ù[[™KYÜÊBˆYˆ›İ]Y]YY[‚ˆRSX[˜YÙ\œÚİÊ[™›ÓY\ÜØYÙN›™]ŞÂˆ^H\œˆ[™\œ‹›Y\ÜØYÙHÜˆÊH™]š[İ\È™XY\ˆYÚYÚ]YÈY]]\İ™H™XÛÛ˜Ú[YÚ]Ş[˜È›İÈš\œİˆŠKˆJBˆ™]\›‚ˆ[™ˆÙ[‹˜[››İ][Û—ÛY]Y]NœÙ][™[™ÕYÜÊˆ›Ü›X[^™Y›ØØ[Ø[››İ][Û—ÚYˆ˜\Ù[[™KˆYÜËˆÜË[YJ
+Bˆ
+Bˆ[ÙBˆØØ[Ü™X]WÚ][HHÙ[‹œ]Y]YN™Ù]RÙ^Jˆ[››İ][Û’Y[]K˜Ü™X]T]Y]YRÙ^J›Ü›X[^™Y›ØØ[Ø[››İ][Û—ÚY
+Bˆ
+BˆYˆÜ™X]WÚ][H[™
+Ü™X]WÚ][K˜][\ÈÜˆ
+Hˆ[‚ˆRSX[˜YÙ\œÚİÊ[™›ÓY\ÜØYÙN›™]ŞÂˆ^HÊ•\ÈYÚYÚ\È[ˆ[œ™\ÛÛ™Y™XY\ˆÜ™X]H][\ˆ[ˆŞ[˜È›İÈÈ™XÛÛ˜Ú[H]™Y›Ü™HÚ[™Ú[™È]È™XY\ˆYÜËˆŠKˆJBˆ™]\›‚ˆ[™ˆÙ[‹˜[››İ][Û—ÛY]Y]NœÙ][™[™ÕYÜÊˆ›Ü›X[^™Y›ØØ[Ø[››İ][Û—ÚYˆ˜\Ù[[™KˆYÜËˆÜË[YJ
+Bˆ
+Bˆ[™ˆRSX[˜YÙ\œÚİÊ[™›ÓY\ÜØYÙN›™]ŞÂˆ^HÊ”™XY\ˆYÚYÚYÜÈ]Y]YYˆ[ˆŞ[˜È›İÈÚ[ˆ[İHØ[ÈÙ[™[KˆŠKˆJB™[™‚™[˜İ[ÛˆY]Y]URN™Y]YÚYÚYÜÊ[™^
+BˆØØ[Øİ[Y[Ë›Ü›X[^™Y[šÈHÙ[—Ü™\ÛÛ™P[››İ][ÛŠ[™^
+BˆYˆ›İØİ[Y[[‚ˆRSX[˜YÙ\œÚİÊ[™›ÓY\ÜØYÙN›™]ŞÈ^HÊ•\ÈYÚYÚ\È›İ[ˆHX[˜YÙY™XY\ˆØİ[Y[ˆŠHJBˆ™]\›‚ˆ[™‚ˆØØ[Y]Y]HHÙ[‹˜[››İ][Û—ÛY]Y]N™Ù]RY
+›Ü›X[^™Y›ØØ[Ø[››İ][Û—ÚY
+BˆØØ[˜\Ù[[™HHY]Y]H[™Y]Y]K›\İÜŞ[˜ÙYİYÜÈÜˆßBˆØØ[\Ú\™YHY]Y]H[™Y]Y]Kœ[™[™×İYÜÈÜˆ˜\Ù[[™B‚ˆYˆ[šÈ[™[šË˜Ü™X]YÜ™[[İBˆ[™\J[šËœ™XY\—ÚYÚYÚÙØİ[Y[ÚY
+HOHœİš[™È‚ˆ[™[šËœ™XY\—ÚYÚYÚÙØİ[Y[ÚYHˆˆ[‚ˆØØ[™[[İHHÙ[—Ù™]Ú™[[İJ[šËœ™XY\—ÚYÚYÚÙØİ[Y[ÚY
+BˆYˆ™[[İH[™™[[İK˜Ø]YÛÜHOHšYÚYÚˆ[™™[[İKœ\™[ÚYOHØİ[Y[œ™XY\—ÚY[‚ˆ˜\Ù[[™HHYÜË››Ü›X[^™J™[[İKYÜÊBˆ\Ú\™YHY]Y]H[™Y]Y]Kœ[™[™×İYÜÈÜˆ˜\Ù[[™BˆYˆ›İ
+Y]Y]H[™Y]Y]Kœ[™[™×İYÜÊH[‚ˆÙ[‹˜[››İ][Û—ÛY]Y]N›X\šÕYÜÔŞ[˜ÙY
+›Ü›X[^™Y›ØØ[Ø[››İ][Û—ÚY˜\Ù[[™KÜË[YJ
+JBˆ[™ˆ[ÙBˆØØ[ØXÚYHÙ[‹œ™[[İWÚYÚYÚÎ™Ù]T™[[İRY
+[šËœ™XY\—ÚYÚYÚÙØİ[Y[ÚY
+BˆYˆØXÚY[™›İY]Y]H[‚ˆ˜\Ù[[™HHYÜË››Ü›X[^™JØXÚYYÜÊBˆ\Ú\™YH˜\Ù[[™Bˆ[™ˆ[™ˆ[™‚ˆØØ[]˜Z[X›HHÙ[—Ù™]ÚYÓ˜[Y\Ê
+BˆÙ[—ÜÚİÕYÔXÚÙ\Âˆ]HHÊ”™XY\ˆYÚYÚYÜÈŠKˆÙ[XİYH\Ú\™Yˆ]˜Z[X›HH]˜Z[X›KˆÛ—ÜØ]™HH[˜İ[ÛŠYÜÊBˆÙ[—Ü]Y]YRYÚYÚYÜÊØİ[Y[›Ü›X[^™Y[šË˜\Ù[[™K\Ú\™YYÜÊBˆ[™ˆB™[™‚™[˜İ[ÛˆY]Y]URNœ™YÚ\İ\’YÚYÚ]ÛŠ
+BˆØØ[™XY\—İZHHÙ[‹™Ù]Ü™XY\—İZJ
+BˆYˆ›İ
+™XY\—İZH[™™XY\—İZKšYÚYÚˆ[™\J™XY\—İZKšYÚYÚ˜YÒYÚYÚX[ÙÊHOH™[˜İ[ÛˆŠH[‚ˆ™]\›ˆ˜[ÙBˆ[™ˆ™XY\—İZKšYÚYÚ˜YÒYÚYÚX[ÙÊŒÜ™XYÚ\ÙWİYÜÈ‹[˜İ[ÛŠË[™^
+Bˆ™]\›ˆÂˆ^HÊ”™XY\ˆYÜÈŠKˆÚİ×Ú[—ÚYÚYÚÙX[Ù×Ù[˜ÈH[˜İ[ÛŠ
+Bˆ™]\›ˆÙ[˜Ø[‘Y]YÚYÚ
+[™^
+Bˆ[™ˆØ[˜XÚÈH[˜İ[ÛŠ
+Bˆ™XY\—İZKšYÚYÚ›ÛÛÜÙJ
+BˆÙ[™Y]YÚYÚYÜÊ[™^
+Bˆ[™ˆBˆ[™
+Bˆ™]\›ˆYB™[™‚“Y]Y]URK—Û›Ü›X[^™Y›İHH›Ü›X[^™Y›İB“Y]Y]URK—İš[HHš[B‚œ™]\›ˆY]Y]URB

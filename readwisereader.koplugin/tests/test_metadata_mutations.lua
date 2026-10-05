@@ -6,18 +6,29 @@ local function copy(t)
     if type(t) ~= "table" then return t end
     local out = {}
     for k, v in pairs(t) do
-        if type(v) == "table" then out[k] = copy(v) else out[k] = v end
+        if type(v) == "table" then
+            out[k] = copy(v)
+        else
+            out[k] = v
+        end
     end
     return out
 end
 
-local function jsonEncode(value) return require("json").encode(value) end
-local function jsonDecode(value) return require("json").decode(value) end
+local payloads, payload_seq = {}, 0
+local function jsonEncode(value)
+    payload_seq = payload_seq + 1
+    local key = "payload-" .. tostring(payload_seq)
+    payloads[key] = copy(value)
+    return key
+end
+local function jsonDecode(value) return copy(payloads[value]) end
 
 local function queueStub()
     local q = { items = {}, now = 100 }
     function q:prepareMetadata(item)
-        item.status = "pending"; item.attempts = 0
+        item.status = "pending"
+        item.attempts = 0
         self.items[item.idempotency_key] = copy(item)
         return copy(item)
     end
@@ -34,11 +45,14 @@ local function queueStub()
     end
     function q:markInFlight(key, at)
         local item = self.items[key]
-        item.status = "in_flight"; item.attempts = (item.attempts or 0) + 1; item.last_attempt_at = at
+        item.status = "in_flight"
+        item.attempts = (item.attempts or 0) + 1
+        item.last_attempt_at = at
         return copy(item)
     end
     function q:markSucceeded(key)
-        self.items[key].status = "succeeded"; return copy(self.items[key])
+        self.items[key].status = "succeeded"
+        return copy(self.items[key])
     end
     function q:markBlocked(key, kind, message)
         local item = self.items[key]
@@ -49,6 +63,11 @@ local function queueStub()
         local item = self.items[key]
         item.status = "retry_wait"; item.last_error_kind = kind; item.last_error_message = message
         return copy(item)
+    end
+    function q:markCancelled(key, message)
+        local item = self.items[key]
+        if item then item.status = "cancelled"; item.last_error_message = message end
+        return item and copy(item) or nil
     end
     function q:markPendingError(key, kind, message)
         local item = self.items[key]
@@ -64,7 +83,8 @@ local function queueStub()
 end
 
 local function newEngine(remote, queue, state)
-    state = state or {}; state.patches = state.patches or 0
+    state = state or {}
+    state.patches = state.patches or 0
     local docs = {
         setRemoteMetadata = function(_, id, notes, tags)
             state.cached = { id = id, notes = notes, tags = copy(tags) }
@@ -108,7 +128,8 @@ end
 local function tagMergePreservesRemoteAdd()
     local q = queueStub()
     local remote = { ["doc-1"] = { id="doc-1", category="article", tags={"a","remote"}, notes="" } }
-    local state = {}; local e = newEngine(remote, q, state)
+    local state = {}
+    local e = newEngine(remote, q, state)
     assert(e:queueDocumentTags({ reader_id="doc-1", remote_tags={"a"} }, {"a","kindle"}))
     local r = e:processQueue()
     assert(r.tag_updates == 1 and r.conflicts == 0)
@@ -119,48 +140,71 @@ end
 local function noteConflictBlocksOverwrite()
     local q = queueStub()
     local remote = { ["doc-1"] = { id="doc-1", category="article", tags={}, notes="changed elsewhere" } }
-    local state = {}; local e = newEngine(remote, q, state)
+    local state = {}
+    local e = newEngine(remote, q, state)
     assert(e:queueDocumentNote({ reader_id="doc-1", remote_notes="baseline" }, "kindle edit"))
     local r = e:processQueue()
-    assert(r.conflicts == 1); assert(state.patches == 0); assert(remote["doc-1"].notes == "changed elsewhere")
+    assert(r.conflicts == 1)
+    assert(state.patches == 0)
+    assert(remote["doc-1"].notes == "changed elsewhere")
 end
 
 local function noteClearUsesEmptyString()
     local q = queueStub()
     local remote = { ["doc-1"] = { id="doc-1", category="article", tags={}, notes="baseline" } }
-    local state = {}; local e = newEngine(remote, q, state)
+    local state = {}
+    local e = newEngine(remote, q, state)
     assert(e:queueDocumentNote({ reader_id="doc-1", remote_notes="baseline" }, ""))
     local r = e:processQueue()
-    assert(r.note_updates == 1); assert(remote["doc-1"].notes == "")
+    assert(r.note_updates == 1)
+    assert(remote["doc-1"].notes == "")
 end
 
 local function timeoutReconcilesWithoutSecondPatch()
     local q = queueStub()
     local remote = { ["doc-1"] = { id="doc-1", category="article", tags={"a"}, notes="" } }
-    local state = { fail_after_write = true }; local e = newEngine(remote, q, state)
+    local state = { fail_after_write = true }
+    local e = newEngine(remote, q, state)
     assert(e:queueDocumentTags({ reader_id="doc-1", remote_tags={"a"} }, {"a","b"}))
     local first = e:processQueue()
     assert(first.deferred == 1 and state.patches == 1)
     for _, item in pairs(q.items) do item.status = "pending" end
     local second = e:processQueue()
-    assert(second.reconciled == 1); assert(state.patches == 1)
+    assert(second.reconciled == 1)
+    assert(state.patches == 1)
 end
 
 local function highlightIdentityGuard()
     local q = queueStub()
     local remote = { ["hl-1"] = { id="hl-1", parent_id="other", category="highlight", tags={}, notes="" } }
-    local state = {}; local e = newEngine(remote, q, state)
+    local state = {}
+    local e = newEngine(remote, q, state)
     assert(e:queueHighlightTags({
-        local_annotation_id="ann-1", reader_document_id="doc-1", reader_highlight_document_id="hl-1",
+        local_annotation_id="ann-1", reader_document_id="doc-1",
+        reader_highlight_document_id="hl-1",
     }, {}, {"x"}))
     local r = e:processQueue()
     assert(r.blocked == 1 and state.patches == 0)
 end
 
+local function conflictCanBeExplicitlyDiscarded()
+    local q = queueStub()
+    local remote = { ["doc-1"] = { id="doc-1", category="article", tags={}, notes="remote" } }
+    local state = {}; local e = newEngine(remote, q, state)
+    assert(e:queueDocumentNote({ reader_id="doc-1", remote_notes="old" }, "kindle"))
+    assert(e:processQueue().conflicts == 1)
+    local pending = e:getPendingDocumentState({ reader_id="doc-1", remote_notes="remote", remote_tags={} })
+    assert(pending.note_status == "blocked" and pending.note == "kindle")
+    assert(e:cancelDocumentEdit({ reader_id="doc-1" }, "note"))
+    local after = e:getPendingDocumentState({ reader_id="doc-1", remote_notes="remote", remote_tags={} })
+    assert(after.note_pending == false and after.note == "remote")
+end
+
 local function pendingDocumentStateReflectsQueuedIntent()
     local q = queueStub()
     local remote = { ["doc-1"] = { id="doc-1", category="article", tags={"a"}, notes="old" } }
-    local state = {}; local e = newEngine(remote, q, state)
+    local state = {}
+    local e = newEngine(remote, q, state)
     assert(e:queueDocumentTags({ reader_id="doc-1", remote_tags={"a"} }, {"a","kindle"}))
     assert(e:queueDocumentNote({ reader_id="doc-1", remote_notes="old" }, "queued note"))
     local pending = e:getPendingDocumentState({ reader_id="doc-1", remote_tags={"a"}, remote_notes="old" })
@@ -175,5 +219,6 @@ return function()
     noteClearUsesEmptyString()
     timeoutReconcilesWithoutSecondPatch()
     highlightIdentityGuard()
+    conflictCanBeExplicitlyDiscarded()
     pendingDocumentStateReflectsQueuedIntent()
 end

@@ -94,7 +94,8 @@ local function withStubbedUI(run)
                 getPendingDocumentState = function()
                     return { tags = { "alpha" }, note = "queued", tags_pending = false, note_pending = true }
                 end,
-                queueDocumentNote = function() return true end,
+                queueDocumentNote = function(_, document, note) state.queued_note = { document = document, note = note }; return true end,
+                cancelDocumentEdit = function(_, document, field) state.cancelled = { document = document, field = field }; return true end,
                 queueDocumentTags = function() return true end,
                 queueHighlightTags = function() return true end,
             },
@@ -154,5 +155,16 @@ return function()
         assert(menu.item_table[3].text == "Add new tag…")
         assert(menu.item_table[4].text == "alpha")
         assert(menu.item_table[4].checked_func() == true)
+
+        ui:editDocumentNote({ reader_id = "doc-1", remote_notes = "remote" }, {
+            note = "kindle", note_pending = true, note_status = "blocked",
+        })
+        local dialog = state.shown[#state.shown]
+        assert(dialog.title == "Reader document note — conflict")
+        assert(dialog.buttons[1][2].text == "Keep Kindle")
+        assert(dialog.buttons[2][1].text == "Use Reader version")
+        dialog.buttons[2][1].callback()
+        assert(state.cancelled.field == "note")
+        assert(state.cancelled.document.reader_id == "doc-1")
     end)
 end

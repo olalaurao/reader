@@ -101,6 +101,16 @@ function MetadataMutations:queueDocumentTags(document, desired_tags)
     })
 end
 
+function MetadataMutations:cancelDocumentEdit(document, field)
+    assert(document and document.reader_id, "managed document is required")
+    assert(field == "note" or field == "tags", "metadata field is required")
+    return self.queue:markCancelled(
+        keyFor("document", document.reader_id, field),
+        "User kept the current Reader value.",
+        self.now()
+    )
+end
+
 function MetadataMutations:getPendingDocumentState(document)
     assert(document and document.reader_id, "managed document is required")
     local state = {
@@ -225,6 +235,9 @@ function MetadataMutations:_processNote(item, payload, remote, report)
         return
     end
     if current ~= baseline then
+        if payload.target_kind == "document" then
+            self.documents:setRemoteMetadata(payload.target_id, remote.notes, remote.tags)
+        end
         self.queue:markBlocked(
             item.idempotency_key,
             "metadata_note_conflict",
