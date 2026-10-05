@@ -1,5 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
+local Tags = require("metadata/tags")
+
 local RemoteHighlights = {}
 RemoteHighlights.__index = RemoteHighlights
 
@@ -17,6 +19,7 @@ local function rowToHighlight(row)
         highlight_offset = row[7],
         highlight_location = row[8],
         last_seen_at = tonumber(row[9]),
+        tags = Tags.decode(row[10]),
     }
 end
 
@@ -46,8 +49,8 @@ function RemoteHighlights:upsertMany(highlights, seen_at)
             INSERT INTO remote_highlights(
                 reader_highlight_document_id, reader_document_id,
                 content, notes, created_at, updated_at,
-                highlight_offset, highlight_location, last_seen_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                highlight_offset, highlight_location, last_seen_at, tags_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(reader_highlight_document_id) DO UPDATE SET
                 reader_document_id = excluded.reader_document_id,
                 content = excluded.content,
@@ -56,7 +59,8 @@ function RemoteHighlights:upsertMany(highlights, seen_at)
                 updated_at = excluded.updated_at,
                 highlight_offset = excluded.highlight_offset,
                 highlight_location = excluded.highlight_location,
-                last_seen_at = excluded.last_seen_at;
+                last_seen_at = excluded.last_seen_at,
+                tags_json = excluded.tags_json;
         ]])
 
         local written = 0
@@ -74,7 +78,8 @@ function RemoteHighlights:upsertMany(highlights, seen_at)
                     remote.updated_at,
                     remote.highlight_offset,
                     remote.highlight_location,
-                    seen_at
+                    seen_at,
+                    Tags.encode(remote.tags)
                 ):step()
                 written = written + 1
             end
@@ -83,7 +88,6 @@ function RemoteHighlights:upsertMany(highlights, seen_at)
         return written
     end)
 end
-
 
 function RemoteHighlights:replaceSnapshot(highlights, seen_at)
     highlights = highlights or {}
@@ -95,8 +99,8 @@ function RemoteHighlights:replaceSnapshot(highlights, seen_at)
             INSERT INTO remote_highlights(
                 reader_highlight_document_id, reader_document_id,
                 content, notes, created_at, updated_at,
-                highlight_offset, highlight_location, last_seen_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                highlight_offset, highlight_location, last_seen_at, tags_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         ]])
 
         local written = 0
@@ -114,7 +118,8 @@ function RemoteHighlights:replaceSnapshot(highlights, seen_at)
                     remote.updated_at,
                     remote.highlight_offset,
                     remote.highlight_location,
-                    seen_at
+                    seen_at,
+                    Tags.encode(remote.tags)
                 ):step()
                 written = written + 1
             end
@@ -166,6 +171,24 @@ function RemoteHighlights:deleteByParents(parent_ids)
     end)
 end
 
+function RemoteHighlights:getByRemoteId(reader_highlight_document_id)
+    if type(reader_highlight_document_id) ~= "string" or reader_highlight_document_id == "" then
+        return nil
+    end
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        SELECT
+            reader_highlight_document_id, reader_document_id,
+            content, notes, created_at, updated_at,
+            highlight_offset, highlight_location, last_seen_at, tags_json
+        FROM remote_highlights
+        WHERE reader_highlight_document_id = ?;
+    ]])
+    local row = stmt:bind(reader_highlight_document_id):step()
+    stmt:close()
+    return rowToHighlight(row)
+end
+
 function RemoteHighlights:listByParent(reader_document_id)
     if type(reader_document_id) ~= "string" or reader_document_id == "" then
         return {}
@@ -176,7 +199,7 @@ function RemoteHighlights:listByParent(reader_document_id)
         SELECT
             reader_highlight_document_id, reader_document_id,
             content, notes, created_at, updated_at,
-            highlight_offset, highlight_location, last_seen_at
+            highlight_offset, highlight_location, last_seen_at, tags_json
         FROM remote_highlights
         WHERE reader_document_id = ?;
     ]])

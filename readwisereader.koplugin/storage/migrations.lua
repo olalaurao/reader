@@ -2,7 +2,7 @@
 
 local Migrations = {}
 
-Migrations.SCHEMA_VERSION = 3
+Migrations.SCHEMA_VERSION = 4
 
 Migrations.SCHEMA_V1 = [[
 CREATE TABLE IF NOT EXISTS documents (
@@ -109,6 +109,19 @@ CREATE INDEX IF NOT EXISTS idx_remote_highlights_parent
     ON remote_highlights(reader_document_id);
 ]]
 
+Migrations.SCHEMA_V4 = [[
+ALTER TABLE documents ADD COLUMN remote_notes TEXT;
+ALTER TABLE documents ADD COLUMN remote_tags_json TEXT;
+ALTER TABLE remote_highlights ADD COLUMN tags_json TEXT;
+CREATE TABLE IF NOT EXISTS annotation_metadata (
+    local_annotation_id TEXT PRIMARY KEY,
+    last_synced_tags_json TEXT,
+    pending_tags_json TEXT,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY(local_annotation_id) REFERENCES annotation_links(local_annotation_id)
+);
+]]
+
 function Migrations.currentVersion(conn)
     return tonumber(conn:rowexec("PRAGMA user_version;")) or 0
 end
@@ -136,6 +149,9 @@ function Migrations.apply(conn, from_version)
         end
         if from_version < 3 then
             conn:exec(Migrations.SCHEMA_V3)
+        end
+        if from_version < 4 then
+            conn:exec(Migrations.SCHEMA_V4)
         end
         conn:exec(string.format("PRAGMA user_version=%d;", Migrations.SCHEMA_VERSION))
     end)

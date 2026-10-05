@@ -68,11 +68,6 @@ function Cache:_deletedSince(updated_after)
 
         for _, book in ipairs(page.results or {}) do
             if type(book) == "table" then
-                -- Do not depend on the export source label. Reader/Readwise
-                -- representations have historically varied there, while the
-                -- durable cross-API contract is the exact external_id. Delete
-                -- operations below can only affect cache rows whose exact
-                -- Reader parent/child IDs match these tombstones.
                 if book.is_deleted == true then
                     appendUnique(parent_ids, seen_parents, book.external_id)
                 end
@@ -144,20 +139,12 @@ function Cache:refresh()
                 updated_at = remote.updated_at,
                 highlight_offset = remote.highlight_offset,
                 highlight_location = remote.highlight_location,
+                tags = remote.tags,
             }
         end
     end)
     if not scan then return nil, scan_err end
 
-    -- Reader v3 LIST has no documented deletion tombstone. Once the initial
-    -- full snapshot exists, use Readwise v2 EXPORT includeDeleted=true with
-    -- the same overlap lower bound before advancing the cache watermark.
-    -- The v2 highlight external_id is the Reader highlight child ID, and a
-    -- Reader-sourced book external_id is its Reader parent document ID.
-    -- Even the historical baseline checks a bounded v2 overlap window
-    -- before publishing the snapshot. This closes the race where a highlight
-    -- is deleted after an early v3 page was read but before the full baseline
-    -- scan completes. Incremental runs use their durable overlap watermark.
     local deleted, deletion_err = self:_deletedSince(
         baseline and query_after or proposed_query_after
     )
@@ -167,9 +154,6 @@ function Cache:refresh()
     if baseline then
         written = self.repository:upsertMany(remote_rows, started_epoch)
     else
-        -- A successful historical v3 scan is an authoritative extant snapshot.
-        -- Replace atomically so stale rows from an older/partial baseline cannot
-        -- survive into the first import run.
         written = self.repository:replaceSnapshot(remote_rows, started_epoch)
     end
     self.repository:deleteByRemoteIds(deleted.highlight_ids)
