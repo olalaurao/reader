@@ -20,6 +20,29 @@ local MANAGED_COLLECTIONS = {
     ["Readwise: Other"] = true,
 }
 
+-- Reader documents are installed from Trapper's child process. If SimpleUI or
+-- KOReader's FileManager already has a directory item table cached, the file is
+-- physically present (and searchable) but can remain absent from the visible
+-- folder until a manual refresh/restart. Keep this best-effort and dependency
+-- free: only touch UI modules that are already loaded in the parent process.
+local function refreshFileBrowser()
+    local simpleui_foldercovers = package.loaded["features/library/sui_foldercovers"]
+    if type(simpleui_foldercovers) == "table"
+        and type(simpleui_foldercovers.invalidateItemTableCache) == "function" then
+        pcall(simpleui_foldercovers.invalidateItemTableCache)
+    end
+
+    local filemanager_module = package.loaded["apps/filemanager/filemanager"]
+    local filemanager = type(filemanager_module) == "table"
+        and filemanager_module.instance or nil
+    local file_chooser = filemanager and filemanager.file_chooser or nil
+    if file_chooser and type(file_chooser.refreshPath) == "function" then
+        pcall(file_chooser.refreshPath, file_chooser)
+    end
+
+    return true
+end
+
 function Collections:new(options)
     options = options or {}
     return setmetatable({
@@ -63,10 +86,16 @@ end
 function Collections:refresh()
     local ok, err = pcall(function() self.read_collection:_read() end)
     if not ok then return nil, tostring(err) end
+
+    -- UI refresh is deliberately non-fatal. Collection persistence already
+    -- succeeded; a third-party UI/cache refresh must never block the document
+    -- watermark or turn a successful download into a failed sync.
+    pcall(refreshFileBrowser)
     return true
 end
 
 Collections.LOCATION_COLLECTIONS = LOCATION_COLLECTIONS
 Collections.MANAGED_COLLECTIONS = MANAGED_COLLECTIONS
+Collections._refreshFileBrowser = refreshFileBrowser
 
 return Collections

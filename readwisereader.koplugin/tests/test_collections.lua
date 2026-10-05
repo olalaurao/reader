@@ -35,6 +35,45 @@ return function()
     assert(ok == true)
     assert(#writes == 1, "no-op collection sync should not rewrite settings")
 
-    adapter:refresh()
+    local saved_foldercovers = package.loaded["features/library/sui_foldercovers"]
+    local saved_filemanager = package.loaded["apps/filemanager/filemanager"]
+    local simpleui_invalidations = 0
+    local filemanager_refreshes = 0
+    package.loaded["features/library/sui_foldercovers"] = {
+        invalidateItemTableCache = function()
+            simpleui_invalidations = simpleui_invalidations + 1
+        end,
+    }
+    package.loaded["apps/filemanager/filemanager"] = {
+        instance = {
+            file_chooser = {
+                refreshPath = function()
+                    filemanager_refreshes = filemanager_refreshes + 1
+                end,
+            },
+        },
+    }
+
+    ok = adapter:refresh()
+    assert(ok == true)
     assert(rc.refreshed == true)
+    assert(simpleui_invalidations == 1, "SimpleUI folder item cache must be invalidated")
+    assert(filemanager_refreshes == 1, "live FileManager path must be refreshed")
+
+    -- A third-party UI refresh failure must not turn a successful document
+    -- sync into a collection/persistence failure.
+    package.loaded["features/library/sui_foldercovers"] = {
+        invalidateItemTableCache = function() error("synthetic SimpleUI failure") end,
+    }
+    package.loaded["apps/filemanager/filemanager"] = {
+        instance = {
+            file_chooser = {
+                refreshPath = function() error("synthetic FileManager failure") end,
+            },
+        },
+    }
+    assert(adapter:refresh() == true)
+
+    package.loaded["features/library/sui_foldercovers"] = saved_foldercovers
+    package.loaded["apps/filemanager/filemanager"] = saved_filemanager
 end
