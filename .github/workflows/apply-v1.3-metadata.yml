@@ -11,6 +11,8 @@ on:
       - .automation/v1.3.patch.part03
       - .automation/v1.3.patch.part04
       - .automation/v1.3-ui-fix.patch.b64
+      - .automation/v1.3-queue-safety.part00
+      - .automation/v1.3-queue-safety.part01
       - .github/workflows/apply-v1.3-metadata.yml
 
 permissions:
@@ -41,6 +43,8 @@ jobs:
           echo 'f1e8e45bb3548695156707c62ca8a76fd21498094fb16124e0020d6173ff4a2a  /tmp/v1.3.patch' | sha256sum -c -
           base64 -d .automation/v1.3-ui-fix.patch.b64 > /tmp/v1.3-ui-fix.patch
           echo 'cd9e58419e4401aafa22efdb0968f3583e093e0a41343b8f7af966de646a75ae  /tmp/v1.3-ui-fix.patch' | sha256sum -c -
+          cat .automation/v1.3-queue-safety.part00 .automation/v1.3-queue-safety.part01 | base64 -d > /tmp/v1.3-queue-safety.patch
+          echo '15369254555ee16877a81bc515f755e968eaf9e39ed0a02ec3178db84ef425a1  /tmp/v1.3-queue-safety.patch' | sha256sum -c -
 
       - name: Apply staged implementation
         run: |
@@ -48,6 +52,8 @@ jobs:
           git apply /tmp/v1.3.patch
           git apply --check /tmp/v1.3-ui-fix.patch
           git apply /tmp/v1.3-ui-fix.patch
+          git apply --check /tmp/v1.3-queue-safety.patch
+          git apply /tmp/v1.3-queue-safety.patch
 
       - name: Register and normalize new tests
         run: |
@@ -71,15 +77,18 @@ jobs:
 
           test = Path('readwisereader.koplugin/tests/test_annotation_upload_metadata.lua')
           body = test.read_text()
-          old = '''    assert(upload:_prepareQueue(\n        { reader_id = "doc-1" },\n        {\n            local_annotation_id = "ann-1",\n            text = "Selected",\n            note = "note",\n            text_hash = "th",\n            note_hash = "nh",\n        },\n        "Selected",\n        "marker"\n    ))\n    local payload = jsonDecode(captured.payload_json)\n'''
-          new = '''    local prepared = upload:_prepareQueue(\n        { reader_id = "doc-1" },\n        {\n            local_annotation_id = "ann-1",\n            text = "Selected",\n            note = "note",\n            text_hash = "th",\n            note_hash = "nh",\n        },\n        "Selected",\n        "marker"\n    )\n    assert(prepared)\n    local payload = jsonDecode(captured.payload_json)\n'''
-          if old not in body:
-              raise SystemExit('annotation upload test normalization marker not found')
-          test.write_text(body.replace(old, new, 1))
+          if '    assert(upload:_prepareQueue(\n' not in body:
+              raise SystemExit('annotation upload test start marker not found')
+          body = body.replace('    assert(upload:_prepareQueue(\n', '    local prepared = upload:_prepareQueue(\n', 1)
+          tail = '        "marker"\n    ))\n    local payload = require("json").decode(captured.payload_json)\n'
+          replacement = '        "marker"\n    )\n    assert(prepared)\n    local payload = require("json").decode(captured.payload_json)\n'
+          if tail not in body:
+              raise SystemExit('annotation upload test end marker not found')
+          test.write_text(body.replace(tail, replacement, 1))
           PY
 
       - name: Remove staging payloads
-        run: rm -f .automation/v1.3.patch.gz.b64 .automation/v1.3.patch.part* .automation/v1.3-ui-fix.patch.b64
+        run: rm -f .automation/v1.3.patch.gz.b64 .automation/v1.3.patch.part* .automation/v1.3-ui-fix.patch.b64 .automation/v1.3-queue-safety.part*
 
       - name: Run development checks
         run: ./scripts/dev-check.sh
