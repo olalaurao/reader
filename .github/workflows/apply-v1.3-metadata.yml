@@ -34,127 +34,24 @@ jobs:
           git apply --check /tmp/v1.3.patch
           git apply /tmp/v1.3.patch
 
-      - name: Register tests and update canonical docs
+      - name: Register new tests
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
-          run = Path('readwisereader.koplugin/tests/run.lua')
-          text = run.read_text()
+          path = Path('readwisereader.koplugin/tests/run.lua')
+          text = path.read_text()
           marker = '    "tests.test_annotation_mutations",\n'
-          additions = (
-              '    "tests.test_annotation_note_clear",\n'
-              '    "tests.test_annotation_upload_metadata",\n'
-              '    "tests.test_metadata_tags",\n'
-              '    "tests.test_metadata_mutations",\n'
-              '    "tests.test_metadata_storage",\n'
-          )
+          additions = ''.join([
+              '    "tests.test_annotation_note_clear",\n',
+              '    "tests.test_annotation_upload_metadata",\n',
+              '    "tests.test_metadata_tags",\n',
+              '    "tests.test_metadata_mutations",\n',
+              '    "tests.test_metadata_storage",\n',
+          ])
           if 'tests.test_metadata_mutations' not in text:
               if marker not in text:
                   raise SystemExit('test insertion marker not found')
-              text = text.replace(marker, marker + additions)
-              run.write_text(text)
-
-          sections = {
-              'PLAN.md': r'''
-
-## v1.3.0 — Reader metadata editing
-
-Goal: make a Reader-managed document administrable from the Kindle without weakening the existing fail-safe synchronization contracts.
-
-Scope:
-- edit/add/remove Reader document tags from the current managed document;
-- create/edit/clear the Reader document note;
-- edit/add/remove Reader highlight tags from the native KOReader highlight popup;
-- preserve KOReader's native highlight-note workflow, including safe note clearing;
-- allow metadata edits while offline by persisting intent locally and delivering it on a later manual Sync now;
-- include pending highlight tags in the first remote highlight CREATE when the highlight has not yet been uploaded;
-- project successfully updated document tags back into local metadata/Bookshelf through the existing post-sync metadata path.
-
-Safety rules:
-- document/highlight notes use a baseline/desired/remote three-way check and never overwrite a divergent remote edit automatically;
-- tags are stored as local add/remove intent and are re-applied to a fresh remote tag set before PATCH, preserving unrelated remote tag changes;
-- every remote metadata mutation is reconciled before retry and verified after PATCH;
-- highlight metadata writes require exact durable highlight identity plus the expected Reader parent/category;
-- no metadata write is allowed before the existing remote reachability/auth preflight;
-- schema migration is transactional and uses the existing pre-migration SQLite backup contract.
-
-Release gate: v1.3.0 is not accepted until automated CI/package checks pass and the target PW3 completes the consolidated metadata-editing physical/API acceptance matrix.
-''',
-              'IMPLEMENTATION_SPEC.md': r'''
-
-## V1.3 metadata editing addendum (2026-10-05)
-
-### Metadata model
-Reader remains the remote system of record. The Kindle may persist an offline desired edit, but a queued edit does not become a new remote baseline until a verified Reader response proves the assignment is visible.
-
-Document metadata cached locally now includes `notes` and canonical `tags`. Remote highlight cache rows include canonical tags. Per-annotation metadata persists a tag baseline plus pending desired tags independently from KOReader sidecar annotation identity.
-
-### Note mutation contract
-For a document or linked highlight note, persist the baseline and desired note. At delivery time fetch the current Reader entity. If current equals desired, reconcile without another write. If current differs from both baseline and desired, classify a conflict and do not overwrite it. Otherwise PATCH the desired value and fetch again to verify. An empty string is the explicit Reader note-clear value.
-
-### Tag mutation contract
-Tags are never blindly overwritten from a stale Kindle snapshot. Persist baseline and desired tags, derive `add = desired - baseline` and `remove = baseline - desired`, fetch current remote tags, then compute `(current + add) - remove`. PATCH the canonical merged list only when needed and fetch again to verify the intended additions/removals. This preserves unrelated tags created or removed remotely after the Kindle baseline was captured.
-
-### Highlight contracts
-A linked highlight metadata operation is authorized only by its durable Reader child ID and the expected parent/category. A locally-created highlight that has not been attempted remotely may carry pending tags in the same first Reader CREATE as its text/note. Once a CREATE attempt has an ambiguous outcome, its payload remains immutable until reconciliation.
-
-KOReader v2026.07.1 exposes `ReaderHighlight:addToHighlightDialog`; the plugin registers a `Reader tags` action there for existing highlights in managed Reader documents. KOReader's native Add/Edit note remains the local note editor.
-
-### Queue/retry/network contract
-Metadata operations use the durable SQLite queue. They may be prepared offline. Remote processing begins only after the existing Readwise auth/reachability preflight. Restart recovery may requeue an in-flight metadata assignment because every subsequent attempt starts with remote reconciliation. Retryable failures and rate limits defer; identity/conflict failures fail closed.
-
-### Storage migration
-Schema v4 adds document notes/tags, remote-highlight tags, and `annotation_metadata`. Migration remains inside the existing transaction and pre-migration backup/WAL-checkpoint contract.
-
-### Acceptance
-Automated coverage must include schema v3→v4 preservation, canonical tag delta/merge, note conflict, note clear, timeout-after-PATCH reconciliation, highlight parent mismatch, and initial highlight CREATE carrying pending tags. Target-device acceptance must cover document tags/note, linked-highlight tags/note clear, locally-created-highlight tags, offline/restart recovery, simultaneous remote tag change preservation, remote note conflict, Bookshelf/local metadata projection, and an unchanged no-op Sync.
-''',
-              'CHANGELOG.md': r'''
-
-## 1.3.0-alpha.1 — Reader metadata editing
-
-- Add safe document tag and document-note editing from the current managed Reader document.
-- Add `Reader tags` to the native KOReader highlight popup for Reader-managed highlights.
-- Queue metadata edits durably so they may be prepared offline and delivered by manual Sync.
-- Merge tag add/remove intent onto fresh Reader state instead of overwriting unrelated remote changes.
-- Add conflict-safe document/highlight note mutation and explicit note clearing.
-- Include pending tags in the first remote CREATE for a new KOReader highlight.
-- Extend local metadata/cache persistence through schema v4 and refresh document metadata after successful edits.
-''',
-              'README.md': r'''
-
-### v1.3 metadata editing (alpha)
-
-The v1.3 branch adds Reader metadata editing from the Kindle while keeping manual Sync and fail-safe conflict handling.
-
-For a managed document, open **Readwise Reader → Reader metadata** to edit its Reader tags and document note. Changes are queued locally; use **Sync now** to deliver them. An empty document note clears it remotely after conflict checks.
-
-For an existing highlight in a managed document, tap/select the highlight and choose **Reader tags** in KOReader's native highlight popup. Highlight notes continue to use KOReader's native Add/Edit note action; clearing a note is supported by the v1.3 synchronization path. Tags prepared on a brand-new local highlight are carried in its first Reader highlight creation when it is still safe to change that not-yet-attempted create payload.
-
-Tag updates are delta-based: the plugin fetches the current Reader tags and applies only the Kindle's intended additions/removals, so unrelated tag changes made elsewhere are preserved. Note changes use conflict detection and will not silently overwrite a different remote edit.
-''',
-              'STATUS.md': r'''
-
-## 2026-10-05 — v1.3.0 metadata editing implementation started
-
-- **Base:** `main` `075458f6843df936b3810c12cd93851f57805eec` (includes the SimpleUI folder-refresh merge).
-- **Branch:** `feature/reader-metadata-editing-v1.3.0`.
-- **Scope implemented off-device:** schema v4 metadata persistence; document notes/tags; remote-highlight tag cache; per-annotation pending/baseline tags; durable metadata queue; GET→conflict/delta→PATCH→GET reconciliation; pending tags in first highlight CREATE; safe highlight note clearing; current-document metadata editor; native KOReader highlight-popup `Reader tags`; sync report counters; post-sync document metadata refresh.
-- **External contracts revalidated:** current Reader v3 update endpoint supports notes/tags; highlight update is limited to notes/tags; an empty note clears it; tag PATCH replaces the full list, therefore the plugin deliberately applies local add/remove intent to a fresh remote list before writing. KOReader v2026.07.1 exposes `ReaderHighlight:addToHighlightDialog`, so the highlight action uses the native supported extension point.
-- **Safety:** no blind metadata overwrite; note conflicts block; tags preserve unrelated remote changes; linked-highlight parent/category identity is checked; ambiguous highlight CREATE payload remains immutable; no remote metadata write occurs before the existing auth/reachability preflight; retries reconcile before another write.
-- **Local validation before branch application:** all changed/new Lua sources passed parser-level syntax validation.
-- **Tests added:** canonical tag parsing/diff/merge; v3→v4 storage migration; document metadata round-trip; annotation tag baseline/pending state; remote-highlight tag cache; note conflict; note clear; timeout-after-write reconciliation; highlight parent mismatch; initial CREATE carries pending tags.
-- **Current gate:** automated repository dev-check/unit/package CI is required next. Do **not** merge or label v1.3 stable until CI is green and the physical/API acceptance matrix passes on the target PW3.
-''',
-          }
-
-          for name, section in sections.items():
-              path = Path(name)
-              current = path.read_text()
-              heading = section.strip().splitlines()[0]
-              if heading not in current:
-                  path.write_text(current.rstrip() + section + '\n')
+              path.write_text(text.replace(marker, marker + additions))
           PY
 
       - name: Remove staging payload
