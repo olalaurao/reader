@@ -1,19 +1,18 @@
-name: finalize v1.3 metadata implementation
+name: finalize and clean v1.3 candidate
 
 on:
   push:
     branches:
       - feature/reader-metadata-editing-v1.3.0
     paths:
-      - .automation/finalize-v1.3.py
-      - .automation/normalize-v1.3.py
+      - .automation/cleanup-v1.3.py
       - .github/workflows/apply-v1.3-metadata.yml
 
 permissions:
   contents: write
 
 jobs:
-  apply:
+  finalize:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -29,16 +28,18 @@ jobs:
           sudo apt-get install -y lua5.1 liblua5.1-0-dev libsqlite3-dev luarocks zip
           sudo luarocks --lua-version=5.1 install lsqlite3
 
-      - name: Normalize current source anchors
-        run: python3 .automation/normalize-v1.3.py
+      - name: Apply final race fix, docs, version and cleanup
+        run: python3 .automation/cleanup-v1.3.py
 
-      - name: Apply final v1.3 worker and hardening edits
-        run: python3 .automation/finalize-v1.3.py
+      - name: Prove temporary staging is gone
+        run: |
+          test ! -e .automation
+          test ! -e .github/workflows/apply-v1.3-metadata.yml
 
       - name: Run development checks
         run: ./scripts/dev-check.sh
 
-      - name: Run Lua unit tests
+      - name: Run full Lua unit suite
         run: lua5.1 readwisereader.koplugin/tests/run.lua
 
       - name: Build and verify installable ZIP
@@ -48,14 +49,15 @@ jobs:
           unzip -Z1 dist/readwisereader.koplugin.zip | grep -Fx 'readwisereader.koplugin/_meta.lua'
           unzip -Z1 dist/readwisereader.koplugin.zip | grep -Fx 'readwisereader.koplugin/main.lua'
           ! unzip -Z1 dist/readwisereader.koplugin.zip | grep -F '/tests/'
+          ! unzip -Z1 dist/readwisereader.koplugin.zip | grep -F '.automation'
 
-      - name: Commit validated implementation
+      - name: Commit clean validated candidate
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add readwisereader.koplugin
+          git add -A
           git diff --cached --quiet && exit 0
-          git commit -m 'Integrate Reader metadata queue into Sync now'
+          git commit -m 'Finalize clean v1.3.0 release candidate'
           remote_sha="$(git ls-remote origin refs/heads/feature/reader-metadata-editing-v1.3.0 | cut -f1)"
           trigger_sha="${GITHUB_SHA}"
           test "$remote_sha" = "$trigger_sha"
