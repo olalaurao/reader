@@ -217,10 +217,17 @@ end
 
 return function()
     withStubbedSyncUI(function(SyncUI, state)
-        assert(SyncUI._errorText({
-            kind = "worker",
-            stage = "annotation_backlog",
-        }):find("stage: annotation_backlog", 1, true))
+        assert(SyncUI._errorText({ kind = "worker", stage = "annotation_backlog" }):find("annotation_backlog", 1, true))
+    local metadata_summary = SyncUI._summaryText{
+        metadata_queue_processed = 2,
+        metadata_note_updates = 1,
+        metadata_tag_updates = 1,
+        metadata_conflicts = 1,
+        metadata_queue_waiting = 3,
+    }
+    assert(metadata_summary:find("Reader metadata queue processed: 2", 1, true))
+    assert(metadata_summary:find("Reader metadata note conflicts: 1", 1, true))
+    assert(metadata_summary:find("Reader metadata queue waiting: 3", 1, true))
 
         local ui = newUI(SyncUI, state, "2026-09-22T20:00:00Z")
         ui:syncNow(false)

@@ -32,6 +32,25 @@ All notable project changes are recorded here.
 
 ## [Unreleased]
 
+### Added — 1.3.0-rc.1 Reader metadata editing candidate
+
+- Edit Reader document tags and document notes from a Reader-managed KOReader document.
+- Add/remove Reader tags on existing linked highlights and attach tags to a newly-created KOReader highlight before its first remote create.
+- Clear document notes and linked highlight notes without inventing placeholder text.
+- Durable SQLite metadata mutation queue integrated into ordinary `Sync now`, gated by the existing read-only Readwise reachability/auth preflight.
+- Conservative note conflict handling: a Reader-side note change after the Kindle baseline blocks overwrite until the user explicitly keeps Kindle or Reader.
+- Delta-based tag reconciliation preserves unrelated concurrent Reader tag additions/removals.
+- Successful document-tag changes project back to KOReader custom `keywords`/Bookshelf Genres on the same local path.
+- Sync summary counters for metadata queue processing, updates, reconciliation, conflicts, blocked/deferred/auth-wait states and remaining work.
+
+### Safety — 1.3.0-rc.1
+
+- Metadata PATCHes never run before the remote preflight; offline/retryable work remains durable.
+- Highlight metadata mutation requires the durable Reader child ID and expected parent/category identity.
+- Ambiguous write outcomes are reconciled by a fresh GET before another PATCH; no create/deduplication guarantees from v1.2 are weakened.
+- A metadata mutation result never overwrites newer metadata already produced by the same run's document-sync phase.
+- `v1.3.0` final tag/merge remains blocked on the consolidated PW3 physical acceptance matrix.
+
 ## [1.2.1] - 2026-09-25
 
 ### Changed

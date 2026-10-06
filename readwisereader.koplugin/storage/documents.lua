@@ -1,5 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
+local Tags = require("metadata/tags")
+
 local Documents = {}
 Documents.__index = Documents
 
@@ -10,7 +12,7 @@ remote_last_moved_at, local_content_hash, remote_content_fingerprint,
 raw_source_available, is_managed, is_local_present, last_materialized_at,
 last_seen_remote_at, last_sync_error, materialized_remote_updated_at,
 content_refresh_pending, content_refresh_remote_updated_at,
-content_refresh_detected_at
+content_refresh_detected_at, remote_notes, remote_tags_json
 ]]
 
 local function rowToDocument(row)
@@ -44,6 +46,8 @@ local function rowToDocument(row)
         content_refresh_pending = tonumber(row[24]) == 1,
         content_refresh_remote_updated_at = row[25],
         content_refresh_detected_at = row[26],
+        remote_notes = row[27],
+        remote_tags = Tags.decode(row[28]),
     }
 end
 
@@ -63,8 +67,8 @@ function Documents:upsertRemote(document, seen_at)
         INSERT INTO documents(
             reader_id, parent_id, category, location, title, author, site_name,
             source_url, remote_updated_at, remote_saved_at, remote_last_moved_at,
-            raw_source_available, last_seen_remote_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            raw_source_available, last_seen_remote_at, remote_notes, remote_tags_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(reader_id) DO UPDATE SET
             parent_id = excluded.parent_id,
             category = excluded.category,
@@ -77,7 +81,9 @@ function Documents:upsertRemote(document, seen_at)
             remote_saved_at = excluded.remote_saved_at,
             remote_last_moved_at = excluded.remote_last_moved_at,
             raw_source_available = excluded.raw_source_available,
-            last_seen_remote_at = excluded.last_seen_remote_at;
+            last_seen_remote_at = excluded.last_seen_remote_at,
+            remote_notes = excluded.remote_notes,
+            remote_tags_json = excluded.remote_tags_json;
     ]])
 
     stmt:bind(
@@ -93,7 +99,9 @@ function Documents:upsertRemote(document, seen_at)
         document.saved_at,
         document.last_moved_at,
         document.raw_source_available and 1 or 0,
-        seen_at
+        seen_at,
+        document.notes,
+        Tags.encode(document.tags)
     ):step()
     stmt:close()
     return self:getById(document.id)
@@ -203,6 +211,33 @@ function Documents:listContentRefreshPending()
     end
     stmt:close()
     return documents
+end
+
+function Documents:setRemoteMetadata(reader_id, notes, tags)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare([[
+        UPDATE documents SET remote_notes = ?, remote_tags_json = ?
+        WHERE reader_id = ?;
+    ]])
+    stmt:bind(notes, Tags.encode(tags), reader_id):step()
+    stmt:close()
+    return self:getById(reader_id)
+end
+
+function Documents:setRemoteNote(reader_id, notes)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare("UPDATE documents SET remote_notes = ? WHERE reader_id = ?;")
+    stmt:bind(notes, reader_id):step()
+    stmt:close()
+    return self:getById(reader_id)
+end
+
+function Documents:setRemoteTags(reader_id, tags)
+    local conn = self.db:getConnection()
+    local stmt = conn:prepare("UPDATE documents SET remote_tags_json = ? WHERE reader_id = ?;")
+    stmt:bind(Tags.encode(tags), reader_id):step()
+    stmt:close()
+    return self:getById(reader_id)
 end
 
 function Documents:setLocation(reader_id, location)

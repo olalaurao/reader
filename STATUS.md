@@ -5703,3 +5703,44 @@ Validation before merge:
 PR #23 merged to `main` at `dc8883ebca0155f81d0e7230d6150ceeecf80cee`.
 
 No physical acceptance is claimed for the larger batch sizes; this is explicitly a user-authorized throughput patch over the already physically accepted v1.2.0 import mechanisms. If PW3 performance regresses, restore the four v1.2.0 limits.
+
+## 2026-10-05/06 — v1.3 Reader metadata editing off-device complete; Gate M10 only blocker
+
+- **Branch:** `feature/reader-metadata-editing-v1.3.0`.
+- **Candidate:** `1.3.0-rc.1`; final `v1.3.0` is **not authorized yet**.
+- **Validated implementation entering cleanup:** `6c754b1922637b45f418ac820e9c07be16aa127a` (`Integrate Reader metadata queue into Sync now`).
+- **Validated finalizer run:** GitHub Actions run `37397537080` passed source normalization, v1.3 integration, `./scripts/dev-check.sh`, the full Lua unit suite, installable ZIP build and package-layout verification before committing the integrated worker changes.
+- **Cleanup workflow trigger:** `f3616350cce2eec9a9ef729cfe1fd571c3c12b0f` / run `37398006622`; this session removes all temporary `.automation` payloads and `.github/workflows/apply-v1.3-metadata.yml` after re-running the complete validation suite.
+
+### Implemented
+- document tags and document-note edit/clear UI for the current Reader-managed document;
+- highlight tag add/remove UI for linked highlights;
+- tags on a brand-new KOReader highlight: KOReader persists the real annotation first, then stores tag intent by durable local annotation ID so the first Reader create carries the tags;
+- schema v4 with `remote_notes`, durable document/highlight tag state, and annotation tag intent;
+- generic durable metadata queue using the existing queue state machine;
+- metadata processing as an explicit `Sync now` worker phase **after** the read-only remote preflight;
+- verified Reader GET-before-write/reconcile-after-ambiguous-result behavior;
+- document-note three-way conflicts with explicit Keep Kindle / Use Reader resolution;
+- tag delta merge preserving unrelated concurrent Reader adds/removes;
+- successful document-tag mutation updates the same local document's custom `keywords`, keeping Bookshelf Genres coherent;
+- document-sync metadata already scheduled later in the same run has precedence over an older metadata-mutation projection;
+- Sync report exposes metadata processed/update/reconciled/conflict/blocked/deferred/auth/error/waiting counters;
+- existing v1.2 annotation-create, dedupe, deletion and Reader→KOReader import contracts remain unchanged.
+
+### Automated evidence
+- UI module was split into `ui/metadata.lua`, `ui/metadata_document.lua`, `ui/metadata_highlight.lua`, and `ui/metadata_tags.lua` after the original monolithic staged file contained invalid/corrupted bytes; the modular replacement passed full CI.
+- deterministic coverage includes document note create/edit/clear, note conflict + explicit rebase/discard semantics, tag add/remove/no-op reconciliation, preservation of concurrent remote tag changes, linked-highlight identity guard, new-highlight pending tags, timeout-after-write reconciliation, timeout-without-write retry, auth wait, rate-limit defer, missing remote target block, schema v4 fresh DB, worker metrics, Bookshelf projection and newer-document-sync precedence.
+- the first modular UI correction passed workflow run `37396386837` end-to-end.
+- the integrated metadata-worker/hardening finalizer passed workflow run `37397537080` end-to-end.
+
+### Safety decisions
+- UI never performs a Reader mutation directly; it only queues intent.
+- no guessed highlight identity, no blind create retry, and no destructive default were introduced.
+- metadata writes do not bypass the PW3 remote reachability/auth authority established in Gate 13.
+- note conflicts fail closed; tag conflicts use explicit delta merge rather than whole-baseline overwrite.
+- temporary patch/application infrastructure must not remain in the release branch.
+
+### Only remaining blocker
+**Gate M10 physical acceptance on the target PW3.** The exact one-session matrix is now canonical in `docs/DEVICE_TESTS.md` and covers document tags, document note create/edit/clear/conflict, existing + new highlight tags, highlight-note clear, offline/restart/reconnect persistence, Bookshelf projection, no-op idempotency and preservation of prior progress/annotations.
+
+Do not merge/tag final `v1.3.0` until M10 passes. No further off-device implementation blocker is known after the cleanup CI is green.

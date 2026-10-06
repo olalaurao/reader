@@ -37,6 +37,7 @@ local function testFreshSchema()
 
     for _, table_name in ipairs({
         "documents", "annotation_links", "queue", "sync_meta", "remote_highlights",
+        "annotation_metadata",
     }) do
         local stmt = conn:prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?;")
         local row = stmt:reset():bind(table_name):step()

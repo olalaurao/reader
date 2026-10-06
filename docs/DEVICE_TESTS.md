@@ -3226,3 +3226,21 @@ User confirmed the consolidated target-device acceptance passed:
 - Reader remained without duplicate highlight children.
 
 Gate 17D / Phase U is complete. Stable v1.2.0 may be a version/docs-only promotion of the accepted alpha.9 runtime.
+
+## V1.3 / Gate M10 — consolidated Reader metadata acceptance
+
+Target: the existing PW3 / KOReader v2026.07.1 / Bookshelf v5.1.4, preserving the current Reader database, documents and sidecars. Install **1.3.0-rc.1** over the existing plugin; do not delete the SQLite DB or Reader documents.
+
+This is intentionally one final device session rather than incremental developer gates.
+
+1. **Baseline/regression:** open one already-managed EPUB/HTML and one already-managed PDF if available. Confirm prior reading position and existing highlights/notes are intact. Run one online `Sync now`; require no crash, no duplicate documents/highlights, and zero unexpected annotation/metadata errors.
+2. **Document tags:** from the managed document, open `Readwise Reader → Reader metadata → Document tags`. Add one distinctive new tag and select one pre-existing Reader tag; save, then `Sync now`. Verify both appear on the same document in Reader and in KOReader/Bookshelf Genres. Remove only the distinctive tag on Kindle, sync again, and verify it disappears while the unrelated/pre-existing tag remains.
+3. **Document note:** create a distinctive document note on Kindle, sync and verify it in Reader. Edit it on Kindle, sync and verify the replacement. Clear it on Kindle, sync and verify Reader has an empty/cleared note rather than placeholder text.
+4. **Document-note conflict:** establish a baseline note, then queue a different Kindle edit and independently change the same Reader note before syncing. `Sync now` must report a metadata note conflict and must not overwrite either side. Reopen Reader metadata, choose **Keep Kindle**, run `Sync now`, and verify that exact Kindle text becomes the Reader note. No duplicate document may be created.
+5. **Existing highlight tags:** on an already-linked highlight, add a distinctive Reader tag from the highlight dialog, sync and verify it on that exact Reader highlight. Remove it on Kindle, sync and verify removal without changing highlight text/note or creating a second highlight.
+6. **New highlight + tags before first remote create:** select a unique sentence that has not been highlighted before, choose **Reader tags**, select/add a distinctive tag, then add a KOReader note to that newly-created local highlight before syncing. Run `Sync now`. In Reader require exactly one new child highlight under the correct parent, with exact highlighted text, note, and tag. Run a second unchanged sync and require still exactly one remote highlight.
+7. **Linked-highlight note clear:** on a linked highlight with a non-empty note, clear the KOReader note and sync. Verify the same Reader child remains and its note is cleared; the highlight itself must not disappear or duplicate.
+8. **Offline durability + restart:** disconnect internet outside the plugin. Queue at least one document metadata edit and one highlight-tag edit, then run `Sync now`. Require zero metadata remote writes processed successfully and queued/waiting work to remain. Fully exit/reopen KOReader while still offline; confirm the document, progress and annotations remain intact. Reconnect Wi-Fi, run `Sync now`, and verify each queued edit reaches Reader exactly once. Run one more no-op sync and verify no duplicates/repeated mutations.
+9. **Final Bookshelf/regression check:** confirm the final Reader document tag set is reflected in Bookshelf Genres, Reader location Collection membership is unchanged unless deliberately changed elsewhere, prior reading position is preserved, and pre-existing highlights/notes remain present.
+
+Pass condition: every item above passes in the same candidate build with no crash/freeze, no identity mismatch, no duplicate remote highlight/document, no lost sidecar/progress, and no unexpected queue items left waiting after the final online no-op sync. Only then may the branch be merged/tagged as final `v1.3.0`.

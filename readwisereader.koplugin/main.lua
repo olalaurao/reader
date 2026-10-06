@@ -19,6 +19,9 @@ local Constants = require("constants")
 local DB = require("storage/db")
 local AnnotationsRepository = require("storage/annotations")
 local DocumentsRepository = require("storage/documents")
+local QueueRepository = require("storage/queue")
+local AnnotationMetadataRepository = require("storage/annotation_metadata")
+local RemoteHighlightsRepository = require("storage/remote_highlights")
 local Filenames = require("content/filenames")
 local FirstArticle = require("sync/first_article")
 local Hash = require("content/hash")
@@ -33,6 +36,8 @@ local KOReaderAnnotations = require("koreader/annotations")
 local KOReaderStatus = require("koreader/status")
 local Reader = require("api/reader")
 local Metadata = require("sync/metadata")
+local MetadataMutations = require("sync/metadata_mutations")
+local MetadataUI = require("ui/metadata")
 local AnnotationSync = require("sync/annotations")
 local LibraryUI = require("ui/library")
 local SettingsUI = require("ui/settings")
@@ -64,6 +69,9 @@ function ReadwiseReader:init()
     self.annotations_repository = AnnotationsRepository:new{
         db = self.db,
     }
+    self.queue_repository = QueueRepository:new{ db = self.db }
+    self.annotation_metadata_repository = AnnotationMetadataRepository:new{ db = self.db }
+    self.remote_highlights_repository = RemoteHighlightsRepository:new{ db = self.db }
     self.sync_meta = SyncMeta:new{
         db = self.db,
     }
@@ -119,6 +127,30 @@ function ReadwiseReader:init()
     self.settings_ui = SettingsUI:new{
         config = self.config,
         reader = self.reader_api,
+    }
+    self.metadata_mutations = MetadataMutations:new{
+        reader = self.reader_api,
+        documents = self.documents_repository,
+        queue = self.queue_repository,
+        annotation_metadata = self.annotation_metadata_repository,
+        hasher = Hash,
+    }
+    self.metadata_ui = MetadataUI:new{
+        config = self.config,
+        reader = self.reader_api,
+        documents = self.documents_repository,
+        annotations = self.annotations_repository,
+        annotation_metadata = self.annotation_metadata_repository,
+        remote_highlights = self.remote_highlights_repository,
+        queue = self.queue_repository,
+        mutations = self.metadata_mutations,
+        adapter = self.koreader_annotations,
+        get_current_path = function()
+            return self.ui and self.ui.document and self.ui.document.file or nil
+        end,
+        get_reader_ui = function()
+            return self.ui
+        end,
     }
     self.sync_ui = SyncUI:new{
         config = self.config,
@@ -249,6 +281,9 @@ function ReadwiseReader:init()
             return nil
         end,
     }
+    if self.document then
+        self.metadata_ui:registerHighlightButton()
+    end
     self.ui.menu:registerToMainMenu(self)
 end
 
@@ -259,6 +294,7 @@ function ReadwiseReader:addToMainMenu(menu_items)
         sub_item_table = {
             self.sync_ui:getSyncMenuItem(),
             self.sync_ui:getStatusMenuItem(),
+            self.metadata_ui:getMenuItem(),
             self.sync_ui:getFullRescanMenuItem(),
             self.article_ui:getMenuItem(),
             self.library_ui:getScanMenuItem(),
