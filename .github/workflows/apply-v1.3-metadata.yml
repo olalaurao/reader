@@ -1,18 +1,11 @@
-name: apply v1.3 metadata implementation
+name: finalize v1.3 metadata implementation
 
 on:
   push:
     branches:
       - feature/reader-metadata-editing-v1.3.0
     paths:
-      - .automation/v1.3.patch.part00
-      - .automation/v1.3.patch.part01
-      - .automation/v1.3.patch.part02
-      - .automation/v1.3.patch.part03
-      - .automation/v1.3.patch.part04
-      - .automation/v1.3-ui-fix.patch.b64
-      - .automation/v1.3-queue-safety.part00
-      - .automation/v1.3-queue-safety.part01
+      - .automation/finalize-v1.3.py
       - .github/workflows/apply-v1.3-metadata.yml
 
 permissions:
@@ -35,57 +28,8 @@ jobs:
           sudo apt-get install -y lua5.1 liblua5.1-0-dev libsqlite3-dev luarocks zip
           sudo luarocks --lua-version=5.1 install lsqlite3
 
-      - name: Reconstruct and verify staged patches
-        run: |
-          cat .automation/v1.3.patch.part00 .automation/v1.3.patch.part01 .automation/v1.3.patch.part02 .automation/v1.3.patch.part03 .automation/v1.3.patch.part04 > /tmp/v1.3.patch.gz.b64
-          echo '1e96f9a540f913804d129c78c3a4ead44d5522748955511389bdc82cc29d49be  /tmp/v1.3.patch.gz.b64' | sha256sum -c -
-          base64 -d /tmp/v1.3.patch.gz.b64 | gzip -dc > /tmp/v1.3.patch
-          echo 'f1e8e45bb3548695156707c62ca8a76fd21498094fb16124e0020d6173ff4a2a  /tmp/v1.3.patch' | sha256sum -c -
-          base64 -d .automation/v1.3-ui-fix.patch.b64 > /tmp/v1.3-ui-fix.patch
-          echo 'cd9e58419e4401aafa22efdb0968f3583e093e0a41343b8f7af966de646a75ae  /tmp/v1.3-ui-fix.patch' | sha256sum -c -
-          cat .automation/v1.3-queue-safety.part00 .automation/v1.3-queue-safety.part01 | base64 -d > /tmp/v1.3-queue-safety.patch
-          echo '15369254555ee16877a81bc515f755e968eaf9e39ed0a02ec3178db84ef425a1  /tmp/v1.3-queue-safety.patch' | sha256sum -c -
-
-      - name: Apply staged implementation
-        run: |
-          git apply --check /tmp/v1.3.patch
-          git apply /tmp/v1.3.patch
-          git apply --check /tmp/v1.3-ui-fix.patch
-          git apply /tmp/v1.3-ui-fix.patch
-          git apply --directory=readwisereader.koplugin --check /tmp/v1.3-queue-safety.patch
-          git apply --directory=readwisereader.koplugin /tmp/v1.3-queue-safety.patch
-
-      - name: Register and normalize new tests
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          run = Path('readwisereader.koplugin/tests/run.lua')
-          text = run.read_text()
-          marker = '    "tests.test_annotation_mutations",\n'
-          additions = ''.join([
-              '    "tests.test_annotation_note_clear",\n',
-              '    "tests.test_annotation_upload_metadata",\n',
-              '    "tests.test_metadata_tags",\n',
-              '    "tests.test_metadata_mutations",\n',
-              '    "tests.test_metadata_storage",\n',
-          ])
-          if 'tests.test_metadata_mutations' not in text:
-              if marker not in text:
-                  raise SystemExit('test insertion marker not found')
-              run.write_text(text.replace(marker, marker + additions))
-
-          test = Path('readwisereader.koplugin/tests/test_annotation_upload_metadata.lua')
-          body = test.read_text()
-          if '    assert(upload:_prepareQueue(\n' not in body:
-              raise SystemExit('annotation upload test start marker not found')
-          body = body.replace('    assert(upload:_prepareQueue(\n', '    local prepared = upload:_prepareQueue(\n', 1)
-          body = body.replace('    ))\n', '    )\n    assert(prepared)\n', 1)
-          test.write_text(body)
-          PY
-
-      - name: Remove staging payloads
-        run: rm -f .automation/v1.3.patch.gz.b64 .automation/v1.3.patch.part* .automation/v1.3-ui-fix.patch.b64 .automation/v1.3-queue-safety.part*
+      - name: Apply final v1.3 worker and hardening edits
+        run: python3 .automation/finalize-v1.3.py
 
       - name: Run development checks
         run: ./scripts/dev-check.sh
@@ -105,6 +49,10 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'feat: add safe Reader metadata editing'
+          git add readwisereader.koplugin
+          git diff --cached --quiet && exit 0
+          git commit -m 'Integrate Reader metadata queue into Sync now'
+          remote_sha="$(git ls-remote origin refs/heads/feature/reader-metadata-editing-v1.3.0 | cut -f1)"
+          trigger_sha="${GITHUB_SHA}"
+          test "$remote_sha" = "$trigger_sha"
           git push origin HEAD:feature/reader-metadata-editing-v1.3.0
