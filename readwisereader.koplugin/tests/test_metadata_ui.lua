@@ -3,6 +3,9 @@
 local function withStubbedUI(run)
     local names = {
         "ui/metadata",
+        "ui/metadata_document",
+        "ui/metadata_highlight",
+        "ui/metadata_tags",
         "ui/widget/container/centercontainer",
         "device",
         "ui/widget/infomessage",
@@ -13,7 +16,7 @@ local function withStubbedUI(run)
         "gettext",
     }
     local loaded, preload = {}, {}
-    local state = { shown = {}, buttons = {}, pending = nil }
+    local state = { shown = {}, buttons = {}, pending = nil, links = {} }
     for _, name in ipairs(names) do
         loaded[name] = package.loaded[name]
         preload[name] = package.preload[name]
@@ -64,8 +67,17 @@ local function withStubbedUI(run)
     local ok, failure = pcall(function()
         local MetadataUI = require("ui/metadata")
         local annotations = {
-            getById = function() return nil end,
-            upsertLocal = function(_, item) return item end,
+            getById = function(_, id) return state.links[id] end,
+            upsertLocal = function(_, item)
+                local link = {
+                    local_annotation_id = item.local_annotation_id,
+                    reader_document_id = item.reader_document_id,
+                    locator_fingerprint = item.locator_fingerprint,
+                    sync_state = item.sync_state,
+                }
+                state.links[item.local_annotation_id] = link
+                return link
+            end,
         }
         local ui = MetadataUI:new{
             config = { hasAccessToken = function() return false end },
@@ -78,6 +90,9 @@ local function withStubbedUI(run)
                             is_managed = true, remote_tags = { "alpha" }, remote_notes = "old",
                         }
                     end
+                end,
+                getById = function(_, id)
+                    if id == "doc-1" then return { reader_id = id, remote_notes = "remote" } end
                 end,
             },
             annotations = annotations,
@@ -94,8 +109,14 @@ local function withStubbedUI(run)
                 getPendingDocumentState = function()
                     return { tags = { "alpha" }, note = "queued", tags_pending = false, note_pending = true }
                 end,
-                queueDocumentNote = function(_, document, note) state.queued_note = { document = document, note = note }; return true end,
-                cancelDocumentEdit = function(_, document, field) state.cancelled = { document = document, field = field }; return true end,
+                queueDocumentNote = function(_, document, note)
+                    state.queued_note = { document = document, note = note }
+                    return true
+                end,
+                cancelDocumentEdit = function(_, document, field)
+                    state.cancelled = { document = document, field = field }
+                    return true
+                end,
                 queueDocumentTags = function() return true end,
                 queueHighlightTags = function() return true end,
             },
@@ -138,7 +159,7 @@ return function()
 
         assert(ui:registerHighlightButton() == true)
         local factory = assert(state.buttons["08_readwise_tags"])
-        local button = factory({}, 1)
+        local button = factory({ selected_text = {} }, 1)
         assert(button.text == "Reader tags")
         assert(button.show_in_highlight_dialog_func() == true)
 
@@ -151,8 +172,8 @@ return function()
         local menu_container = state.shown[#state.shown]
         local menu = menu_container[1]
         assert(menu.item_table[1].text == "Save tags")
-        assert(menu.item_table[2].text == "Search existing tags…")
-        assert(menu.item_table[3].text == "Add new tag…")
+        assert(menu.item_table[2].text == "Search existing tags...")
+        assert(menu.item_table[3].text == "Add new tag...")
         assert(menu.item_table[4].text == "alpha")
         assert(menu.item_table[4].checked_func() == true)
 
@@ -160,11 +181,28 @@ return function()
             note = "kindle", note_pending = true, note_status = "blocked",
         })
         local dialog = state.shown[#state.shown]
-        assert(dialog.title == "Reader document note — conflict")
+        assert(dialog.title == "Reader document note - conflict")
         assert(dialog.buttons[1][2].text == "Keep Kindle")
         assert(dialog.buttons[2][1].text == "Use Reader version")
         dialog.buttons[2][1].callback()
         assert(state.cancelled.field == "note")
         assert(state.cancelled.document.reader_id == "doc-1")
+
+        local new_highlight = {
+            selected_text = { text = "new" },
+            ui = { annotation = { annotations = {} } },
+            saveHighlight = function(this)
+                state.created_before_tagging = true
+                this.ui.annotation.annotations[1] = {
+                    drawer = "lighten", text = "new", datetime = "now",
+                }
+                return 1
+            end,
+        }
+        local new_button = factory(new_highlight, nil)
+        new_button.callback()
+        assert(state.created_before_tagging == true)
+        assert(state.links["ann-1"] ~= nil,
+            "new highlight must get a durable local identity before tag intent")
     end)
 end
