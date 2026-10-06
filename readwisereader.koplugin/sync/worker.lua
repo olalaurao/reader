@@ -61,6 +61,7 @@ function Worker:run(options)
     local Config = require("config")
     local DB = require("storage/db")
     local AnnotationsRepository = require("storage/annotations")
+    local AnnotationMetadataRepository = require("storage/annotation_metadata")
     local DocumentsRepository = require("storage/documents")
     local QueueRepository = require("storage/queue")
     local SyncMeta = require("storage/sync_meta")
@@ -80,6 +81,7 @@ function Worker:run(options)
     local AnnotationUpload = require("sync/annotation_upload")
     local AnnotationBacklog = require("sync/annotation_backlog")
     local AnnotationMutations = require("sync/annotation_mutations")
+    local MetadataMutations = require("sync/metadata_mutations")
     local Archive = require("sync/archive")
     local KOReaderAnnotations = require("koreader/annotations")
     local KOReaderStatus = require("koreader/status")
@@ -98,6 +100,7 @@ function Worker:run(options)
         db = DB:new()
         local repository = DocumentsRepository:new{ db = db }
         local annotations_repository = AnnotationsRepository:new{ db = db }
+        local annotation_metadata_repository = AnnotationMetadataRepository:new{ db = db }
         local queue_repository = QueueRepository:new{ db = db }
         local sync_meta = SyncMeta:new{ db = db }
         local http = Http:new()
@@ -213,6 +216,7 @@ function Worker:run(options)
             queue = queue_repository,
             adapter = adapter,
             reader = reader,
+            annotation_metadata = annotation_metadata_repository,
             hasher = Hash,
         }
 
@@ -293,6 +297,16 @@ function Worker:run(options)
             sync_report.reader_deletions_verified = 0
             sync_report.delete_verification_pending = 0
             sync_report.annotation_sync_status = annotation_sync_status
+            sync_report.metadata_queue_processed = 0
+            sync_report.metadata_note_updates = 0
+            sync_report.metadata_tag_updates = 0
+            sync_report.metadata_reconciled = 0
+            sync_report.metadata_conflicts = 0
+            sync_report.metadata_blocked = 0
+            sync_report.metadata_deferred = 0
+            sync_report.metadata_auth_waiting = 0
+            sync_report.metadata_remote_errors = 0
+            sync_report.metadata_queue_waiting = queue_repository:countMetadataWaiting()
 
             sync_report.archive_enabled = archive_enabled
             sync_report.archive_documents_scanned =
@@ -375,6 +389,19 @@ function Worker:run(options)
             return localQueueOnlyReport(preflight_err)
         end
 
+        -- Reader metadata edits share the durable queue but have their own
+        -- explicit worker phase. This runs only after the same read-only
+        -- reachability/auth preflight that gates all other remote writes.
+        stage = "metadata_queue_processing"
+        local metadata_mutations = MetadataMutations:new{
+            reader = reader,
+            documents = repository,
+            queue = queue_repository,
+            annotation_metadata = annotation_metadata_repository,
+            hasher = Hash,
+        }
+        local metadata_report = metadata_mutations:processQueue()
+
         -- Process every durable create, including work left by a previous
         -- KOReader process, before the document feed. New local work from all
         -- authoritative managed sidecars was already queued above.
@@ -410,6 +437,11 @@ function Worker:run(options)
         applyAnnotationDefaults(sync_report)
         sync_report.remote_preflight = "passed"
         sync_report.network_available = true
+        Worker._applyMetadataMutationReport(
+            sync_report, metadata_report, repository, postprocess
+        )
+        sync_report.metadata_queue_waiting = metadata_report.waiting_after
+            or queue_repository:countMetadataWaiting()
 
         stage = "content_refresh_reconcile"
         local refresh_reconciler = ContentRefreshReconcile:new{
@@ -573,6 +605,32 @@ function Worker:run(options)
         }
     end
     return report, err
+end
+
+function Worker._applyMetadataMutationReport(sync_report, metadata_report, repository, postprocess)
+    metadata_report = metadata_report or {}
+    sync_report.metadata_queue_processed = metadata_report.processed or 0
+    sync_report.metadata_note_updates = metadata_report.note_updates or 0
+    sync_report.metadata_tag_updates = metadata_report.tag_updates or 0
+    sync_report.metadata_reconciled = metadata_report.reconciled or 0
+    sync_report.metadata_conflicts = metadata_report.conflicts or 0
+    sync_report.metadata_blocked = metadata_report.blocked or 0
+    sync_report.metadata_deferred = metadata_report.deferred or 0
+    sync_report.metadata_auth_waiting = metadata_report.auth_waiting or 0
+    sync_report.metadata_remote_errors = metadata_report.remote_errors or 0
+    sync_report.metadata_queue_waiting = metadata_report.waiting_after or 0
+
+    for _, update in ipairs(metadata_report.document_metadata_updates or {}) do
+        local local_document = type(update.id) == "string" and repository:getById(update.id) or nil
+        if local_document
+            and local_document.is_managed == true
+            and local_document.is_local_present == true
+            and type(local_document.local_path) == "string"
+            and local_document.local_path ~= "" then
+            postprocess(local_document.local_path).metadata = copyMetadata(update)
+        end
+    end
+    return sync_report
 end
 
 Worker._copyMetadata = copyMetadata

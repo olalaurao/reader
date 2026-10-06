@@ -172,7 +172,21 @@ local function summaryText(report)
         string.format(_("Delete verification pending: %d"), report.delete_verification_pending or 0),
         string.format(_("Annotation remote errors: %d"), report.annotation_remote_errors or 0),
         "",
-        string.format(_("Reader → KOReader pre-sync reconciliation: %s"), report.remote_highlight_import_status or _("not run")),
+        string.format(_("Reader metadata queue processed: %d"), report.metadata_queue_processed or 0),
+        string.format(_("Reader metadata note updates: %d"), report.metadata_note_updates or 0),
+        string.format(_("Reader metadata tag updates: %d"), report.metadata_tag_updates or 0),
+        string.format(_("Reader metadata reconciled: %d"), report.metadata_reconciled or 0),
+        string.format(_("Reader metadata note conflicts: %d"), report.metadata_conflicts or 0),
+        string.format(_("Reader metadata blocked: %d"), report.metadata_blocked or 0),
+        string.format(_("Reader metadata retries deferred: %d"), report.metadata_deferred or 0),
+        string.format(_("Reader metadata auth waits: %d"), report.metadata_auth_waiting or 0),
+        string.format(_("Reader metadata queue waiting: %d"), report.metadata_queue_waiting or 0),
+        string.format(_("Reader metadata remote errors: %d"), report.metadata_remote_errors or 0),
+        "",
+        string.format(
+            _("Reader → KOReader pre-sync reconciliation: %s"),
+            report.remote_highlight_import_status or _("not run")
+        ),
         string.format(_("Reader highlight scan mode: %s"), report.remote_highlight_import_scan_mode or _("not run")),
         string.format(_("Reader highlights imported locally: %d"), report.remote_highlight_imported or 0),
         string.format(_("Reader notes preserved locally: %d"), report.remote_highlight_import_notes or 0),
@@ -589,6 +603,7 @@ function SyncUI:showStatus()
 end
 
 SyncUI._errorText = errorText
+SyncUI._summaryText = summaryText
 SyncUI._summaryText = summaryText
 SyncUI._summaryPages = summaryPages
 

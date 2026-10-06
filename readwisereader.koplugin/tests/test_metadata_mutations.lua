@@ -97,12 +97,22 @@ local function newEngine(remote, queue, state)
     }
     local reader = {}
     function reader:getDocument(id)
+        if state.get_error then
+            local err = state.get_error
+            if state.get_error_once then state.get_error = nil end
+            return nil, copy(err)
+        end
         local value = remote[id]
         if not value then return nil, { kind = "not_found", retryable = false } end
         return copy(value)
     end
     function reader:updateDocument(id, patch)
         state.patches = state.patches + 1
+        if state.patch_error then
+            local err = state.patch_error
+            if state.patch_error_once then state.patch_error = nil end
+            return nil, copy(err)
+        end
         local value = remote[id]
         if patch.tags then value.tags = copy(patch.tags) end
         if patch.notes ~= nil then value.notes = patch.notes end
@@ -213,6 +223,138 @@ local function pendingDocumentStateReflectsQueuedIntent()
     assert(pending.note == "queued note")
 end
 
+
+local function noteCreateAndEdit()
+    local q = queueStub()
+    local remote = { ["doc-1"] = { id="doc-1", category="article", tags={}, notes="" } }
+    local state = {}; local e = newEngine(remote, q, state)
+    assert(e:queueDocumentNote({ reader_id="doc-1", remote_notes="" }, "created"))
+    assert(e:processQueue().note_updates == 1)
+    assert(remote["doc-1"].notes == "created")
+    assert(e:queueDocumentNote({ reader_id="doc-1", remote_notes="created" }, "edited"))
+    assert(e:processQueue().note_updates == 1)
+    assert(remote["doc-1"].notes == "edited")
+    assert(state.patches == 2)
+end
+
+local function keepKindleRebasesAfterConflict()
+    local q = queueStub()
+    local remote = { ["doc-1"] = { id="doc-1", category="article", tags={}, notes="Reader changed" } }
+    local state = {}; local e = newEngine(remote, q, state)
+    assert(e:queueDocumentNote({ reader_id="doc-1", remote_notes="old" }, "Kindle wins"))
+    assert(e:processQueue().conflicts == 1)
+    assert(state.patches == 0)
+    assert(e:queueDocumentNote({ reader_id="doc-1", remote_notes="Reader changed" }, "Kindle wins"))
+    local second = e:processQueue()
+    assert(second.note_updates == 1 and second.conflicts == 0)
+    assert(remote["doc-1"].notes == "Kindle wins")
+    assert(state.patches == 1)
+end
+
+local function tagRemovePreservesConcurrentRemoteAdd()
+    local q = queueStub()
+    local remote = {
+        ["doc-1"] = { id="doc-1", category="article", tags={"a","b","remote"}, notes="" },
+    }
+    local state = {}; local e = newEngine(remote, q, state)
+    assert(e:queueDocumentTags(
+        { reader_id="doc-1", remote_tags={"a","b"} },
+        {"a"}
+    ))
+    assert(e:processQueue().tag_updates == 1)
+    assert(table.concat(remote["doc-1"].tags, "|") == "a|remote")
+end
+
+local function tagAddDoesNotReintroduceRemoteRemoval()
+    local q = queueStub()
+    local remote = { ["doc-1"] = { id="doc-1", category="article", tags={"b"}, notes="" } }
+    local state = {}; local e = newEngine(remote, q, state)
+    assert(e:queueDocumentTags(
+        { reader_id="doc-1", remote_tags={"a","b"} },
+        {"a","b","kindle"}
+    ))
+    assert(e:processQueue().tag_updates == 1)
+    assert(table.concat(remote["doc-1"].tags, "|") == "b|kindle")
+end
+
+local function existingTagDeltaReconcilesWithoutPatch()
+    local q = queueStub()
+    local remote = { ["doc-1"] = { id="doc-1", category="article", tags={"a"}, notes="" } }
+    local state = {}; local e = newEngine(remote, q, state)
+    assert(e:queueDocumentTags({ reader_id="doc-1", remote_tags={"a"} }, {"a"}))
+    local r = e:processQueue()
+    assert(r.reconciled == 1 and r.tag_updates == 0 and state.patches == 0)
+end
+
+local function linkedHighlightTagsUpdate()
+    local q = queueStub()
+    local remote = {
+        ["hl-1"] = { id="hl-1", parent_id="doc-1", category="highlight", tags={"old"}, notes="" },
+    }
+    local state = {}; local e = newEngine(remote, q, state)
+    assert(e:queueHighlightTags({
+        local_annotation_id="ann-1",
+        reader_document_id="doc-1",
+        reader_highlight_document_id="hl-1",
+    }, {"old"}, {"new"}))
+    local r = e:processQueue()
+    assert(r.tag_updates == 1 and r.blocked == 0)
+    assert(remote["hl-1"].tags[1] == "new")
+    assert(state.synced_annotation.id == "ann-1")
+end
+
+local function timeoutWithoutWriteRetriesSafely()
+    local q = queueStub()
+    local remote = { ["doc-1"] = { id="doc-1", category="article", tags={}, notes="old" } }
+    local state = {
+        patch_error = { kind="timeout", retryable=true, message="timeout" },
+        patch_error_once = true,
+    }
+    local e = newEngine(remote, q, state)
+    assert(e:queueDocumentNote({ reader_id="doc-1", remote_notes="old" }, "new"))
+    local first = e:processQueue()
+    assert(first.deferred == 1 and remote["doc-1"].notes == "old")
+    for _, item in pairs(q.items) do item.status = "pending" end
+    local second = e:processQueue()
+    assert(second.note_updates == 1)
+    assert(remote["doc-1"].notes == "new")
+    assert(state.patches == 2)
+end
+
+local function authWaitsWithoutPatch()
+    local q = queueStub()
+    local remote = { ["doc-1"] = { id="doc-1", category="article", tags={}, notes="old" } }
+    local state = {
+        get_error = { kind="auth", retryable=false, message="unauthorized" },
+    }
+    local e = newEngine(remote, q, state)
+    assert(e:queueDocumentNote({ reader_id="doc-1", remote_notes="old" }, "new"))
+    local r = e:processQueue()
+    assert(r.auth_waiting == 1 and r.remote_errors == 1 and state.patches == 0)
+end
+
+local function rateLimitDefersWithoutChangingRemote()
+    local q = queueStub()
+    local remote = { ["doc-1"] = { id="doc-1", category="article", tags={}, notes="old" } }
+    local state = {
+        patch_error = { kind="rate_limit", retryable=true, retry_after=30, message="slow down" },
+    }
+    local e = newEngine(remote, q, state)
+    assert(e:queueDocumentNote({ reader_id="doc-1", remote_notes="old" }, "new"))
+    local r = e:processQueue()
+    assert(r.deferred == 1 and r.remote_errors == 1)
+    assert(remote["doc-1"].notes == "old")
+end
+
+local function missingRemoteBlocks()
+    local q = queueStub()
+    local remote = {}
+    local state = {}; local e = newEngine(remote, q, state)
+    assert(e:queueDocumentNote({ reader_id="missing", remote_notes="" }, "new"))
+    local r = e:processQueue()
+    assert(r.blocked == 1 and r.remote_errors == 1 and state.patches == 0)
+end
+
 return function()
     tagMergePreservesRemoteAdd()
     noteConflictBlocksOverwrite()
@@ -221,4 +363,14 @@ return function()
     highlightIdentityGuard()
     conflictCanBeExplicitlyDiscarded()
     pendingDocumentStateReflectsQueuedIntent()
+    noteCreateAndEdit()
+    keepKindleRebasesAfterConflict()
+    tagRemovePreservesConcurrentRemoteAdd()
+    tagAddDoesNotReintroduceRemoteRemoval()
+    existingTagDeltaReconcilesWithoutPatch()
+    linkedHighlightTagsUpdate()
+    timeoutWithoutWriteRetriesSafely()
+    authWaitsWithoutPatch()
+    rateLimitDefersWithoutChangingRemote()
+    missingRemoteBlocks()
 end
