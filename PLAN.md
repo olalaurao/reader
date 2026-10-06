@@ -1573,3 +1573,25 @@ Throughput-only patch:
 - PDF: 5 imports / 30 locator attempts per Sync.
 
 No change to current-document scope or safety semantics. The user explicitly waived another manual device acceptance for this bounded-constant adjustment; CI/package validation remains required.
+
+## Post-V1 milestone — v1.3 Reader metadata editing
+
+Goal: let the Kindle perform the small organization/edit operations that are useful while reading without turning KOReader into a second full Reader client.
+
+In scope:
+- edit Reader document tags;
+- edit/clear Reader document note;
+- add/remove Reader tags on highlights;
+- attach tags to a new Kindle highlight before its first Reader create;
+- preserve the existing linked-highlight note editing path, including clearing;
+- durable offline queue + manual `Sync now` only;
+- reflect successful document-tag edits in KOReader/Bookshelf metadata.
+
+Out of scope:
+- arbitrary Reader document fields/title/body editing;
+- deleting Reader tag definitions globally;
+- background sync;
+- heuristic highlight identity;
+- changing the existing Reader ↔ KOReader reading-position scope.
+
+Release rule: `1.3.0-rc.1` is the single physical-test candidate. Final `v1.3.0` is authorized only after the consolidated PW3 acceptance matrix in `docs/DEVICE_TESTS.md` passes.

@@ -3431,3 +3431,60 @@ After v1.2.0 physical acceptance, v1.2.1 changes only bounded batch constants fo
 All v1.2.0 safety contracts remain unchanged: exact remote identity, unique/safe locator requirements, collision suppression, sidecar persistence verification, durable Reader-child links, zero Reader mutation during import, PDF sidecar-only creation, unchanged PDF bytes, rollback, and pre-Sync outbound deduplication.
 
 This is a performance/throughput tuning patch, not a new locator or identity gate. Per explicit user request it is released without a new physical PW3 acceptance; automated Lua and package CI remain required.
+
+# V1.3 addendum — Reader metadata editing
+
+Status: **implementation/off-device validation complete; final PW3 acceptance pending**.
+
+This is a post-V1 extension and does not retroactively change the original V1 non-goal of a full Reader taxonomic-management UI. V1.3 deliberately exposes only the bounded metadata needed for the Kindle reading workflow:
+
+- Reader document tags;
+- Reader document note;
+- Reader highlight tags;
+- existing linked-highlight note editing/clearing through the already-proven annotation path.
+
+## Identity and mutation authority
+
+- A document metadata edit is keyed only by durable `reader_document_id`.
+- An existing-highlight metadata edit requires durable `reader_highlight_document_id`, `category=highlight`, and the expected `parent_id`; text/title heuristics are forbidden.
+- A newly-created local highlight may receive Reader tags before first Sync. KOReader creates/persists the real local annotation first; tag intent is then stored by that durable local annotation identity and is included in the existing Reader create POST. No synthetic highlight ID is invented.
+- Reader v3 `PATCH /api/v3/update/<id>/` is the metadata write path for document notes/tags and linked-highlight tags. Existing v1.2 note interoperability rules remain authoritative for linked-highlight note edits.
+
+## Durable queue and offline rules
+
+- UI edits never directly PATCH Reader. They produce durable SQLite intent.
+- Ordinary `Sync now` processes metadata intent only after the existing read-only Readwise auth/reachability preflight succeeds.
+- Offline/auth/rate-limit/retryable failures retain recoverable queue state and do not advance a metadata intent as successful.
+- A PATCH timeout/ambiguous response is followed by a fresh Reader GET on the next eligible attempt. If the desired state is already present, reconcile without a second PATCH.
+- 404/identity mismatch/unsupported client state blocks safely rather than guessing.
+
+## Conflict semantics
+
+### Notes
+
+Document notes use a three-way baseline:
+- if Reader still equals the captured baseline, Kindle may apply the desired note;
+- if Reader already equals the desired Kindle note, reconcile without another PATCH;
+- if Reader differs from both baseline and desired note, block as a conflict and overwrite neither side.
+
+The UI then offers explicit resolution. **Keep Kindle** rebases the same desired note on the freshly-cached Reader value and requires a later `Sync now`; **Use Reader version** cancels the local queued edit. Clearing a note is represented by the empty string, not a placeholder.
+
+### Tags
+
+Tags use delta reconciliation, not whole-baseline overwrite. The queued intent stores the additions/removals relative to the Kindle baseline, then applies that delta to the freshly-read Reader tag set. This preserves unrelated concurrent remote changes while honoring the user's explicit add/remove operations. Tag ordering is normalized deterministically and duplicates/empty values are removed.
+
+## KOReader / Bookshelf projection
+
+After a successful document-tag mutation, the verified Reader response updates durable document metadata and schedules parent-process KOReader custom-metadata projection on the same managed local path. Tags continue to map to newline-separated `keywords` consumed by Bookshelf Genres. If normal document sync has already scheduled newer metadata for that path during the same run, that newer projection wins.
+
+## UI contract
+
+- Main Reader menu exposes **Reader metadata** only for the current Reader-managed document.
+- Document metadata surface provides Document tags and Document note.
+- KOReader highlight dialog gains **Reader tags** for the current Reader-managed document.
+- Tag picker supports selecting existing Reader tags, searching/filtering the loaded tag list, and adding a new free-text tag name.
+- No background sync is introduced; writes still require manual `Sync now`.
+
+## Gate M10 — final physical acceptance
+
+One consolidated PW3 session must cover document tag add/remove, document note create/edit/clear plus one conflict resolution, existing-highlight tag add/remove, new-highlight tag intent on first create, linked-highlight note clear, offline/restart persistence, reconnect delivery, no-op duplicate safety, Bookshelf Genre projection, and regression preservation of existing document progress/annotations. `v1.3.0` must not be tagged or merged as final until that matrix passes.

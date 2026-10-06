@@ -627,7 +627,10 @@ function Worker._applyMetadataMutationReport(sync_report, metadata_report, repos
             and local_document.is_local_present == true
             and type(local_document.local_path) == "string"
             and local_document.local_path ~= "" then
-            postprocess(local_document.local_path).metadata = copyMetadata(update)
+            local item = postprocess(local_document.local_path)
+            if item.metadata == nil then
+                item.metadata = copyMetadata(update)
+            end
         end
     end
     return sync_report

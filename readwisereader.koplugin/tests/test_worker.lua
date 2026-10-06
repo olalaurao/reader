@@ -136,5 +136,24 @@ return function()
     assert(projected.metadata.title == "Remote title")
     assert(projected.metadata.summary == "Remote summary")
     assert(projected.metadata.tags[1] == "reader-new")
+
+    projected.metadata = { title = "Newer document-sync metadata", tags = { "newer" } }
+    Worker._applyMetadataMutationReport({}, {
+        document_metadata_updates = {
+            { id = "doc-1", title = "Older metadata mutation result", tags = { "older" } },
+        },
+    }, {
+        getById = function()
+            return {
+                reader_id = "doc-1",
+                is_managed = true,
+                is_local_present = true,
+                local_path = "/Readwise/doc-1.epub",
+            }
+        end,
+    }, postprocess)
+    assert(projected.metadata.title == "Newer document-sync metadata",
+        "metadata mutation projection must not overwrite newer document-sync metadata")
+    assert(projected.metadata.tags[1] == "newer")
     assert(postprocess_by_path["doc-remote-only"] == nil)
 end
